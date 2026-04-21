@@ -1,0 +1,54 @@
+name: Release From Changelog
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (example: v1.2.0)"
+        required: true
+        type: string
+
+jobs:
+  draft-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract release notes from CHANGELOG
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text(encoding='utf-8')
+          marker = '## [Unreleased]'
+          if marker not in text:
+              raise SystemExit('Missing Unreleased section in CHANGELOG.md')
+
+          part = text.split(marker, 1)[1].strip()
+          lines = part.splitlines()
+          collected = []
+          for line in lines:
+              if line.startswith('## ['):
+                  break
+              collected.append(line)
+
+          notes = '\n'.join(collected).strip()
+          if not notes:
+              notes = 'No unreleased notes available.'
+          Path('release_notes.md').write_text(notes + '\n', encoding='utf-8')
+          PY
+
+      - name: Create draft GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: ${{ inputs.version }}
+          body_path: release_notes.md
+          draft: true
+          generate_release_notes: false
