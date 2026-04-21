@@ -289,17 +289,17 @@ class KartographMainWindow(tk.Tk):
         self.details_frame = ttk.Frame(self.editor_view)
         self.details_frame.pack(fill="x", padx=12, pady=(8, 12))
 
-        details_header = ttk.Frame(self.details_frame)
-        details_header.pack(fill="x")
+        self.details_header = ttk.Frame(self.details_frame, style="Panel.TFrame")
+        self.details_header.pack(fill="x")
 
-        ttk.Label(details_header, textvariable=self.status_var).pack(side="left")
-        ttk.Label(details_header, textvariable=self._selected_marker_var).pack(side="right")
+        ttk.Label(self.details_header, textvariable=self.status_var, style="Panel.TLabel").pack(side="left")
+        ttk.Label(self.details_header, textvariable=self._selected_marker_var, style="Panel.TLabel").pack(side="right")
 
-        form = ttk.Frame(self.details_frame)
-        form.pack(fill="x", pady=(4, 0))
+        self.details_form = ttk.Frame(self.details_frame, style="Panel.TFrame")
+        self.details_form.pack(fill="x", pady=(4, 0))
 
-        ttk.Label(form, text="Name").pack(side="left")
-        self.name_entry = ttk.Entry(form, textvariable=self._name_var, width=40)
+        ttk.Label(self.details_form, text="Name", style="Panel.TLabel").pack(side="left")
+        self.name_entry = ttk.Entry(self.details_form, textvariable=self._name_var, width=40)
         self.name_entry.pack(side="left", padx=(8, 16))
         self.name_entry.bind("<KeyRelease>", lambda _event: self._on_name_changed())
         self.name_entry.bind("<Escape>", self._on_name_entry_escape)
@@ -307,10 +307,10 @@ class KartographMainWindow(tk.Tk):
         self.name_entry.bind("<FocusIn>", self._on_name_entry_focus_in)
         self.name_entry.bind("<FocusOut>", self._on_name_entry_focus_out)
 
-        self.symbols_frame = ttk.Frame(self.details_frame)
+        self.symbols_frame = ttk.Frame(self.details_frame, style="Panel.TFrame")
         self.symbols_frame.pack(fill="x", pady=(6, 0))
 
-        self.symbol_legend_frame = ttk.Frame(self.details_frame)
+        self.symbol_legend_frame = ttk.Frame(self.details_frame, style="Panel.TFrame")
         self.symbol_legend_frame.pack(fill="x", pady=(4, 0))
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
@@ -513,11 +513,13 @@ class KartographMainWindow(tk.Tk):
         theme = THEMES[self.theme_key]
 
         self.configure(bg=theme["bg_main"])
+        self.style.configure("TFrame", background=theme["bg_panel"])
         self.style.configure("Main.TFrame", background=theme["bg_main"])
         self.style.configure("Panel.TFrame", background=theme["bg_panel"])
         self.style.configure("StrongPanel.TFrame", background=theme["panel_strong"])
 
-        self.style.configure("TLabel", background=theme["bg_main"], foreground=theme["fg_main"])
+        self.style.configure("TLabel", background=theme["bg_panel"], foreground=theme["fg_main"])
+        self.style.configure("Main.TLabel", background=theme["bg_main"], foreground=theme["fg_main"])
         self.style.configure("Panel.TLabel", background=theme["bg_panel"], foreground=theme["fg_main"])
         self.style.configure("StrongPanel.TLabel", background=theme["panel_strong"], foreground=theme["fg_main"])
 
