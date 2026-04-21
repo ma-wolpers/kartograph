@@ -31,6 +31,7 @@ build/
 .env.*
 
 # User and machine local configuration
+config/kartograph_settings.json
 
 # Temp outputs
 Temp/
