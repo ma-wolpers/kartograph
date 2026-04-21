@@ -59,8 +59,8 @@ class PdfSeatingPlanExporter:
             draw_y = top_y - (y - min_y + 1) * cell_size
 
             if desk.desk_type == "teacher":
-                c.setFillColor(colors.HexColor("#FDE68A"))
-                c.setStrokeColor(colors.HexColor("#B45309"))
+                c.setFillColor(colors.HexColor("#9A6A24"))
+                c.setStrokeColor(colors.HexColor("#7A521B"))
                 border = 1.8
             else:
                 c.setFillColor(colors.HexColor("#DBEAFE"))
@@ -71,7 +71,7 @@ class PdfSeatingPlanExporter:
             c.rect(draw_x, draw_y, cell_size, cell_size, fill=1, stroke=1)
 
             if desk.desk_type == "teacher":
-                c.setFillColor(colors.black)
+                c.setFillColor(colors.white)
                 c.setFont("Helvetica-Bold", max(6, int(cell_size * 0.11)))
                 c.drawCentredString(draw_x + cell_size / 2, draw_y + cell_size * 0.55, "Lehrertisch")
                 continue

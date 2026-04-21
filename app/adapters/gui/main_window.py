@@ -504,6 +504,23 @@ class KartographMainWindow(tk.Tk):
             insertcolor=theme["fg_main"],
         )
 
+        self.style.configure(
+            "Horizontal.TScrollbar",
+            troughcolor=theme["scroll_trough"],
+            background=theme["scroll_thumb"],
+            bordercolor=theme["grid_line"],
+            arrowcolor=theme["fg_muted"],
+        )
+        self.style.map("Horizontal.TScrollbar", background=[("active", theme["scroll_thumb_active"])])
+        self.style.configure(
+            "Vertical.TScrollbar",
+            troughcolor=theme["scroll_trough"],
+            background=theme["scroll_thumb"],
+            bordercolor=theme["grid_line"],
+            arrowcolor=theme["fg_muted"],
+        )
+        self.style.map("Vertical.TScrollbar", background=[("active", theme["scroll_thumb_active"])])
+
         self.main_frame.configure(style="Main.TFrame")
         self.list_view.configure(style="Panel.TFrame")
         self.list_toolbar.configure(style="StrongPanel.TFrame")
@@ -837,7 +854,7 @@ class KartographMainWindow(tk.Tk):
                     if desk.desk_type == "teacher":
                         fill = theme["teacher_fill"]
                         main_text = "Lehrertisch"
-                        text_color = theme["fg_main"]
+                        text_color = theme["teacher_text"]
                     else:
                         fill = theme["student_fill"]
                         main_text = desk.student_name or "Schülertisch"

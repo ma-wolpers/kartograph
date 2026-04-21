@@ -142,7 +142,7 @@ DEFAULT_THEME = "mono_day"
 
 
 def _map_theme(raw: dict[str, str]) -> dict[str, str]:
-    teacher_fill = raw.get("warning", raw["accent"])
+    teacher_fill = "#9A6A24"
     student_fill = raw.get("accent_soft", raw["bg_panel"])
     empty_fill = raw["bg_surface"]
     return {
@@ -156,8 +156,12 @@ def _map_theme(raw: dict[str, str]) -> dict[str, str]:
         "fg_muted": raw["fg_muted"],
         "grid_line": raw.get("border", raw["panel_strong"]),
         "teacher_fill": teacher_fill,
+        "teacher_text": "#FFFFFF",
         "student_fill": student_fill,
         "empty_fill": empty_fill,
+        "scroll_trough": raw["panel_strong"],
+        "scroll_thumb": raw["bg_panel"],
+        "scroll_thumb_active": raw.get("accent_soft", raw["bg_panel"]),
         "accent": raw["accent"],
         "focus_ring": raw["focus_ring"],
         "danger": raw.get("danger", "#C83A45"),
