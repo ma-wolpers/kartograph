@@ -335,7 +335,7 @@ class KartographMainWindow(tk.Tk):
         if not self.name_entry.winfo_exists():
             self._log_enter_debug("focus_name_entry.skip.no_widget")
             return
-        if self.name_entry.cget("state") != "normal":
+        if not self.name_entry.instate(["!disabled"]):
             self._log_enter_debug("focus_name_entry.skip.not_normal")
             return
         self.interaction_mode = NAME_EDITING
@@ -350,7 +350,7 @@ class KartographMainWindow(tk.Tk):
             self._log_enter_debug("focus_name_entry.retry.abort.no_widget")
             return
 
-        if self.name_entry.cget("state") == "normal":
+        if self.name_entry.instate(["!disabled"]):
             self._focus_name_entry_cursor_end()
             return
 
@@ -818,6 +818,12 @@ class KartographMainWindow(tk.Tk):
             self._log_enter_debug("enter_name_edit_mode.created_student_desk")
 
         self._refresh_details_panel()
+
+        active_desk = self.current_plan.desk_at(x, y)
+        if active_desk and active_desk.desk_type == "student":
+            self.name_entry.configure(state="normal")
+            self._name_var.set(active_desk.student_name)
+
         self.after_idle(lambda: self._focus_name_entry_cursor_end_with_retry(0))
         self._log_enter_debug("enter_name_edit_mode.schedule_focus_retry")
 
