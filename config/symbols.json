@@ -3,6 +3,7 @@
     {
       "codepoint": "1F446",
       "meaning": "Beteiligung",
+      "shortcut": "b",
       "legend": {
         "three": "beteiligt sich unaufgefordert, kontinuierlich und verlässlich am Lerngespräch, trägt durch Beiträge und Ergebnisse aktiv dazu bei, den Lernprozess weiter zu entwickeln.",
         "two": "beteiligt sich gelegentlich, zeigt in Ansätzen Bereitschaft, das Lerngespräch als Lerngelegenheit zu nutzen, trägt gelegentlich durch Beiträge und Ergebnisse zur Weiterentwicklung des Lernprozesses bei.",
@@ -12,6 +13,7 @@
     {
       "codepoint": "221E",
       "meaning": "Kooperation",
+      "shortcut": "k",
       "legend": {
         "three": "arbeitet ziel-, teamorientiert und aufgabenbezogen mit den Gruppenpartner/innen bzw. mit der/m Partner/in • übernimmt Verantwortung für Rollen, Aufgaben und die Integration von Gruppenmitgliedern • bringt regelmäßig eigene Anregungen/Ideen in die Gruppe ein • trägt eigeninitiativ und aktiv zum gemeinsamen Gruppenergebnis bei • unterstützt andere eigeninitiativ",
         "two": "arbeitet überwiegend zielorientiert und aufgabenbezogen in der Gruppe bzw. mit der/m Partner/in • übernimmt auf Aufforderung Verantwortung für Rollen, Aufgaben und die Gruppenmitglieder • bringt selten eigene Anregungen in die Gruppe ein • trägt aufgabengeleitet zum gemeinsamen Gruppenergebnis bei • unterstützt andere situationsbezogen",
@@ -21,6 +23,7 @@
     {
       "codepoint": "1F5E9",
       "meaning": "Interaktion",
+      "shortcut": "i",
       "legend": {
         "three": "kann sichtbar aktiv zuhören/lässt andere ausreden • geht sensibel auf Beiträge der/des Partnerin/s bzw. der Gruppenmitglieder ein • kommuniziert aktiv mit allen Gruppenmitgliedern • kann seine/ihre Meinung/Position aktiv und überzeugend vertreten • beachtet vereinbarte Gesprächsregeln konsequent • respektiert andere Positionen/Meinungen • zeigt Empathie/Perspektivübernahme • zeigt Wertschätzung",
         "two": "kann erkennbar aufmerksam zuhören/andere ausreden lassen • nimmt Beiträge der Gruppe bzw. der/des Partnerin/s wahr und reagiert angemessen • kann seine/ihre Meinung/Position anlassbezogen einbringen • beachtet fast durchgehend vereinbarte Gesprächsregeln • respektiert andere Positionen/Meinungen situations- und personenbezogen • agiert überwiegend wertschätzend",
@@ -30,6 +33,7 @@
     {
       "codepoint": "1F5F2",
       "meaning": "Konfliktfähigkeit",
+      "shortcut": "f",
       "legend": {
         "three": "nimmt Kritik offen auf und äußert Kritik konstruktiv • kann eigeninitiativ und situationsangemessen Missverständnisse klären und Positionen fair aushandeln • kann Konfliktlösungsstrategien anwenden • agiert konsensbezogen • zeigt Kompromissbereitschaft • thematisiert Konflikte selbstständig (Metaebene)",
         "two": "akzeptiert Kritik mit Einschränkungen • beteiligt sich daran, Missverständnisse zu klären • regelt Konflikte spontan/intuitiv • agiert weitgehend konsensbezogen • zeigt ansatzweise Kompromissbereitschaft • kann Konflikte thematisieren",
@@ -39,6 +43,7 @@
     {
       "codepoint": "1F590",
       "meaning": "Aufgabenbearbeitung",
+      "shortcut": "a",
       "legend": {
         "three": "kann Lernschritte selbständig planen und Ergebnisse mit Hilfe von Lösungen überprüfen, Fehler erkennen und korrigieren sowie den Lernweg erklären",
         "two": "kann einzelne Lernschritte selbständig lösen, benötigt nur gelegentlich auf Anfrage Hilfestellung (durch Lehrkraft, Partner/Partnerin, Hilfekarten) Unterstützung",
@@ -48,6 +53,7 @@
     {
       "codepoint": "1F5CE",
       "meaning": "Umgang mit Material",
+      "shortcut": "m",
       "legend": {
         "three": "erkennt eigeständig, welche Materialien wann erforderlich sind und kann diese selbständig organisieren, strukturieren und situativ passend bereit halten",
         "two": "kann Materialien in der Regel eigenständig organisieren, strukturieren und weitgehend ohne externe Aufforderung bereit halten",
@@ -57,6 +63,7 @@
     {
       "codepoint": "264B",
       "meaning": "Visualisierung",
+      "shortcut": "v",
       "legend": {
         "three": "kann eigene Visualisierungen zur Darstellung komplexer Strukturen und Zusammenhängen erstellen sowie diese vortragen/ erklären/ begründen und reflektieren",
         "two": "kann komplexe Strukturen (Texte, Zusammenhänge) unter Anleitung (Aufgabenstellung) in einfache sowie teilweise auch komplexe Visualisierungen oder andere Darstellungsformen umsetzen und diese erklären",

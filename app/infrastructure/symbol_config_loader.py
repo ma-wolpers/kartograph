@@ -9,6 +9,7 @@ from pathlib import Path
 class SymbolDefinition:
     meaning: str
     glyph: str
+    shortcut: str | None
     legend_one: str
     legend_two: str
     legend_three: str
@@ -26,6 +27,7 @@ _DEFAULT_SYMBOLS_PAYLOAD = {
         {
             "codepoint": "1F4BB",
             "meaning": "Laptop",
+            "shortcut": "l",
             "legend": {
                 "three": "arbeitet durchgaengig digital",
                 "two": "arbeitet phasenweise digital",
@@ -35,6 +37,7 @@ _DEFAULT_SYMBOLS_PAYLOAD = {
         {
             "codepoint": "1F4F1",
             "meaning": "Tablet",
+            "shortcut": "t",
             "legend": {
                 "three": "arbeitet sicher am Tablet",
                 "two": "arbeitet meist sicher am Tablet",
@@ -44,6 +47,7 @@ _DEFAULT_SYMBOLS_PAYLOAD = {
         {
             "codepoint": "2757",
             "meaning": "Beteiligung",
+            "shortcut": "b",
             "legend": {
                 "three": "meldet sich sehr haeufig",
                 "two": "meldet sich regelmaessig",
@@ -69,6 +73,15 @@ def _parse_codepoint(raw_value: object) -> str | None:
         return chr(int(text, 16))
     except (TypeError, ValueError):
         return None
+
+
+def _parse_shortcut(raw_value: object) -> str | None:
+    text = str(raw_value or "").strip().lower()
+    if not text:
+        return None
+    if len(text) != 1:
+        return None
+    return text
 
 
 def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | None]:
@@ -97,6 +110,7 @@ def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | N
 
         meaning = str(item.get("meaning") or "").strip()
         glyph = _parse_codepoint(item.get("codepoint"))
+        shortcut = _parse_shortcut(item.get("shortcut"))
         legend = item.get("legend")
         if not meaning or glyph is None or not isinstance(legend, dict):
             continue
@@ -111,6 +125,7 @@ def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | N
             SymbolDefinition(
                 meaning=meaning,
                 glyph=glyph,
+                shortcut=shortcut,
                 legend_one=one,
                 legend_two=two,
                 legend_three=three,

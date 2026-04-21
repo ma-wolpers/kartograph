@@ -88,6 +88,7 @@ class KartographMainWindow(tk.Tk):
         self.symbol_definitions, warning = self._load_symbols()
         self.symbol_catalog = [item.meaning for item in self.symbol_definitions]
         self._symbol_by_meaning = {item.meaning: item for item in self.symbol_definitions}
+        self._shortcut_to_symbol = self._build_symbol_shortcut_map(self.symbol_definitions)
         self.pdf_exporter = PdfSeatingPlanExporter(self.symbol_definitions)
         if warning:
             self.status_var.set(warning)
@@ -293,6 +294,14 @@ class KartographMainWindow(tk.Tk):
         self.canvas.bind("<Left>", lambda _event: self._handle_intent(UiIntent.MOVE_LEFT))
         self.canvas.bind("<Right>", lambda _event: self._handle_intent(UiIntent.MOVE_RIGHT))
 
+        for shortcut, symbol_name in self._shortcut_to_symbol.items():
+            self.bind_all(f"<KeyPress-{shortcut}>", lambda event, s=symbol_name: self._on_symbol_shortcut(event, s), add="+")
+            self.bind_all(
+                f"<KeyPress-{shortcut.upper()}>",
+                lambda event, s=symbol_name: self._on_symbol_shortcut(event, s),
+                add="+",
+            )
+
     def _handle_intent(self, intent: str) -> str | None:
         return self.ui_intent_controller.handle_intent(intent)
 
@@ -332,6 +341,35 @@ class KartographMainWindow(tk.Tk):
 
     def _is_name_entry_focused(self) -> bool:
         return self.focus_get() == self.name_entry
+
+    def _build_symbol_shortcut_map(self, definitions: list[SymbolDefinition]) -> dict[str, str]:
+        mapping: dict[str, str] = {}
+        for definition in definitions:
+            if definition.shortcut is None:
+                continue
+            if definition.shortcut in mapping:
+                continue
+            mapping[definition.shortcut] = definition.meaning
+        return mapping
+
+    def _on_symbol_shortcut(self, _event, symbol_name: str) -> str | None:
+        if self._is_name_entry_focused():
+            return None
+        if not self.editor_view.winfo_ismapped():
+            return None
+        if not self.current_plan or not self.current_plan_path:
+            return None
+
+        x, y = self.selected_cell
+        desk = self.current_plan.desk_at(x, y)
+        if not desk or desk.desk_type != "student":
+            return None
+
+        self.current_plan = toggle_symbol(self.current_plan, x, y, symbol_name)
+        self._save_current_plan(f"Symbol '{symbol_name}' aktualisiert")
+        self.redraw_grid()
+        self._refresh_details_panel()
+        return "break"
 
     def _load_symbols(self) -> tuple[list[SymbolDefinition], str | None]:
         return load_symbol_definitions(self.symbols_path)
@@ -941,7 +979,9 @@ class KartographMainWindow(tk.Tk):
         for symbol in self.symbol_catalog:
             count = int(desk.symbols.get(symbol, 0))
             icon = self._symbol_glyph(symbol)
-            caption = f"{icon} {symbol}" if count == 0 else f"{icon} {symbol} x{count}"
+            shortcut = self._symbol_by_meaning.get(symbol).shortcut if self._symbol_by_meaning.get(symbol) else None
+            shortcut_suffix = f" [{shortcut.upper()}]" if shortcut else ""
+            caption = f"{icon} {symbol}{shortcut_suffix}" if count == 0 else f"{icon} {symbol} x{count}{shortcut_suffix}"
             button = ttk.Button(
                 self.symbols_frame,
                 text=caption,

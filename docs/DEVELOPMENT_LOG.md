@@ -19,6 +19,7 @@ Regel:
 - Plan-Laden abwaertskompatibel erweitert: Legacy-Listenformat fuer Symbole wird beim Einlesen in das neue Zaehlerformat migriert.
 - Detailbereich neu ausgerichtet: Status und Markierungsanzeige teilen sich jetzt eine gemeinsame Kopfzeile mit rechtsbuendigem Marker-Text.
 - Symbolkatalog und Legendenlogik auf user-editierbare Konfigurationsdatei `config/symbols.json` umgestellt, inklusive Validierung und Fallback-Erzeugung.
+- Symbolkonfiguration um optionale Shortcut-Buchstaben erweitert; bei markiertem Schuelertisch triggern Tastatur-Shortcuts direkt den zugeordneten Symbol-Button.
 - Symboldarstellung erweitert: unter Schuelernamen werden pro aktivem Symbol eigene Erklaerungszeilen mit count-basierter Legendenbedeutung gerendert.
 - Dateinamensstrategie fuer neue Plaene vereinfacht: keine Zufallsanhaenge mehr; Konflikte werden im GUI-Dialog explizit abgefragt (ueberschreiben oder erneut benennen).
 - PDF-Export (A4 quer) als Infrastructure-Modul eingefuehrt, mit Modusauswahl fuer Lehrertisch unten oder oben (180° Perspektive).
