@@ -9,7 +9,7 @@ on:
         type: string
 
 jobs:
-  draft-release:
+  release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -44,11 +44,11 @@ jobs:
           Path('release_notes.md').write_text(notes + '\n', encoding='utf-8')
           PY
 
-      - name: Create draft GitHub release
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.version }}
           name: ${{ inputs.version }}
           body_path: release_notes.md
-          draft: true
+          draft: false
           generate_release_notes: false
