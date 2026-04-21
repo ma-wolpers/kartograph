@@ -1,0 +1,31 @@
+{
+  "symbols": [
+    {
+      "codepoint": "1F4BB",
+      "meaning": "Laptop",
+      "legend": {
+        "three": "arbeitet durchgaengig digital",
+        "two": "arbeitet phasenweise digital",
+        "one": "braucht digitales Material"
+      }
+    },
+    {
+      "codepoint": "1F4F1",
+      "meaning": "Tablet",
+      "legend": {
+        "three": "arbeitet sicher am Tablet",
+        "two": "arbeitet meist sicher am Tablet",
+        "one": "braucht Unterstuetzung am Tablet"
+      }
+    },
+    {
+      "codepoint": "1F446",
+      "meaning": "Beteiligung",
+      "legend": {
+        "three": "beteiligt sich unaufgefordert, kontinuierlich und verlässlich am Lerngespräch, trägt durch Beiträge und Ergebnisse aktiv dazu bei, den Lernprozess weiter zu entwickeln",
+        "two": "meldet sich regelmaessig",
+        "one": "meldet sich gelegentlich"
+      }
+    }
+  ]
+}

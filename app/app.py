@@ -10,8 +10,8 @@ from app.infrastructure.repositories.settings_repository import JsonSettingsRepo
 def main() -> None:
     workspace_root = Path(__file__).resolve().parents[1]
     config_path = workspace_root / "config" / "kartograph_settings.json"
+    symbols_path = workspace_root / "config" / "symbols.json"
     default_plans_dir = workspace_root / "plans"
-    symbols_path = workspace_root / "app" / "resources" / "symbols.json"
 
     settings_repository = JsonSettingsRepository(config_path=config_path)
     plan_repository = JsonSeatingPlanRepository()

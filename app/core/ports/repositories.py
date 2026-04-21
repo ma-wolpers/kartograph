@@ -16,7 +16,7 @@ class SeatingPlanRepository(Protocol):
     def save_plan(self, plan: SeatingPlan, plan_path: Path) -> None:
         ...
 
-    def create_new_plan(self, plans_dir: Path, plan_name: str) -> tuple[Path, SeatingPlan]:
+    def create_new_plan(self, plans_dir: Path, plan_name: str, overwrite: bool = False) -> tuple[Path, SeatingPlan]:
         ...
 
 

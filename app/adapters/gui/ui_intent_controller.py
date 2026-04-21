@@ -56,4 +56,7 @@ class MainWindowUiIntentController:
         if intent == UiIntent.TOGGLE_THEME:
             self.app.toggle_theme()
             return "break"
+        if intent == UiIntent.EXPORT_PDF:
+            self.app.export_plan_pdf_dialog()
+            return "break"
         return None

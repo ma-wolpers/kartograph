@@ -32,11 +32,10 @@ class JsonSeatingPlanRepository:
         )
         tmp_path.replace(plan_path)
 
-    def create_new_plan(self, plans_dir: Path, plan_name: str) -> tuple[Path, SeatingPlan]:
+    def create_new_plan(self, plans_dir: Path, plan_name: str, overwrite: bool = False) -> tuple[Path, SeatingPlan]:
         plans_dir.mkdir(parents=True, exist_ok=True)
         base_name = self._slugify(plan_name or "Neuer Sitzplan")
-        plan_id = uuid.uuid4().hex[:8]
-        file_name = f"{base_name}-{plan_id}.json"
+        file_name = f"{base_name}.json"
         plan = SeatingPlan(
             version=1,
             plan_id=uuid.uuid4().hex,
@@ -44,6 +43,8 @@ class JsonSeatingPlanRepository:
             desks=[Desk(x=0, y=0, desk_type="teacher")],
         )
         plan_path = plans_dir / file_name
+        if plan_path.exists() and not overwrite:
+            raise FileExistsError(f"Plandatei existiert bereits: {plan_path.name}")
         self.save_plan(plan, plan_path)
         return plan_path, plan
 

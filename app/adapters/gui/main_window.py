@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
@@ -16,22 +15,13 @@ from app.core.usecases.plan_usecases import (
     toggle_symbol,
     update_student_name,
 )
+from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
+from app.infrastructure.symbol_config_loader import SymbolDefinition, load_symbol_definitions
 
 SCROLL_REGION = 220000
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
-
-SYMBOL_GLYPH_MAP: dict[str, str] = {
-    "Laptop": "💻",
-    "Tablet": "📱",
-    "Hilfe": "❗",
-    "Teamleiter": "⭐",
-    "Leise": "🤫",
-    "Aktiv": "⚡",
-    "Foerderbedarf": "🧩",
-    "Praesentation": "🎤",
-}
 
 
 class KartographMainWindow(tk.Tk):
@@ -62,13 +52,19 @@ class KartographMainWindow(tk.Tk):
         self._settings = self.settings_repository.load_settings()
         self.plans_dir = Path(self._settings.get("plans_dir") or self.default_plans_dir)
         self.theme_key = normalize_theme_key(self._settings.get("theme"))
-        self.symbol_catalog = self._load_symbols()
 
         self.ui_intent_controller = MainWindowUiIntentController(self)
 
         self._name_var = tk.StringVar(value="")
-        self._selected_info_var = tk.StringVar(value="")
+        self._selected_marker_var = tk.StringVar(value="")
         self.status_var = tk.StringVar(value="Bereit")
+
+        self.symbol_definitions, warning = self._load_symbols()
+        self.symbol_catalog = [item.meaning for item in self.symbol_definitions]
+        self._symbol_by_meaning = {item.meaning: item for item in self.symbol_definitions}
+        self.pdf_exporter = PdfSeatingPlanExporter(self.symbol_definitions)
+        if warning:
+            self.status_var.set(warning)
 
         self._build_menu_bar()
         self._build_layout()
@@ -83,6 +79,7 @@ class KartographMainWindow(tk.Tk):
 
         file_menu = tk.Menu(menubar, tearoff=False)
         file_menu.add_command(label="Neu (Strg+N)", command=lambda: self._handle_intent(UiIntent.NEW_PLAN))
+        file_menu.add_command(label="Export PDF", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF))
         file_menu.add_command(label="Einstellungen", command=lambda: self._handle_intent(UiIntent.OPEN_SETTINGS))
         file_menu.add_separator()
         file_menu.add_command(label="Zur Planliste", command=lambda: self._handle_intent(UiIntent.GO_TO_LIST))
@@ -180,6 +177,14 @@ class KartographMainWindow(tk.Tk):
         add_symbol_button.pack(side="left", padx=(8, 0))
         self._bind_editor_return_override(add_symbol_button)
 
+        export_pdf_button = ttk.Button(
+            self.editor_topbar,
+            text="PDF exportieren",
+            command=lambda: self._handle_intent(UiIntent.EXPORT_PDF),
+        )
+        export_pdf_button.pack(side="left", padx=(8, 0))
+        self._bind_editor_return_override(export_pdf_button)
+
         set_teacher_button = ttk.Button(
             self.editor_topbar,
             text="Als Lehrertisch setzen",
@@ -219,7 +224,11 @@ class KartographMainWindow(tk.Tk):
         self.details_frame = ttk.Frame(self.editor_view)
         self.details_frame.pack(fill="x", padx=12, pady=(8, 12))
 
-        ttk.Label(self.details_frame, textvariable=self._selected_info_var).pack(anchor="w")
+        details_header = ttk.Frame(self.details_frame)
+        details_header.pack(fill="x")
+
+        ttk.Label(details_header, textvariable=self.status_var).pack(side="left")
+        ttk.Label(details_header, textvariable=self._selected_marker_var).pack(side="right")
 
         form = ttk.Frame(self.details_frame)
         form.pack(fill="x", pady=(4, 0))
@@ -236,7 +245,8 @@ class KartographMainWindow(tk.Tk):
         self.symbols_frame = ttk.Frame(self.details_frame)
         self.symbols_frame.pack(fill="x", pady=(6, 0))
 
-        ttk.Label(self.editor_view, textvariable=self.status_var).pack(anchor="w", padx=12, pady=(0, 8))
+        self.symbol_legend_frame = ttk.Frame(self.details_frame)
+        self.symbol_legend_frame.pack(fill="x", pady=(4, 0))
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
         self.canvas.bind("<Double-Button-1>", self._on_canvas_double_click)
@@ -297,17 +307,8 @@ class KartographMainWindow(tk.Tk):
     def _is_name_entry_focused(self) -> bool:
         return self.focus_get() == self.name_entry
 
-    def _load_symbols(self) -> list[str]:
-        try:
-            payload = json.loads(self.symbols_path.read_text(encoding="utf-8"))
-            symbols = payload.get("symbols")
-            if isinstance(symbols, list):
-                values = [str(value).strip() for value in symbols if str(value).strip()]
-                if values:
-                    return values
-        except Exception:
-            pass
-        return ["Laptop", "Tablet", "Hilfe"]
+    def _load_symbols(self) -> tuple[list[SymbolDefinition], str | None]:
+        return load_symbol_definitions(self.symbols_path)
 
     def _on_theme_changed(self) -> None:
         self.theme_key = normalize_theme_key(self.theme_var.get())
@@ -385,7 +386,7 @@ class KartographMainWindow(tk.Tk):
         self.plan_listbox.delete(0, tk.END)
         for path, plan in self._plan_index:
             student_count = sum(1 for desk in plan.desks if desk.desk_type == "student")
-            label = f"{plan.name}  |  {student_count} Schülertische  |  {path.name}"
+            label = f"{plan.name}  |  {student_count} Schülertische"
             self.plan_listbox.insert(tk.END, label)
 
         self._ensure_list_selection(preferred_path=preferred_path)
@@ -455,18 +456,34 @@ class KartographMainWindow(tk.Tk):
         self._refresh_details_panel()
 
     def create_new_plan_dialog(self) -> None:
-        plan_name = simpledialog.askstring("Neuer Sitzplan", "Name des neuen Sitzplans:", parent=self)
-        if plan_name is None:
-            return
+        while True:
+            plan_name = simpledialog.askstring("Neuer Sitzplan", "Name der Lerngruppe:", parent=self)
+            if plan_name is None:
+                return
 
-        try:
-            plan_path, _plan = self.plan_repository.create_new_plan(self.plans_dir, plan_name)
-        except Exception as exc:
-            messagebox.showerror("Fehler", f"Neuer Sitzplan konnte nicht erstellt werden:\n{exc}")
-            return
-
-        self.refresh_plan_list()
-        self.open_plan(plan_path)
+            try:
+                plan_path, _plan = self.plan_repository.create_new_plan(self.plans_dir, plan_name)
+                self.refresh_plan_list()
+                self.open_plan(plan_path)
+                return
+            except FileExistsError:
+                overwrite = messagebox.askyesnocancel(
+                    "Datei existiert bereits",
+                    "Für diese Lerngruppe existiert bereits ein Plan. Überschreiben?",
+                    parent=self,
+                )
+                if overwrite is None:
+                    return
+                if overwrite:
+                    plan_path, _plan = self.plan_repository.create_new_plan(self.plans_dir, plan_name, overwrite=True)
+                    self.refresh_plan_list()
+                    self.open_plan(plan_path)
+                    return
+                # overwrite == False: erneut Namen fragen
+                continue
+            except Exception as exc:
+                messagebox.showerror("Fehler", f"Neuer Sitzplan konnte nicht erstellt werden:\n{exc}")
+                return
 
     def open_settings_dialog(self) -> None:
         dialog = tk.Toplevel(self)
@@ -625,7 +642,7 @@ class KartographMainWindow(tk.Tk):
                 fill = theme["empty_fill"]
                 text_color = theme["fg_muted"]
                 main_text = ""
-                symbol_text = ""
+                symbol_lines: list[str] = []
 
                 if desk:
                     if desk.desk_type == "teacher":
@@ -635,7 +652,7 @@ class KartographMainWindow(tk.Tk):
                     else:
                         fill = theme["student_fill"]
                         main_text = desk.student_name or "Schülertisch"
-                        symbol_text = self._symbol_line(desk.symbols)
+                        symbol_lines = self._symbol_lines(desk.symbols)
                         text_color = theme["fg_main"]
 
                 self.canvas.create_rectangle(
@@ -650,7 +667,7 @@ class KartographMainWindow(tk.Tk):
                 )
 
                 if main_text:
-                    anchor_y = y1 + self.cell_size / 2 if not symbol_text else y1 + self.cell_size * 0.35
+                    anchor_y = y1 + self.cell_size / 2 if not symbol_lines else y1 + self.cell_size * 0.22
                     self.canvas.create_text(
                         x1 + self.cell_size / 2,
                         anchor_y,
@@ -660,15 +677,24 @@ class KartographMainWindow(tk.Tk):
                         tags=("grid",),
                     )
 
-                if symbol_text:
-                    self.canvas.create_text(
-                        x1 + self.cell_size / 2,
-                        y1 + self.cell_size * 0.72,
-                        text=symbol_text,
-                        fill=theme["fg_muted"],
-                        font=("Segoe UI", max(7, int(self.cell_size * 0.1))),
-                        tags=("grid",),
-                    )
+                if symbol_lines:
+                    available_h = self.cell_size * 0.56
+                    raw_symbol_font = int(available_h / max(1, len(symbol_lines)) - 1)
+                    symbol_font = max(4, min(int(self.cell_size * 0.08), raw_symbol_font))
+                    line_height = max(symbol_font + 1, 5)
+                    start_y = y1 + self.cell_size * 0.42
+
+                    for idx, line in enumerate(symbol_lines):
+                        max_chars = max(4, int((self.cell_size * 0.9) / max(4, symbol_font * 0.55)))
+                        clipped = line if len(line) <= max_chars else line[: max_chars - 1] + "…"
+                        self.canvas.create_text(
+                            x1 + self.cell_size / 2,
+                            start_y + idx * line_height,
+                            text=clipped,
+                            fill=theme["fg_muted"],
+                            font=("Segoe UI", symbol_font),
+                            tags=("grid",),
+                        )
 
         sx, sy = self.selected_cell
         x1 = sx * self.cell_size
@@ -686,26 +712,40 @@ class KartographMainWindow(tk.Tk):
         )
 
     def _symbol_glyph(self, symbol_name: str) -> str:
-        return SYMBOL_GLYPH_MAP.get(symbol_name, "•")
+        symbol = self._symbol_by_meaning.get(symbol_name)
+        if symbol is None:
+            return "•"
+        return symbol.glyph
 
-    def _symbol_line(self, symbols: dict[str, int]) -> str:
+    def _symbol_lines(self, symbols: dict[str, int]) -> list[str]:
         if not symbols:
-            return ""
+            return []
 
-        chunks: list[str] = []
+        lines: list[str] = []
         for symbol_name in self.symbol_catalog:
             count = int(symbols.get(symbol_name, 0))
-            if 1 <= count <= 3:
-                chunks.append(self._symbol_glyph(symbol_name) * count)
+            if count < 1:
+                continue
+            count = min(3, count)
+            glyph = self._symbol_glyph(symbol_name)
+            definition = self._symbol_by_meaning.get(symbol_name)
+            if definition is None:
+                legend_text = symbol_name
+            else:
+                legend_text = definition.legend_for_count(count)
+            lines.append(f"{glyph * count} {legend_text}".strip())
 
         for symbol_name, raw_count in sorted(symbols.items()):
             if symbol_name in self.symbol_catalog:
                 continue
             count = int(raw_count)
-            if 1 <= count <= 3:
-                chunks.append(self._symbol_glyph(symbol_name) * count)
+            if count < 1:
+                continue
+            count = min(3, count)
+            glyph = self._symbol_glyph(symbol_name)
+            lines.append(f"{glyph * count} {symbol_name}".strip())
 
-        return "  ".join(chunks)
+        return lines
 
     def move_selection(self, dx: int, dy: int) -> None:
         if not self.editor_view.winfo_ismapped():
@@ -812,16 +852,18 @@ class KartographMainWindow(tk.Tk):
     def _refresh_details_panel(self) -> None:
         for child in self.symbols_frame.winfo_children():
             child.destroy()
+        for child in self.symbol_legend_frame.winfo_children():
+            child.destroy()
 
         if not self.current_plan:
-            self._selected_info_var.set("Kein Plan geöffnet")
+            self._selected_marker_var.set("")
             self._name_var.set("")
             self.name_entry.configure(state="disabled")
             return
 
         x, y = self.selected_cell
         desk = self.current_plan.desk_at(x, y)
-        self._selected_info_var.set(f"Markierung: ({x}, {y})")
+        self._selected_marker_var.set(f"Markierung: ({x}, {y})")
 
         if not desk:
             self._name_var.set("")
@@ -844,13 +886,18 @@ class KartographMainWindow(tk.Tk):
         for symbol in self.symbol_catalog:
             count = int(desk.symbols.get(symbol, 0))
             icon = self._symbol_glyph(symbol)
-            caption = symbol if count == 0 else f"{symbol} {icon * count}"
+            caption = f"{icon} {symbol}" if count == 0 else f"{icon} {symbol} x{count}"
             button = ttk.Button(
                 self.symbols_frame,
                 text=caption,
                 command=lambda s=symbol: self._toggle_selected_symbol(s),
             )
             button.pack(side="left", padx=(0, 4))
+
+        active_lines = self._symbol_lines(desk.symbols)
+        if active_lines:
+            for line in active_lines:
+                ttk.Label(self.symbol_legend_frame, text=line).pack(anchor="w")
 
     def _on_name_changed(self) -> None:
         if not self.current_plan or not self.current_plan_path:
@@ -916,6 +963,54 @@ class KartographMainWindow(tk.Tk):
         button_row = ttk.Frame(dialog)
         button_row.pack(fill="x", padx=12, pady=(0, 12))
         ttk.Button(button_row, text="Übernehmen", command=apply_choice).pack(side="right")
+
+    def export_plan_pdf_dialog(self) -> None:
+        if not self.current_plan or not self.current_plan_path:
+            self.status_var.set("Kein Plan geöffnet")
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title("PDF exportieren")
+        dialog.geometry("420x190")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        mode_var = tk.StringVar(value="teacher_bottom")
+        ttk.Label(dialog, text="Ansicht wählen").pack(anchor="w", padx=12, pady=(12, 6))
+        ttk.Radiobutton(
+            dialog,
+            text="Lehrertisch unten (Standard)",
+            value="teacher_bottom",
+            variable=mode_var,
+        ).pack(anchor="w", padx=12)
+        ttk.Radiobutton(
+            dialog,
+            text="Lehrertisch oben (180° Perspektive)",
+            value="teacher_top",
+            variable=mode_var,
+        ).pack(anchor="w", padx=12, pady=(4, 0))
+
+        def do_export() -> None:
+            output = filedialog.asksaveasfilename(
+                parent=dialog,
+                defaultextension=".pdf",
+                filetypes=[("PDF", "*.pdf")],
+                initialfile=f"{self.current_plan.name}.pdf",
+            )
+            if not output:
+                return
+
+            try:
+                self.pdf_exporter.export_plan(self.current_plan, Path(output), mode_var.get())
+                self.status_var.set(f"PDF exportiert: {Path(output).name}")
+                dialog.destroy()
+            except Exception as exc:
+                messagebox.showerror("PDF-Export fehlgeschlagen", str(exc), parent=dialog)
+
+        button_row = ttk.Frame(dialog)
+        button_row.pack(fill="x", padx=12, pady=(12, 12))
+        ttk.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
+        ttk.Button(button_row, text="Exportieren", command=do_export).pack(side="right", padx=(0, 8))
 
     def _save_current_plan(self, status: str) -> None:
         if not self.current_plan or not self.current_plan_path:

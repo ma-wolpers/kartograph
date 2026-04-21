@@ -15,3 +15,4 @@ class UiIntent:
     ZOOM_OUT = "viewport.zoom_out"
     GO_TO_LIST = "view.list"
     TOGGLE_THEME = "theme.toggle"
+    EXPORT_PDF = "export.pdf"
