@@ -6,6 +6,8 @@ The format is based on Keep a Changelog.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-22
+
 ### Added
 - Project guardrails for architecture docs, development log updates, and changelog governance.
 - Automated AI guardrail check in CI for repository policy compliance.
