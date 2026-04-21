@@ -9,7 +9,10 @@ from tkinter import font as tkfont
 from app.adapters.gui.ui_intent_controller import MainWindowUiIntentController
 from app.adapters.gui.ui_intents import UiIntent
 from app.adapters.gui.ui_theme import THEMES, normalize_theme_key, theme_names
-from app.core.domain.models import SeatingPlan
+from app.core.domain.desk_clipboard import DeskClipboard
+from app.core.domain.models import Desk, SeatingPlan
+from app.core.domain.plan_history import PlanHistory
+from app.core.domain.plan_selection import RectSelection
 from app.core.usecases.plan_usecases import (
     create_student_desk,
     delete_desk,
@@ -20,7 +23,9 @@ from app.core.usecases.plan_usecases import (
 from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
 from app.infrastructure.symbol_config_loader import SymbolDefinition, load_symbol_definitions
 
-SCROLL_REGION = 220000
+GRID_MIN = -50
+GRID_MAX = 50
+DEFAULT_CELL_SIZE = 92
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
@@ -72,9 +77,13 @@ class KartographMainWindow(tk.Tk):
         self.current_plan_path: Path | None = None
         self.current_plan: SeatingPlan | None = None
         self.selected_cell: tuple[int, int] = (0, 0)
-        self.cell_size = 92
+        self.selection = RectSelection(0, 0)
+        self._drag_active = False
+        self.cell_size = DEFAULT_CELL_SIZE
         self._plan_index: list[tuple[Path, SeatingPlan]] = []
         self.interaction_mode = LIST_ACTIVE
+        self.history = PlanHistory(max_undo_steps=20)
+        self._desk_clipboard = DeskClipboard()
 
         self._settings = self.settings_repository.load_settings()
         self.plans_dir = Path(self._settings.get("plans_dir") or self.default_plans_dir)
@@ -115,10 +124,20 @@ class KartographMainWindow(tk.Tk):
         file_menu.add_command(label="Beenden", command=self.destroy)
         menubar.add_cascade(label="Datei", menu=file_menu)
 
+        edit_menu = tk.Menu(menubar, tearoff=False)
+        edit_menu.add_command(label="Rueckgaengig (Strg+Z)", command=lambda: self._handle_intent(UiIntent.UNDO))
+        edit_menu.add_command(label="Wiederholen (Strg+Y)", command=lambda: self._handle_intent(UiIntent.REDO))
+        edit_menu.add_command(label="Letzte 5 rueckgaengig", command=lambda: self._handle_intent(UiIntent.UNDO_LAST_FIVE))
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Ausschneiden (Strg+X)", command=lambda: self._handle_intent(UiIntent.CUT))
+        edit_menu.add_command(label="Kopieren (Strg+C)", command=lambda: self._handle_intent(UiIntent.COPY))
+        edit_menu.add_command(label="Einfuegen (Strg+V)", command=lambda: self._handle_intent(UiIntent.PASTE))
+        menubar.add_cascade(label="Bearbeiten", menu=edit_menu)
+
         view_menu = tk.Menu(menubar, tearoff=False)
         self.theme_var = tk.StringVar(value=self.theme_key)
         for key in theme_names():
-            label = "Light" if key == "light" else "Dark"
+            label = THEMES[key].get("label", key)
             view_menu.add_radiobutton(label=label, value=key, variable=self.theme_var, command=self._on_theme_changed)
         menubar.add_cascade(label="Ansicht", menu=view_menu)
 
@@ -246,8 +265,8 @@ class KartographMainWindow(tk.Tk):
         self.canvas.configure(
             xscrollcommand=lambda a, b: self._on_canvas_xscroll(a, b),
             yscrollcommand=lambda a, b: self._on_canvas_yscroll(a, b),
-            scrollregion=(-SCROLL_REGION, -SCROLL_REGION, SCROLL_REGION, SCROLL_REGION),
         )
+        self._update_scroll_region()
 
         self.details_frame = ttk.Frame(self.editor_view)
         self.details_frame.pack(fill="x", padx=12, pady=(8, 12))
@@ -277,6 +296,8 @@ class KartographMainWindow(tk.Tk):
         self.symbol_legend_frame.pack(fill="x", pady=(4, 0))
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
+        self.canvas.bind("<B1-Motion>", self._on_canvas_drag)
+        self.canvas.bind("<ButtonRelease-1>", self._on_canvas_release)
         self.canvas.bind("<Double-Button-1>", self._on_canvas_double_click)
         self.canvas.bind("<Configure>", lambda _event: self.redraw_grid())
         self.canvas.bind("<MouseWheel>", self._on_mouse_wheel)
@@ -285,6 +306,12 @@ class KartographMainWindow(tk.Tk):
 
     def _bind_shortcuts(self) -> None:
         self.bind("<Control-n>", lambda _event: self._handle_intent(UiIntent.NEW_PLAN))
+        self.bind("<Control-0>", lambda _event: self._handle_intent(UiIntent.RESET_VIEW))
+        self.bind("<Control-z>", lambda _event: self._handle_intent(UiIntent.UNDO))
+        self.bind("<Control-y>", lambda _event: self._handle_intent(UiIntent.REDO))
+        self.bind("<Control-x>", lambda _event: self._handle_intent(UiIntent.CUT))
+        self.bind("<Control-c>", lambda _event: self._handle_intent(UiIntent.COPY))
+        self.bind("<Control-v>", lambda _event: self._handle_intent(UiIntent.PASTE))
         self.bind("<Delete>", lambda _event: self._handle_intent(UiIntent.DELETE_DESK))
         self.bind("<Escape>", lambda _event: self._handle_intent(UiIntent.ESCAPE))
         self.bind("<Return>", self._on_return_key)
@@ -294,6 +321,10 @@ class KartographMainWindow(tk.Tk):
         self.canvas.bind("<Down>", lambda _event: self._handle_intent(UiIntent.MOVE_DOWN))
         self.canvas.bind("<Left>", lambda _event: self._handle_intent(UiIntent.MOVE_LEFT))
         self.canvas.bind("<Right>", lambda _event: self._handle_intent(UiIntent.MOVE_RIGHT))
+        self.canvas.bind("<Shift-Up>", lambda _event: self._handle_intent(UiIntent.EXPAND_UP))
+        self.canvas.bind("<Shift-Down>", lambda _event: self._handle_intent(UiIntent.EXPAND_DOWN))
+        self.canvas.bind("<Shift-Left>", lambda _event: self._handle_intent(UiIntent.EXPAND_LEFT))
+        self.canvas.bind("<Shift-Right>", lambda _event: self._handle_intent(UiIntent.EXPAND_RIGHT))
 
         for shortcut, symbol_name in self._shortcut_to_symbol.items():
             self.bind_all(f"<KeyPress-{shortcut}>", lambda event, s=symbol_name: self._on_symbol_shortcut(event, s), add="+")
@@ -306,10 +337,73 @@ class KartographMainWindow(tk.Tk):
     def _handle_intent(self, intent: str) -> str | None:
         return self.ui_intent_controller.handle_intent(intent)
 
+    def _grid_pixel_bounds(self) -> tuple[float, float, float, float]:
+        min_x = GRID_MIN * self.cell_size
+        min_y = GRID_MIN * self.cell_size
+        max_x = (GRID_MAX + 1) * self.cell_size
+        max_y = (GRID_MAX + 1) * self.cell_size
+        return min_x, min_y, max_x, max_y
+
+    def _update_scroll_region(self) -> None:
+        min_x, min_y, max_x, max_y = self._grid_pixel_bounds()
+        self.canvas.configure(scrollregion=(min_x, min_y, max_x, max_y))
+
+    def _clamp_cell(self, x: int, y: int) -> tuple[int, int]:
+        return max(GRID_MIN, min(GRID_MAX, x)), max(GRID_MIN, min(GRID_MAX, y))
+
+    def _set_selection_single(self, x: int, y: int) -> None:
+        cx, cy = self._clamp_cell(x, y)
+        self.selection.set_single(cx, cy)
+        self.selected_cell = (cx, cy)
+
+    def _set_selection_focus(self, x: int, y: int) -> None:
+        cx, cy = self._clamp_cell(x, y)
+        self.selection.set_focus(cx, cy)
+        self.selected_cell = (cx, cy)
+
+    def _collapse_selection_to_anchor(self) -> None:
+        self.selection.collapse_to_anchor()
+        self.selected_cell = self.selection.anchor_cell()
+
+    def _record_and_save(self, new_plan: SeatingPlan, action_kind: str, status: str) -> None:
+        bounded = self._apply_bounds_to_plan(new_plan)
+        if not self.current_plan:
+            self.current_plan = bounded
+            return
+        if bounded == self.current_plan:
+            return
+        self.current_plan = bounded
+        self.history.record(self.current_plan, action_kind)
+        self._save_current_plan(status)
+
+    def _apply_loaded_plan(self, plan: SeatingPlan) -> SeatingPlan:
+        bounded = self._apply_bounds_to_plan(plan)
+        self.current_plan = bounded
+        self.history.reset(self.current_plan)
+        return bounded
+
+    def _apply_bounds_to_plan(self, plan: SeatingPlan) -> SeatingPlan:
+        teacher = plan.teacher_desk()
+        next_desks = [teacher]
+        seen: set[tuple[int, int]] = {(0, 0)}
+        for desk in plan.desks:
+            if desk.desk_type != "student":
+                continue
+            x, y = self._clamp_cell(desk.x, desk.y)
+            if (x, y) == (0, 0) or (x, y) in seen:
+                continue
+            next_desks.append(Desk(x=x, y=y, desk_type="student", student_name=desk.student_name, symbols=dict(desk.symbols)))
+            seen.add((x, y))
+        return SeatingPlan(version=plan.version, plan_id=plan.plan_id, name=plan.name, desks=next_desks)
+
     def _on_return_key(self, _event) -> str | None:
         if self._is_name_entry_focused():
             return "break"
         if self.editor_view.winfo_ismapped():
+            if not self.selection.is_single():
+                self._collapse_selection_to_anchor()
+                self.redraw_grid()
+                self._refresh_details_panel()
             return self._handle_intent(UiIntent.CONFIRM_SELECTION)
         if self.interaction_mode == LIST_ACTIVE:
             return self._handle_intent(UiIntent.LIST_OPEN_SELECTED)
@@ -356,20 +450,15 @@ class KartographMainWindow(tk.Tk):
     def _on_symbol_shortcut(self, _event, symbol_name: str) -> str | None:
         if self._is_name_entry_focused():
             return None
+        # Ignore control/alt-modified keys so shortcuts like Ctrl+C remain unaffected.
+        if _event.state & 0x0004 or _event.state & 0x0008:
+            return None
         if not self.editor_view.winfo_ismapped():
             return None
         if not self.current_plan or not self.current_plan_path:
             return None
 
-        x, y = self.selected_cell
-        desk = self.current_plan.desk_at(x, y)
-        if not desk or desk.desk_type != "student":
-            return None
-
-        self.current_plan = toggle_symbol(self.current_plan, x, y, symbol_name)
-        self._save_current_plan(f"Symbol '{symbol_name}' aktualisiert")
-        self.redraw_grid()
-        self._refresh_details_panel()
+        self._toggle_selected_symbol(symbol_name)
         return "break"
 
     def _load_symbols(self) -> tuple[list[SymbolDefinition], str | None]:
@@ -383,7 +472,9 @@ class KartographMainWindow(tk.Tk):
         self.redraw_grid()
 
     def toggle_theme(self) -> None:
-        self.theme_key = "dark" if self.theme_key == "light" else "light"
+        names = theme_names()
+        current_index = names.index(self.theme_key) if self.theme_key in names else 0
+        self.theme_key = names[(current_index + 1) % len(names)]
         self.theme_var.set(self.theme_key)
         self._on_theme_changed()
 
@@ -486,8 +577,7 @@ class KartographMainWindow(tk.Tk):
         self.list_view.pack_forget()
         self.editor_view.pack(fill="both", expand=True)
         self.interaction_mode = GRID_SELECTED
-        if not self.selected_cell:
-            self.selected_cell = (0, 0)
+        self._set_selection_single(*self.selection.active_cell())
         self.canvas.focus_set()
 
     def open_selected_plan_from_list(self) -> None:
@@ -511,9 +601,9 @@ class KartographMainWindow(tk.Tk):
             return
 
         self.current_plan_path = plan_path
-        self.current_plan = plan
+        self._apply_loaded_plan(plan)
         self.plan_name_var.set(f"Plan: {plan.name}")
-        self.selected_cell = (0, 0)
+        self._set_selection_single(0, 0)
 
         self.show_editor_view()
         self.center_on_cell(0, 0)
@@ -607,22 +697,40 @@ class KartographMainWindow(tk.Tk):
 
     def _on_canvas_click(self, event) -> None:
         x, y = self._event_to_cell(event)
-        self.selected_cell = (x, y)
+        self._set_selection_single(x, y)
+        self._drag_active = True
         self.interaction_mode = GRID_SELECTED
         self.canvas.focus_set()
         self.redraw_grid()
         self._refresh_details_panel()
 
+    def _on_canvas_drag(self, event) -> None:
+        if not self._drag_active:
+            return
+        x, y = self._event_to_cell(event)
+        self._set_selection_focus(x, y)
+        self.redraw_grid()
+        self._refresh_details_panel()
+
+    def _on_canvas_release(self, event) -> None:
+        if not self._drag_active:
+            return
+        self._drag_active = False
+        x, y = self._event_to_cell(event)
+        self._set_selection_focus(x, y)
+        self.redraw_grid()
+        self._refresh_details_panel()
+
     def _on_canvas_double_click(self, event) -> None:
         x, y = self._event_to_cell(event)
-        self.selected_cell = (x, y)
+        self._set_selection_single(x, y)
         self.confirm_selected_cell()
         self.enter_name_edit_mode()
 
     def _event_to_cell(self, event) -> tuple[int, int]:
         world_x = int((self.canvas.canvasx(event.x)) // self.cell_size)
         world_y = int((self.canvas.canvasy(event.y)) // self.cell_size)
-        return world_x, world_y
+        return self._clamp_cell(world_x, world_y)
 
     def _on_mouse_wheel(self, event) -> None:
         steps = -1 if event.delta > 0 else 1
@@ -651,10 +759,19 @@ class KartographMainWindow(tk.Tk):
         if clamped == self.cell_size:
             return
 
-        anchor_x, anchor_y = self.selected_cell
+        anchor_x, anchor_y = self.selection.active_cell()
         self.cell_size = clamped
+        self._update_scroll_region()
         self.redraw_grid()
         self.center_on_cell(anchor_x, anchor_y)
+
+    def reset_viewport(self) -> None:
+        self.cell_size = DEFAULT_CELL_SIZE
+        self._update_scroll_region()
+        self._set_selection_single(0, 0)
+        self.center_on_cell(0, 0)
+        self.redraw_grid()
+        self._refresh_details_panel()
 
     def center_on_cell(self, x: int, y: int) -> None:
         self.update_idletasks()
@@ -662,12 +779,13 @@ class KartographMainWindow(tk.Tk):
         width = max(1, self.canvas.winfo_width())
         height = max(1, self.canvas.winfo_height())
 
-        min_x, min_y, max_x, max_y = -SCROLL_REGION, -SCROLL_REGION, SCROLL_REGION, SCROLL_REGION
+        min_x, min_y, max_x, max_y = self._grid_pixel_bounds()
         total_w = max_x - min_x
         total_h = max_y - min_y
 
-        target_x = x * self.cell_size + self.cell_size / 2
-        target_y = y * self.cell_size + self.cell_size / 2
+        cx, cy = self._clamp_cell(x, y)
+        target_x = cx * self.cell_size + self.cell_size / 2
+        target_y = cy * self.cell_size + self.cell_size / 2
 
         left = target_x - width / 2
         top = target_y - height / 2
@@ -693,6 +811,11 @@ class KartographMainWindow(tk.Tk):
         end_x = int(right // self.cell_size) + 1
         start_y = int(top // self.cell_size) - 1
         end_y = int(bottom // self.cell_size) + 1
+
+        start_x = max(GRID_MIN, start_x)
+        end_x = min(GRID_MAX, end_x)
+        start_y = max(GRID_MIN, start_y)
+        end_y = min(GRID_MAX, end_y)
 
         desks = {(desk.x, desk.y): desk for desk in self.current_plan.desks}
         student_name_font_size = self._compute_uniform_student_name_font_size()
@@ -765,11 +888,12 @@ class KartographMainWindow(tk.Tk):
                             tags=("grid",),
                         )
 
-        sx, sy = self.selected_cell
-        x1 = sx * self.cell_size
-        y1 = sy * self.cell_size
-        x2 = x1 + self.cell_size
-        y2 = y1 + self.cell_size
+        min_sel_x, min_sel_y, max_sel_x, max_sel_y = self.selection.bounds()
+        x1 = min_sel_x * self.cell_size
+        y1 = min_sel_y * self.cell_size
+        x2 = (max_sel_x + 1) * self.cell_size
+        y2 = (max_sel_y + 1) * self.cell_size
+
         self.canvas.create_rectangle(
             x1,
             y1,
@@ -872,9 +996,22 @@ class KartographMainWindow(tk.Tk):
     def move_selection(self, dx: int, dy: int) -> None:
         if not self.editor_view.winfo_ismapped():
             return
-        self.selected_cell = (self.selected_cell[0] + dx, self.selected_cell[1] + dy)
+
+        x, y = self.selection.active_cell()
+        self._set_selection_single(x + dx, y + dy)
         self.interaction_mode = GRID_SELECTED
-        self.center_on_cell(*self.selected_cell)
+        self.center_on_cell(*self.selection.active_cell())
+        self.redraw_grid()
+        self._refresh_details_panel()
+
+    def expand_selection(self, dx: int, dy: int) -> None:
+        if not self.editor_view.winfo_ismapped():
+            return
+
+        x, y = self.selection.active_cell()
+        self._set_selection_focus(x + dx, y + dy)
+        self.interaction_mode = GRID_SELECTED
+        self.center_on_cell(*self.selection.active_cell())
         self.redraw_grid()
         self._refresh_details_panel()
 
@@ -899,6 +1036,11 @@ class KartographMainWindow(tk.Tk):
         if not self.current_plan or not self.current_plan_path:
             return
 
+        if not self.selection.is_single():
+            self._collapse_selection_to_anchor()
+            self.redraw_grid()
+            self._refresh_details_panel()
+
         x, y = self.selected_cell
         desk = self.current_plan.desk_at(x, y)
         if desk and desk.desk_type == "teacher":
@@ -908,8 +1050,8 @@ class KartographMainWindow(tk.Tk):
             return
 
         if not desk:
-            self.current_plan = create_student_desk(self.current_plan, x, y)
-            self._save_current_plan("Schülertisch gesetzt")
+            next_plan = create_student_desk(self.current_plan, x, y)
+            self._record_and_save(next_plan, "desk.create", "Schuelertisch gesetzt")
             self.redraw_grid()
 
         desk = self.current_plan.desk_at(x, y)
@@ -936,9 +1078,12 @@ class KartographMainWindow(tk.Tk):
         if not self.current_plan or not self.current_plan_path:
             return
 
+        if not self.selection.is_single():
+            self._collapse_selection_to_anchor()
+
         x, y = self.selected_cell
-        self.current_plan = create_student_desk(self.current_plan, x, y)
-        self._save_current_plan("Schülertisch gesetzt")
+        next_plan = create_student_desk(self.current_plan, x, y)
+        self._record_and_save(next_plan, "desk.create", "Schuelertisch gesetzt")
         self.redraw_grid()
         self._refresh_details_panel()
 
@@ -946,15 +1091,21 @@ class KartographMainWindow(tk.Tk):
         if not self.current_plan or not self.current_plan_path:
             return
 
-        x, y = self.selected_cell
-        before = self.current_plan.desk_at(x, y)
-        if before and before.desk_type == "teacher":
-            self.status_var.set("Lehrertisch kann nicht gelöscht werden")
-            return
+        targets = self.selection.cells()
+        has_teacher = any(
+            (desk := self.current_plan.desk_at(x, y)) is not None and desk.desk_type == "teacher"
+            for x, y in targets
+        )
+        if has_teacher:
+            self.status_var.set("Lehrertisch kann nicht geloescht werden")
 
-        self.current_plan = delete_desk(self.current_plan, x, y)
+        next_plan = self.current_plan
+        for x, y in targets:
+            next_plan = delete_desk(next_plan, x, y)
+
         self.interaction_mode = GRID_SELECTED
-        self._save_current_plan("Platz gelöscht")
+        self._record_and_save(next_plan, "desk.delete", "Platz geloescht")
+        self._set_selection_single(*self.selection.anchor_cell())
         self.redraw_grid()
         self._refresh_details_panel()
 
@@ -963,10 +1114,25 @@ class KartographMainWindow(tk.Tk):
             return
 
         x, y = self.selected_cell
-        self.current_plan = set_teacher_desk(self.current_plan, x, y)
-        self.selected_cell = (0, 0)
+        moved_plan = set_teacher_desk(self.current_plan, x, y)
+        bounded_plan = self._apply_bounds_to_plan(moved_plan)
+
+        student_before = sum(1 for desk in moved_plan.desks if desk.desk_type == "student")
+        student_after = sum(1 for desk in bounded_plan.desks if desk.desk_type == "student")
+        if student_after < student_before:
+            proceed = messagebox.askyesno(
+                "Warnung",
+                "Beim Verschieben des Lehrertischs wuerden durch die 101x101-Grenze Plaetze verloren gehen. Trotzdem fortfahren?",
+                parent=self,
+            )
+            if not proceed:
+                return
+
+        self.current_plan = bounded_plan
+        self.history.record(self.current_plan, "teacher.move")
         self.interaction_mode = GRID_SELECTED
         self._save_current_plan("Lehrertisch neu gesetzt")
+        self._set_selection_single(0, 0)
         self.center_on_cell(0, 0)
         self.redraw_grid()
         self._refresh_details_panel()
@@ -983,9 +1149,19 @@ class KartographMainWindow(tk.Tk):
             self.name_entry.configure(state="disabled")
             return
 
-        x, y = self.selected_cell
+        x, y = self.selection.active_cell()
         desk = self.current_plan.desk_at(x, y)
-        self._selected_marker_var.set(f"Markierung: ({x}, {y})")
+        min_x, min_y, max_x, max_y = self.selection.bounds()
+        if self.selection.is_single():
+            self._selected_marker_var.set(f"Markierung: ({x}, {y})")
+        else:
+            count = (max_x - min_x + 1) * (max_y - min_y + 1)
+            self._selected_marker_var.set(f"Bereich: ({min_x}, {min_y}) bis ({max_x}, {max_y}) | {count} Zellen")
+
+        if not self.selection.is_single():
+            self._name_var.set("")
+            self.name_entry.configure(state="disabled")
+            return
 
         if not desk:
             self._name_var.set("")
@@ -1027,17 +1203,24 @@ class KartographMainWindow(tk.Tk):
         if not self.current_plan or not self.current_plan_path:
             return
 
+        if not self.selection.is_single():
+            return
+
         x, y = self.selected_cell
         desk = self.current_plan.desk_at(x, y)
         if not desk or desk.desk_type != "student":
             return
 
-        self.current_plan = update_student_name(self.current_plan, x, y, self._name_var.get())
-        self._save_current_plan("Name geändert")
+        next_plan = update_student_name(self.current_plan, x, y, self._name_var.get())
+        self._record_and_save(next_plan, "name.edit", "Name geaendert")
         self.redraw_grid()
 
     def _toggle_selected_symbol(self, symbol: str) -> None:
         if not self.current_plan or not self.current_plan_path:
+            return
+
+        if not self.selection.is_single():
+            self.status_var.set("Symbole nur bei Einzelauswahl")
             return
 
         x, y = self.selected_cell
@@ -1046,13 +1229,17 @@ class KartographMainWindow(tk.Tk):
             self.status_var.set("Symbol nur für Schülertische")
             return
 
-        self.current_plan = toggle_symbol(self.current_plan, x, y, symbol)
-        self._save_current_plan(f"Symbol '{symbol}' aktualisiert")
+        next_plan = toggle_symbol(self.current_plan, x, y, symbol)
+        self._record_and_save(next_plan, "symbol.toggle", f"Symbol '{symbol}' aktualisiert")
         self.redraw_grid()
         self._refresh_details_panel()
 
     def add_symbol_to_selected_desk_dialog(self) -> None:
         if not self.current_plan:
+            return
+
+        if not self.selection.is_single():
+            self.status_var.set("Symbole nur bei Einzelauswahl")
             return
 
         x, y = self.selected_cell
@@ -1087,6 +1274,87 @@ class KartographMainWindow(tk.Tk):
         button_row = ttk.Frame(dialog)
         button_row.pack(fill="x", padx=12, pady=(0, 12))
         ttk.Button(button_row, text="Übernehmen", command=apply_choice).pack(side="right")
+
+    def undo_last_change(self) -> None:
+        if not self.current_plan or not self.current_plan_path:
+            return
+        restored = self.history.undo(steps=1)
+        if restored is None:
+            self.status_var.set("Nichts zum Rueckgaengigmachen")
+            return
+        self.current_plan = restored
+        self._save_current_plan("Rueckgaengig")
+        self.redraw_grid()
+        self._refresh_details_panel()
+
+    def undo_last_five_changes(self) -> None:
+        if not self.current_plan or not self.current_plan_path:
+            return
+        restored = self.history.undo(steps=5)
+        if restored is None:
+            self.status_var.set("Nichts zum Rueckgaengigmachen")
+            return
+        self.current_plan = restored
+        self._save_current_plan("Letzte 5 Aenderungen rueckgaengig")
+        self.redraw_grid()
+        self._refresh_details_panel()
+
+    def redo_last_change(self) -> None:
+        if not self.current_plan or not self.current_plan_path:
+            return
+        restored = self.history.redo(steps=1)
+        if restored is None:
+            self.status_var.set("Nichts zum Wiederholen")
+            return
+        self.current_plan = restored
+        self._save_current_plan("Wiederholt")
+        self.redraw_grid()
+        self._refresh_details_panel()
+
+    def copy_selection(self) -> None:
+        if not self.current_plan or not self.current_plan_path:
+            return
+        if self._is_name_entry_focused():
+            return
+        copied = self._desk_clipboard.copy_from_plan(self.current_plan, self.selection.cells())
+        self.status_var.set(f"Kopiert: {copied} Schuelertische")
+
+    def cut_selection(self) -> None:
+        if not self.current_plan or not self.current_plan_path:
+            return
+        if self._is_name_entry_focused():
+            return
+        next_plan, copied, removed = self._desk_clipboard.cut_from_plan(self.current_plan, self.selection.cells())
+        self._record_and_save(next_plan, "selection.cut", f"Ausgeschnitten: {removed} Schuelertische")
+        self.status_var.set(f"Ausgeschnitten: {removed} Schuelertische (Kopiert: {copied})")
+        self.redraw_grid()
+        self._refresh_details_panel()
+
+    def paste_selection(self) -> None:
+        if not self.current_plan or not self.current_plan_path:
+            return
+        if self._is_name_entry_focused():
+            return
+        if not self._desk_clipboard.has_content():
+            self.status_var.set("Clipboard ist leer")
+            return
+        target_x, target_y = self.selection.active_cell()
+        next_plan, pasted, teacher_conflict = self._desk_clipboard.paste_into_plan(
+            self.current_plan,
+            target_x,
+            target_y,
+            GRID_MIN,
+            GRID_MAX,
+        )
+        self._record_and_save(next_plan, "selection.paste", f"Eingefuegt: {pasted} Schuelertische")
+        if teacher_conflict:
+            messagebox.showwarning(
+                "Lehrertisch geschuetzt",
+                "Einzufuegende Daten haetten den Lehrertisch ueberschrieben. Der Lehrertisch blieb unveraendert.",
+                parent=self,
+            )
+        self.redraw_grid()
+        self._refresh_details_panel()
 
     def export_plan_pdf_dialog(self) -> None:
         if not self.current_plan or not self.current_plan_path:

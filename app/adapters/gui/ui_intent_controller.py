@@ -50,6 +50,9 @@ class MainWindowUiIntentController:
         if intent == UiIntent.ZOOM_OUT:
             self.app.zoom_out()
             return "break"
+        if intent == UiIntent.RESET_VIEW:
+            self.app.reset_viewport()
+            return "break"
         if intent == UiIntent.GO_TO_LIST:
             self.app.show_plan_list_view()
             return "break"
@@ -58,5 +61,35 @@ class MainWindowUiIntentController:
             return "break"
         if intent == UiIntent.EXPORT_PDF:
             self.app.export_plan_pdf_dialog()
+            return "break"
+        if intent == UiIntent.UNDO:
+            self.app.undo_last_change()
+            return "break"
+        if intent == UiIntent.REDO:
+            self.app.redo_last_change()
+            return "break"
+        if intent == UiIntent.UNDO_LAST_FIVE:
+            self.app.undo_last_five_changes()
+            return "break"
+        if intent == UiIntent.COPY:
+            self.app.copy_selection()
+            return "break"
+        if intent == UiIntent.CUT:
+            self.app.cut_selection()
+            return "break"
+        if intent == UiIntent.PASTE:
+            self.app.paste_selection()
+            return "break"
+        if intent == UiIntent.EXPAND_UP:
+            self.app.expand_selection(0, -1)
+            return "break"
+        if intent == UiIntent.EXPAND_DOWN:
+            self.app.expand_selection(0, 1)
+            return "break"
+        if intent == UiIntent.EXPAND_LEFT:
+            self.app.expand_selection(-1, 0)
+            return "break"
+        if intent == UiIntent.EXPAND_RIGHT:
+            self.app.expand_selection(1, 0)
             return "break"
         return None

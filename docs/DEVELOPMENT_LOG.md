@@ -23,8 +23,18 @@ Regel:
 - Symboldarstellung erweitert: unter Schuelernamen werden pro aktivem Symbol eigene Erklaerungszeilen mit count-basierter Legendenbedeutung gerendert.
 - Dateinamensstrategie fuer neue Plaene vereinfacht: keine Zufallsanhaenge mehr; Konflikte werden im GUI-Dialog explizit abgefragt (ueberschreiben oder erneut benennen).
 - PDF-Export (A4 quer) als Infrastructure-Modul eingefuehrt, mit Modusauswahl fuer Lehrertisch unten oder oben (180° Perspektive).
+- Grid-Editor auf feste 101x101-Kachelgrenzen (-50..50) umgestellt; alle Navigations- und Editieraktionen clampen jetzt strikt in diesen Bereich.
+- Neuer Viewport-Reset per `Strg+0`: Standard-Zoom, Auswahl auf Lehrertisch und automatische Zentrierung.
+- Theme-System auf Kursplaner-Farbwelten erweitert (mehrere helle/dunkle Varianten) und in Kartograph-Keyschema gemappt.
+- Undo/Redo-Historie eingefuehrt (bis 20 Schritte) mit Aktionsbündelung fuer identische, direkt aufeinanderfolgende Eingaben sowie 5er-Rollback-Aktion.
+- Rechteckauswahl implementiert (Maus-Drag + Shift-Pfeiltasten) inklusive Bereichsanzeige im Detailkopf.
+- Rechteck-Clipboard fuer Ausschneiden/Kopieren/Einfuegen ergaenzt; Inhalte bleiben ueber Planwechsel erhalten, Einfuegen startet an der markierten Zelle als linke obere Ecke.
+- Lehrertisch-Schutz bei Clipboard-Operationen und Teacher-Move ausgebaut: Teacher wird nie kopiert/geschnitten/ueberschrieben; bei potenziellem Datenverlust durch Bounds-Wirkung erfolgt vorherige Warnung.
 
 ### Added
 - `app/infrastructure/symbol_config_loader.py` fuer Schema-Pruefung und Laden der Symbolkonfiguration.
 - `app/infrastructure/exporters/pdf_exporter.py` fuer PDF-Ausgabe ohne Rasterlinien und mit klaren Tischrahmen.
 - `docs/TODO.md` mit offenem Hinweis zur spaeteren Warnung bzgl. Standardperspektive (Lehrertisch unten).
+- `app/core/domain/plan_history.py` fuer Undo/Redo-Historienverwaltung mit Gruppierung.
+- `app/core/domain/plan_selection.py` fuer rechteckige Auswahl mit Anchor/Focus-Modell.
+- `app/core/domain/desk_clipboard.py` fuer planuebergreifendes Rechteck-Clipboard.
