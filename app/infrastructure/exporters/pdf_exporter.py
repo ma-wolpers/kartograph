@@ -8,15 +8,72 @@ from app.infrastructure.symbol_config_loader import SymbolDefinition
 
 class PdfSeatingPlanExporter:
     def __init__(self, symbol_definitions: list[SymbolDefinition]):
+        self._symbol_definitions = symbol_definitions
         self._symbols_by_meaning = {item.meaning: item for item in symbol_definitions}
+        self._symbol_font_name = "Helvetica"
+        self._symbol_font_uses_fallback = True
+
+    def _ensure_symbol_font(self, pdfmetrics, ttfonts) -> None:
+        if self._symbol_font_name != "Helvetica":
+            return
+
+        font_candidates = [
+            ("SegoeUISymbol", Path("C:/Windows/Fonts/seguisym.ttf")),
+            ("SegoeUIEmoji", Path("C:/Windows/Fonts/seguiemj.ttf")),
+            ("DejaVuSans", Path("C:/Windows/Fonts/DejaVuSans.ttf")),
+            ("ArialUnicodeMS", Path("C:/Windows/Fonts/ARIALUNI.TTF")),
+        ]
+        for font_name, font_path in font_candidates:
+            try:
+                if not font_path.exists():
+                    continue
+                pdfmetrics.registerFont(ttfonts.TTFont(font_name, str(font_path)))
+                self._symbol_font_name = font_name
+                self._symbol_font_uses_fallback = False
+                return
+            except Exception:
+                continue
+
+    def _iter_symbol_counts(self, symbols: dict[str, int]) -> list[tuple[str, int]]:
+        entries: list[tuple[str, int]] = []
+
+        for symbol in self._symbol_definitions:
+            count = int(symbols.get(symbol.meaning, 0))
+            if count < 1:
+                continue
+            entries.append((symbol.meaning, min(3, count)))
+
+        for meaning, raw_count in sorted(symbols.items(), key=lambda item: item[0].lower()):
+            if meaning in self._symbols_by_meaning:
+                continue
+            count = int(raw_count)
+            if count < 1:
+                continue
+            entries.append((meaning, min(3, count)))
+
+        return entries
+
+    def _symbol_token(self, meaning: str, count: int) -> str:
+        symbol = self._symbols_by_meaning.get(meaning)
+        if symbol is None:
+            return "?" * max(1, min(3, int(count)))
+
+        clamped_count = max(1, min(3, int(count)))
+        if self._symbol_font_uses_fallback:
+            shortcut = (symbol.shortcut or meaning[:1] or "?").upper()
+            return shortcut * clamped_count
+        return symbol.glyph * clamped_count
 
     def export_plan(self, plan: SeatingPlan, output_path: Path, orientation_mode: str) -> None:
         try:
             from reportlab.lib import colors
             from reportlab.lib.pagesizes import A4, landscape
+            from reportlab.pdfbase import pdfmetrics, ttfonts
             from reportlab.pdfgen import canvas
         except Exception as exc:
             raise RuntimeError("PDF-Export benoetigt reportlab (pip install reportlab).") from exc
+
+        self._ensure_symbol_font(pdfmetrics, ttfonts)
 
         if orientation_mode not in {"teacher_bottom", "teacher_top"}:
             raise ValueError("Unbekannter Exportmodus")
@@ -58,60 +115,57 @@ class PdfSeatingPlanExporter:
             draw_x = margin + (x - min_x) * cell_size
             draw_y = top_y - (y - min_y + 1) * cell_size
 
-            if desk.desk_type == "teacher":
-                c.setFillColor(colors.HexColor("#9A6A24"))
-                c.setStrokeColor(colors.HexColor("#7A521B"))
-                border = 1.8
-            else:
-                c.setFillColor(colors.HexColor("#DBEAFE"))
-                c.setStrokeColor(colors.HexColor("#1D4ED8"))
-                border = 1.2
+            c.setFillColor(colors.white)
+            c.setStrokeColor(colors.black)
+            border = 1.8 if desk.desk_type == "teacher" else 1.3
 
             c.setLineWidth(border)
             c.rect(draw_x, draw_y, cell_size, cell_size, fill=1, stroke=1)
 
             if desk.desk_type == "teacher":
-                c.setFillColor(colors.white)
-                c.setFont("Helvetica-Bold", max(6, int(cell_size * 0.11)))
+                c.setFillColor(colors.black)
+                c.setFont("Helvetica-Bold", max(8, int(cell_size * 0.16)))
                 c.drawCentredString(draw_x + cell_size / 2, draw_y + cell_size * 0.55, "Lehrertisch")
                 continue
 
             c.setFillColor(colors.black)
-            name_font = max(6, int(cell_size * 0.1))
-            c.setFont("Helvetica-Bold", name_font)
-            student_name = (desk.student_name or "Schuelertisch").strip()
-            max_name_chars = max(4, int(cell_size / max(5, name_font * 0.55)))
-            if len(student_name) > max_name_chars:
-                student_name = student_name[: max_name_chars - 1] + "…"
-            c.drawCentredString(draw_x + cell_size / 2, draw_y + cell_size * 0.78, student_name)
+            name_font = max(8, int(cell_size * 0.14))
+            student_name = (desk.student_name or "").strip()
+            if student_name:
+                c.setFont("Helvetica-Bold", name_font)
+                max_name_chars = max(4, int(cell_size / max(5, name_font * 0.55)))
+                if len(student_name) > max_name_chars:
+                    student_name = student_name[: max_name_chars - 1] + "…"
+                c.drawCentredString(draw_x + cell_size / 2, draw_y + cell_size * 0.78, student_name)
 
             lines: list[str] = []
-            for meaning, count in sorted(desk.symbols.items(), key=lambda item: item[0].lower()):
-                symbol = self._symbols_by_meaning.get(meaning)
-                if symbol is None:
-                    glyph = "•"
-                    legend = meaning
+            line_tokens: list[str] = []
+            used_slots = 0
+            for meaning, count in self._iter_symbol_counts(desk.symbols):
+                token = self._symbol_token(meaning, count)
+                token_slots = len(token)
+                if line_tokens and used_slots + token_slots > 6:
+                    lines.append(" ".join(line_tokens))
+                    line_tokens = [token]
+                    used_slots = token_slots
                 else:
-                    glyph = symbol.glyph
-                    legend = symbol.legend_for_count(int(count))
-
-                repeated = glyph * max(1, min(3, int(count)))
-                lines.append(f"{repeated} {legend}".strip())
+                    line_tokens.append(token)
+                    used_slots += token_slots
+            if line_tokens:
+                lines.append(" ".join(line_tokens))
 
             if not lines:
                 continue
 
             available_h = cell_size * 0.5
             raw_font = int(available_h / max(1, len(lines)) - 1)
-            line_font = max(4, min(int(cell_size * 0.08), raw_font))
-            line_height = max(line_font + 1, 5)
-            start_y = draw_y + cell_size * 0.62 - line_height
+            line_font = max(7, min(int(cell_size * 0.13), raw_font))
+            line_height = max(line_font + 2, 8)
+            start_y = draw_y + cell_size * 0.6 - line_height
 
-            c.setFont("Helvetica", line_font)
+            c.setFont(self._symbol_font_name, line_font)
             for idx, line in enumerate(lines):
-                max_chars = max(4, int((cell_size * 0.9) / max(4, line_font * 0.55)))
-                clipped = line if len(line) <= max_chars else line[: max_chars - 1] + "…"
-                c.drawCentredString(draw_x + cell_size / 2, start_y - idx * line_height, clipped)
+                c.drawCentredString(draw_x + cell_size / 2, start_y - idx * line_height, line)
 
         c.showPage()
         c.save()

@@ -27,6 +27,7 @@ MAX_CANVAS_RADIUS = 50
 MIN_CANVAS_RADIUS = 1
 DEFAULT_CANVAS_RADIUS = 50
 DEFAULT_CELL_SIZE = 92
+DEFAULT_SYMBOL_STRENGTH = 1
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
@@ -90,6 +91,7 @@ class KartographMainWindow(tk.Tk):
         self.plans_dir = Path(self._settings.get("plans_dir") or self.default_plans_dir)
         self.theme_key = normalize_theme_key(self._settings.get("theme"))
         self.canvas_radius = self._normalize_canvas_radius(self._settings.get("canvas_radius"))
+        self.symbol_strength = self._normalize_symbol_strength(self._settings.get("symbol_strength"))
 
         self.ui_intent_controller = MainWindowUiIntentController(self)
 
@@ -118,8 +120,8 @@ class KartographMainWindow(tk.Tk):
 
         file_menu = tk.Menu(menubar, tearoff=False)
         file_menu.add_command(label="Neu (Strg+N)", command=lambda: self._handle_intent(UiIntent.NEW_PLAN))
-        file_menu.add_command(label="Export PDF", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF))
-        file_menu.add_command(label="Einstellungen", command=lambda: self._handle_intent(UiIntent.OPEN_SETTINGS))
+        file_menu.add_command(label="Export PDF (Strg+E)", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF))
+        file_menu.add_command(label="Einstellungen (Strg+,)", command=lambda: self._handle_intent(UiIntent.OPEN_SETTINGS))
         file_menu.add_separator()
         file_menu.add_command(label="Zur Planliste", command=lambda: self._handle_intent(UiIntent.GO_TO_LIST))
         file_menu.add_separator()
@@ -236,17 +238,25 @@ class KartographMainWindow(tk.Tk):
 
         set_teacher_button = ttk.Button(
             self.editor_topbar,
-            text="Als Lehrertisch setzen",
+            text="Als Lehrertisch setzen (Strg+Enter)",
             command=lambda: self._handle_intent(UiIntent.SET_TEACHER_DESK),
         )
         set_teacher_button.pack(side="left", padx=(8, 0))
         self._bind_editor_return_override(set_teacher_button)
 
-        zoom_in_button = ttk.Button(self.editor_topbar, text="Zoom +", command=lambda: self._handle_intent(UiIntent.ZOOM_IN))
+        zoom_in_button = ttk.Button(
+            self.editor_topbar,
+            text="Zoom + (Strg++)",
+            command=lambda: self._handle_intent(UiIntent.ZOOM_IN),
+        )
         zoom_in_button.pack(side="right")
         self._bind_editor_return_override(zoom_in_button)
 
-        zoom_out_button = ttk.Button(self.editor_topbar, text="Zoom -", command=lambda: self._handle_intent(UiIntent.ZOOM_OUT))
+        zoom_out_button = ttk.Button(
+            self.editor_topbar,
+            text="Zoom - (Strg+-)",
+            command=lambda: self._handle_intent(UiIntent.ZOOM_OUT),
+        )
         zoom_out_button.pack(side="right", padx=(0, 8))
         self._bind_editor_return_override(zoom_out_button)
 
@@ -286,14 +296,14 @@ class KartographMainWindow(tk.Tk):
         )
         self._update_scroll_region()
 
-        self.details_frame = ttk.Frame(self.editor_view)
-        self.details_frame.pack(fill="x", padx=12, pady=(8, 12))
-
-        self.details_header = ttk.Frame(self.details_frame, style="Panel.TFrame")
-        self.details_header.pack(fill="x")
+        self.details_header = ttk.Frame(self.editor_view, style="Panel.TFrame")
+        self.details_header.pack(fill="x", padx=12, pady=(8, 0))
 
         ttk.Label(self.details_header, textvariable=self.status_var, style="Panel.TLabel").pack(side="left")
         ttk.Label(self.details_header, textvariable=self._selected_marker_var, style="Panel.TLabel").pack(side="right")
+
+        self.details_frame = ttk.Frame(self.editor_view)
+        self.details_frame.pack(fill="x", padx=12, pady=(4, 12))
 
         self.details_form = ttk.Frame(self.details_frame, style="Panel.TFrame")
         self.details_form.pack(fill="x", pady=(4, 0))
@@ -312,6 +322,7 @@ class KartographMainWindow(tk.Tk):
 
         self.symbol_legend_frame = ttk.Frame(self.details_frame, style="Panel.TFrame")
         self.symbol_legend_frame.pack(fill="x", pady=(4, 0))
+        self._details_panel_visible = True
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
         self.canvas.bind("<B1-Motion>", self._on_canvas_drag)
@@ -324,7 +335,17 @@ class KartographMainWindow(tk.Tk):
 
     def _bind_shortcuts(self) -> None:
         self.bind("<Control-n>", lambda _event: self._handle_intent(UiIntent.NEW_PLAN))
+        self.bind("<Control-e>", lambda _event: self._handle_intent(UiIntent.EXPORT_PDF))
+        self.bind("<Control-comma>", lambda _event: self._handle_intent(UiIntent.OPEN_SETTINGS))
+        self.bind("<Control-,>", lambda _event: self._handle_intent(UiIntent.OPEN_SETTINGS))
         self.bind("<Control-0>", lambda _event: self._handle_intent(UiIntent.RESET_VIEW))
+        self.bind("<Control-Return>", lambda _event: self._handle_intent(UiIntent.SET_TEACHER_DESK))
+        self.bind("<Control-KP_Enter>", lambda _event: self._handle_intent(UiIntent.SET_TEACHER_DESK))
+        self.bind("<Control-plus>", lambda _event: self._handle_intent(UiIntent.ZOOM_IN))
+        self.bind("<Control-equal>", lambda _event: self._handle_intent(UiIntent.ZOOM_IN))
+        self.bind("<Control-KP_Add>", lambda _event: self._handle_intent(UiIntent.ZOOM_IN))
+        self.bind("<Control-minus>", lambda _event: self._handle_intent(UiIntent.ZOOM_OUT))
+        self.bind("<Control-KP_Subtract>", lambda _event: self._handle_intent(UiIntent.ZOOM_OUT))
         self.bind("<Control-z>", lambda _event: self._handle_intent(UiIntent.UNDO))
         self.bind("<Control-y>", lambda _event: self._handle_intent(UiIntent.REDO))
         self.bind("<Control-x>", lambda _event: self._handle_intent(UiIntent.CUT))
@@ -361,6 +382,13 @@ class KartographMainWindow(tk.Tk):
         except (TypeError, ValueError):
             parsed = DEFAULT_CANVAS_RADIUS
         return max(MIN_CANVAS_RADIUS, min(MAX_CANVAS_RADIUS, parsed))
+
+    def _normalize_symbol_strength(self, value: object) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            parsed = DEFAULT_SYMBOL_STRENGTH
+        return max(0, min(2, parsed))
 
     def _grid_min(self) -> int:
         return -self.canvas_radius
@@ -561,6 +589,7 @@ class KartographMainWindow(tk.Tk):
         self.editor_view.configure(style="Panel.TFrame")
         self.editor_topbar.configure(style="StrongPanel.TFrame")
         self.grid_container.configure(style="Panel.TFrame")
+        self.details_header.configure(style="Panel.TFrame")
         self.details_frame.configure(style="Panel.TFrame")
         self.canvas.configure(bg=theme["bg_surface"])
         self.x_scroll.configure(
@@ -649,7 +678,7 @@ class KartographMainWindow(tk.Tk):
         self.canvas.focus_set()
 
     def open_selected_plan_from_list(self) -> None:
-        self._ensure_list_selection(preferred_path=self.current_plan_path)
+        self._ensure_list_selection()
         selected = self.plan_listbox.curselection()
         if not selected:
             return
@@ -717,11 +746,7 @@ class KartographMainWindow(tk.Tk):
                 return
 
     def open_settings_dialog(self) -> None:
-        dialog = tk.Toplevel(self)
-        dialog.title("Einstellungen")
-        dialog.geometry("700x250")
-        dialog.transient(self)
-        dialog.grab_set()
+        dialog = self._create_overlay_dialog("Einstellungen", "700x320")
 
         frame = ttk.Frame(dialog)
         frame.pack(fill="both", expand=True, padx=12, pady=12)
@@ -734,6 +759,7 @@ class KartographMainWindow(tk.Tk):
 
         entry = ttk.Entry(row, textvariable=path_var)
         entry.pack(side="left", fill="x", expand=True)
+        self._focus_overlay_widget(dialog, entry)
 
         def browse() -> None:
             selected = filedialog.askdirectory(initialdir=str(self.plans_dir), parent=dialog)
@@ -756,6 +782,21 @@ class KartographMainWindow(tk.Tk):
         radius_spin.pack(side="left", padx=(10, 0))
         ttk.Label(canvas_row, text="entspricht (0,0) + Radius in jede Richtung").pack(side="left", padx=(10, 0))
 
+        symbol_row = ttk.Frame(frame)
+        symbol_row.pack(fill="x", pady=(0, 12))
+        ttk.Label(symbol_row, text="Symbolstaerke").pack(side="left")
+        symbol_strength_labels = {0: "Normal", 1: "Fett", 2: "Extra"}
+        symbol_strength_values = {"Normal": 0, "Fett": 1, "Extra": 2}
+        symbol_strength_var = tk.StringVar(value=symbol_strength_labels.get(self.symbol_strength, "Fett"))
+        symbol_strength_combo = ttk.Combobox(
+            symbol_row,
+            textvariable=symbol_strength_var,
+            values=["Normal", "Fett", "Extra"],
+            state="readonly",
+            width=12,
+        )
+        symbol_strength_combo.pack(side="left", padx=(10, 0))
+
         def save() -> None:
             selected_path = Path(path_var.get().strip() or str(self.default_plans_dir))
             selected_path.mkdir(parents=True, exist_ok=True)
@@ -776,6 +817,8 @@ class KartographMainWindow(tk.Tk):
             self._settings["plans_dir"] = str(selected_path)
             self.canvas_radius = new_radius
             self._settings["canvas_radius"] = new_radius
+            self.symbol_strength = symbol_strength_values.get(symbol_strength_var.get(), DEFAULT_SYMBOL_STRENGTH)
+            self._settings["symbol_strength"] = self.symbol_strength
             self.settings_repository.save_settings(self._settings)
             self._update_scroll_region()
             self._set_selection_single(*self.selection.active_cell())
@@ -951,7 +994,7 @@ class KartographMainWindow(tk.Tk):
                         text_color = theme["teacher_text"]
                     else:
                         fill = theme["student_fill"]
-                        main_text = desk.student_name or "Schülertisch"
+                        main_text = (desk.student_name or "").strip()
                         symbol_lines = self._symbol_grid_lines(desk.symbols)
                         text_color = theme["fg_main"]
 
@@ -985,8 +1028,9 @@ class KartographMainWindow(tk.Tk):
                 if symbol_lines:
                     available_h = self.cell_size * 0.56
                     raw_symbol_font = int(available_h / max(1, len(symbol_lines)) - 1)
-                    symbol_font = max(4, min(int(self.cell_size * 0.08), raw_symbol_font))
-                    line_height = max(symbol_font + 1, 5)
+                    symbol_font = max(5, min(int(self.cell_size * 0.09), raw_symbol_font))
+                    symbol_size, symbol_weight = self._symbol_font_style(symbol_font)
+                    line_height = max(symbol_size + 2, 6)
                     start_y = y1 + self.cell_size * 0.42
 
                     for idx, line in enumerate(symbol_lines):
@@ -995,7 +1039,7 @@ class KartographMainWindow(tk.Tk):
                             start_y + idx * line_height,
                             text=line,
                             fill=theme["fg_muted"],
-                            font=("Segoe UI", symbol_font),
+                            font=("Segoe UI", symbol_size, symbol_weight),
                             tags=("grid",),
                         )
 
@@ -1015,15 +1059,22 @@ class KartographMainWindow(tk.Tk):
             tags=("grid",),
         )
 
+    def _symbol_font_style(self, base_size: int) -> tuple[int, str]:
+        if self.symbol_strength <= 0:
+            return base_size, "normal"
+        if self.symbol_strength == 1:
+            return base_size + 1, "bold"
+        return base_size + 2, "bold"
+
     def _compute_uniform_student_name_font_size(self) -> int:
         base_size = max(8, int(self.cell_size * 0.12))
         min_size = 5
         max_text_width = int(self.cell_size * 0.88)
 
         labels = [
-            (desk.student_name or "Schuelertisch").strip() or "Schuelertisch"
+            (desk.student_name or "").strip()
             for desk in self.current_plan.desks
-            if desk.desk_type == "student"
+            if desk.desk_type == "student" and (desk.student_name or "").strip()
         ]
         if not labels:
             return base_size
@@ -1252,6 +1303,7 @@ class KartographMainWindow(tk.Tk):
             child.destroy()
 
         if not self.current_plan:
+            self._set_details_panel_visible(False)
             self._selected_marker_var.set("")
             self._name_var.set("")
             self.name_entry.configure(state="disabled")
@@ -1266,23 +1318,15 @@ class KartographMainWindow(tk.Tk):
             count = (max_x - min_x + 1) * (max_y - min_y + 1)
             self._selected_marker_var.set(f"Bereich: ({min_x}, {min_y}) bis ({max_x}, {max_y}) | {count} Zellen")
 
-        if not self.selection.is_single():
-            self._name_var.set("")
-            self.name_entry.configure(state="disabled")
-            return
+        is_student_single_selection = bool(self.selection.is_single() and desk and desk.desk_type == "student")
+        self._set_details_panel_visible(is_student_single_selection)
 
-        if not desk:
+        if not is_student_single_selection:
             self._name_var.set("")
             self.name_entry.configure(state="disabled")
             if self.interaction_mode == NAME_EDITING:
                 self.interaction_mode = GRID_SELECTED
-            return
-
-        if desk.desk_type == "teacher":
-            self._name_var.set("Lehrertisch")
-            self.name_entry.configure(state="disabled")
-            if self.interaction_mode == NAME_EDITING:
-                self.interaction_mode = GRID_SELECTED
+                self.canvas.focus_set()
             return
 
         self._name_var.set(desk.student_name)
@@ -1306,6 +1350,15 @@ class KartographMainWindow(tk.Tk):
         if active_lines:
             for line in active_lines:
                 ttk.Label(self.symbol_legend_frame, text=line).pack(anchor="w")
+
+    def _set_details_panel_visible(self, visible: bool) -> None:
+        if visible and not self._details_panel_visible:
+            self.details_frame.pack(fill="x", padx=12, pady=(4, 12))
+            self._details_panel_visible = True
+            return
+        if not visible and self._details_panel_visible:
+            self.details_frame.pack_forget()
+            self._details_panel_visible = False
 
     def _on_name_changed(self) -> None:
         if not self.current_plan or not self.current_plan_path:
@@ -1356,11 +1409,7 @@ class KartographMainWindow(tk.Tk):
             self.status_var.set("Symbol nur für Schülertische")
             return
 
-        dialog = tk.Toplevel(self)
-        dialog.title("Symbol hinzufügen")
-        dialog.geometry("350x360")
-        dialog.transient(self)
-        dialog.grab_set()
+        dialog = self._create_overlay_dialog("Symbol hinzufügen", "350x360")
 
         ttk.Label(dialog, text="Symbol auswählen").pack(anchor="w", padx=12, pady=(12, 6))
 
@@ -1370,6 +1419,7 @@ class KartographMainWindow(tk.Tk):
             listbox.insert(tk.END, symbol)
         if self.symbol_catalog:
             listbox.selection_set(0)
+        self._focus_overlay_widget(dialog, listbox)
 
         def apply_choice() -> None:
             selected = listbox.curselection()
@@ -1469,26 +1519,24 @@ class KartographMainWindow(tk.Tk):
             self.status_var.set("Kein Plan geöffnet")
             return
 
-        dialog = tk.Toplevel(self)
-        dialog.title("PDF exportieren")
-        dialog.geometry("420x190")
-        dialog.transient(self)
-        dialog.grab_set()
+        dialog = self._create_overlay_dialog("PDF exportieren", "420x190")
 
         mode_var = tk.StringVar(value="teacher_bottom")
         ttk.Label(dialog, text="Ansicht wählen").pack(anchor="w", padx=12, pady=(12, 6))
-        ttk.Radiobutton(
+        first_mode_button = ttk.Radiobutton(
             dialog,
             text="Lehrertisch unten (Standard)",
             value="teacher_bottom",
             variable=mode_var,
-        ).pack(anchor="w", padx=12)
+        )
+        first_mode_button.pack(anchor="w", padx=12)
         ttk.Radiobutton(
             dialog,
             text="Lehrertisch oben (180° Perspektive)",
             value="teacher_top",
             variable=mode_var,
         ).pack(anchor="w", padx=12, pady=(4, 0))
+        self._focus_overlay_widget(dialog, first_mode_button)
 
         def do_export() -> None:
             output = filedialog.asksaveasfilename(
@@ -1511,6 +1559,26 @@ class KartographMainWindow(tk.Tk):
         button_row.pack(fill="x", padx=12, pady=(12, 12))
         ttk.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
         ttk.Button(button_row, text="Exportieren", command=do_export).pack(side="right", padx=(0, 8))
+
+    def _create_overlay_dialog(self, title: str, geometry: str) -> tk.Toplevel:
+        dialog = tk.Toplevel(self)
+        dialog.title(title)
+        dialog.geometry(geometry)
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.bind("<Escape>", lambda _event: dialog.destroy())
+        dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+        self._focus_overlay_widget(dialog, dialog)
+        return dialog
+
+    def _focus_overlay_widget(self, dialog: tk.Toplevel, widget: tk.Widget) -> None:
+        def _apply_focus() -> None:
+            if not dialog.winfo_exists() or not widget.winfo_exists():
+                return
+            dialog.focus_force()
+            widget.focus_set()
+
+        dialog.after(1, _apply_focus)
 
     def _save_current_plan(self, status: str) -> None:
         if not self.current_plan or not self.current_plan_path:
