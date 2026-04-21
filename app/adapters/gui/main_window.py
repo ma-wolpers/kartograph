@@ -259,9 +259,25 @@ class KartographMainWindow(tk.Tk):
         self.canvas = tk.Canvas(self.grid_container, highlightthickness=0)
         self.canvas.pack(side="left", fill="both", expand=True)
 
-        self.y_scroll = ttk.Scrollbar(self.grid_container, orient="vertical", command=self._yview)
+        self.y_scroll = tk.Scrollbar(
+            self.grid_container,
+            orient="vertical",
+            command=self._yview,
+            highlightthickness=0,
+            borderwidth=0,
+            relief="flat",
+            takefocus=0,
+        )
         self.y_scroll.pack(side="right", fill="y")
-        self.x_scroll = ttk.Scrollbar(self.editor_view, orient="horizontal", command=self._xview)
+        self.x_scroll = tk.Scrollbar(
+            self.editor_view,
+            orient="horizontal",
+            command=self._xview,
+            highlightthickness=0,
+            borderwidth=0,
+            relief="flat",
+            takefocus=0,
+        )
         self.x_scroll.pack(fill="x", padx=12)
 
         self.canvas.configure(
@@ -545,6 +561,24 @@ class KartographMainWindow(tk.Tk):
         self.grid_container.configure(style="Panel.TFrame")
         self.details_frame.configure(style="Panel.TFrame")
         self.canvas.configure(bg=theme["bg_surface"])
+        self.x_scroll.configure(
+            bg=theme["scroll_thumb"],
+            activebackground=theme["scroll_thumb_active"],
+            troughcolor=theme["scroll_trough"],
+            highlightbackground=theme["scroll_trough"],
+            highlightcolor=theme["scroll_trough"],
+            relief="flat",
+            bd=0,
+        )
+        self.y_scroll.configure(
+            bg=theme["scroll_thumb"],
+            activebackground=theme["scroll_thumb_active"],
+            troughcolor=theme["scroll_trough"],
+            highlightbackground=theme["scroll_trough"],
+            highlightcolor=theme["scroll_trough"],
+            relief="flat",
+            bd=0,
+        )
 
         self.plan_listbox.configure(
             bg=theme["bg_panel"],
