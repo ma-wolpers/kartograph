@@ -344,6 +344,22 @@ class KartographMainWindow(tk.Tk):
         self.name_entry.icursor(tk.END)
         self._log_enter_debug("focus_name_entry.done")
 
+    def _focus_name_entry_cursor_end_with_retry(self, attempt: int = 0) -> None:
+        self._log_enter_debug(f"focus_name_entry.retry_attempt_{attempt}")
+        if not self.name_entry.winfo_exists():
+            self._log_enter_debug("focus_name_entry.retry.abort.no_widget")
+            return
+
+        if self.name_entry.cget("state") == "normal":
+            self._focus_name_entry_cursor_end()
+            return
+
+        if attempt >= 8:
+            self._log_enter_debug("focus_name_entry.retry.abort.max_attempts")
+            return
+
+        self.after(25, lambda: self._focus_name_entry_cursor_end_with_retry(attempt + 1))
+
     def _load_symbols(self) -> list[str]:
         try:
             payload = json.loads(self.symbols_path.read_text(encoding="utf-8"))
@@ -802,11 +818,8 @@ class KartographMainWindow(tk.Tk):
             self._log_enter_debug("enter_name_edit_mode.created_student_desk")
 
         self._refresh_details_panel()
-        if self.name_entry.cget("state") == "normal":
-            self.after_idle(self._focus_name_entry_cursor_end)
-            self._log_enter_debug("enter_name_edit_mode.schedule_focus")
-        else:
-            self._log_enter_debug("enter_name_edit_mode.skip.name_entry_disabled")
+        self.after_idle(lambda: self._focus_name_entry_cursor_end_with_retry(0))
+        self._log_enter_debug("enter_name_edit_mode.schedule_focus_retry")
 
     def exit_name_edit_mode(self) -> None:
         if self.editor_view.winfo_ismapped():
