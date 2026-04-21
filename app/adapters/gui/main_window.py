@@ -156,24 +156,45 @@ class KartographMainWindow(tk.Tk):
         self.editor_topbar = ttk.Frame(self.editor_view)
         self.editor_topbar.pack(fill="x", padx=12, pady=(12, 8))
 
-        ttk.Button(self.editor_topbar, text="Zur Liste", command=lambda: self._handle_intent(UiIntent.GO_TO_LIST)).pack(side="left")
-        ttk.Button(
+        go_to_list_button = ttk.Button(
+            self.editor_topbar,
+            text="Zur Liste",
+            command=lambda: self._handle_intent(UiIntent.GO_TO_LIST),
+        )
+        go_to_list_button.pack(side="left")
+        self._bind_editor_return_override(go_to_list_button)
+
+        delete_button = ttk.Button(
             self.editor_topbar,
             text="Platz löschen (Entf)",
             command=lambda: self._handle_intent(UiIntent.DELETE_DESK),
-        ).pack(side="left", padx=(8, 0))
-        ttk.Button(
+        )
+        delete_button.pack(side="left", padx=(8, 0))
+        self._bind_editor_return_override(delete_button)
+
+        add_symbol_button = ttk.Button(
             self.editor_topbar,
             text="Symbol hinzufügen",
             command=lambda: self._handle_intent(UiIntent.ADD_SYMBOL),
-        ).pack(side="left", padx=(8, 0))
-        ttk.Button(
+        )
+        add_symbol_button.pack(side="left", padx=(8, 0))
+        self._bind_editor_return_override(add_symbol_button)
+
+        set_teacher_button = ttk.Button(
             self.editor_topbar,
             text="Als Lehrertisch setzen",
             command=lambda: self._handle_intent(UiIntent.SET_TEACHER_DESK),
-        ).pack(side="left", padx=(8, 0))
-        ttk.Button(self.editor_topbar, text="Zoom +", command=lambda: self._handle_intent(UiIntent.ZOOM_IN)).pack(side="right")
-        ttk.Button(self.editor_topbar, text="Zoom -", command=lambda: self._handle_intent(UiIntent.ZOOM_OUT)).pack(side="right", padx=(0, 8))
+        )
+        set_teacher_button.pack(side="left", padx=(8, 0))
+        self._bind_editor_return_override(set_teacher_button)
+
+        zoom_in_button = ttk.Button(self.editor_topbar, text="Zoom +", command=lambda: self._handle_intent(UiIntent.ZOOM_IN))
+        zoom_in_button.pack(side="right")
+        self._bind_editor_return_override(zoom_in_button)
+
+        zoom_out_button = ttk.Button(self.editor_topbar, text="Zoom -", command=lambda: self._handle_intent(UiIntent.ZOOM_OUT))
+        zoom_out_button.pack(side="right", padx=(0, 8))
+        self._bind_editor_return_override(zoom_out_button)
 
         self.plan_name_var = tk.StringVar(value="")
         ttk.Label(self.editor_topbar, textvariable=self.plan_name_var).pack(side="right", padx=(0, 14))
@@ -229,6 +250,7 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Delete>", lambda _event: self._handle_intent(UiIntent.DELETE_DESK))
         self.bind("<Escape>", lambda _event: self._handle_intent(UiIntent.ESCAPE))
         self.bind("<Return>", self._on_return_key)
+        self.bind("<KP_Enter>", self._on_return_key)
 
         self.canvas.bind("<Up>", lambda _event: self._handle_intent(UiIntent.MOVE_UP))
         self.canvas.bind("<Down>", lambda _event: self._handle_intent(UiIntent.MOVE_DOWN))
@@ -254,6 +276,10 @@ class KartographMainWindow(tk.Tk):
     def _on_name_entry_return(self, _event) -> str:
         self.exit_name_edit_mode()
         return "break"
+
+    def _bind_editor_return_override(self, widget: tk.Widget) -> None:
+        widget.bind("<Return>", self._on_return_key)
+        widget.bind("<KP_Enter>", self._on_return_key)
 
     def _on_name_entry_focus_in(self, _event) -> None:
         if (
