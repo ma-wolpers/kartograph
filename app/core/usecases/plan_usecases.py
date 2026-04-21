@@ -41,10 +41,12 @@ def toggle_symbol(plan: SeatingPlan, x: int, y: int, symbol: str) -> SeatingPlan
     desk = next_plan.desk_at(x, y)
     if not desk or desk.desk_type != "student":
         return next_plan
-    if symbol in desk.symbols:
-        desk.symbols = [value for value in desk.symbols if value != symbol]
+    current_count = int(desk.symbols.get(symbol, 0))
+    next_count = (current_count + 1) % 4
+    if next_count == 0:
+        desk.symbols.pop(symbol, None)
     else:
-        desk.symbols.append(symbol)
+        desk.symbols[symbol] = next_count
     return next_plan
 
 
@@ -64,7 +66,7 @@ def set_teacher_desk(plan: SeatingPlan, new_teacher_x: int, new_teacher_y: int) 
             y=ny,
             desk_type="student",
             student_name=desk.student_name,
-            symbols=list(desk.symbols),
+            symbols=dict(desk.symbols),
         )
 
     next_plan.desks = [Desk(x=0, y=0, desk_type="teacher")]

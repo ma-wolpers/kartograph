@@ -12,7 +12,7 @@ class Desk:
     y: int
     desk_type: DeskType
     student_name: str = ""
-    symbols: list[str] = field(default_factory=list)
+    symbols: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

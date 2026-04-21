@@ -58,7 +58,7 @@ class JsonSeatingPlanRepository:
                     "y": desk.y,
                     "type": desk.desk_type,
                     "name": desk.student_name,
-                    "symbols": list(desk.symbols),
+                    "symbols": dict(desk.symbols),
                 }
                 for desk in plan.desks
             ],
@@ -81,10 +81,29 @@ class JsonSeatingPlanRepository:
             desk_type = str(item.get("type"))
             if desk_type not in {"teacher", "student"}:
                 raise ValueError("desk type must be teacher or student")
-            symbols_raw = item.get("symbols") or []
-            if not isinstance(symbols_raw, list):
-                raise ValueError("symbols must be a list")
-            symbols = [str(symbol).strip() for symbol in symbols_raw if str(symbol).strip()]
+            symbols_raw = item.get("symbols") or {}
+            symbols: dict[str, int] = {}
+
+            if isinstance(symbols_raw, list):
+                # Legacy format migration: ["Laptop", "Tablet"] -> {"Laptop": 1, "Tablet": 1}
+                for raw_symbol in symbols_raw:
+                    symbol_name = str(raw_symbol).strip()
+                    if symbol_name:
+                        symbols[symbol_name] = 1
+            elif isinstance(symbols_raw, dict):
+                for raw_symbol, raw_count in symbols_raw.items():
+                    symbol_name = str(raw_symbol).strip()
+                    if not symbol_name:
+                        continue
+                    try:
+                        parsed = int(raw_count)
+                    except (TypeError, ValueError):
+                        continue
+                    if 1 <= parsed <= 3:
+                        symbols[symbol_name] = parsed
+            else:
+                raise ValueError("symbols must be a list or object")
+
             desks.append(
                 Desk(
                     x=x,

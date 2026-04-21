@@ -22,6 +22,17 @@ LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
 
+SYMBOL_GLYPH_MAP: dict[str, str] = {
+    "Laptop": "💻",
+    "Tablet": "📱",
+    "Hilfe": "❗",
+    "Teamleiter": "⭐",
+    "Leise": "🤫",
+    "Aktiv": "⚡",
+    "Foerderbedarf": "🧩",
+    "Praesentation": "🎤",
+}
+
 
 class KartographMainWindow(tk.Tk):
     def __init__(
@@ -230,6 +241,8 @@ class KartographMainWindow(tk.Tk):
     def _on_return_key(self, _event) -> str | None:
         if self._is_name_entry_focused():
             return "break"
+        if self.editor_view.winfo_ismapped():
+            return self._handle_intent(UiIntent.CONFIRM_SELECTION)
         if self.interaction_mode == LIST_ACTIVE:
             return self._handle_intent(UiIntent.LIST_OPEN_SELECTED)
         return self._handle_intent(UiIntent.CONFIRM_SELECTION)
@@ -243,11 +256,16 @@ class KartographMainWindow(tk.Tk):
         return "break"
 
     def _on_name_entry_focus_in(self, _event) -> None:
-        if self.editor_view.winfo_ismapped() and self.name_entry.cget("state") == "normal":
+        if (
+            self.editor_view.winfo_exists()
+            and self.editor_view.winfo_ismapped()
+            and self.name_entry.winfo_exists()
+            and self.name_entry.cget("state") == "normal"
+        ):
             self.interaction_mode = NAME_EDITING
 
     def _on_name_entry_focus_out(self, _event) -> None:
-        if self.editor_view.winfo_ismapped() and self.interaction_mode == NAME_EDITING:
+        if self.editor_view.winfo_exists() and self.editor_view.winfo_ismapped() and self.interaction_mode == NAME_EDITING:
             self.interaction_mode = GRID_SELECTED
 
     def _is_name_entry_focused(self) -> bool:
@@ -641,12 +659,27 @@ class KartographMainWindow(tk.Tk):
             tags=("grid",),
         )
 
-    def _symbol_line(self, symbols: list[str]) -> str:
+    def _symbol_glyph(self, symbol_name: str) -> str:
+        return SYMBOL_GLYPH_MAP.get(symbol_name, "•")
+
+    def _symbol_line(self, symbols: dict[str, int]) -> str:
         if not symbols:
             return ""
-        preview = symbols[:3]
-        suffix = " +" if len(symbols) > 3 else ""
-        return " | ".join(preview) + suffix
+
+        chunks: list[str] = []
+        for symbol_name in self.symbol_catalog:
+            count = int(symbols.get(symbol_name, 0))
+            if 1 <= count <= 3:
+                chunks.append(self._symbol_glyph(symbol_name) * count)
+
+        for symbol_name, raw_count in sorted(symbols.items()):
+            if symbol_name in self.symbol_catalog:
+                continue
+            count = int(raw_count)
+            if 1 <= count <= 3:
+                chunks.append(self._symbol_glyph(symbol_name) * count)
+
+        return "  ".join(chunks)
 
     def move_selection(self, dx: int, dy: int) -> None:
         if not self.editor_view.winfo_ismapped():
@@ -695,7 +728,8 @@ class KartographMainWindow(tk.Tk):
         if self.name_entry.cget("state") == "normal":
             self.interaction_mode = NAME_EDITING
             self.name_entry.focus_set()
-            self.name_entry.select_range(0, tk.END)
+            self.name_entry.selection_clear()
+            self.name_entry.icursor(tk.END)
 
     def exit_name_edit_mode(self) -> None:
         if self.editor_view.winfo_ismapped():
@@ -775,8 +809,9 @@ class KartographMainWindow(tk.Tk):
 
         ttk.Label(self.symbols_frame, text="Symbole").pack(side="left", padx=(0, 8))
         for symbol in self.symbol_catalog:
-            is_active = symbol in desk.symbols
-            caption = f"✓ {symbol}" if is_active else symbol
+            count = int(desk.symbols.get(symbol, 0))
+            icon = self._symbol_glyph(symbol)
+            caption = symbol if count == 0 else f"{symbol} {icon * count}"
             button = ttk.Button(
                 self.symbols_frame,
                 text=caption,
