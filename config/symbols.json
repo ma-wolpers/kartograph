@@ -69,6 +69,26 @@
         "two": "kann komplexe Strukturen (Texte, Zusammenhänge) unter Anleitung (Aufgabenstellung) in einfache sowie teilweise auch komplexe Visualisierungen oder andere Darstellungsformen umsetzen und diese erklären",
         "one": "kann nach Vorgaben/Modellen aus Texten einfache Visualisierungen (Tabelle, Mindmap, concept map) erstellen"
       }
+    },
+    {
+      "codepoint": "002B",
+      "meaning": "Fachkompetenz",
+      "shortcut": "f",
+      "legend": {
+        "three": "erfüllt die fachlichen Anforderungen (Kompetenzen, Fertigkeiten, Wortschatz, Fachsprache o.ä.)",
+        "two": "hat einige Defizite/Lücken (Wortschatz, Fachsprache, Kenntnisse, Fertigkeiten, Kompetenzen)",
+        "one": "hat auffällige Defizite und Schwächen (Kompetenzen, Fertigkeiten, Wortschatz, Kenntnisse o.ä.) "
+      }
+    },
+    {
+      "codepoint": "003F",
+      "meaning": "Nachfragen",
+      "shortcut": "n",
+      "legend": {
+        "three": "versteht Fragen, Arbeitsaufträge oder Lernaufgaben problemlos, keine Nachfragen",
+        "two": "versteht Fragen, Arbeitsaufträge oder Lernaufgaben in der Regel gut, fragt gelegentlich nach",
+        "one": "versteht Fragen, Arbeitsaufträge, Lernaufgaben meist nur nach mehrfacher Wiederholung oder Nachfragen"
+      }
     }
   ]
 }
