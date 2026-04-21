@@ -35,6 +35,7 @@ SYMBOL_GLYPH_MAP: dict[str, str] = {
 }
 
 ENTER_DEBUG_LOG = True
+ENTER_DEBUG_FILE = Path(__file__).resolve().parents[3] / "Temp" / "enter_debug.log"
 
 
 class KartographMainWindow(tk.Tk):
@@ -76,6 +77,8 @@ class KartographMainWindow(tk.Tk):
         self._build_menu_bar()
         self._build_layout()
         self._bind_shortcuts()
+
+        self._initialize_enter_debug_file()
 
         self.apply_theme()
         self.refresh_plan_list()
@@ -825,7 +828,26 @@ class KartographMainWindow(tk.Tk):
                 f"widget={widget_info} focus={focus_info} name_state={self.name_entry.cget('state')}"
             )
             print(line)
+            self._append_enter_debug_line(line)
             self.status_var.set(line[-200:])
+        except Exception:
+            pass
+
+    def _initialize_enter_debug_file(self) -> None:
+        if not ENTER_DEBUG_LOG:
+            return
+        try:
+            ENTER_DEBUG_FILE.parent.mkdir(parents=True, exist_ok=True)
+            ENTER_DEBUG_FILE.write_text("", encoding="utf-8")
+        except Exception:
+            pass
+
+    def _append_enter_debug_line(self, line: str) -> None:
+        if not ENTER_DEBUG_LOG:
+            return
+        try:
+            with ENTER_DEBUG_FILE.open("a", encoding="utf-8") as handle:
+                handle.write(line + "\n")
         except Exception:
             pass
 
