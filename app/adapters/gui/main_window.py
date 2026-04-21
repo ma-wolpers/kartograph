@@ -249,8 +249,8 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Control-n>", lambda _event: self._handle_intent(UiIntent.NEW_PLAN))
         self.bind("<Delete>", lambda _event: self._handle_intent(UiIntent.DELETE_DESK))
         self.bind("<Escape>", lambda _event: self._handle_intent(UiIntent.ESCAPE))
-        self.bind("<Return>", self._on_return_key)
-        self.bind("<KP_Enter>", self._on_return_key)
+        self.bind_all("<Return>", self._on_global_return_key, add="+")
+        self.bind_all("<KP_Enter>", self._on_global_return_key, add="+")
 
         self.canvas.bind("<Up>", lambda _event: self._handle_intent(UiIntent.MOVE_UP))
         self.canvas.bind("<Down>", lambda _event: self._handle_intent(UiIntent.MOVE_DOWN))
@@ -276,6 +276,26 @@ class KartographMainWindow(tk.Tk):
     def _on_name_entry_return(self, _event) -> str:
         self.exit_name_edit_mode()
         return "break"
+
+    def _on_global_return_key(self, event) -> str | None:
+        widget = event.widget
+        if not isinstance(widget, tk.Widget):
+            return None
+
+        # Only handle Enter for this main window; dialogs keep their own behavior.
+        if widget.winfo_toplevel() is not self:
+            return None
+
+        if widget is self.name_entry:
+            return None
+
+        if self.editor_view.winfo_ismapped():
+            return self._handle_intent(UiIntent.CONFIRM_SELECTION)
+
+        if self.interaction_mode == LIST_ACTIVE:
+            return self._handle_intent(UiIntent.LIST_OPEN_SELECTED)
+
+        return None
 
     def _bind_editor_return_override(self, widget: tk.Widget) -> None:
         widget.bind("<Return>", self._on_return_key)
