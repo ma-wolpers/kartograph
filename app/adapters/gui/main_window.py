@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tkinter as tk
+from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
@@ -32,6 +33,8 @@ SYMBOL_GLYPH_MAP: dict[str, str] = {
     "Foerderbedarf": "🧩",
     "Praesentation": "🎤",
 }
+
+ENTER_DEBUG_LOG = True
 
 
 class KartographMainWindow(tk.Tk):
@@ -278,23 +281,30 @@ class KartographMainWindow(tk.Tk):
         return "break"
 
     def _on_global_return_key(self, event) -> str | None:
+        self._log_enter_debug("global.enter.start", event)
         widget = event.widget
         if not isinstance(widget, tk.Widget):
+            self._log_enter_debug("global.enter.skip.non_widget", event)
             return None
 
         # Only handle Enter for this main window; dialogs keep their own behavior.
         if widget.winfo_toplevel() is not self:
+            self._log_enter_debug("global.enter.skip.foreign_toplevel", event)
             return None
 
         if widget is self.name_entry:
+            self._log_enter_debug("global.enter.skip.name_entry", event)
             return None
 
         if self.editor_view.winfo_ismapped():
+            self._log_enter_debug("global.enter.route.editor_confirm", event)
             return self._handle_intent(UiIntent.CONFIRM_SELECTION)
 
         if self.interaction_mode == LIST_ACTIVE:
+            self._log_enter_debug("global.enter.route.list_open", event)
             return self._handle_intent(UiIntent.LIST_OPEN_SELECTED)
 
+        self._log_enter_debug("global.enter.no_route", event)
         return None
 
     def _bind_editor_return_override(self, widget: tk.Widget) -> None:
@@ -318,14 +328,18 @@ class KartographMainWindow(tk.Tk):
         return self.focus_get() == self.name_entry
 
     def _focus_name_entry_cursor_end(self) -> None:
+        self._log_enter_debug("focus_name_entry.start")
         if not self.name_entry.winfo_exists():
+            self._log_enter_debug("focus_name_entry.skip.no_widget")
             return
         if self.name_entry.cget("state") != "normal":
+            self._log_enter_debug("focus_name_entry.skip.not_normal")
             return
         self.interaction_mode = NAME_EDITING
         self.name_entry.focus_set()
         self.name_entry.selection_clear()
         self.name_entry.icursor(tk.END)
+        self._log_enter_debug("focus_name_entry.done")
 
     def _load_symbols(self) -> list[str]:
         try:
@@ -764,7 +778,9 @@ class KartographMainWindow(tk.Tk):
         self.interaction_mode = LIST_ACTIVE
 
     def enter_name_edit_mode(self) -> None:
+        self._log_enter_debug("enter_name_edit_mode.start")
         if not self.current_plan or not self.current_plan_path:
+            self._log_enter_debug("enter_name_edit_mode.skip.no_plan")
             return
 
         x, y = self.selected_cell
@@ -773,22 +789,45 @@ class KartographMainWindow(tk.Tk):
             self.status_var.set("Lehrertisch ist nicht editierbar")
             self.interaction_mode = GRID_SELECTED
             self.canvas.focus_set()
+            self._log_enter_debug("enter_name_edit_mode.skip.teacher")
             return
 
         if not desk:
             self.current_plan = create_student_desk(self.current_plan, x, y)
             self._save_current_plan("Schülertisch gesetzt")
             self.redraw_grid()
+            self._log_enter_debug("enter_name_edit_mode.created_student_desk")
 
         self._refresh_details_panel()
         if self.name_entry.cget("state") == "normal":
             self.after_idle(self._focus_name_entry_cursor_end)
+            self._log_enter_debug("enter_name_edit_mode.schedule_focus")
+        else:
+            self._log_enter_debug("enter_name_edit_mode.skip.name_entry_disabled")
 
     def exit_name_edit_mode(self) -> None:
         if self.editor_view.winfo_ismapped():
             self.interaction_mode = GRID_SELECTED
             self.canvas.focus_set()
             self._refresh_details_panel()
+
+    def _log_enter_debug(self, stage: str, event=None) -> None:
+        if not ENTER_DEBUG_LOG:
+            return
+        try:
+            widget = getattr(event, "widget", None) if event is not None else None
+            focus_widget = self.focus_get()
+            widget_info = f"{type(widget).__name__}:{str(widget)}" if widget is not None else "None"
+            focus_info = f"{type(focus_widget).__name__}:{str(focus_widget)}" if focus_widget is not None else "None"
+            line = (
+                f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] ENTER_DEBUG "
+                f"stage={stage} mode={self.interaction_mode} editor_mapped={self.editor_view.winfo_ismapped()} "
+                f"widget={widget_info} focus={focus_info} name_state={self.name_entry.cget('state')}"
+            )
+            print(line)
+            self.status_var.set(line[-200:])
+        except Exception:
+            pass
 
     def confirm_selected_cell(self) -> None:
         if not self.current_plan or not self.current_plan_path:
