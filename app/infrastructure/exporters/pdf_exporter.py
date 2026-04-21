@@ -146,6 +146,8 @@ class PdfSeatingPlanExporter:
         usable_w = page_w - 2 * margin
         usable_h = page_h - 2 * margin - title_h
         cell_size = min(usable_w / max(1, cols), usable_h / max(1, rows))
+        grid_w = cols * cell_size
+        origin_x = margin + max(0.0, (usable_w - grid_w) / 2)
 
         c = canvas.Canvas(str(output_path), pagesize=(page_w, page_h))
         c.setTitle(plan.name)
@@ -156,7 +158,7 @@ class PdfSeatingPlanExporter:
         top_y = page_h - margin - title_h
 
         for x, y, desk in desks:
-            draw_x = margin + (x - min_x) * cell_size
+            draw_x = origin_x + (x - min_x) * cell_size
             draw_y = top_y - (y - min_y + 1) * cell_size
 
             c.setFillColor(colors.white)
