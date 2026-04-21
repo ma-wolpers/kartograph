@@ -64,6 +64,50 @@ class PdfSeatingPlanExporter:
             return shortcut * clamped_count
         return symbol.glyph * clamped_count
 
+    def _fit_single_line_font(
+        self,
+        pdfmetrics,
+        font_name: str,
+        text: str,
+        max_width: float,
+        max_height: float,
+        min_size: int,
+        max_size: int,
+    ) -> int:
+        if not text:
+            return min_size
+        for size in range(max_size, min_size - 1, -1):
+            text_width = pdfmetrics.stringWidth(text, font_name, size)
+            text_height = size * 1.15
+            if text_width <= max_width and text_height <= max_height:
+                return size
+        return min_size
+
+    def _fit_multi_line_font(
+        self,
+        pdfmetrics,
+        font_name: str,
+        lines: list[str],
+        max_width: float,
+        max_height: float,
+        min_size: int,
+        max_size: int,
+    ) -> tuple[int, float]:
+        if not lines:
+            return min_size, max(6.0, min_size * 1.1)
+
+        for size in range(max_size, min_size - 1, -1):
+            line_height = max(6.0, size * 1.12)
+            total_height = line_height * len(lines)
+            if total_height > max_height:
+                continue
+            too_wide = any(pdfmetrics.stringWidth(line, font_name, size) > max_width for line in lines)
+            if not too_wide:
+                return size, line_height
+
+        fallback_height = max(6.0, min_size * 1.1)
+        return min_size, fallback_height
+
     def export_plan(self, plan: SeatingPlan, output_path: Path, orientation_mode: str) -> None:
         try:
             from reportlab.lib import colors
@@ -129,14 +173,7 @@ class PdfSeatingPlanExporter:
                 continue
 
             c.setFillColor(colors.black)
-            name_font = max(8, int(cell_size * 0.14))
             student_name = (desk.student_name or "").strip()
-            if student_name:
-                c.setFont("Helvetica-Bold", name_font)
-                max_name_chars = max(4, int(cell_size / max(5, name_font * 0.55)))
-                if len(student_name) > max_name_chars:
-                    student_name = student_name[: max_name_chars - 1] + "…"
-                c.drawCentredString(draw_x + cell_size / 2, draw_y + cell_size * 0.78, student_name)
 
             lines: list[str] = []
             line_tokens: list[str] = []
@@ -154,16 +191,53 @@ class PdfSeatingPlanExporter:
             if line_tokens:
                 lines.append(" ".join(line_tokens))
 
-            if not lines:
+            max_text_width = cell_size * 0.88
+            content_bottom = draw_y + cell_size * 0.12
+            content_top = draw_y + cell_size * 0.88
+            content_height = max(0.0, content_top - content_bottom)
+            has_name = bool(student_name)
+            has_symbols = bool(lines)
+
+            name_area_height = 0.0
+            if has_name and has_symbols:
+                name_area_height = content_height * 0.34
+            elif has_name:
+                name_area_height = content_height * 0.7
+
+            if has_name:
+                max_name_font = max(10, int(cell_size * 0.28))
+                name_font = self._fit_single_line_font(
+                    pdfmetrics,
+                    "Helvetica-Bold",
+                    student_name,
+                    max_text_width,
+                    max(10.0, name_area_height * 0.9),
+                    min_size=8,
+                    max_size=max_name_font,
+                )
+                c.setFont("Helvetica-Bold", name_font)
+                name_baseline = content_top - name_font
+                c.drawCentredString(draw_x + cell_size / 2, name_baseline, student_name)
+
+            if not has_symbols:
                 continue
 
-            available_h = cell_size * 0.5
-            raw_font = int(available_h / max(1, len(lines)) - 1)
-            line_font = max(7, min(int(cell_size * 0.13), raw_font))
-            line_height = max(line_font + 2, 8)
-            start_y = draw_y + cell_size * 0.6 - line_height
+            symbol_top = content_top - name_area_height - (cell_size * 0.03 if has_name else 0.0)
+            symbol_height = max(0.0, symbol_top - content_bottom)
+
+            max_symbol_font = max(9, int(cell_size * 0.24))
+            line_font, line_height = self._fit_multi_line_font(
+                pdfmetrics,
+                self._symbol_font_name,
+                lines,
+                max_text_width,
+                symbol_height,
+                min_size=7,
+                max_size=max_symbol_font,
+            )
 
             c.setFont(self._symbol_font_name, line_font)
+            start_y = symbol_top - line_font
             for idx, line in enumerate(lines):
                 c.drawCentredString(draw_x + cell_size / 2, start_y - idx * line_height, line)
 
