@@ -30,6 +30,9 @@ Regel:
 - Rechteckauswahl implementiert (Maus-Drag + Shift-Pfeiltasten) inklusive Bereichsanzeige im Detailkopf.
 - Rechteck-Clipboard fuer Ausschneiden/Kopieren/Einfuegen ergaenzt; Inhalte bleiben ueber Planwechsel erhalten, Einfuegen startet an der markierten Zelle als linke obere Ecke.
 - Lehrertisch-Schutz bei Clipboard-Operationen und Teacher-Move ausgebaut: Teacher wird nie kopiert/geschnitten/ueberschrieben; bei potenziellem Datenverlust durch Bounds-Wirkung erfolgt vorherige Warnung.
+- Canvas-Groesse als persistente Einstellung eingefuehrt (`canvas_radius`, 1..50) und die Grid-Grenzlogik auf dynamische Radius-Werte umgestellt.
+- Warnlogik erweitert: beim Verkleinern des Canvas-Radius erscheint vor dem Speichern ein Hinweis, falls im aktuell geoeffneten Plan dadurch Schuelertische ausserhalb des sichtbaren Bereichs liegen wuerden.
+- Beim Oeffnen eines Plans erscheint jetzt eine Warnung, wenn enthaltene Schuelertische ausserhalb des aktuell eingestellten Canvas-Radius liegen und daher nicht dargestellt werden koennen.
 
 ### Added
 - `app/infrastructure/symbol_config_loader.py` fuer Schema-Pruefung und Laden der Symbolkonfiguration.

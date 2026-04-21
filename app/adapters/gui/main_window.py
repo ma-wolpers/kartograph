@@ -10,7 +10,7 @@ from app.adapters.gui.ui_intent_controller import MainWindowUiIntentController
 from app.adapters.gui.ui_intents import UiIntent
 from app.adapters.gui.ui_theme import THEMES, normalize_theme_key, theme_names
 from app.core.domain.desk_clipboard import DeskClipboard
-from app.core.domain.models import Desk, SeatingPlan
+from app.core.domain.models import SeatingPlan
 from app.core.domain.plan_history import PlanHistory
 from app.core.domain.plan_selection import RectSelection
 from app.core.usecases.plan_usecases import (
@@ -23,8 +23,9 @@ from app.core.usecases.plan_usecases import (
 from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
 from app.infrastructure.symbol_config_loader import SymbolDefinition, load_symbol_definitions
 
-GRID_MIN = -50
-GRID_MAX = 50
+MAX_CANVAS_RADIUS = 50
+MIN_CANVAS_RADIUS = 1
+DEFAULT_CANVAS_RADIUS = 50
 DEFAULT_CELL_SIZE = 92
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
@@ -88,6 +89,7 @@ class KartographMainWindow(tk.Tk):
         self._settings = self.settings_repository.load_settings()
         self.plans_dir = Path(self._settings.get("plans_dir") or self.default_plans_dir)
         self.theme_key = normalize_theme_key(self._settings.get("theme"))
+        self.canvas_radius = self._normalize_canvas_radius(self._settings.get("canvas_radius"))
 
         self.ui_intent_controller = MainWindowUiIntentController(self)
 
@@ -337,11 +339,38 @@ class KartographMainWindow(tk.Tk):
     def _handle_intent(self, intent: str) -> str | None:
         return self.ui_intent_controller.handle_intent(intent)
 
+    def _normalize_canvas_radius(self, value: object) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            parsed = DEFAULT_CANVAS_RADIUS
+        return max(MIN_CANVAS_RADIUS, min(MAX_CANVAS_RADIUS, parsed))
+
+    def _grid_min(self) -> int:
+        return -self.canvas_radius
+
+    def _grid_max(self) -> int:
+        return self.canvas_radius
+
+    def _count_out_of_bounds_desks(self, plan: SeatingPlan, radius: int | None = None) -> int:
+        effective_radius = self.canvas_radius if radius is None else self._normalize_canvas_radius(radius)
+        min_grid = -effective_radius
+        max_grid = effective_radius
+        count = 0
+        for desk in plan.desks:
+            if desk.desk_type != "student":
+                continue
+            if desk.x < min_grid or desk.x > max_grid or desk.y < min_grid or desk.y > max_grid:
+                count += 1
+        return count
+
     def _grid_pixel_bounds(self) -> tuple[float, float, float, float]:
-        min_x = GRID_MIN * self.cell_size
-        min_y = GRID_MIN * self.cell_size
-        max_x = (GRID_MAX + 1) * self.cell_size
-        max_y = (GRID_MAX + 1) * self.cell_size
+        min_grid = self._grid_min()
+        max_grid = self._grid_max()
+        min_x = min_grid * self.cell_size
+        min_y = min_grid * self.cell_size
+        max_x = (max_grid + 1) * self.cell_size
+        max_y = (max_grid + 1) * self.cell_size
         return min_x, min_y, max_x, max_y
 
     def _update_scroll_region(self) -> None:
@@ -349,7 +378,9 @@ class KartographMainWindow(tk.Tk):
         self.canvas.configure(scrollregion=(min_x, min_y, max_x, max_y))
 
     def _clamp_cell(self, x: int, y: int) -> tuple[int, int]:
-        return max(GRID_MIN, min(GRID_MAX, x)), max(GRID_MIN, min(GRID_MAX, y))
+        min_grid = self._grid_min()
+        max_grid = self._grid_max()
+        return max(min_grid, min(max_grid, x)), max(min_grid, min(max_grid, y))
 
     def _set_selection_single(self, x: int, y: int) -> None:
         cx, cy = self._clamp_cell(x, y)
@@ -366,35 +397,19 @@ class KartographMainWindow(tk.Tk):
         self.selected_cell = self.selection.anchor_cell()
 
     def _record_and_save(self, new_plan: SeatingPlan, action_kind: str, status: str) -> None:
-        bounded = self._apply_bounds_to_plan(new_plan)
         if not self.current_plan:
-            self.current_plan = bounded
+            self.current_plan = new_plan
             return
-        if bounded == self.current_plan:
+        if new_plan == self.current_plan:
             return
-        self.current_plan = bounded
+        self.current_plan = new_plan
         self.history.record(self.current_plan, action_kind)
         self._save_current_plan(status)
 
     def _apply_loaded_plan(self, plan: SeatingPlan) -> SeatingPlan:
-        bounded = self._apply_bounds_to_plan(plan)
-        self.current_plan = bounded
+        self.current_plan = plan
         self.history.reset(self.current_plan)
-        return bounded
-
-    def _apply_bounds_to_plan(self, plan: SeatingPlan) -> SeatingPlan:
-        teacher = plan.teacher_desk()
-        next_desks = [teacher]
-        seen: set[tuple[int, int]] = {(0, 0)}
-        for desk in plan.desks:
-            if desk.desk_type != "student":
-                continue
-            x, y = self._clamp_cell(desk.x, desk.y)
-            if (x, y) == (0, 0) or (x, y) in seen:
-                continue
-            next_desks.append(Desk(x=x, y=y, desk_type="student", student_name=desk.student_name, symbols=dict(desk.symbols)))
-            seen.add((x, y))
-        return SeatingPlan(version=plan.version, plan_id=plan.plan_id, name=plan.name, desks=next_desks)
+        return plan
 
     def _on_return_key(self, _event) -> str | None:
         if self._is_name_entry_focused():
@@ -617,6 +632,14 @@ class KartographMainWindow(tk.Tk):
             messagebox.showerror("Fehler beim Öffnen", str(exc))
             return
 
+        out_of_bounds = self._count_out_of_bounds_desks(plan)
+        if out_of_bounds > 0:
+            messagebox.showwarning(
+                "Plan nur teilweise darstellbar",
+                f"{out_of_bounds} Schuelertische liegen ausserhalb des aktuellen Canvas-Bereichs (+/-{self.canvas_radius}) und koennen nicht angezeigt werden.",
+                parent=self,
+            )
+
         self.current_plan_path = plan_path
         self._apply_loaded_plan(plan)
         self.plan_name_var.set(f"Plan: {plan.name}")
@@ -660,7 +683,7 @@ class KartographMainWindow(tk.Tk):
     def open_settings_dialog(self) -> None:
         dialog = tk.Toplevel(self)
         dialog.title("Einstellungen")
-        dialog.geometry("700x180")
+        dialog.geometry("700x250")
         dialog.transient(self)
         dialog.grab_set()
 
@@ -683,12 +706,45 @@ class KartographMainWindow(tk.Tk):
 
         ttk.Button(row, text="Durchsuchen", command=browse).pack(side="left", padx=(8, 0))
 
+        canvas_row = ttk.Frame(frame)
+        canvas_row.pack(fill="x", pady=(0, 12))
+        ttk.Label(canvas_row, text="Canvas-Halbbreite (1-50)").pack(side="left")
+        radius_var = tk.StringVar(value=str(self.canvas_radius))
+        radius_spin = ttk.Spinbox(
+            canvas_row,
+            from_=MIN_CANVAS_RADIUS,
+            to=MAX_CANVAS_RADIUS,
+            textvariable=radius_var,
+            width=8,
+        )
+        radius_spin.pack(side="left", padx=(10, 0))
+        ttk.Label(canvas_row, text="entspricht (0,0) + Radius in jede Richtung").pack(side="left", padx=(10, 0))
+
         def save() -> None:
             selected_path = Path(path_var.get().strip() or str(self.default_plans_dir))
             selected_path.mkdir(parents=True, exist_ok=True)
+            new_radius = self._normalize_canvas_radius(radius_var.get())
+
+            if self.current_plan and new_radius < self.canvas_radius:
+                out_of_bounds = self._count_out_of_bounds_desks(self.current_plan, radius=new_radius)
+                if out_of_bounds > 0:
+                    proceed = messagebox.askyesno(
+                        "Warnung",
+                        f"Bei Canvas-Radius {new_radius} waeren {out_of_bounds} Schuelertische nicht mehr sichtbar. Trotzdem speichern?",
+                        parent=dialog,
+                    )
+                    if not proceed:
+                        return
+
             self.plans_dir = selected_path
             self._settings["plans_dir"] = str(selected_path)
+            self.canvas_radius = new_radius
+            self._settings["canvas_radius"] = new_radius
             self.settings_repository.save_settings(self._settings)
+            self._update_scroll_region()
+            self._set_selection_single(*self.selection.active_cell())
+            self.redraw_grid()
+            self._refresh_details_panel()
             self.refresh_plan_list()
             dialog.destroy()
 
@@ -829,10 +885,12 @@ class KartographMainWindow(tk.Tk):
         start_y = int(top // self.cell_size) - 1
         end_y = int(bottom // self.cell_size) + 1
 
-        start_x = max(GRID_MIN, start_x)
-        end_x = min(GRID_MAX, end_x)
-        start_y = max(GRID_MIN, start_y)
-        end_y = min(GRID_MAX, end_y)
+        min_grid = self._grid_min()
+        max_grid = self._grid_max()
+        start_x = max(min_grid, start_x)
+        end_x = min(max_grid, end_x)
+        start_y = max(min_grid, start_y)
+        end_y = min(max_grid, end_y)
 
         desks = {(desk.x, desk.y): desk for desk in self.current_plan.desks}
         student_name_font_size = self._compute_uniform_student_name_font_size()
@@ -1132,20 +1190,17 @@ class KartographMainWindow(tk.Tk):
 
         x, y = self.selected_cell
         moved_plan = set_teacher_desk(self.current_plan, x, y)
-        bounded_plan = self._apply_bounds_to_plan(moved_plan)
-
-        student_before = sum(1 for desk in moved_plan.desks if desk.desk_type == "student")
-        student_after = sum(1 for desk in bounded_plan.desks if desk.desk_type == "student")
-        if student_after < student_before:
+        out_of_bounds = self._count_out_of_bounds_desks(moved_plan)
+        if out_of_bounds > 0:
             proceed = messagebox.askyesno(
                 "Warnung",
-                "Beim Verschieben des Lehrertischs wuerden durch die 101x101-Grenze Plaetze verloren gehen. Trotzdem fortfahren?",
+                f"Nach dem Verschieben des Lehrertischs waeren {out_of_bounds} Schuelertische ausserhalb des aktuellen Canvas-Bereichs (+/-{self.canvas_radius}) und damit unsichtbar. Trotzdem fortfahren?",
                 parent=self,
             )
             if not proceed:
                 return
 
-        self.current_plan = bounded_plan
+        self.current_plan = moved_plan
         self.history.record(self.current_plan, "teacher.move")
         self.interaction_mode = GRID_SELECTED
         self._save_current_plan("Lehrertisch neu gesetzt")
@@ -1360,8 +1415,8 @@ class KartographMainWindow(tk.Tk):
             self.current_plan,
             target_x,
             target_y,
-            GRID_MIN,
-            GRID_MAX,
+            self._grid_min(),
+            self._grid_max(),
         )
         self._record_and_save(next_plan, "selection.paste", f"Eingefuegt: {pasted} Schuelertische")
         if teacher_conflict:
