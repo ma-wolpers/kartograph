@@ -2,7 +2,8 @@
 setlocal
 
 set "SCRIPT_DIR=%~dp0"
-set "VENV_PYW=%SCRIPT_DIR%.venv\Scripts\pythonw.exe"
+set "ROOT_VENV_PYW=%SCRIPT_DIR%..\.venv\Scripts\pythonw.exe"
+set "LOCAL_VENV_PYW=%SCRIPT_DIR%.venv\Scripts\pythonw.exe"
 set "ENTRY=%SCRIPT_DIR%kartograph.py"
 
 if not exist "%ENTRY%" (
@@ -11,8 +12,10 @@ if not exist "%ENTRY%" (
 	exit /b 1
 )
 
-if exist "%VENV_PYW%" (
-	start "" "%VENV_PYW%" "%ENTRY%"
+if exist "%ROOT_VENV_PYW%" (
+	start "" "%ROOT_VENV_PYW%" "%ENTRY%"
+) else if exist "%LOCAL_VENV_PYW%" (
+	start "" "%LOCAL_VENV_PYW%" "%ENTRY%"
 ) else (
 	start "" pyw -3 "%ENTRY%"
 )

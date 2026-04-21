@@ -15,6 +15,14 @@ Kartograph is a desktop app for creating and managing seating plans.
 
 ## Start
 
+Vor der ersten Nutzung im Ordner `tools4school` einmal ausfuehren:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r kartograph/requirements.txt
+```
+
 ```bat
 start-kartograph.bat
 ```
