@@ -4,6 +4,7 @@ import tkinter as tk
 import sys
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
+from tkinter import font as tkfont
 
 from app.adapters.gui.ui_intent_controller import MainWindowUiIntentController
 from app.adapters.gui.ui_intents import UiIntent
@@ -694,6 +695,7 @@ class KartographMainWindow(tk.Tk):
         end_y = int(bottom // self.cell_size) + 1
 
         desks = {(desk.x, desk.y): desk for desk in self.current_plan.desks}
+        student_name_font_size = self._compute_uniform_student_name_font_size()
 
         for cy in range(start_y, end_y + 1):
             for cx in range(start_x, end_x + 1):
@@ -731,13 +733,18 @@ class KartographMainWindow(tk.Tk):
                 )
 
                 if main_text:
-                    anchor_y = y1 + self.cell_size / 2 if not symbol_lines else y1 + self.cell_size * 0.22
+                    if desk and desk.desk_type == "student":
+                        anchor_y = y1 + self.cell_size * 0.24
+                        font_size = student_name_font_size
+                    else:
+                        anchor_y = y1 + self.cell_size / 2
+                        font_size = max(8, int(self.cell_size * 0.12))
                     self.canvas.create_text(
                         x1 + self.cell_size / 2,
                         anchor_y,
                         text=main_text,
                         fill=text_color,
-                        font=("Segoe UI", max(8, int(self.cell_size * 0.12)), "bold"),
+                        font=("Segoe UI", font_size, "bold"),
                         tags=("grid",),
                     )
 
@@ -772,6 +779,28 @@ class KartographMainWindow(tk.Tk):
             width=3,
             tags=("grid",),
         )
+
+    def _compute_uniform_student_name_font_size(self) -> int:
+        base_size = max(8, int(self.cell_size * 0.12))
+        min_size = 5
+        max_text_width = int(self.cell_size * 0.88)
+
+        labels = [
+            (desk.student_name or "Schuelertisch").strip() or "Schuelertisch"
+            for desk in self.current_plan.desks
+            if desk.desk_type == "student"
+        ]
+        if not labels:
+            return base_size
+
+        size = base_size
+        while size > min_size:
+            font = tkfont.Font(family="Segoe UI", size=size, weight="bold")
+            if all(font.measure(label) <= max_text_width for label in labels):
+                return size
+            size -= 1
+
+        return min_size
 
     def _symbol_glyph(self, symbol_name: str) -> str:
         symbol = self._symbol_by_meaning.get(symbol_name)
