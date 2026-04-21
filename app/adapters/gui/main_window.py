@@ -678,7 +678,7 @@ class KartographMainWindow(tk.Tk):
                     else:
                         fill = theme["student_fill"]
                         main_text = desk.student_name or "Schülertisch"
-                        symbol_lines = self._symbol_lines(desk.symbols)
+                        symbol_lines = self._symbol_grid_lines(desk.symbols)
                         text_color = theme["fg_main"]
 
                 self.canvas.create_rectangle(
@@ -711,12 +711,10 @@ class KartographMainWindow(tk.Tk):
                     start_y = y1 + self.cell_size * 0.42
 
                     for idx, line in enumerate(symbol_lines):
-                        max_chars = max(4, int((self.cell_size * 0.9) / max(4, symbol_font * 0.55)))
-                        clipped = line if len(line) <= max_chars else line[: max_chars - 1] + "…"
                         self.canvas.create_text(
                             x1 + self.cell_size / 2,
                             start_y + idx * line_height,
-                            text=clipped,
+                            text=line,
                             fill=theme["fg_muted"],
                             font=("Segoe UI", symbol_font),
                             tags=("grid",),
@@ -743,23 +741,14 @@ class KartographMainWindow(tk.Tk):
             return "•"
         return symbol.glyph
 
-    def _symbol_lines(self, symbols: dict[str, int]) -> list[str]:
-        if not symbols:
-            return []
+    def _iter_symbol_counts(self, symbols: dict[str, int]) -> list[tuple[str, int]]:
+        entries: list[tuple[str, int]] = []
 
-        lines: list[str] = []
         for symbol_name in self.symbol_catalog:
             count = int(symbols.get(symbol_name, 0))
             if count < 1:
                 continue
-            count = min(3, count)
-            glyph = self._symbol_glyph(symbol_name)
-            definition = self._symbol_by_meaning.get(symbol_name)
-            if definition is None:
-                legend_text = symbol_name
-            else:
-                legend_text = definition.legend_for_count(count)
-            lines.append(f"{glyph * count} {legend_text}".strip())
+            entries.append((symbol_name, min(3, count)))
 
         for symbol_name, raw_count in sorted(symbols.items()):
             if symbol_name in self.symbol_catalog:
@@ -767,9 +756,49 @@ class KartographMainWindow(tk.Tk):
             count = int(raw_count)
             if count < 1:
                 continue
-            count = min(3, count)
+            entries.append((symbol_name, min(3, count)))
+
+        return entries
+
+    def _symbol_grid_lines(self, symbols: dict[str, int]) -> list[str]:
+        """Render only symbols in the tile, max 6 glyphs per line, symbol groups stay intact."""
+        entries = self._iter_symbol_counts(symbols)
+        if not entries:
+            return []
+
+        lines: list[str] = []
+        line_tokens: list[str] = []
+        used_slots = 0
+
+        for symbol_name, count in entries:
+            token = self._symbol_glyph(symbol_name) * count
+            token_slots = len(token)
+            if line_tokens and used_slots + token_slots > 6:
+                lines.append(" ".join(line_tokens))
+                line_tokens = [token]
+                used_slots = token_slots
+            else:
+                line_tokens.append(token)
+                used_slots += token_slots
+
+        if line_tokens:
+            lines.append(" ".join(line_tokens))
+
+        return lines
+
+    def _symbol_legend_lines(self, symbols: dict[str, int]) -> list[str]:
+        if not symbols:
+            return []
+
+        lines: list[str] = []
+        for symbol_name, count in self._iter_symbol_counts(symbols):
             glyph = self._symbol_glyph(symbol_name)
-            lines.append(f"{glyph * count} {symbol_name}".strip())
+            definition = self._symbol_by_meaning.get(symbol_name)
+            if definition is None:
+                legend_text = symbol_name
+            else:
+                legend_text = definition.legend_for_count(count)
+            lines.append(f"{glyph * count} {legend_text}".strip())
 
         return lines
 
@@ -920,7 +949,7 @@ class KartographMainWindow(tk.Tk):
             )
             button.pack(side="left", padx=(0, 4))
 
-        active_lines = self._symbol_lines(desk.symbols)
+        active_lines = self._symbol_legend_lines(desk.symbols)
         if active_lines:
             for line in active_lines:
                 ttk.Label(self.symbol_legend_frame, text=line).pack(anchor="w")
