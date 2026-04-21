@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+import sys
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
@@ -23,6 +24,29 @@ LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
 
+APP_USER_MODEL_ID = "7thCloud.Kartograph"
+ICON_PATH = Path(__file__).resolve().parents[3] / "assets" / "kartograph.ico"
+
+
+def configure_windows_process_identity() -> None:
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+    except Exception:
+        return
+
+
+def apply_window_icon(window: tk.Tk) -> None:
+    if not sys.platform.startswith("win") or not ICON_PATH.exists():
+        return
+    try:
+        window.iconbitmap(default=str(ICON_PATH))
+    except Exception:
+        return
+
 
 class KartographMainWindow(tk.Tk):
     def __init__(
@@ -33,9 +57,11 @@ class KartographMainWindow(tk.Tk):
         symbols_path: Path,
     ):
         super().__init__()
+        configure_windows_process_identity()
         self.title("Kartograph")
         self.geometry("1320x860")
         self.minsize(1000, 680)
+        apply_window_icon(self)
 
         self.settings_repository = settings_repository
         self.plan_repository = plan_repository
