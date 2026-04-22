@@ -89,6 +89,16 @@
         "two": "versteht Fragen, Arbeitsaufträge oder Lernaufgaben in der Regel gut, fragt gelegentlich nach",
         "one": "versteht Fragen, Arbeitsaufträge, Lernaufgaben meist nur nach mehrfacher Wiederholung oder Nachfragen"
       }
+    },
+    {
+      "codepoint": "1F6E0",
+      "meaning": "Programmieren o.ä.",
+      "shortcut": "P",
+      "legend": {
+        "three": "zerlegt komplexe Probleme in Teilschritte, kann Algorithmen entwickeln, umsetzen und erklären",
+        "two": "kann einfache Probleme in Teilschritte zerlegen, kann einfache Algorithmen entwickeln, umsetzen und erklären",
+        "one": "kann einfache Probleme nur mit Hilfestellung in Teilschritte zerlegen, kann einfache Algorithmen nur mit Hilfestellung entwickeln, umsetzen und erklären "
+      }
     }
   ]
 }
