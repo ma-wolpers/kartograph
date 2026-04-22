@@ -26,6 +26,9 @@ class MainWindowUiIntentController:
         if intent == UiIntent.ADD_SYMBOL:
             self.app.add_symbol_to_selected_desk_dialog()
             return "break"
+        if intent == UiIntent.OPEN_TABLEGROUP_SETTINGS:
+            self.app.open_tablegroup_settings_overlay()
+            return "break"
         if intent == UiIntent.ESCAPE:
             self.app.handle_escape()
             return "break"

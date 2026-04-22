@@ -5,6 +5,7 @@ class UiIntent:
     DELETE_DESK = "desk.delete"
     SET_TEACHER_DESK = "desk.set_teacher"
     ADD_SYMBOL = "desk.add_symbol"
+    OPEN_TABLEGROUP_SETTINGS = "tablegroup.settings.open"
     ESCAPE = "selection.clear"
     CONFIRM_SELECTION = "selection.confirm"
     MOVE_UP = "selection.up"

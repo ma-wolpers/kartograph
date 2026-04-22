@@ -10,8 +10,17 @@ Regel:
 
 ### Added
 - Guardrail-Basis eingefuehrt: `AGENTS.md`, `.github/copilot-instructions.md`, PR-Template und CI-Check.
+- `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Tischgruppen als Zusammenhangskomponenten eingefuehrt (4er-Nachbarschaft); Lehrertische bleiben strikt ausserhalb von Tischgruppen.
+- Desk-Datenmodell und JSON-Persistenz um TG-Metadaten erweitert: TG-Nummer, x/y-Shift und Rotation.
+- Neuer Shortcut `Strg+T` oeffnet ein rechtes Tischeinstellungen-Overlay mit TG-Nummer, Shift- und Rotationswerten.
+- TG-Nummerierung unterstuetzt manuelle Vergabe mit Kaskadeneffekt bei Nummernkonflikten.
+- Vorschau-Rendering auf transformierte Tischdarstellung pro Tischgruppe umgestellt; TG-Nummern werden unter Gruppen angezeigt.
+- Bei markierten Teilmengen einer Tischgruppe wird zusaetzlich ein schwaecherer Gruppenrahmen dargestellt.
+- PDF-Export auf dieselbe TG-Transformationslogik wie die Vorschau umgestellt (Shift/Rotation deckungsgleich).
+- Kollisionserkennung fuer TG-Transformationen eingefuehrt: bei Ueberlappung mit Lehrer- oder Schuelertisch wird der zuletzt veraenderte Transformationswert direkt auf 0 gesetzt.
 - Doku-Governance eingefuehrt mit klarer Trennung aus Architektur-Ist-Zustand, Development-Log und Changelog.
 - Enter-Verhalten im Editor praezisiert: Enter fuehrt jetzt robust in den Namens-Editmodus (inkl. Cursor am Ende ohne Vollmarkierung), waehrend die Listenansicht unveraendert bleibt.
 - Symbolverwaltung von binaeren Toggles auf 4er-Zyklus erweitert (0->1->2->3->0) mit persistierten Klickzaehlern pro Symbol.

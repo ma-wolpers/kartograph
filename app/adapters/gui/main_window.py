@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tkinter as tk
 import sys
+from copy import deepcopy
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from tkinter import font as tkfont
@@ -13,6 +14,19 @@ from app.core.domain.desk_clipboard import DeskClipboard
 from app.core.domain.models import SeatingPlan
 from app.core.domain.plan_history import PlanHistory
 from app.core.domain.plan_selection import RectSelection
+from app.core.domain.table_groups import (
+    TG_ROTATION_LIMIT,
+    TG_SHIFT_LIMIT,
+    build_desk_geometries,
+    detect_overlaps_for_tablegroup,
+    get_tablegroup_settings,
+    group_bounds_from_geometries,
+    list_tablegroup_numbers,
+    normalize_tablegroups_in_place,
+    set_tablegroup_number_with_cascade_in_place,
+    set_tablegroup_transforms_in_place,
+    tablegroup_number_at,
+)
 from app.core.usecases.plan_usecases import (
     create_student_desk,
     delete_desk,
@@ -98,6 +112,13 @@ class KartographMainWindow(tk.Tk):
         self._name_var = tk.StringVar(value="")
         self._selected_marker_var = tk.StringVar(value="")
         self.status_var = tk.StringVar(value="Bereit")
+        self._tablegroup_overlay: tk.Toplevel | None = None
+        self._tg_number_var: tk.StringVar | None = None
+        self._tg_shift_x_var: tk.StringVar | None = None
+        self._tg_shift_y_var: tk.StringVar | None = None
+        self._tg_rotation_var: tk.StringVar | None = None
+        self._tg_status_var: tk.StringVar | None = None
+        self._tg_last_changed_field: str = "shift_x"
 
         self.symbol_definitions, warning = self._load_symbols()
         self.symbol_catalog = [item.meaning for item in self.symbol_definitions]
@@ -228,6 +249,14 @@ class KartographMainWindow(tk.Tk):
         add_symbol_button.pack(side="left", padx=(8, 0))
         self._bind_editor_return_override(add_symbol_button)
 
+        tablegroup_button = ttk.Button(
+            self.editor_topbar,
+            text="Tischeinstellungen (Strg+T)",
+            command=lambda: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS),
+        )
+        tablegroup_button.pack(side="left", padx=(8, 0))
+        self._bind_editor_return_override(tablegroup_button)
+
         export_pdf_button = ttk.Button(
             self.editor_topbar,
             text="PDF exportieren",
@@ -348,6 +377,7 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Control-KP_Subtract>", lambda _event: self._handle_intent(UiIntent.ZOOM_OUT))
         self.bind("<Control-z>", lambda _event: self._handle_intent(UiIntent.UNDO))
         self.bind("<Control-y>", lambda _event: self._handle_intent(UiIntent.REDO))
+        self.bind("<Control-t>", lambda _event: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS))
         self.bind("<Control-x>", lambda _event: self._handle_intent(UiIntent.CUT))
         self.bind("<Control-c>", lambda _event: self._handle_intent(UiIntent.COPY))
         self.bind("<Control-v>", lambda _event: self._handle_intent(UiIntent.PASTE))
@@ -441,6 +471,7 @@ class KartographMainWindow(tk.Tk):
         self.selected_cell = self.selection.anchor_cell()
 
     def _record_and_save(self, new_plan: SeatingPlan, action_kind: str, status: str) -> None:
+        normalize_tablegroups_in_place(new_plan)
         if not self.current_plan:
             self.current_plan = new_plan
             return
@@ -451,6 +482,7 @@ class KartographMainWindow(tk.Tk):
         self._save_current_plan(status)
 
     def _apply_loaded_plan(self, plan: SeatingPlan) -> SeatingPlan:
+        normalize_tablegroups_in_place(plan)
         self.current_plan = plan
         self.history.reset(self.current_plan)
         return plan
@@ -496,6 +528,252 @@ class KartographMainWindow(tk.Tk):
     def _is_name_entry_focused(self) -> bool:
         return self.focus_get() == self.name_entry
 
+    def _is_tablegroup_overlay_focused(self) -> bool:
+        if not self._tablegroup_overlay or not self._tablegroup_overlay.winfo_exists():
+            return False
+        focused_widget = self.focus_get()
+        if focused_widget is None:
+            return False
+        focused_path = str(focused_widget)
+        return focused_path.startswith(str(self._tablegroup_overlay))
+
+    def open_tablegroup_settings_overlay(self) -> None:
+        if not self.editor_view.winfo_ismapped():
+            self.status_var.set("Tischeinstellungen nur im Editor verfuegbar")
+            return
+        if not self.current_plan or not self.current_plan_path:
+            self.status_var.set("Kein Plan geoeffnet")
+            return
+
+        if self._tablegroup_overlay and self._tablegroup_overlay.winfo_exists():
+            self._position_tablegroup_overlay()
+            self._refresh_tablegroup_overlay()
+            self._tablegroup_overlay.deiconify()
+            self._tablegroup_overlay.lift()
+            self._tablegroup_overlay.focus_force()
+            return
+
+        overlay = tk.Toplevel(self)
+        overlay.title("Tischeinstellungen")
+        overlay.resizable(False, False)
+        overlay.transient(self)
+        overlay.protocol("WM_DELETE_WINDOW", self._close_tablegroup_overlay)
+        overlay.bind("<Escape>", lambda _event: self._close_tablegroup_overlay())
+        self._tablegroup_overlay = overlay
+        self._position_tablegroup_overlay()
+
+        body = ttk.Frame(overlay)
+        body.pack(fill="both", expand=True, padx=12, pady=12)
+
+        self._tg_number_var = tk.StringVar(value="")
+        self._tg_shift_x_var = tk.StringVar(value="0.00")
+        self._tg_shift_y_var = tk.StringVar(value="0.00")
+        self._tg_rotation_var = tk.StringVar(value="0.00")
+        self._tg_status_var = tk.StringVar(value="")
+
+        ttk.Label(body, text="TG-Nummer").grid(row=0, column=0, sticky="w", pady=(0, 4))
+        number_entry = ttk.Entry(body, textvariable=self._tg_number_var, width=10)
+        number_entry.grid(row=0, column=1, sticky="w", pady=(0, 4))
+        number_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("number"))
+
+        ttk.Label(body, text=f"x-shift (-{TG_SHIFT_LIMIT:.2f}..{TG_SHIFT_LIMIT:.2f})").grid(
+            row=1, column=0, sticky="w", pady=(0, 4)
+        )
+        shift_x_entry = ttk.Entry(body, textvariable=self._tg_shift_x_var, width=10)
+        shift_x_entry.grid(row=1, column=1, sticky="w", pady=(0, 4))
+        shift_x_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("shift_x"))
+
+        ttk.Label(body, text=f"y-shift (-{TG_SHIFT_LIMIT:.2f}..{TG_SHIFT_LIMIT:.2f})").grid(
+            row=2, column=0, sticky="w", pady=(0, 4)
+        )
+        shift_y_entry = ttk.Entry(body, textvariable=self._tg_shift_y_var, width=10)
+        shift_y_entry.grid(row=2, column=1, sticky="w", pady=(0, 4))
+        shift_y_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("shift_y"))
+
+        ttk.Label(body, text=f"Rotation (-{int(TG_ROTATION_LIMIT)}..{int(TG_ROTATION_LIMIT)})").grid(
+            row=3, column=0, sticky="w", pady=(0, 4)
+        )
+        rotation_entry = ttk.Entry(body, textvariable=self._tg_rotation_var, width=10)
+        rotation_entry.grid(row=3, column=1, sticky="w", pady=(0, 4))
+        rotation_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("rotation"))
+
+        ttk.Label(body, textvariable=self._tg_status_var, style="Panel.TLabel").grid(
+            row=4, column=0, columnspan=2, sticky="w", pady=(8, 8)
+        )
+
+        button_row = ttk.Frame(body)
+        button_row.grid(row=5, column=0, columnspan=2, sticky="ew")
+        ttk.Button(button_row, text="Schliessen", command=self._close_tablegroup_overlay).pack(side="right")
+        ttk.Button(button_row, text="Uebernehmen", command=self._apply_tablegroup_overlay_values).pack(
+            side="right", padx=(0, 8)
+        )
+
+        overlay.bind("<Return>", lambda _event: self._apply_tablegroup_overlay_values())
+        self._focus_overlay_widget(overlay, number_entry)
+        self._refresh_tablegroup_overlay()
+
+    def _set_tg_last_changed(self, field: str) -> None:
+        self._tg_last_changed_field = field
+
+    def _position_tablegroup_overlay(self) -> None:
+        if not self._tablegroup_overlay or not self._tablegroup_overlay.winfo_exists():
+            return
+        self.update_idletasks()
+        width = 340
+        height = 250
+        x_pos = self.winfo_rootx() + self.winfo_width() - width - 20
+        y_pos = self.winfo_rooty() + 90
+        self._tablegroup_overlay.geometry(f"{width}x{height}+{x_pos}+{y_pos}")
+
+    def _close_tablegroup_overlay(self) -> None:
+        if self._tablegroup_overlay and self._tablegroup_overlay.winfo_exists():
+            self._tablegroup_overlay.destroy()
+        self._tablegroup_overlay = None
+        self._tg_number_var = None
+        self._tg_shift_x_var = None
+        self._tg_shift_y_var = None
+        self._tg_rotation_var = None
+        self._tg_status_var = None
+
+    def _refresh_tablegroup_overlay(self) -> None:
+        if not self._tablegroup_overlay or not self._tablegroup_overlay.winfo_exists():
+            return
+        if not self.current_plan or not self.current_plan_path:
+            return
+        if not self._tg_number_var or not self._tg_shift_x_var or not self._tg_shift_y_var or not self._tg_rotation_var:
+            return
+
+        normalize_tablegroups_in_place(self.current_plan)
+        x, y = self.selection.active_cell()
+        number = tablegroup_number_at(self.current_plan, x, y)
+        if number is None:
+            self._tg_number_var.set("")
+            self._tg_shift_x_var.set("0.00")
+            self._tg_shift_y_var.set("0.00")
+            self._tg_rotation_var.set("0.00")
+            if self._tg_status_var:
+                self._tg_status_var.set("Waehle einen Schuelertisch aus")
+            return
+
+        settings = get_tablegroup_settings(self.current_plan, number)
+        if settings is None:
+            return
+
+        self._tg_number_var.set(str(settings.number))
+        self._tg_shift_x_var.set(f"{settings.shift_x:.2f}")
+        self._tg_shift_y_var.set(f"{settings.shift_y:.2f}")
+        self._tg_rotation_var.set(f"{settings.rotation:.2f}")
+        if self._tg_status_var:
+            self._tg_status_var.set(f"Aktive Gruppe: TG {settings.number}")
+
+    def _parse_tablegroup_overlay_values(self) -> tuple[int, float, float, float] | None:
+        if not self._tg_number_var or not self._tg_shift_x_var or not self._tg_shift_y_var or not self._tg_rotation_var:
+            return None
+
+        try:
+            number = int(self._tg_number_var.get().strip())
+        except ValueError:
+            messagebox.showerror("Ungueltige Eingabe", "TG-Nummer muss eine ganze Zahl sein.", parent=self)
+            return None
+        if number <= 0:
+            messagebox.showerror("Ungueltige Eingabe", "TG-Nummer muss groesser als 0 sein.", parent=self)
+            return None
+
+        try:
+            shift_x = float(self._tg_shift_x_var.get().strip())
+            shift_y = float(self._tg_shift_y_var.get().strip())
+        except ValueError:
+            messagebox.showerror("Ungueltige Eingabe", "x-shift und y-shift muessen Zahlen sein.", parent=self)
+            return None
+
+        if not (-0.5 < shift_x < 0.5) or not (-0.5 < shift_y < 0.5):
+            messagebox.showerror(
+                "Ungueltige Eingabe",
+                "x-shift und y-shift muessen strikt zwischen -0.5 und 0.5 liegen.",
+                parent=self,
+            )
+            return None
+
+        try:
+            rotation = float(self._tg_rotation_var.get().strip())
+        except ValueError:
+            messagebox.showerror("Ungueltige Eingabe", "Rotation muss eine Zahl sein.", parent=self)
+            return None
+        if rotation < -TG_ROTATION_LIMIT or rotation > TG_ROTATION_LIMIT:
+            messagebox.showerror(
+                "Ungueltige Eingabe",
+                f"Rotation muss zwischen {-TG_ROTATION_LIMIT:.0f} und {TG_ROTATION_LIMIT:.0f} liegen.",
+                parent=self,
+            )
+            return None
+
+        return number, shift_x, shift_y, rotation
+
+    def _apply_tablegroup_overlay_values(self) -> None:
+        if not self.current_plan or not self.current_plan_path:
+            return
+
+        parsed = self._parse_tablegroup_overlay_values()
+        if parsed is None:
+            return
+
+        target_number, shift_x, shift_y, rotation = parsed
+        x, y = self.selection.active_cell()
+
+        next_plan = deepcopy(self.current_plan)
+        normalize_tablegroups_in_place(next_plan)
+
+        source_number = tablegroup_number_at(next_plan, x, y)
+        if source_number is None:
+            if self._tg_status_var:
+                self._tg_status_var.set("Nur Schuelertische gehoeren zu Tischgruppen")
+            return
+
+        if source_number != target_number:
+            set_tablegroup_number_with_cascade_in_place(next_plan, source_number, target_number)
+            source_number = target_number
+
+        set_tablegroup_transforms_in_place(
+            next_plan,
+            source_number,
+            shift_x=shift_x,
+            shift_y=shift_y,
+            rotation=rotation,
+        )
+
+        teacher_overlap, student_overlap = detect_overlaps_for_tablegroup(next_plan, source_number)
+        if teacher_overlap or student_overlap:
+            if self._tg_last_changed_field == "shift_y":
+                set_tablegroup_transforms_in_place(next_plan, source_number, shift_y=0.0)
+                reset_label = "y-shift"
+            elif self._tg_last_changed_field == "rotation":
+                set_tablegroup_transforms_in_place(next_plan, source_number, rotation=0.0)
+                reset_label = "rotation"
+            else:
+                set_tablegroup_transforms_in_place(next_plan, source_number, shift_x=0.0)
+                reset_label = "x-shift"
+
+            teacher_overlap, student_overlap = detect_overlaps_for_tablegroup(next_plan, source_number)
+            if teacher_overlap or student_overlap:
+                set_tablegroup_transforms_in_place(next_plan, source_number, shift_x=0.0, shift_y=0.0, rotation=0.0)
+                reset_label = "x/y-shift und rotation"
+
+            self._record_and_save(
+                next_plan,
+                "tablegroup.edit",
+                f"Tischgruppe aktualisiert, {reset_label} auf 0 zurueckgesetzt",
+            )
+            if self._tg_status_var:
+                self._tg_status_var.set(f"Ueberlappung erkannt: {reset_label} auf 0 gesetzt")
+        else:
+            self._record_and_save(next_plan, "tablegroup.edit", "Tischgruppe aktualisiert")
+            if self._tg_status_var:
+                self._tg_status_var.set(f"TG {source_number} gespeichert")
+
+        self.redraw_grid()
+        self._refresh_details_panel()
+        self._refresh_tablegroup_overlay()
+
     def _build_symbol_shortcut_map(self, definitions: list[SymbolDefinition]) -> dict[str, str]:
         mapping: dict[str, str] = {}
         for definition in definitions:
@@ -508,6 +786,8 @@ class KartographMainWindow(tk.Tk):
 
     def _on_symbol_shortcut(self, _event, symbol_name: str) -> str | None:
         if self._is_name_entry_focused():
+            return None
+        if self._is_tablegroup_overlay_focused():
             return None
         # Ignore control/alt-modified keys so shortcuts like Ctrl+C remain unaffected.
         if _event.state & 0x0004 or _event.state & 0x0008:
@@ -664,6 +944,7 @@ class KartographMainWindow(tk.Tk):
         self.plan_listbox.see(desired_index)
 
     def show_plan_list_view(self) -> None:
+        self._close_tablegroup_overlay()
         self.editor_view.pack_forget()
         self.list_view.pack(fill="both", expand=True)
         self.interaction_mode = LIST_ACTIVE
@@ -676,6 +957,7 @@ class KartographMainWindow(tk.Tk):
         self.interaction_mode = GRID_SELECTED
         self._set_selection_single(*self.selection.active_cell())
         self.canvas.focus_set()
+        self._position_tablegroup_overlay()
 
     def open_selected_plan_from_list(self) -> None:
         self._ensure_list_selection()
@@ -953,6 +1235,8 @@ class KartographMainWindow(tk.Tk):
         if not self.current_plan:
             return
 
+        normalize_tablegroups_in_place(self.current_plan)
+
         theme = THEMES[self.theme_key]
         left = self.canvas.canvasx(0)
         top = self.canvas.canvasy(0)
@@ -971,7 +1255,19 @@ class KartographMainWindow(tk.Tk):
         start_y = max(min_grid, start_y)
         end_y = min(max_grid, end_y)
 
-        desks = {(desk.x, desk.y): desk for desk in self.current_plan.desks}
+        geometries = build_desk_geometries(self.current_plan)
+        geometry_by_coord = {
+            (geometry.desk.x, geometry.desk.y): geometry
+            for geometry in geometries
+            if geometry.desk.desk_type == "student"
+        }
+        selected_cells = set(self.selection.cells())
+        selected_tablegroups: set[int] = set()
+        for cell_x, cell_y in selected_cells:
+            number = tablegroup_number_at(self.current_plan, cell_x, cell_y)
+            if number is not None:
+                selected_tablegroups.add(number)
+
         student_name_font_size = self._compute_uniform_student_name_font_size()
 
         for cy in range(start_y, end_y + 1):
@@ -981,67 +1277,138 @@ class KartographMainWindow(tk.Tk):
                 x2 = x1 + self.cell_size
                 y2 = y1 + self.cell_size
 
-                desk = desks.get((cx, cy))
-                fill = theme["empty_fill"]
-                text_color = theme["fg_muted"]
-                main_text = ""
-                symbol_lines: list[str] = []
+                self.canvas.create_rectangle(
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    fill=theme["empty_fill"],
+                    outline=theme["grid_line"],
+                    width=1,
+                    tags=("grid",),
+                )
 
-                if desk:
-                    if desk.desk_type == "teacher":
-                        fill = theme["teacher_fill"]
-                        main_text = "Lehrertisch"
-                        text_color = theme["teacher_text"]
-                    else:
-                        fill = theme["student_fill"]
-                        main_text = (desk.student_name or "").strip()
-                        symbol_lines = self._symbol_grid_lines(desk.symbols)
-                        text_color = theme["fg_main"]
+        for desk in self.current_plan.desks:
+            if desk.desk_type == "teacher":
+                x1 = desk.x * self.cell_size
+                y1 = desk.y * self.cell_size
+                x2 = x1 + self.cell_size
+                y2 = y1 + self.cell_size
+                if x2 < left - self.cell_size or x1 > right + self.cell_size or y2 < top - self.cell_size or y1 > bottom + self.cell_size:
+                    continue
 
                 self.canvas.create_rectangle(
                     x1,
                     y1,
                     x2,
                     y2,
-                    fill=fill,
+                    fill=theme["teacher_fill"],
                     outline=theme["grid_line"],
                     width=1,
                     tags=("grid",),
                 )
+                self.canvas.create_text(
+                    x1 + self.cell_size / 2,
+                    y1 + self.cell_size / 2,
+                    text="Lehrertisch",
+                    fill=theme["teacher_text"],
+                    font=("Segoe UI", max(8, int(self.cell_size * 0.12)), "bold"),
+                    tags=("grid",),
+                )
+                continue
 
-                if main_text:
-                    if desk and desk.desk_type == "student":
-                        anchor_y = y1 + self.cell_size * 0.24
-                        font_size = student_name_font_size
-                    else:
-                        anchor_y = y1 + self.cell_size / 2
-                        font_size = max(8, int(self.cell_size * 0.12))
+            geometry = geometry_by_coord.get((desk.x, desk.y))
+            if geometry is None:
+                continue
+            polygon_points: list[float] = []
+            min_px = float("inf")
+            min_py = float("inf")
+            max_px = float("-inf")
+            max_py = float("-inf")
+
+            for world_x, world_y in geometry.polygon:
+                px = world_x * self.cell_size
+                py = world_y * self.cell_size
+                polygon_points.extend((px, py))
+                min_px = min(min_px, px)
+                min_py = min(min_py, py)
+                max_px = max(max_px, px)
+                max_py = max(max_py, py)
+
+            if max_px < left - self.cell_size or min_px > right + self.cell_size or max_py < top - self.cell_size or min_py > bottom + self.cell_size:
+                continue
+
+            self.canvas.create_polygon(
+                polygon_points,
+                fill=theme["student_fill"],
+                outline=theme["grid_line"],
+                width=1,
+                tags=("grid",),
+            )
+
+            main_text = (desk.student_name or "").strip()
+            symbol_lines = self._symbol_grid_lines(desk.symbols)
+            center_px = geometry.center_x * self.cell_size
+
+            if main_text:
+                self.canvas.create_text(
+                    center_px,
+                    min_py + self.cell_size * 0.24,
+                    text=main_text,
+                    fill=theme["fg_main"],
+                    font=("Segoe UI", student_name_font_size, "bold"),
+                    tags=("grid",),
+                )
+
+            if symbol_lines:
+                available_h = self.cell_size * 0.56
+                raw_symbol_font = int(available_h / max(1, len(symbol_lines)) - 1)
+                symbol_font = max(5, min(int(self.cell_size * 0.09), raw_symbol_font))
+                symbol_size, symbol_weight = self._symbol_font_style(symbol_font)
+                line_height = max(symbol_size + 2, 6)
+                symbols_start_y = min_py + self.cell_size * 0.42
+
+                for idx, line in enumerate(symbol_lines):
                     self.canvas.create_text(
-                        x1 + self.cell_size / 2,
-                        anchor_y,
-                        text=main_text,
-                        fill=text_color,
-                        font=("Segoe UI", font_size, "bold"),
+                        center_px,
+                        symbols_start_y + idx * line_height,
+                        text=line,
+                        fill=theme["fg_muted"],
+                        font=("Segoe UI", symbol_size, symbol_weight),
                         tags=("grid",),
                     )
 
-                if symbol_lines:
-                    available_h = self.cell_size * 0.56
-                    raw_symbol_font = int(available_h / max(1, len(symbol_lines)) - 1)
-                    symbol_font = max(5, min(int(self.cell_size * 0.09), raw_symbol_font))
-                    symbol_size, symbol_weight = self._symbol_font_style(symbol_font)
-                    line_height = max(symbol_size + 2, 6)
-                    start_y = y1 + self.cell_size * 0.42
+        for number in sorted(selected_tablegroups):
+            bounds = group_bounds_from_geometries(geometries, number)
+            if bounds is None:
+                continue
+            min_x, min_y, max_x, max_y = bounds
+            self.canvas.create_rectangle(
+                min_x * self.cell_size,
+                min_y * self.cell_size,
+                max_x * self.cell_size,
+                max_y * self.cell_size,
+                outline=theme["fg_muted"],
+                width=1,
+                dash=(4, 2),
+                tags=("grid",),
+            )
 
-                    for idx, line in enumerate(symbol_lines):
-                        self.canvas.create_text(
-                            x1 + self.cell_size / 2,
-                            start_y + idx * line_height,
-                            text=line,
-                            fill=theme["fg_muted"],
-                            font=("Segoe UI", symbol_size, symbol_weight),
-                            tags=("grid",),
-                        )
+        for number in list_tablegroup_numbers(self.current_plan):
+            bounds = group_bounds_from_geometries(geometries, number)
+            if bounds is None:
+                continue
+            min_x, _min_y, max_x, max_y = bounds
+            label_x = (min_x + max_x) / 2
+            label_y = max_y + 0.12
+            self.canvas.create_text(
+                label_x * self.cell_size,
+                label_y * self.cell_size,
+                text=f"TG {number}",
+                fill=theme["fg_muted"],
+                font=("Segoe UI", max(7, int(self.cell_size * 0.09)), "bold"),
+                tags=("grid",),
+            )
 
         min_sel_x, min_sel_y, max_sel_x, max_sel_y = self.selection.bounds()
         x1 = min_sel_x * self.cell_size
@@ -1307,6 +1674,7 @@ class KartographMainWindow(tk.Tk):
             self._selected_marker_var.set("")
             self._name_var.set("")
             self.name_entry.configure(state="disabled")
+            self._refresh_tablegroup_overlay()
             return
 
         x, y = self.selection.active_cell()
@@ -1327,6 +1695,7 @@ class KartographMainWindow(tk.Tk):
             if self.interaction_mode == NAME_EDITING:
                 self.interaction_mode = GRID_SELECTED
                 self.canvas.focus_set()
+            self._refresh_tablegroup_overlay()
             return
 
         self._name_var.set(desk.student_name)
@@ -1350,6 +1719,8 @@ class KartographMainWindow(tk.Tk):
         if active_lines:
             for line in active_lines:
                 ttk.Label(self.symbol_legend_frame, text=line).pack(anchor="w")
+
+        self._refresh_tablegroup_overlay()
 
     def _set_details_panel_visible(self, visible: bool) -> None:
         if visible and not self._details_panel_visible:
@@ -1504,6 +1875,7 @@ class KartographMainWindow(tk.Tk):
             self._grid_min(),
             self._grid_max(),
         )
+        normalize_tablegroups_in_place(next_plan)
         self._record_and_save(next_plan, "selection.paste", f"Eingefuegt: {pasted} Schuelertische")
         if teacher_conflict:
             messagebox.showwarning(

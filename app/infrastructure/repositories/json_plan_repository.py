@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 from app.core.domain.models import Desk, SeatingPlan
+from app.core.domain.table_groups import normalize_tablegroups_in_place
 
 
 class JsonSeatingPlanRepository:
@@ -37,7 +38,7 @@ class JsonSeatingPlanRepository:
         base_name = self._slugify(plan_name or "Neuer Sitzplan")
         file_name = f"{base_name}.json"
         plan = SeatingPlan(
-            version=1,
+            version=2,
             plan_id=uuid.uuid4().hex,
             name=plan_name.strip() or "Neuer Sitzplan",
             desks=[Desk(x=0, y=0, desk_type="teacher")],
@@ -60,6 +61,10 @@ class JsonSeatingPlanRepository:
                     "type": desk.desk_type,
                     "name": desk.student_name,
                     "symbols": dict(desk.symbols),
+                    "tablegroup_number": int(desk.tablegroup_number),
+                    "tablegroup_shift_x": float(desk.tablegroup_shift_x),
+                    "tablegroup_shift_y": float(desk.tablegroup_shift_y),
+                    "tablegroup_rotation": float(desk.tablegroup_rotation),
                 }
                 for desk in plan.desks
             ],
@@ -112,6 +117,10 @@ class JsonSeatingPlanRepository:
                     desk_type=desk_type,
                     student_name=str(item.get("name") or "").strip(),
                     symbols=symbols,
+                    tablegroup_number=int(item.get("tablegroup_number", 0) or 0),
+                    tablegroup_shift_x=float(item.get("tablegroup_shift_x", 0.0) or 0.0),
+                    tablegroup_shift_y=float(item.get("tablegroup_shift_y", 0.0) or 0.0),
+                    tablegroup_rotation=float(item.get("tablegroup_rotation", 0.0) or 0.0),
                 )
             )
 
@@ -121,7 +130,9 @@ class JsonSeatingPlanRepository:
         if not any(desk.x == 0 and desk.y == 0 and desk.desk_type == "teacher" for desk in desks):
             raise ValueError("teacher desk must be at (0, 0)")
 
-        return SeatingPlan(version=version, plan_id=plan_id, name=name, desks=desks)
+        plan = SeatingPlan(version=max(version, 2), plan_id=plan_id, name=name, desks=desks)
+        normalize_tablegroups_in_place(plan)
+        return plan
 
     def _slugify(self, text: str) -> str:
         clean = "".join(char.lower() if char.isalnum() else "-" for char in text.strip())

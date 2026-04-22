@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from app.core.domain.models import Desk, SeatingPlan
+from app.core.domain.table_groups import normalize_tablegroups_in_place
 
 
 def create_student_desk(plan: SeatingPlan, x: int, y: int) -> SeatingPlan:
@@ -13,6 +14,7 @@ def create_student_desk(plan: SeatingPlan, x: int, y: int) -> SeatingPlan:
     if existing and existing.desk_type == "student":
         return next_plan
     next_plan.desks.append(Desk(x=x, y=y, desk_type="student"))
+    normalize_tablegroups_in_place(next_plan)
     return next_plan
 
 
@@ -24,6 +26,7 @@ def delete_desk(plan: SeatingPlan, x: int, y: int) -> SeatingPlan:
     if existing.desk_type == "teacher":
         return next_plan
     next_plan.without_desk_at(x, y)
+    normalize_tablegroups_in_place(next_plan)
     return next_plan
 
 
@@ -67,8 +70,13 @@ def set_teacher_desk(plan: SeatingPlan, new_teacher_x: int, new_teacher_y: int) 
             desk_type="student",
             student_name=desk.student_name,
             symbols=dict(desk.symbols),
+            tablegroup_number=desk.tablegroup_number,
+            tablegroup_shift_x=desk.tablegroup_shift_x,
+            tablegroup_shift_y=desk.tablegroup_shift_y,
+            tablegroup_rotation=desk.tablegroup_rotation,
         )
 
     next_plan.desks = [Desk(x=0, y=0, desk_type="teacher")]
     next_plan.desks.extend(transformed_students.values())
+    normalize_tablegroups_in_place(next_plan)
     return next_plan

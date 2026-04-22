@@ -13,6 +13,10 @@ class Desk:
     desk_type: DeskType
     student_name: str = ""
     symbols: dict[str, int] = field(default_factory=dict)
+    tablegroup_number: int = 0
+    tablegroup_shift_x: float = 0.0
+    tablegroup_shift_y: float = 0.0
+    tablegroup_rotation: float = 0.0
 
 
 @dataclass(slots=True)

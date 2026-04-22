@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 
 from app.core.domain.models import SeatingPlan
+from app.core.domain.table_groups import build_desk_geometries, normalize_tablegroups_in_place
 from app.infrastructure.symbol_config_loader import SymbolDefinition
 
 
@@ -122,56 +124,90 @@ class PdfSeatingPlanExporter:
         if orientation_mode not in {"teacher_bottom", "teacher_top"}:
             raise ValueError("Unbekannter Exportmodus")
 
-        desks = []
-        for desk in plan.desks:
-            x, y = desk.x, desk.y
-            if orientation_mode == "teacher_top":
-                x, y = -x, -y
-            desks.append((x, y, desk))
-
-        if not desks:
+        export_plan = deepcopy(plan)
+        normalize_tablegroups_in_place(export_plan)
+        geometries = build_desk_geometries(export_plan)
+        if not geometries:
             raise ValueError("Plan enthaelt keine Tische")
 
-        min_x = min(x for x, _y, _desk in desks)
-        max_x = max(x for x, _y, _desk in desks)
-        min_y = min(y for _x, y, _desk in desks)
-        max_y = max(y for _x, y, _desk in desks)
+        render_items: list[tuple[tuple[tuple[float, float], ...], tuple[float, float], object]] = []
+        all_points: list[tuple[float, float]] = []
 
-        cols = max_x - min_x + 1
-        rows = max_y - min_y + 1
+        for geometry in geometries:
+            points = list(geometry.polygon)
+            center_x = geometry.center_x
+            center_y = geometry.center_y
+
+            if orientation_mode == "teacher_top":
+                points = [(-px, -py) for px, py in points]
+                center_x = -center_x
+                center_y = -center_y
+
+            polygon = tuple(points)
+            render_items.append((polygon, (center_x, center_y), geometry.desk))
+            all_points.extend(points)
+
+        min_x = min(point[0] for point in all_points)
+        max_x = max(point[0] for point in all_points)
+        min_y = min(point[1] for point in all_points)
+        max_y = max(point[1] for point in all_points)
+
+        span_x = max(0.1, max_x - min_x)
+        span_y = max(0.1, max_y - min_y)
 
         page_w, page_h = landscape(A4)
         margin = 30.0
         title_h = 20.0
         usable_w = page_w - 2 * margin
         usable_h = page_h - 2 * margin - title_h
-        cell_size = min(usable_w / max(1, cols), usable_h / max(1, rows))
-        grid_w = cols * cell_size
+        cell_size = min(usable_w / span_x, usable_h / span_y)
+        grid_w = span_x * cell_size
         origin_x = margin + max(0.0, (usable_w - grid_w) / 2)
 
         c = canvas.Canvas(str(output_path), pagesize=(page_w, page_h))
-        c.setTitle(plan.name)
+        c.setTitle(export_plan.name)
 
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(margin, page_h - margin + 2, f"Sitzplan: {plan.name}")
+        c.drawString(margin, page_h - margin + 2, f"Sitzplan: {export_plan.name}")
 
         top_y = page_h - margin - title_h
 
-        for x, y, desk in desks:
-            draw_x = origin_x + (x - min_x) * cell_size
-            draw_y = top_y - (y - min_y + 1) * cell_size
+        for polygon, center, desk in render_items:
+            pixel_points: list[float] = []
+            px_values: list[float] = []
+            py_values: list[float] = []
+            for world_x, world_y in polygon:
+                px = origin_x + (world_x - min_x) * cell_size
+                py = top_y - (world_y - min_y) * cell_size
+                pixel_points.extend((px, py))
+                px_values.append(px)
+                py_values.append(py)
+
+            center_x = origin_x + (center[0] - min_x) * cell_size
+            center_y = top_y - (center[1] - min_y) * cell_size
+
+            box_left = min(px_values)
+            box_right = max(px_values)
+            box_top = min(py_values)
+            box_bottom = max(py_values)
+            box_width = box_right - box_left
+            box_height = box_bottom - box_top
 
             c.setFillColor(colors.white)
             c.setStrokeColor(colors.black)
             border = 1.8 if desk.desk_type == "teacher" else 1.3
-
             c.setLineWidth(border)
-            c.rect(draw_x, draw_y, cell_size, cell_size, fill=1, stroke=1)
+            path = c.beginPath()
+            path.moveTo(pixel_points[0], pixel_points[1])
+            for idx in range(2, len(pixel_points), 2):
+                path.lineTo(pixel_points[idx], pixel_points[idx + 1])
+            path.close()
+            c.drawPath(path, fill=1, stroke=1)
 
             if desk.desk_type == "teacher":
                 c.setFillColor(colors.black)
-                c.setFont("Helvetica-Bold", max(8, int(cell_size * 0.16)))
-                c.drawCentredString(draw_x + cell_size / 2, draw_y + cell_size * 0.55, "Lehrertisch")
+                c.setFont("Helvetica-Bold", max(8, int(min(box_width, box_height) * 0.16)))
+                c.drawCentredString(center_x, center_y + min(box_width, box_height) * 0.05, "Lehrertisch")
                 continue
 
             c.setFillColor(colors.black)
@@ -193,9 +229,9 @@ class PdfSeatingPlanExporter:
             if line_tokens:
                 lines.append(" ".join(line_tokens))
 
-            max_text_width = cell_size * 0.88
-            content_bottom = draw_y + cell_size * 0.12
-            content_top = draw_y + cell_size * 0.88
+            max_text_width = box_width * 0.88
+            content_bottom = box_top + box_height * 0.12
+            content_top = box_top + box_height * 0.88
             content_height = max(0.0, content_top - content_bottom)
             has_name = bool(student_name)
             has_symbols = bool(lines)
@@ -219,7 +255,7 @@ class PdfSeatingPlanExporter:
                 )
                 c.setFont("Helvetica-Bold", name_font)
                 name_baseline = content_top - name_font
-                c.drawCentredString(draw_x + cell_size / 2, name_baseline, student_name)
+                c.drawCentredString(center_x, name_baseline, student_name)
 
             if not has_symbols:
                 continue
@@ -241,7 +277,7 @@ class PdfSeatingPlanExporter:
             c.setFont(self._symbol_font_name, line_font)
             start_y = symbol_top - line_font
             for idx, line in enumerate(lines):
-                c.drawCentredString(draw_x + cell_size / 2, start_y - idx * line_height, line)
+                c.drawCentredString(center_x, start_y - idx * line_height, line)
 
         c.showPage()
         c.save()

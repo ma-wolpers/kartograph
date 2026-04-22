@@ -41,6 +41,10 @@ class DeskClipboard:
                 desk_type="student",
                 student_name=desk.student_name,
                 symbols=dict(desk.symbols),
+                tablegroup_number=desk.tablegroup_number,
+                tablegroup_shift_x=desk.tablegroup_shift_x,
+                tablegroup_shift_y=desk.tablegroup_shift_y,
+                tablegroup_rotation=desk.tablegroup_rotation,
             )
 
         return len(self._payload)
@@ -92,6 +96,10 @@ class DeskClipboard:
                     desk_type="student",
                     student_name=source.student_name,
                     symbols=dict(source.symbols),
+                    tablegroup_number=source.tablegroup_number,
+                    tablegroup_shift_x=source.tablegroup_shift_x,
+                    tablegroup_shift_y=source.tablegroup_shift_y,
+                    tablegroup_rotation=source.tablegroup_rotation,
                 )
             )
             pasted_count += 1

@@ -6,6 +6,17 @@ The format is based on Keep a Changelog.
 
 ## [Unreleased]
 
+### Added
+- Tischgruppen als Zusammenhangskomponenten fuer Schuelertische mit sichtbarer TG-Nummer unter jeder Gruppe.
+- Neues Tischeinstellungen-Overlay rechts per `Strg+T` mit TG-Nummer, x-shift, y-shift und Rotation.
+
+### Changed
+- Tischgruppen lassen sich manuell umnummerieren; bei Nummernkonflikten werden bestehende Gruppen automatisch hochgezaehlt (Kaskadeneffekt).
+- x/y-Shift wirkt jetzt sowohl in der Vorschau als auch im PDF-Export konsistent auf die Tischdarstellung.
+- Rotationen von Tischgruppen werden sofort in Vorschau und Export dargestellt (begrenzt auf -45 bis +45 Grad).
+- Bei markierten Teilen einer Tischgruppe wird ein zusaetzlicher, schwaecherer Gruppenrahmen angezeigt.
+- Ueberlappungen mit Lehrer- oder Schuelertischen fuehren zum automatischen Zuruecksetzen des zuletzt geaenderten Transformationswerts auf 0.
+
 ## [0.2.0] - 2026-04-22
 
 ### Added
