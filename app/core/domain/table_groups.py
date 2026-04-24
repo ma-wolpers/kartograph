@@ -48,8 +48,12 @@ def _component_sort_key(component: list[Desk]) -> tuple[int, int]:
     return min_y, min_x
 
 
+def _is_named_student_desk(desk: Desk) -> bool:
+    return desk.desk_type == "student" and bool(desk.student_name.strip())
+
+
 def build_student_components(plan: SeatingPlan) -> list[list[Desk]]:
-    students = [desk for desk in plan.desks if desk.desk_type == "student"]
+    students = [desk for desk in plan.desks if _is_named_student_desk(desk)]
     if not students:
         return []
 
@@ -112,7 +116,7 @@ def normalize_tablegroups_in_place(plan: SeatingPlan) -> None:
     components = build_student_components(plan)
 
     for desk in plan.desks:
-        if desk.desk_type == "teacher":
+        if desk.desk_type == "teacher" or (desk.desk_type == "student" and not desk.student_name.strip()):
             desk.tablegroup_number = 0
             desk.tablegroup_shift_x = 0.0
             desk.tablegroup_shift_y = 0.0
@@ -156,7 +160,7 @@ def normalize_tablegroups_in_place(plan: SeatingPlan) -> None:
 
 def tablegroup_number_at(plan: SeatingPlan, x: int, y: int) -> int | None:
     desk = plan.desk_at(x, y)
-    if desk is None or desk.desk_type != "student":
+    if desk is None or not _is_named_student_desk(desk):
         return None
     number = int(desk.tablegroup_number)
     return number if number > 0 else None
@@ -166,7 +170,7 @@ def get_tablegroup_settings(plan: SeatingPlan, number: int) -> TableGroupSetting
     if number <= 0:
         return None
     for desk in plan.desks:
-        if desk.desk_type != "student":
+        if not _is_named_student_desk(desk):
             continue
         if int(desk.tablegroup_number) != number:
             continue
@@ -232,7 +236,7 @@ def set_tablegroup_transforms_in_place(
         return
 
     for desk in plan.desks:
-        if desk.desk_type != "student":
+        if not _is_named_student_desk(desk):
             continue
         if int(desk.tablegroup_number) != number:
             continue
@@ -372,6 +376,6 @@ def list_tablegroup_numbers(plan: SeatingPlan) -> list[int]:
     numbers = {
         int(desk.tablegroup_number)
         for desk in plan.desks
-        if desk.desk_type == "student" and int(desk.tablegroup_number) > 0
+        if _is_named_student_desk(desk) and int(desk.tablegroup_number) > 0
     }
     return sorted(numbers)

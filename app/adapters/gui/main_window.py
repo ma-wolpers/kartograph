@@ -960,7 +960,9 @@ class KartographMainWindow(tk.Tk):
 
         self.plan_listbox.delete(0, tk.END)
         for path, plan in self._plan_index:
-            student_count = sum(1 for desk in plan.desks if desk.desk_type == "student")
+            student_count = sum(
+                1 for desk in plan.desks if desk.desk_type == "student" and desk.student_name.strip()
+            )
             label = f"{plan.name}  |  {student_count} Schülertische"
             self.plan_listbox.insert(tk.END, label)
 
