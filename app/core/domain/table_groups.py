@@ -121,13 +121,23 @@ def normalize_tablegroups_in_place(plan: SeatingPlan) -> None:
     if not components:
         return
 
+    max_existing_number = max(
+        (
+            preferred
+            for preferred in (_pick_component_number(component) for component in components)
+            if preferred is not None
+        ),
+        default=0,
+    )
     assigned_numbers: set[int] = set()
+    next_new_number = max_existing_number + 1
 
     for component in components:
         preferred_number = _pick_component_number(component)
         if preferred_number is None or preferred_number in assigned_numbers:
-            # Neue oder gesplittete Gruppen erhalten fortlaufend die naechste hoechste Nummer.
-            number = (max(assigned_numbers) + 1) if assigned_numbers else 1
+            # Neue oder gesplittete Gruppen erhalten fortlaufend ab global max(TG)+1.
+            number = next_new_number
+            next_new_number += 1
         else:
             number = preferred_number
 
