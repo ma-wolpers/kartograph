@@ -13,6 +13,7 @@ class Desk:
     desk_type: DeskType
     student_name: str = ""
     symbols: dict[str, int] = field(default_factory=dict)
+    color_markers: list[str] = field(default_factory=list)
     tablegroup_number: int = 0
     tablegroup_shift_x: float = 0.0
     tablegroup_shift_y: float = 0.0
@@ -25,6 +26,7 @@ class SeatingPlan:
     plan_id: str
     name: str
     desks: list[Desk]
+    color_meanings: dict[str, str] = field(default_factory=dict)
 
     def teacher_desk(self) -> Desk:
         for desk in self.desks:

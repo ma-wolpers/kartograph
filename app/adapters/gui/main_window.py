@@ -28,9 +28,13 @@ from app.core.domain.table_groups import (
     tablegroup_number_at,
 )
 from app.core.usecases.plan_usecases import (
+    cleanup_unused_color_meanings,
     create_student_desk,
     delete_desk,
+    is_color_used,
+    set_color_meaning,
     set_teacher_desk,
+    toggle_color_marker,
     toggle_symbol,
     update_student_name,
 )
@@ -42,9 +46,23 @@ MIN_CANVAS_RADIUS = 1
 DEFAULT_CANVAS_RADIUS = 50
 DEFAULT_CELL_SIZE = 92
 DEFAULT_SYMBOL_STRENGTH = 1
+DEFAULT_DETAILS_OVERLAY_POSITION = "bottom"
+DEFAULT_TABLEGROUP_OVERLAY_POSITION = "right"
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
+
+COLOR_MARKER_PALETTE: list[tuple[str, str, str, str]] = [
+    ("1", "gelb", "Gelb", "#f4d35e"),
+    ("2", "orange", "Orange", "#ee964b"),
+    ("3", "rot", "Rot", "#f95738"),
+    ("4", "magenta", "Magenta", "#d81159"),
+    ("5", "lila", "Lila", "#7b2cbf"),
+    ("6", "marine", "Marine", "#1d3557"),
+    ("7", "cyan", "Cyan", "#4cc9f0"),
+    ("8", "tuerkis", "Tuerkis", "#2a9d8f"),
+    ("9", "gruen", "Gruen", "#6a994e"),
+]
 
 APP_USER_MODEL_ID = "7thCloud.Kartograph"
 ICON_PATH = Path(__file__).resolve().parents[3] / "assets" / "kartograph.ico"
@@ -108,6 +126,12 @@ class KartographMainWindow(tk.Tk):
         self.theme_key = normalize_theme_key(self._settings.get("theme"))
         self.canvas_radius = self._normalize_canvas_radius(self._settings.get("canvas_radius"))
         self.symbol_strength = self._normalize_symbol_strength(self._settings.get("symbol_strength"))
+        self.details_overlay_position = self._normalize_details_overlay_position(
+            self._settings.get("details_overlay_position")
+        )
+        self.tablegroup_overlay_position = self._normalize_tablegroup_overlay_position(
+            self._settings.get("tablegroup_overlay_position")
+        )
 
         self.ui_intent_controller = MainWindowUiIntentController(self)
 
@@ -121,6 +145,10 @@ class KartographMainWindow(tk.Tk):
         self._tg_rotation_var: tk.StringVar | None = None
         self._tg_status_var: tk.StringVar | None = None
         self._tg_last_changed_field: str = "shift_x"
+        self._color_marker_buttons: list[tk.Button] = []
+
+        self.color_palette = COLOR_MARKER_PALETTE
+        self._color_by_key = {color_key: (label, hex_color) for _key, color_key, label, hex_color in self.color_palette}
 
         self.symbol_definitions, warning = self._load_symbols()
         self.symbol_catalog = [item.meaning for item in self.symbol_definitions]
@@ -133,6 +161,7 @@ class KartographMainWindow(tk.Tk):
         self._build_menu_bar()
         self._build_layout()
         self._bind_shortcuts()
+        self.bind("<Configure>", lambda _event: self._position_tablegroup_overlay(), add="+")
 
         self.apply_theme()
         self.refresh_plan_list()
@@ -179,6 +208,48 @@ class KartographMainWindow(tk.Tk):
         for key in theme_names():
             label = THEMES[key].get("label", key)
             view_menu.add_radiobutton(label=label, value=key, variable=self.theme_var, command=self._on_theme_changed)
+        view_menu.add_separator()
+        view_menu.add_command(label="Tisch-Overlay (S:S)", state="disabled")
+        self.details_overlay_position_var = tk.StringVar(value=self.details_overlay_position)
+        view_menu.add_radiobutton(
+            label="Links",
+            value="left",
+            variable=self.details_overlay_position_var,
+            command=self._on_details_overlay_position_changed,
+        )
+        view_menu.add_radiobutton(
+            label="Rechts",
+            value="right",
+            variable=self.details_overlay_position_var,
+            command=self._on_details_overlay_position_changed,
+        )
+        view_menu.add_radiobutton(
+            label="Unten",
+            value="bottom",
+            variable=self.details_overlay_position_var,
+            command=self._on_details_overlay_position_changed,
+        )
+        view_menu.add_separator()
+        view_menu.add_command(label="Tischgruppen-Overlay", state="disabled")
+        self.tablegroup_overlay_position_var = tk.StringVar(value=self.tablegroup_overlay_position)
+        view_menu.add_radiobutton(
+            label="Links (Tischgruppen)",
+            value="left",
+            variable=self.tablegroup_overlay_position_var,
+            command=self._on_tablegroup_overlay_position_changed,
+        )
+        view_menu.add_radiobutton(
+            label="Rechts (Tischgruppen)",
+            value="right",
+            variable=self.tablegroup_overlay_position_var,
+            command=self._on_tablegroup_overlay_position_changed,
+        )
+        view_menu.add_radiobutton(
+            label="Unten (Tischgruppen)",
+            value="bottom",
+            variable=self.tablegroup_overlay_position_var,
+            command=self._on_tablegroup_overlay_position_changed,
+        )
         menubar.add_cascade(label="Ansicht", menu=view_menu)
 
         self.config(menu=menubar)
@@ -317,8 +388,8 @@ class KartographMainWindow(tk.Tk):
         self.plan_name_var = tk.StringVar(value="")
         ttk.Label(self.editor_topbar, textvariable=self.plan_name_var).pack(side="right", padx=(0, 14))
 
-        self.grid_container = ttk.Frame(self.editor_view)
-        self.grid_container.pack(fill="both", expand=True, padx=12, pady=(0, 8))
+        self.grid_stack = ttk.Frame(self.editor_view)
+        self.grid_container = ttk.Frame(self.grid_stack)
 
         self.canvas = tk.Canvas(self.grid_container, highlightthickness=0)
         self.canvas.pack(side="left", fill="both", expand=True)
@@ -334,7 +405,7 @@ class KartographMainWindow(tk.Tk):
         )
         self.y_scroll.pack(side="right", fill="y")
         self.x_scroll = tk.Scrollbar(
-            self.editor_view,
+            self.grid_stack,
             orient="horizontal",
             command=self._xview,
             highlightthickness=0,
@@ -342,7 +413,7 @@ class KartographMainWindow(tk.Tk):
             relief="flat",
             takefocus=0,
         )
-        self.x_scroll.pack(fill="x", padx=12)
+        self.x_scroll.pack(fill="x")
 
         self.canvas.configure(
             xscrollcommand=lambda a, b: self._on_canvas_xscroll(a, b),
@@ -350,13 +421,15 @@ class KartographMainWindow(tk.Tk):
         )
         self._update_scroll_region()
 
-        self.details_header = ttk.Frame(self.editor_view, style="Panel.TFrame")
+        self.details_container = ttk.Frame(self.editor_view, style="Panel.TFrame")
+
+        self.details_header = ttk.Frame(self.details_container, style="Panel.TFrame")
         self.details_header.pack(fill="x", padx=12, pady=(8, 0))
 
         ttk.Label(self.details_header, textvariable=self.status_var, style="Panel.TLabel").pack(side="left")
         ttk.Label(self.details_header, textvariable=self._selected_marker_var, style="Panel.TLabel").pack(side="right")
 
-        self.details_frame = ttk.Frame(self.editor_view)
+        self.details_frame = ttk.Frame(self.details_container)
         self.details_frame.pack(fill="x", padx=12, pady=(4, 12))
 
         self.details_form = ttk.Frame(self.details_frame, style="Panel.TFrame")
@@ -376,7 +449,15 @@ class KartographMainWindow(tk.Tk):
 
         self.symbol_legend_frame = ttk.Frame(self.details_frame, style="Panel.TFrame")
         self.symbol_legend_frame.pack(fill="x", pady=(4, 0))
+
+        self.colors_frame = ttk.Frame(self.details_frame, style="Panel.TFrame")
+        self.colors_frame.pack(fill="x", pady=(6, 0))
+
+        self.color_legend_frame = ttk.Frame(self.details_frame, style="Panel.TFrame")
+        self.color_legend_frame.pack(fill="x", pady=(4, 0))
         self._details_panel_visible = True
+
+        self._apply_details_overlay_position()
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
         self.canvas.bind("<B1-Motion>", self._on_canvas_drag)
@@ -430,6 +511,59 @@ class KartographMainWindow(tk.Tk):
                 add="+",
             )
 
+        for key, _color_key, _label, _hex_color in self.color_palette:
+            self.bind_all(f"<KeyPress-{key}>", lambda event, color_key=_color_key: self._on_color_shortcut(event, color_key), add="+")
+
+    def _apply_details_overlay_position(self) -> None:
+        if not hasattr(self, "grid_stack"):
+            return
+
+        self.grid_stack.pack_forget()
+        self.details_container.pack_forget()
+
+        self.grid_container.pack_forget()
+        self.x_scroll.pack_forget()
+        self.grid_container.pack(fill="both", expand=True)
+        self.x_scroll.pack(fill="x")
+
+        position = self.details_overlay_position
+        if position == "left":
+            self.details_container.configure(width=560)
+            self.details_container.pack_propagate(False)
+            self.details_container.pack(side="left", fill="y", padx=(12, 8), pady=(0, 8))
+            self.grid_stack.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=(0, 8))
+            return
+
+        if position == "right":
+            self.details_container.configure(width=560)
+            self.details_container.pack_propagate(False)
+            self.grid_stack.pack(side="left", fill="both", expand=True, padx=(12, 8), pady=(0, 8))
+            self.details_container.pack(side="left", fill="y", padx=(0, 12), pady=(0, 8))
+            return
+
+        self.details_container.pack_propagate(True)
+        self.grid_stack.pack(fill="both", expand=True, padx=12, pady=(0, 0))
+        self.details_container.pack(fill="x", padx=12, pady=(8, 12))
+
+    def _on_details_overlay_position_changed(self) -> None:
+        self.details_overlay_position = self._normalize_details_overlay_position(self.details_overlay_position_var.get())
+        self._settings["details_overlay_position"] = self.details_overlay_position
+        self.settings_repository.save_settings(self._settings)
+        self._apply_details_overlay_position()
+        if self._details_panel_visible:
+            fill_mode = "both" if self.details_overlay_position in {"left", "right"} else "x"
+            self.details_frame.pack_forget()
+            self.details_frame.pack(fill=fill_mode, padx=12, pady=(4, 12))
+        self._refresh_details_panel()
+
+    def _on_tablegroup_overlay_position_changed(self) -> None:
+        self.tablegroup_overlay_position = self._normalize_tablegroup_overlay_position(
+            self.tablegroup_overlay_position_var.get()
+        )
+        self._settings["tablegroup_overlay_position"] = self.tablegroup_overlay_position
+        self.settings_repository.save_settings(self._settings)
+        self._position_tablegroup_overlay()
+
     def _handle_intent(self, intent: str) -> str | None:
         return self.ui_intent_controller.handle_intent(intent)
 
@@ -461,6 +595,18 @@ class KartographMainWindow(tk.Tk):
         except (TypeError, ValueError):
             parsed = DEFAULT_SYMBOL_STRENGTH
         return max(0, min(2, parsed))
+
+    def _normalize_details_overlay_position(self, value: object) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"left", "right", "bottom"}:
+            return DEFAULT_DETAILS_OVERLAY_POSITION
+        return normalized
+
+    def _normalize_tablegroup_overlay_position(self, value: object) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"left", "right", "bottom"}:
+            return DEFAULT_TABLEGROUP_OVERLAY_POSITION
+        return normalized
 
     def _grid_min(self) -> int:
         return -self.canvas_radius
@@ -513,6 +659,7 @@ class KartographMainWindow(tk.Tk):
         self.selected_cell = self.selection.anchor_cell()
 
     def _record_and_save(self, new_plan: SeatingPlan, action_kind: str, status: str) -> None:
+        new_plan = cleanup_unused_color_meanings(new_plan)
         normalize_tablegroups_in_place(new_plan)
         if not self.current_plan:
             self.current_plan = new_plan
@@ -524,6 +671,7 @@ class KartographMainWindow(tk.Tk):
         self._save_current_plan(status)
 
     def _apply_loaded_plan(self, plan: SeatingPlan) -> SeatingPlan:
+        plan = cleanup_unused_color_meanings(plan)
         normalize_tablegroups_in_place(plan)
         self.current_plan = plan
         self.history.reset(self.current_plan)
@@ -663,8 +811,20 @@ class KartographMainWindow(tk.Tk):
         self.update_idletasks()
         width = 340
         height = 250
-        x_pos = self.winfo_rootx() + self.winfo_width() - width - 20
-        y_pos = self.winfo_rooty() + 90
+        position = self.tablegroup_overlay_position
+
+        if position == "left":
+            x_pos = self.winfo_rootx() + 20
+            y_pos = self.winfo_rooty() + 90
+        elif position == "bottom":
+            x_pos = self.winfo_rootx() + max(20, (self.winfo_width() - width) // 2)
+            y_pos = self.winfo_rooty() + self.winfo_height() - height - 20
+        else:
+            x_pos = self.winfo_rootx() + self.winfo_width() - width - 20
+            y_pos = self.winfo_rooty() + 90
+
+        x_pos = max(10, min(x_pos, self.winfo_rootx() + self.winfo_width() - width - 10))
+        y_pos = max(10, min(y_pos, self.winfo_rooty() + self.winfo_height() - height - 10))
         self._tablegroup_overlay.geometry(f"{width}x{height}+{x_pos}+{y_pos}")
 
     def _close_tablegroup_overlay(self) -> None:
@@ -842,6 +1002,72 @@ class KartographMainWindow(tk.Tk):
         self._toggle_selected_symbol(symbol_name)
         return "break"
 
+    def _on_color_shortcut(self, event, color_key: str) -> str | None:
+        if self._is_name_entry_focused():
+            return None
+        if self._is_tablegroup_overlay_focused():
+            return None
+        if event.state & 0x0004 or event.state & 0x0008:
+            return None
+        if not self.editor_view.winfo_ismapped():
+            return None
+        if not self.current_plan or not self.current_plan_path:
+            return None
+
+        self._toggle_selected_color(color_key)
+        return "break"
+
+    def _toggle_selected_color(self, color_key: str) -> None:
+        if not self.current_plan or not self.current_plan_path:
+            return
+
+        if not self.selection.is_single():
+            self.status_var.set("Farbpunkte nur bei Einzelauswahl")
+            return
+
+        x, y = self.selected_cell
+        desk = self.current_plan.desk_at(x, y)
+        if not desk or desk.desk_type != "student":
+            self.status_var.set("Farbpunkte nur fuer Schuelertische")
+            return
+
+        currently_active = color_key in desk.color_markers
+        requires_meaning = (not currently_active) and (not is_color_used(self.current_plan, color_key))
+        color_label, _hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+
+        next_plan = self.current_plan
+        if requires_meaning:
+            meaning = simpledialog.askstring(
+                "Bedeutung fuer Farbe",
+                f"Was bedeutet {color_label} in diesem Plan?",
+                parent=self,
+            )
+            if meaning is None:
+                self.status_var.set("Farbpunkt abgebrochen")
+                self.canvas.focus_set()
+                return
+            clean = meaning.strip()
+            if not clean:
+                self.status_var.set("Bedeutung darf nicht leer sein")
+                self.canvas.focus_set()
+                return
+            next_plan = set_color_meaning(next_plan, color_key, clean)
+
+        next_plan = toggle_color_marker(next_plan, x, y, color_key)
+
+        if next_plan == self.current_plan:
+            return
+
+        if color_key in next_plan.color_meanings:
+            status = f"Farbpunkt {color_label} aktualisiert"
+        else:
+            status = f"Farbpunkt {color_label} entfernt"
+
+        self._record_and_save(next_plan, "color.toggle", status)
+        self.redraw_grid()
+        self._refresh_details_panel()
+        self.canvas.focus_set()
+
     def _load_symbols(self) -> tuple[list[SymbolDefinition], str | None]:
         return load_symbol_definitions(self.symbols_path)
 
@@ -910,7 +1136,9 @@ class KartographMainWindow(tk.Tk):
         self.list_body.configure(style="Panel.TFrame")
         self.editor_view.configure(style="Panel.TFrame")
         self.editor_topbar.configure(style="StrongPanel.TFrame")
+        self.grid_stack.configure(style="Panel.TFrame")
         self.grid_container.configure(style="Panel.TFrame")
+        self.details_container.configure(style="Panel.TFrame")
         self.details_header.configure(style="Panel.TFrame")
         self.details_frame.configure(style="Panel.TFrame")
         self.canvas.configure(bg=theme["bg_surface"])
@@ -943,6 +1171,19 @@ class KartographMainWindow(tk.Tk):
             borderwidth=1,
             relief="solid",
         )
+
+        self._apply_color_button_theme()
+
+    def _apply_color_button_theme(self) -> None:
+        theme = THEMES[self.theme_key]
+        for button in self._color_marker_buttons:
+            button.configure(
+                bg=theme["bg_panel"],
+                activebackground=theme["bg_selected"],
+                activeforeground=theme["fg_main"],
+                highlightbackground=theme["grid_line"],
+                bd=1,
+            )
 
     def refresh_plan_list(self) -> None:
         preferred_path = self.current_plan_path
@@ -1687,7 +1928,27 @@ class KartographMainWindow(tk.Tk):
 
             main_text = (desk.student_name or "").strip()
             symbol_lines = self._symbol_grid_lines(desk.symbols)
+            desk_color_markers = self._ordered_color_markers(desk.color_markers)
             center_px = geometry.center_x * self.cell_size
+
+            if desk_color_markers:
+                radius = max(3, int(self.cell_size * 0.03))
+                spacing = radius * 2 + 3
+                start_x = center_px + self.cell_size * 0.17
+                circles_y = min_py + self.cell_size * 0.12
+                for idx, color_key in enumerate(desk_color_markers[:9]):
+                    _label, hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+                    cx = start_x + idx * spacing
+                    self.canvas.create_oval(
+                        cx - radius,
+                        circles_y - radius,
+                        cx + radius,
+                        circles_y + radius,
+                        fill=hex_color,
+                        outline=theme["grid_line"],
+                        width=1,
+                        tags=("grid",),
+                    )
 
             if main_text:
                 self.canvas.create_text(
@@ -1861,6 +2122,43 @@ class KartographMainWindow(tk.Tk):
 
         return lines
 
+    def _ordered_color_markers(self, color_markers: list[str]) -> list[str]:
+        ordered: list[str] = []
+        seen: set[str] = set()
+        configured_order = [color_key for _key, color_key, _label, _hex_color in self.color_palette]
+
+        for color_key in configured_order:
+            if color_key in color_markers and color_key not in seen:
+                ordered.append(color_key)
+                seen.add(color_key)
+
+        for color_key in color_markers:
+            if color_key not in seen:
+                ordered.append(color_key)
+                seen.add(color_key)
+
+        return ordered
+
+    def _color_legend_lines(self, plan: SeatingPlan, desk_color_markers: list[str]) -> list[str]:
+        lines: list[str] = []
+        for color_key in self._ordered_color_markers(desk_color_markers):
+            meaning = plan.color_meanings.get(color_key, "")
+            if not meaning:
+                continue
+            label, _hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+            lines.append(f"● {label}: {meaning}")
+        return lines
+
+    def _details_button_columns(self) -> int:
+        if self.details_overlay_position in {"left", "right"}:
+            return 2
+        return 5
+
+    def _details_legend_wraplength(self) -> int:
+        if self.details_overlay_position in {"left", "right"}:
+            return 500
+        return 980
+
     def move_selection(self, dx: int, dy: int) -> None:
         if not self.editor_view.winfo_ismapped():
             return
@@ -2003,9 +2301,14 @@ class KartographMainWindow(tk.Tk):
         self._refresh_details_panel()
 
     def _refresh_details_panel(self) -> None:
+        self._color_marker_buttons = []
         for child in self.symbols_frame.winfo_children():
             child.destroy()
         for child in self.symbol_legend_frame.winfo_children():
+            child.destroy()
+        for child in self.colors_frame.winfo_children():
+            child.destroy()
+        for child in self.color_legend_frame.winfo_children():
             child.destroy()
 
         if not self.current_plan:
@@ -2040,30 +2343,66 @@ class KartographMainWindow(tk.Tk):
         self._name_var.set(desk.student_name)
         self.name_entry.configure(state="normal")
 
-        ttk.Label(self.symbols_frame, text="Symbole").pack(side="left", padx=(0, 8))
+        ttk.Label(self.symbols_frame, text="Symbole").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
+        symbol_cols = self._details_button_columns()
         for symbol in self.symbol_catalog:
             count = int(desk.symbols.get(symbol, 0))
             icon = self._symbol_glyph(symbol)
             shortcut = self._symbol_by_meaning.get(symbol).shortcut if self._symbol_by_meaning.get(symbol) else None
             shortcut_suffix = f" [{shortcut.upper()}]" if shortcut else ""
             caption = f"{icon} {symbol}{shortcut_suffix}" if count == 0 else f"{icon} {symbol} x{count}{shortcut_suffix}"
+            idx = self.symbol_catalog.index(symbol)
+            row = 1 + (idx // symbol_cols)
+            col = idx % symbol_cols
             button = ttk.Button(
                 self.symbols_frame,
                 text=caption,
                 command=lambda s=symbol: self._toggle_selected_symbol(s),
             )
-            button.pack(side="left", padx=(0, 4))
+            button.grid(row=row, column=col, sticky="ew", padx=(0, 6), pady=(0, 4))
+
+        for col in range(symbol_cols):
+            self.symbols_frame.columnconfigure(col, weight=1)
 
         active_lines = self._symbol_legend_lines(desk.symbols)
         if active_lines:
             for line in active_lines:
-                ttk.Label(self.symbol_legend_frame, text=line).pack(anchor="w")
+                ttk.Label(self.symbol_legend_frame, text=line, wraplength=self._details_legend_wraplength(), justify="left").pack(anchor="w")
+
+        ttk.Label(self.colors_frame, text="Farbpunkte").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
+        color_cols = self._details_button_columns()
+        for key, color_key, label, hex_color in self.color_palette:
+            active = color_key in desk.color_markers
+            caption = f"{key}:{label}" if not active else f"{key}:{label}*"
+            idx = int(key) - 1
+            row = 1 + (idx // color_cols)
+            col = idx % color_cols
+            button = tk.Button(
+                self.colors_frame,
+                text=caption,
+                command=lambda ck=color_key: self._toggle_selected_color(ck),
+                fg=hex_color,
+                relief="sunken" if active else "raised",
+                padx=6,
+                pady=2,
+            )
+            button.grid(row=row, column=col, sticky="ew", padx=(0, 6), pady=(0, 4))
+            self._color_marker_buttons.append(button)
+
+        for col in range(color_cols):
+            self.colors_frame.columnconfigure(col, weight=1)
+
+        self._apply_color_button_theme()
+
+        for line in self._color_legend_lines(self.current_plan, desk.color_markers):
+            ttk.Label(self.color_legend_frame, text=line, wraplength=self._details_legend_wraplength(), justify="left").pack(anchor="w")
 
         self._refresh_tablegroup_overlay()
 
     def _set_details_panel_visible(self, visible: bool) -> None:
+        fill_mode = "both" if self.details_overlay_position in {"left", "right"} else "x"
         if visible and not self._details_panel_visible:
-            self.details_frame.pack(fill="x", padx=12, pady=(4, 12))
+            self.details_frame.pack(fill=fill_mode, padx=12, pady=(4, 12))
             self._details_panel_visible = True
             return
         if not visible and self._details_panel_visible:

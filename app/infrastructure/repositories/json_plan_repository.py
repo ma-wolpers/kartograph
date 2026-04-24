@@ -80,6 +80,7 @@ class JsonSeatingPlanRepository:
             plan_id=uuid.uuid4().hex,
             name=target_name.strip() or source_plan.name,
             desks=deepcopy(source_plan.desks),
+            color_meanings=dict(source_plan.color_meanings),
         )
         target_path = source_path.with_name(f"{self._slugify(duplicated.name)}.json")
         if target_path.exists() and not overwrite:
@@ -92,6 +93,7 @@ class JsonSeatingPlanRepository:
             "version": plan.version,
             "plan_id": plan.plan_id,
             "name": plan.name,
+            "color_meanings": dict(plan.color_meanings),
             "desks": [
                 {
                     "x": desk.x,
@@ -99,6 +101,7 @@ class JsonSeatingPlanRepository:
                     "type": desk.desk_type,
                     "name": desk.student_name,
                     "symbols": dict(desk.symbols),
+                    "color_markers": list(desk.color_markers),
                     "tablegroup_number": int(desk.tablegroup_number),
                     "tablegroup_shift_x": float(desk.tablegroup_shift_x),
                     "tablegroup_shift_y": float(desk.tablegroup_shift_y),
@@ -112,6 +115,14 @@ class JsonSeatingPlanRepository:
         version = int(payload.get("version", 1))
         plan_id = str(payload.get("plan_id") or uuid.uuid4().hex)
         name = str(payload.get("name") or "Unbenannter Sitzplan")
+        color_meanings_raw = payload.get("color_meanings") or {}
+        color_meanings: dict[str, str] = {}
+        if isinstance(color_meanings_raw, dict):
+            for raw_key, raw_meaning in color_meanings_raw.items():
+                key = str(raw_key).strip()
+                meaning = str(raw_meaning).strip()
+                if key and meaning:
+                    color_meanings[key] = meaning
         raw_desks = payload.get("desks")
         if not isinstance(raw_desks, list):
             raise ValueError("desks must be a list")
@@ -148,6 +159,20 @@ class JsonSeatingPlanRepository:
             else:
                 raise ValueError("symbols must be a list or object")
 
+            color_markers_raw = item.get("color_markers") or []
+            color_markers: list[str] = []
+            if isinstance(color_markers_raw, list):
+                for raw_color in color_markers_raw:
+                    color_key = str(raw_color).strip()
+                    if color_key and color_key not in color_markers:
+                        color_markers.append(color_key)
+            elif isinstance(color_markers_raw, str):
+                color_key = color_markers_raw.strip()
+                if color_key:
+                    color_markers.append(color_key)
+            else:
+                raise ValueError("color_markers must be a list or string")
+
             desks.append(
                 Desk(
                     x=x,
@@ -155,6 +180,7 @@ class JsonSeatingPlanRepository:
                     desk_type=desk_type,
                     student_name=str(item.get("name") or "").strip(),
                     symbols=symbols,
+                    color_markers=color_markers,
                     tablegroup_number=int(item.get("tablegroup_number", 0) or 0),
                     tablegroup_shift_x=float(item.get("tablegroup_shift_x", 0.0) or 0.0),
                     tablegroup_shift_y=float(item.get("tablegroup_shift_y", 0.0) or 0.0),
@@ -168,7 +194,21 @@ class JsonSeatingPlanRepository:
         if not any(desk.x == 0 and desk.y == 0 and desk.desk_type == "teacher" for desk in desks):
             raise ValueError("teacher desk must be at (0, 0)")
 
-        plan = SeatingPlan(version=max(version, 2), plan_id=plan_id, name=name, desks=desks)
+        used_colors = {
+            color_key
+            for desk in desks
+            if desk.desk_type == "student"
+            for color_key in desk.color_markers
+        }
+        normalized_color_meanings = {key: value for key, value in color_meanings.items() if key in used_colors}
+
+        plan = SeatingPlan(
+            version=max(version, 2),
+            plan_id=plan_id,
+            name=name,
+            desks=desks,
+            color_meanings=normalized_color_meanings,
+        )
         normalize_tablegroups_in_place(plan)
         return plan
 

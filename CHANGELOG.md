@@ -9,13 +9,20 @@ The format is based on Keep a Changelog.
 ### Added
 - Tischgruppen als Zusammenhangskomponenten fuer Schuelertische mit sichtbarer TG-Nummer unter jeder Gruppe.
 - Neues Tischeinstellungen-Overlay rechts per `Strg+T` mit TG-Nummer, x-shift, y-shift und Rotation.
+- Farbpunkte fuer Schuelertische: pro Tisch koennen per Tastatur `1..9` oder per Farbbuttons Marker in neun Farben gesetzt/entfernt werden (Gelb, Orange, Rot, Magenta, Lila, Marine, Cyan, Tuerkis, Gruen).
+- Bei der ersten Nutzung einer Farbe in einem Plan fragt Kartograph die Bedeutung ab und zeigt sie als eigene Legendenzeile; wird der letzte Marker dieser Farbe entfernt, verschwindet die Bedeutungszeile automatisch.
 
 ### Changed
+- Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
+- Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
+- Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.
 - In der Kursansicht wurde der Toolbar-Button `Einstellungen` durch direkte Planaktionen ersetzt: `Umbenennen`, `Loeschen` und `Duplizieren`.
 - `Duplizieren` fragt den Zielnamen jetzt immer per Dialog ab (mit vorbelegtem Vorschlag `<Name> Kopie`) und nutzt bei Namenskonflikten denselben Ueberschreiben-Dialog wie beim Erstellen neuer Plaene.
 - Planaktionen in der Kursansicht (`Umbenennen`, `Loeschen`, `Duplizieren`) sind jetzt in `Rueckgaengig`/`Wiederholen` eingebunden.
 - Fuer die neuen Kursansicht-Aktionen gibt es Tastatur-Shortcuts: `F2` (Umbenennen), `Entf` in der Liste (Loeschen), `Strg+D` (Duplizieren).
 - Neue Tischgruppen entstehen jetzt immer mit der naechsten hoechsten TG-Nummer (Nummerierung nach Entstehung statt links-nach-rechts-Zuweisung).
+- Das Tisch-Overlay mit Name/Symbolen/Farbbuttons ist in `Ansicht` jetzt links, rechts oder unten andockbar; die Position wird in den Einstellungen gespeichert.
+- Das Tischgruppen-Overlay ist in `Ansicht` ebenfalls auf links, rechts oder unten umstellbar (persistente Position).
 - Leere Schuelertische (ohne Namen) bilden keine Tischgruppen mehr und werden in der Kursuebersicht nicht mehr als Schuelertische mitgezaehlt.
 - Tischgruppen lassen sich manuell umnummerieren; bei Nummernkonflikten werden bestehende Gruppen automatisch hochgezaehlt (Kaskadeneffekt).
 - x/y-Shift wirkt jetzt sowohl in der Vorschau als auch im PDF-Export konsistent auf die Tischdarstellung.

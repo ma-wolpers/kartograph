@@ -13,6 +13,17 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- S:S-Overlay-Darstellung bei Docking links/rechts auf staerkere Umbrueche umgestellt: Symbol- und Farbbuttons werden in mehrere Zeilen gerastert, Legenden erhalten Wraplength statt abgeschnittener Einzeiler.
+- Farbpunkte im Grid-Rendering in y-Richtung nach oben verschoben, um Ueberlappung mit Namenslabels zu vermeiden.
+- Fokusverhalten nach Erstnutzungs-Bedeutungsdialog fuer Farben korrigiert: der Fokus wird anschliessend wieder explizit auf das Grid gesetzt.
+- Domainmodell erweitert: `Desk` speichert jetzt `color_markers`, `SeatingPlan` speichert planweite `color_meanings`; JSON-Persistenz wurde rueckwaertskompatibel fuer beide Felder erweitert.
+- Neue Use-Cases fuer Farbmarker eingefuehrt (`toggle_color_marker`, `set_color_meaning`, `is_color_used`, Cleanup ungenutzter Bedeutungen), damit Bedeutungszeilen automatisch mit der letzten Farbnutzung aufgeraeumt werden.
+- Detailbereich im Editor um Farbbutton-Zeile unter den Symbolbuttons erweitert; Farbpunkte sind als Toggle pro Farbe umgesetzt und zeigen den aktiven Zustand direkt im Button.
+- Globale Tastaturbelegung `1..9` im Editor eingefuehrt (Gelb bis Gruen); bei erster Plan-Nutzung einer Farbe wird ein Bedeutungsdialog erzwungen.
+- Grid-Rendering erweitert: Farbpunkte werden als farbige Kreise neben dem Schuelernamen gezeichnet.
+- Overlay-Layout flexibilisiert: das S:S-Detailoverlay (Name/Symbole/Farben) ist jetzt in `Ansicht` links/rechts/unten dockbar und persistiert als Setting.
+- Auch das Tischgruppen-Overlay nutzt jetzt persistente Positionsoptionen links/rechts/unten und richtet sich bei Fensterbewegung/-resize automatisch neu aus.
+- Clipboard-Logik erweitert, damit Farbmarker bei Copy/Cut/Paste erhalten bleiben.
 - Planlisten-Toolbar in der Kursansicht umgestellt: statt `Einstellungen` werden jetzt direkte Planaktionen fuer `Umbenennen`, `Loeschen` und `Duplizieren` ueber den UI-Intent-Controller verdrahtet.
 - Repository-Port und JSON-Implementierung um Plan-Dateioperationen erweitert (`rename_plan`, `delete_plan`, `duplicate_plan`) inklusive Konfliktbehandlung fuer bestehende Dateinamen.
 - Fuer Planaktionen der Kursansicht wurde eine eigene Undo/Redo-Historie auf Dateiebene eingefuehrt und in die bestehenden `Rueckgaengig`/`Wiederholen`-Kommandos integriert.
