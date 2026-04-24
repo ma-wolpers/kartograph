@@ -11,6 +11,11 @@ The format is based on Keep a Changelog.
 - Neues Tischeinstellungen-Overlay rechts per `Strg+T` mit TG-Nummer, x-shift, y-shift und Rotation.
 
 ### Changed
+- In der Kursansicht wurde der Toolbar-Button `Einstellungen` durch direkte Planaktionen ersetzt: `Umbenennen`, `Loeschen` und `Duplizieren`.
+- `Duplizieren` fragt den Zielnamen jetzt immer per Dialog ab (mit vorbelegtem Vorschlag `<Name> Kopie`) und nutzt bei Namenskonflikten denselben Ueberschreiben-Dialog wie beim Erstellen neuer Plaene.
+- Planaktionen in der Kursansicht (`Umbenennen`, `Loeschen`, `Duplizieren`) sind jetzt in `Rueckgaengig`/`Wiederholen` eingebunden.
+- Fuer die neuen Kursansicht-Aktionen gibt es Tastatur-Shortcuts: `F2` (Umbenennen), `Entf` in der Liste (Loeschen), `Strg+D` (Duplizieren).
+- Neue Tischgruppen entstehen jetzt immer mit der naechsten hoechsten TG-Nummer (Nummerierung nach Entstehung statt links-nach-rechts-Zuweisung).
 - Tischgruppen lassen sich manuell umnummerieren; bei Nummernkonflikten werden bestehende Gruppen automatisch hochgezaehlt (Kaskadeneffekt).
 - x/y-Shift wirkt jetzt sowohl in der Vorschau als auch im PDF-Export konsistent auf die Tischdarstellung.
 - Rotationen von Tischgruppen werden sofort in Vorschau und Export dargestellt (begrenzt auf -45 bis +45 Grad).

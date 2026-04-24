@@ -14,6 +14,15 @@ class MainWindowUiIntentController:
         if intent == UiIntent.NEW_PLAN:
             self.app.create_new_plan_dialog()
             return "break"
+        if intent == UiIntent.RENAME_SELECTED_PLAN:
+            self.app.rename_selected_plan_dialog()
+            return "break"
+        if intent == UiIntent.DELETE_SELECTED_PLAN:
+            self.app.delete_selected_plan_dialog()
+            return "break"
+        if intent == UiIntent.DUPLICATE_SELECTED_PLAN:
+            self.app.duplicate_selected_plan_dialog()
+            return "break"
         if intent == UiIntent.OPEN_SETTINGS:
             self.app.open_settings_dialog()
             return "break"

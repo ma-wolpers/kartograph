@@ -19,6 +19,20 @@ class SeatingPlanRepository(Protocol):
     def create_new_plan(self, plans_dir: Path, plan_name: str, overwrite: bool = False) -> tuple[Path, SeatingPlan]:
         ...
 
+    def rename_plan(self, source_path: Path, new_name: str, overwrite: bool = False) -> tuple[Path, SeatingPlan]:
+        ...
+
+    def delete_plan(self, plan_path: Path) -> None:
+        ...
+
+    def duplicate_plan(
+        self,
+        source_path: Path,
+        target_name: str,
+        overwrite: bool = False,
+    ) -> tuple[Path, SeatingPlan]:
+        ...
+
 
 class SettingsRepository(Protocol):
     def load_settings(self) -> dict:

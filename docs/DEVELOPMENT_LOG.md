@@ -13,6 +13,12 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Planlisten-Toolbar in der Kursansicht umgestellt: statt `Einstellungen` werden jetzt direkte Planaktionen fuer `Umbenennen`, `Loeschen` und `Duplizieren` ueber den UI-Intent-Controller verdrahtet.
+- Repository-Port und JSON-Implementierung um Plan-Dateioperationen erweitert (`rename_plan`, `delete_plan`, `duplicate_plan`) inklusive Konfliktbehandlung fuer bestehende Dateinamen.
+- Fuer Planaktionen der Kursansicht wurde eine eigene Undo/Redo-Historie auf Dateiebene eingefuehrt und in die bestehenden `Rueckgaengig`/`Wiederholen`-Kommandos integriert.
+- `Duplizieren` nutzt jetzt einen verpflichtenden Namensdialog mit Default `<Name> Kopie`; bei Namenskonflikten wird analog zur Neuerstellung ein Ueberschreiben-Dialog angeboten.
+- Globales Shortcut-Mapping erweitert: `F2` triggert Umbenennen in der Listenansicht, `Strg+D` triggert Duplizieren in der Listenansicht, und `Entf` ist jetzt kontextsensitiv (Liste: Plan loeschen, Editor: Platz loeschen).
+- TG-Normalisierung angepasst: neu entstandene oder durch Split neu zugewiesene Tischgruppen erhalten immer die naechste hoechste freie Nummer (`max + 1`) statt einer positionsabhaengigen Neuvergabe.
 - Tischgruppen als Zusammenhangskomponenten eingefuehrt (4er-Nachbarschaft); Lehrertische bleiben strikt ausserhalb von Tischgruppen.
 - Desk-Datenmodell und JSON-Persistenz um TG-Metadaten erweitert: TG-Nummer, x/y-Shift und Rotation.
 - Neuer Shortcut `Strg+T` oeffnet ein rechtes Tischeinstellungen-Overlay mit TG-Nummer, Shift- und Rotationswerten.

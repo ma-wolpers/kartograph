@@ -99,6 +99,8 @@ class KartographMainWindow(tk.Tk):
         self._plan_index: list[tuple[Path, SeatingPlan]] = []
         self.interaction_mode = LIST_ACTIVE
         self.history = PlanHistory(max_undo_steps=20)
+        self._plan_list_undo_actions: list[dict[str, object]] = []
+        self._plan_list_redo_actions: list[dict[str, object]] = []
         self._desk_clipboard = DeskClipboard()
 
         self._settings = self.settings_repository.load_settings()
@@ -141,6 +143,19 @@ class KartographMainWindow(tk.Tk):
 
         file_menu = tk.Menu(menubar, tearoff=False)
         file_menu.add_command(label="Neu (Strg+N)", command=lambda: self._handle_intent(UiIntent.NEW_PLAN))
+        file_menu.add_command(
+            label="Plan umbenennen (F2)",
+            command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN),
+        )
+        file_menu.add_command(
+            label="Plan loeschen (Entf in Liste)",
+            command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN),
+        )
+        file_menu.add_command(
+            label="Plan duplizieren (Strg+D)",
+            command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN),
+        )
+        file_menu.add_separator()
         file_menu.add_command(label="Export PDF (Strg+E)", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF))
         file_menu.add_command(label="Einstellungen (Strg+,)", command=lambda: self._handle_intent(UiIntent.OPEN_SETTINGS))
         file_menu.add_separator()
@@ -197,8 +212,18 @@ class KartographMainWindow(tk.Tk):
         ).pack(side="left", padx=(0, 8))
         ttk.Button(
             self.list_toolbar,
-            text="Einstellungen",
-            command=lambda: self._handle_intent(UiIntent.OPEN_SETTINGS),
+            text="Umbenennen (F2)",
+            command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN),
+        ).pack(side="left", padx=(0, 8))
+        ttk.Button(
+            self.list_toolbar,
+            text="Löschen (Entf)",
+            command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN),
+        ).pack(side="left", padx=(0, 8))
+        ttk.Button(
+            self.list_toolbar,
+            text="Duplizieren (Strg+D)",
+            command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN),
         ).pack(side="left")
 
         self.list_body = ttk.Frame(self.list_view)
@@ -364,6 +389,8 @@ class KartographMainWindow(tk.Tk):
 
     def _bind_shortcuts(self) -> None:
         self.bind("<Control-n>", lambda _event: self._handle_intent(UiIntent.NEW_PLAN))
+        self.bind("<Control-d>", self._on_duplicate_shortcut)
+        self.bind("<F2>", self._on_rename_shortcut)
         self.bind("<Control-e>", lambda _event: self._handle_intent(UiIntent.EXPORT_PDF))
         self.bind("<Control-comma>", lambda _event: self._handle_intent(UiIntent.OPEN_SETTINGS))
         self.bind("<Control-,>", lambda _event: self._handle_intent(UiIntent.OPEN_SETTINGS))
@@ -381,7 +408,7 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Control-x>", lambda _event: self._handle_intent(UiIntent.CUT))
         self.bind("<Control-c>", lambda _event: self._handle_intent(UiIntent.COPY))
         self.bind("<Control-v>", lambda _event: self._handle_intent(UiIntent.PASTE))
-        self.bind("<Delete>", lambda _event: self._handle_intent(UiIntent.DELETE_DESK))
+        self.bind("<Delete>", self._on_delete_key)
         self.bind("<Escape>", lambda _event: self._handle_intent(UiIntent.ESCAPE))
         self.bind("<Return>", self._on_return_key)
         self.bind("<KP_Enter>", self._on_return_key)
@@ -405,6 +432,21 @@ class KartographMainWindow(tk.Tk):
 
     def _handle_intent(self, intent: str) -> str | None:
         return self.ui_intent_controller.handle_intent(intent)
+
+    def _on_rename_shortcut(self, _event) -> str | None:
+        if self.interaction_mode != LIST_ACTIVE:
+            return None
+        return self._handle_intent(UiIntent.RENAME_SELECTED_PLAN)
+
+    def _on_duplicate_shortcut(self, _event) -> str | None:
+        if self.interaction_mode != LIST_ACTIVE:
+            return None
+        return self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN)
+
+    def _on_delete_key(self, _event) -> str | None:
+        if self.interaction_mode == LIST_ACTIVE:
+            return self._handle_intent(UiIntent.DELETE_SELECTED_PLAN)
+        return self._handle_intent(UiIntent.DELETE_DESK)
 
     def _normalize_canvas_radius(self, value: object) -> int:
         try:
@@ -1026,6 +1068,301 @@ class KartographMainWindow(tk.Tk):
             except Exception as exc:
                 messagebox.showerror("Fehler", f"Neuer Sitzplan konnte nicht erstellt werden:\n{exc}")
                 return
+
+    def _selected_plan_list_entry(self) -> tuple[int, Path, SeatingPlan] | None:
+        self._ensure_list_selection()
+        selected = self.plan_listbox.curselection()
+        if not selected:
+            return None
+        index = int(selected[0])
+        if index < 0 or index >= len(self._plan_index):
+            return None
+        path, plan = self._plan_index[index]
+        return index, path, plan
+
+    def _record_plan_list_action(self, action: dict[str, object]) -> None:
+        self._plan_list_undo_actions.append(action)
+        max_steps = max(1, int(self.history.max_undo_steps))
+        overflow = len(self._plan_list_undo_actions) - max_steps
+        if overflow > 0:
+            self._plan_list_undo_actions = self._plan_list_undo_actions[overflow:]
+        self._plan_list_redo_actions = []
+
+    def _default_duplicate_name(self, source_name: str) -> str:
+        base = source_name.strip() or "Neuer Sitzplan"
+        return f"{base} Kopie"
+
+    def _clear_current_plan_if_matches(self, plan_path: Path) -> None:
+        if self.current_plan_path != plan_path:
+            return
+        self.current_plan_path = None
+        self.current_plan = None
+        self.plan_name_var.set("")
+        self._set_selection_single(0, 0)
+        self._refresh_details_panel()
+
+    def rename_selected_plan_dialog(self) -> None:
+        selected = self._selected_plan_list_entry()
+        if not selected:
+            self.status_var.set("Kein Sitzplan ausgewaehlt")
+            return
+
+        _index, plan_path, plan = selected
+
+        while True:
+            plan_name = simpledialog.askstring(
+                "Sitzplan umbenennen",
+                "Neuer Name der Lerngruppe:",
+                parent=self,
+                initialvalue=plan.name,
+            )
+            if plan_name is None:
+                return
+            if not plan_name.strip():
+                messagebox.showerror("Fehler", "Bitte gib einen Namen ein.", parent=self)
+                continue
+
+            try:
+                new_path, renamed_plan = self.plan_repository.rename_plan(plan_path, plan_name)
+                if self.current_plan_path == plan_path and self.current_plan is not None:
+                    self.current_plan_path = new_path
+                    self.current_plan.name = renamed_plan.name
+                    self.plan_name_var.set(f"Plan: {renamed_plan.name}")
+                self._record_plan_list_action(
+                    {
+                        "kind": "rename",
+                        "before_path": plan_path,
+                        "after_path": new_path,
+                        "before_name": plan.name,
+                        "after_name": renamed_plan.name,
+                    }
+                )
+                self.refresh_plan_list()
+                self._ensure_list_selection(preferred_path=new_path)
+                self.status_var.set(f"Plan umbenannt: {renamed_plan.name}")
+                return
+            except FileExistsError:
+                overwrite = messagebox.askyesnocancel(
+                    "Datei existiert bereits",
+                    "Für diese Lerngruppe existiert bereits ein Plan. Überschreiben?",
+                    parent=self,
+                )
+                if overwrite is None:
+                    return
+                if overwrite:
+                    try:
+                        new_path, renamed_plan = self.plan_repository.rename_plan(plan_path, plan_name, overwrite=True)
+                        if self.current_plan_path == plan_path and self.current_plan is not None:
+                            self.current_plan_path = new_path
+                            self.current_plan.name = renamed_plan.name
+                            self.plan_name_var.set(f"Plan: {renamed_plan.name}")
+                        self._record_plan_list_action(
+                            {
+                                "kind": "rename",
+                                "before_path": plan_path,
+                                "after_path": new_path,
+                                "before_name": plan.name,
+                                "after_name": renamed_plan.name,
+                            }
+                        )
+                        self.refresh_plan_list()
+                        self._ensure_list_selection(preferred_path=new_path)
+                        self.status_var.set(f"Plan umbenannt: {renamed_plan.name}")
+                        return
+                    except Exception as exc:
+                        messagebox.showerror("Fehler", f"Sitzplan konnte nicht umbenannt werden:\n{exc}", parent=self)
+                        return
+                continue
+            except Exception as exc:
+                messagebox.showerror("Fehler", f"Sitzplan konnte nicht umbenannt werden:\n{exc}", parent=self)
+                return
+
+    def delete_selected_plan_dialog(self) -> None:
+        selected = self._selected_plan_list_entry()
+        if not selected:
+            self.status_var.set("Kein Sitzplan ausgewaehlt")
+            return
+
+        index, plan_path, plan = selected
+        confirm = messagebox.askyesno(
+            "Sitzplan loeschen",
+            f"Moechtest du den Sitzplan '{plan.name}' wirklich loeschen?",
+            parent=self,
+        )
+        if not confirm:
+            return
+
+        try:
+            deleted_plan = deepcopy(self.plan_repository.load_plan(plan_path))
+            self.plan_repository.delete_plan(plan_path)
+            self._clear_current_plan_if_matches(plan_path)
+            self._record_plan_list_action(
+                {
+                    "kind": "delete",
+                    "deleted_path": plan_path,
+                    "deleted_plan": deleted_plan,
+                }
+            )
+            self.refresh_plan_list()
+            if self._plan_index:
+                preferred_index = max(0, min(index, len(self._plan_index) - 1))
+                self._ensure_list_selection(preferred_path=self._plan_index[preferred_index][0])
+            self.status_var.set(f"Plan geloescht: {plan.name}")
+        except Exception as exc:
+            messagebox.showerror("Fehler", f"Sitzplan konnte nicht geloescht werden:\n{exc}", parent=self)
+
+    def duplicate_selected_plan_dialog(self) -> None:
+        selected = self._selected_plan_list_entry()
+        if not selected:
+            self.status_var.set("Kein Sitzplan ausgewaehlt")
+            return
+
+        _index, plan_path, plan = selected
+        suggested_name = self._default_duplicate_name(plan.name)
+
+        while True:
+            plan_name = simpledialog.askstring(
+                "Sitzplan duplizieren",
+                "Name der Lerngruppe:",
+                parent=self,
+                initialvalue=suggested_name,
+            )
+            if plan_name is None:
+                return
+            if not plan_name.strip():
+                messagebox.showerror("Fehler", "Bitte gib einen Namen ein.", parent=self)
+                continue
+
+            try:
+                duplicate_path, duplicate_plan = self.plan_repository.duplicate_plan(plan_path, plan_name)
+                self._record_plan_list_action(
+                    {
+                        "kind": "duplicate",
+                        "duplicate_path": duplicate_path,
+                        "duplicate_plan": deepcopy(duplicate_plan),
+                    }
+                )
+                self.refresh_plan_list()
+                self._ensure_list_selection(preferred_path=duplicate_path)
+                self.status_var.set(f"Plan dupliziert: {duplicate_plan.name}")
+                return
+            except FileExistsError:
+                overwrite = messagebox.askyesnocancel(
+                    "Datei existiert bereits",
+                    "Für diese Lerngruppe existiert bereits ein Plan. Überschreiben?",
+                    parent=self,
+                )
+                if overwrite is None:
+                    return
+                if overwrite:
+                    try:
+                        duplicate_path, duplicate_plan = self.plan_repository.duplicate_plan(
+                            plan_path,
+                            plan_name,
+                            overwrite=True,
+                        )
+                        self._record_plan_list_action(
+                            {
+                                "kind": "duplicate",
+                                "duplicate_path": duplicate_path,
+                                "duplicate_plan": deepcopy(duplicate_plan),
+                            }
+                        )
+                        self.refresh_plan_list()
+                        self._ensure_list_selection(preferred_path=duplicate_path)
+                        self.status_var.set(f"Plan dupliziert: {duplicate_plan.name}")
+                        return
+                    except Exception as exc:
+                        messagebox.showerror("Fehler", f"Sitzplan konnte nicht dupliziert werden:\n{exc}", parent=self)
+                        return
+                continue
+            except Exception as exc:
+                messagebox.showerror("Fehler", f"Sitzplan konnte nicht dupliziert werden:\n{exc}", parent=self)
+                return
+
+    def _undo_plan_list_action(self) -> bool:
+        if not self._plan_list_undo_actions:
+            return False
+
+        action = self._plan_list_undo_actions.pop()
+        kind = str(action.get("kind") or "")
+        try:
+            if kind == "rename":
+                source_path = action["after_path"]
+                target_name = str(action["before_name"])
+                restored_path, restored_plan = self.plan_repository.rename_plan(source_path, target_name, overwrite=True)
+                action["before_path"] = restored_path
+                if self.current_plan_path == source_path and self.current_plan is not None:
+                    self.current_plan_path = restored_path
+                    self.current_plan.name = restored_plan.name
+                    self.plan_name_var.set(f"Plan: {restored_plan.name}")
+                preferred_path = restored_path
+            elif kind == "delete":
+                deleted_path = action["deleted_path"]
+                deleted_plan = deepcopy(action["deleted_plan"])
+                self.plan_repository.save_plan(deleted_plan, deleted_path)
+                preferred_path = deleted_path
+            elif kind == "duplicate":
+                duplicate_path = action["duplicate_path"]
+                self.plan_repository.delete_plan(duplicate_path)
+                self._clear_current_plan_if_matches(duplicate_path)
+                preferred_path = self.current_plan_path
+            else:
+                self._plan_list_undo_actions.append(action)
+                return False
+        except Exception as exc:
+            self._plan_list_undo_actions.append(action)
+            self.status_var.set(f"Rueckgaengig fehlgeschlagen: {exc}")
+            return False
+
+        self._plan_list_redo_actions.append(action)
+        self.refresh_plan_list()
+        if preferred_path is not None:
+            self._ensure_list_selection(preferred_path=preferred_path)
+        self.status_var.set("Rueckgaengig")
+        return True
+
+    def _redo_plan_list_action(self) -> bool:
+        if not self._plan_list_redo_actions:
+            return False
+
+        action = self._plan_list_redo_actions.pop()
+        kind = str(action.get("kind") or "")
+        try:
+            if kind == "rename":
+                source_path = action["before_path"]
+                target_name = str(action["after_name"])
+                restored_path, restored_plan = self.plan_repository.rename_plan(source_path, target_name, overwrite=True)
+                action["after_path"] = restored_path
+                if self.current_plan_path == source_path and self.current_plan is not None:
+                    self.current_plan_path = restored_path
+                    self.current_plan.name = restored_plan.name
+                    self.plan_name_var.set(f"Plan: {restored_plan.name}")
+                preferred_path = restored_path
+            elif kind == "delete":
+                deleted_path = action["deleted_path"]
+                self.plan_repository.delete_plan(deleted_path)
+                self._clear_current_plan_if_matches(deleted_path)
+                preferred_path = self.current_plan_path
+            elif kind == "duplicate":
+                duplicate_path = action["duplicate_path"]
+                duplicate_plan = deepcopy(action["duplicate_plan"])
+                self.plan_repository.save_plan(duplicate_plan, duplicate_path)
+                preferred_path = duplicate_path
+            else:
+                self._plan_list_redo_actions.append(action)
+                return False
+        except Exception as exc:
+            self._plan_list_redo_actions.append(action)
+            self.status_var.set(f"Wiederholen fehlgeschlagen: {exc}")
+            return False
+
+        self._plan_list_undo_actions.append(action)
+        self.refresh_plan_list()
+        if preferred_path is not None:
+            self._ensure_list_selection(preferred_path=preferred_path)
+        self.status_var.set("Wiederholt")
+        return True
 
     def open_settings_dialog(self) -> None:
         dialog = self._create_overlay_dialog("Einstellungen", "700x320")
@@ -1805,11 +2142,16 @@ class KartographMainWindow(tk.Tk):
         ttk.Button(button_row, text="Übernehmen", command=apply_choice).pack(side="right")
 
     def undo_last_change(self) -> None:
+        if self.interaction_mode == LIST_ACTIVE and self._undo_plan_list_action():
+            return
         if not self.current_plan or not self.current_plan_path:
+            if not self._undo_plan_list_action():
+                self.status_var.set("Nichts zum Rueckgaengigmachen")
             return
         restored = self.history.undo(steps=1)
         if restored is None:
-            self.status_var.set("Nichts zum Rueckgaengigmachen")
+            if not self._undo_plan_list_action():
+                self.status_var.set("Nichts zum Rueckgaengigmachen")
             return
         self.current_plan = restored
         self._save_current_plan("Rueckgaengig")
@@ -1829,11 +2171,16 @@ class KartographMainWindow(tk.Tk):
         self._refresh_details_panel()
 
     def redo_last_change(self) -> None:
+        if self.interaction_mode == LIST_ACTIVE and self._redo_plan_list_action():
+            return
         if not self.current_plan or not self.current_plan_path:
+            if not self._redo_plan_list_action():
+                self.status_var.set("Nichts zum Wiederholen")
             return
         restored = self.history.redo(steps=1)
         if restored is None:
-            self.status_var.set("Nichts zum Wiederholen")
+            if not self._redo_plan_list_action():
+                self.status_var.set("Nichts zum Wiederholen")
             return
         self.current_plan = restored
         self._save_current_plan("Wiederholt")

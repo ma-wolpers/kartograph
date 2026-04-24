@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from copy import deepcopy
 from pathlib import Path
 
 from app.core.domain.models import Desk, SeatingPlan
@@ -48,6 +49,43 @@ class JsonSeatingPlanRepository:
             raise FileExistsError(f"Plandatei existiert bereits: {plan_path.name}")
         self.save_plan(plan, plan_path)
         return plan_path, plan
+
+    def rename_plan(self, source_path: Path, new_name: str, overwrite: bool = False) -> tuple[Path, SeatingPlan]:
+        source_plan = self.load_plan(source_path)
+        target_name = new_name.strip() or source_plan.name
+        target_path = source_path.with_name(f"{self._slugify(target_name)}.json")
+
+        source_plan.name = target_name
+
+        if target_path != source_path and target_path.exists() and not overwrite:
+            raise FileExistsError(f"Plandatei existiert bereits: {target_path.name}")
+
+        if target_path == source_path:
+            self.save_plan(source_plan, source_path)
+            return source_path, source_plan
+
+        self.save_plan(source_plan, target_path)
+        source_path.unlink(missing_ok=True)
+        return target_path, source_plan
+
+    def delete_plan(self, plan_path: Path) -> None:
+        if not plan_path.exists():
+            raise FileNotFoundError(f"Plandatei nicht gefunden: {plan_path.name}")
+        plan_path.unlink()
+
+    def duplicate_plan(self, source_path: Path, target_name: str, overwrite: bool = False) -> tuple[Path, SeatingPlan]:
+        source_plan = self.load_plan(source_path)
+        duplicated = SeatingPlan(
+            version=source_plan.version,
+            plan_id=uuid.uuid4().hex,
+            name=target_name.strip() or source_plan.name,
+            desks=deepcopy(source_plan.desks),
+        )
+        target_path = source_path.with_name(f"{self._slugify(duplicated.name)}.json")
+        if target_path.exists() and not overwrite:
+            raise FileExistsError(f"Plandatei existiert bereits: {target_path.name}")
+        self.save_plan(duplicated, target_path)
+        return target_path, duplicated
 
     def _serialize(self, plan: SeatingPlan) -> dict:
         return {
