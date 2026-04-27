@@ -8,7 +8,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
   - `app/core`: Domainmodell und Use-Cases.
   - `app/infrastructure`: Dateisystem-/Persistenzzugriffe.
   - `app/adapters/gui`: GUI-Adapter und Fensterlogik.
-- Tischgruppen werden im Domain-Layer als Zusammenhangskomponenten (4er-Nachbarschaft) aus Schuelertischen berechnet; Lehrertische sind ausgeschlossen.
+- Tischgruppen werden im Domain-Layer als Zusammenhangskomponenten (4er-Nachbarschaft) aus Schuelertischen berechnet; Lehrertische sind ausgeschlossen. Leere Schuelertische koennen Teil einer benannten Tischgruppe sein, duerfen aber keine eigene Tischgruppe bilden.
 - Pro Tischgruppe werden Metadaten (TG-Nummer, x/y-Shift, Rotation) pro Schuelertisch persistiert und bei allen Planmutationen normalisiert.
 - Pro Schuelertisch werden optionale Farbmarker (`color_markers`) persistiert; planweit werden Farb-Bedeutungen (`color_meanings`) gefuehrt.
 - Sitzplaene werden als JSON-Dateien in `plans/` abgelegt.
@@ -25,6 +25,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Symbolkonfiguration wird beim App-Start geladen und in der GUI als Katalog/Legende genutzt.
 - Das S:S-Detailoverlay (Name, Symbole, Farbbuttons) ist in der Ansicht links/rechts/unten andockbar; das Tischgruppen-Overlay kann ebenfalls links/rechts/unten positioniert werden (persistente Settings).
 - Preview-Rendering und PDF-Export verwenden dieselbe Domain-Transformationslogik fuer Tischgruppen (x/y-Shift, Rotation), damit die Darstellung konsistent bleibt.
+- Der Markierungsrahmen fuer aktive Auswahlen wird aus transformierten Tischpolygonen abgeleitet, damit Shift/Rotation der Tischgruppe visuell korrekt abgebildet werden.
 - Bei Transformationskollisionen (Lehrer- oder Schuelertisch) wird der zuletzt geaenderte Transformationswert auf 0 zurueckgesetzt.
 - Exportaktionen werden in der GUI angestossen und durch den Infrastructure-Exporter als PDF geschrieben.
 

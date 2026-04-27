@@ -23,11 +23,12 @@ The format is based on Keep a Changelog.
 - Neue Tischgruppen entstehen jetzt immer mit der naechsten hoechsten TG-Nummer (Nummerierung nach Entstehung statt links-nach-rechts-Zuweisung).
 - Das Tisch-Overlay mit Name/Symbolen/Farbbuttons ist in `Ansicht` jetzt links, rechts oder unten andockbar; die Position wird in den Einstellungen gespeichert.
 - Das Tischgruppen-Overlay ist in `Ansicht` ebenfalls auf links, rechts oder unten umstellbar (persistente Position).
-- Leere Schuelertische (ohne Namen) bilden keine Tischgruppen mehr und werden in der Kursuebersicht nicht mehr als Schuelertische mitgezaehlt.
+- Leere Schuelertische (ohne Namen) koennen Mitglied einer bestehenden Tischgruppe sein, bilden aber niemals eigenstaendig eine Tischgruppe.
 - Tischgruppen lassen sich manuell umnummerieren; bei Nummernkonflikten werden bestehende Gruppen automatisch hochgezaehlt (Kaskadeneffekt).
 - x/y-Shift wirkt jetzt sowohl in der Vorschau als auch im PDF-Export konsistent auf die Tischdarstellung.
 - Rotationen von Tischgruppen werden sofort in Vorschau und Export dargestellt (begrenzt auf -45 bis +45 Grad).
 - Bei markierten Teilen einer Tischgruppe wird ein zusaetzlicher, schwaecherer Gruppenrahmen angezeigt.
+- Der Markierungsrahmen folgt bei verschobenen/rotierten Tischgruppen jetzt der transformierten Tischgeometrie statt den urspruenglichen Grid-Koordinaten.
 - Ueberlappungen mit Lehrer- oder Schuelertischen fuehren zum automatischen Zuruecksetzen des zuletzt geaenderten Transformationswerts auf 0.
 
 ## [0.2.0] - 2026-04-22

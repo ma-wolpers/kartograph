@@ -23,6 +23,13 @@ py -3 -m venv .venv
 pip install -r kartograph/requirements.txt
 ```
 
+Fuer Entwicklung und Tests:
+
+```powershell
+pip install -r kartograph/requirements-dev.txt
+python -m pytest -q kartograph
+```
+
 ```bat
 start-kartograph.bat
 ```

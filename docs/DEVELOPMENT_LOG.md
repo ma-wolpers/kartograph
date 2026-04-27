@@ -13,6 +13,10 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Tischgruppen-Normalisierung erweitert: leere Schuelertische koennen in benannten Tischgruppen mitlaufen; Komponenten ohne mindestens einen benannten Schuelertisch werden weiterhin zwingend auf TG 0 zurueckgesetzt.
+- Tischgruppen-Transformationen und TG-Nachschlagefunktionen greifen jetzt fuer alle Schuelertische einer Gruppe (inklusive leerer Tische), damit Shift/Rotation konsistent auf die gesamte Gruppe wirken.
+- Der aktive Markierungsrahmen im Grid-Rendering basiert jetzt auf transformierten Tischpolygonen statt auf starren Grid-Bounds, damit die Auswahl bei verschobenen/rotierten Gruppen korrekt auf dem Tisch liegt.
+- Eine pytest-basierte Testsuite wurde eingefuehrt (Domain-Tests fuer Tischgruppenregeln und Geometrie-Bounds) und in den Quality-Workflow integriert.
 - S:S-Overlay-Darstellung bei Docking links/rechts auf staerkere Umbrueche umgestellt: Symbol- und Farbbuttons werden in mehrere Zeilen gerastert, Legenden erhalten Wraplength statt abgeschnittener Einzeiler.
 - Farbpunkte im Grid-Rendering in y-Richtung nach oben verschoben, um Ueberlappung mit Namenslabels zu vermeiden.
 - Fokusverhalten nach Erstnutzungs-Bedeutungsdialog fuer Farben korrigiert: der Fokus wird anschliessend wieder explizit auf das Grid gesetzt.

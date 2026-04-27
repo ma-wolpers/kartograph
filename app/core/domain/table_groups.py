@@ -53,7 +53,7 @@ def _is_named_student_desk(desk: Desk) -> bool:
 
 
 def build_student_components(plan: SeatingPlan) -> list[list[Desk]]:
-    students = [desk for desk in plan.desks if _is_named_student_desk(desk)]
+    students = [desk for desk in plan.desks if desk.desk_type == "student"]
     if not students:
         return []
 
@@ -101,22 +101,31 @@ def _pick_component_number(component: list[Desk]) -> int | None:
 
 
 def _pick_component_shift_x(component: list[Desk]) -> float:
-    return _sanitize_shift(component[0].tablegroup_shift_x if component else 0.0)
+    if not component:
+        return 0.0
+    reference = next((desk for desk in component if _is_named_student_desk(desk)), component[0])
+    return _sanitize_shift(reference.tablegroup_shift_x)
 
 
 def _pick_component_shift_y(component: list[Desk]) -> float:
-    return _sanitize_shift(component[0].tablegroup_shift_y if component else 0.0)
+    if not component:
+        return 0.0
+    reference = next((desk for desk in component if _is_named_student_desk(desk)), component[0])
+    return _sanitize_shift(reference.tablegroup_shift_y)
 
 
 def _pick_component_rotation(component: list[Desk]) -> float:
-    return _sanitize_rotation(component[0].tablegroup_rotation if component else 0.0)
+    if not component:
+        return 0.0
+    reference = next((desk for desk in component if _is_named_student_desk(desk)), component[0])
+    return _sanitize_rotation(reference.tablegroup_rotation)
 
 
 def normalize_tablegroups_in_place(plan: SeatingPlan) -> None:
     components = build_student_components(plan)
 
     for desk in plan.desks:
-        if desk.desk_type == "teacher" or (desk.desk_type == "student" and not desk.student_name.strip()):
+        if desk.desk_type == "teacher":
             desk.tablegroup_number = 0
             desk.tablegroup_shift_x = 0.0
             desk.tablegroup_shift_y = 0.0
@@ -125,10 +134,25 @@ def normalize_tablegroups_in_place(plan: SeatingPlan) -> None:
     if not components:
         return
 
+    valid_components: list[list[Desk]] = []
+    for component in components:
+        if any(_is_named_student_desk(desk) for desk in component):
+            valid_components.append(component)
+            continue
+        # Leere Tische duerfen zu einer benannten Gruppe gehoeren, aber niemals allein eine Gruppe bilden.
+        for desk in component:
+            desk.tablegroup_number = 0
+            desk.tablegroup_shift_x = 0.0
+            desk.tablegroup_shift_y = 0.0
+            desk.tablegroup_rotation = 0.0
+
+    if not valid_components:
+        return
+
     max_existing_number = max(
         (
             preferred
-            for preferred in (_pick_component_number(component) for component in components)
+            for preferred in (_pick_component_number(component) for component in valid_components)
             if preferred is not None
         ),
         default=0,
@@ -136,7 +160,7 @@ def normalize_tablegroups_in_place(plan: SeatingPlan) -> None:
     assigned_numbers: set[int] = set()
     next_new_number = max_existing_number + 1
 
-    for component in components:
+    for component in valid_components:
         preferred_number = _pick_component_number(component)
         if preferred_number is None or preferred_number in assigned_numbers:
             # Neue oder gesplittete Gruppen erhalten fortlaufend ab global max(TG)+1.
@@ -160,7 +184,7 @@ def normalize_tablegroups_in_place(plan: SeatingPlan) -> None:
 
 def tablegroup_number_at(plan: SeatingPlan, x: int, y: int) -> int | None:
     desk = plan.desk_at(x, y)
-    if desk is None or not _is_named_student_desk(desk):
+    if desk is None or desk.desk_type != "student":
         return None
     number = int(desk.tablegroup_number)
     return number if number > 0 else None
@@ -170,7 +194,7 @@ def get_tablegroup_settings(plan: SeatingPlan, number: int) -> TableGroupSetting
     if number <= 0:
         return None
     for desk in plan.desks:
-        if not _is_named_student_desk(desk):
+        if desk.desk_type != "student":
             continue
         if int(desk.tablegroup_number) != number:
             continue
@@ -236,7 +260,7 @@ def set_tablegroup_transforms_in_place(
         return
 
     for desk in plan.desks:
-        if not _is_named_student_desk(desk):
+        if desk.desk_type != "student":
             continue
         if int(desk.tablegroup_number) != number:
             continue
@@ -372,10 +396,32 @@ def group_bounds_from_geometries(geometries: list[DeskGeometry], number: int) ->
     return min_x, min_y, max_x, max_y
 
 
+def selection_bounds_from_geometries(
+    geometries: list[DeskGeometry],
+    selected_cells: set[tuple[int, int]],
+) -> tuple[float, float, float, float] | None:
+    points: list[tuple[float, float]] = []
+    for geometry in geometries:
+        if geometry.desk.desk_type != "student":
+            continue
+        if (geometry.desk.x, geometry.desk.y) not in selected_cells:
+            continue
+        points.extend(geometry.polygon)
+
+    if not points:
+        return None
+
+    min_x = min(point[0] for point in points)
+    min_y = min(point[1] for point in points)
+    max_x = max(point[0] for point in points)
+    max_y = max(point[1] for point in points)
+    return min_x, min_y, max_x, max_y
+
+
 def list_tablegroup_numbers(plan: SeatingPlan) -> list[int]:
     numbers = {
         int(desk.tablegroup_number)
         for desk in plan.desks
-        if _is_named_student_desk(desk) and int(desk.tablegroup_number) > 0
+        if desk.desk_type == "student" and int(desk.tablegroup_number) > 0
     }
     return sorted(numbers)

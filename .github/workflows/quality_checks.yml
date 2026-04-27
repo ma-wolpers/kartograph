@@ -18,5 +18,14 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install runtime dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+
       - name: Run AI guardrail check
         run: python tools/ci/check_ai_guardrails.py
+
+      - name: Run test suite
+        run: python -m pytest -q

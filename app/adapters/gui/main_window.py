@@ -23,6 +23,7 @@ from app.core.domain.table_groups import (
     group_bounds_from_geometries,
     list_tablegroup_numbers,
     normalize_tablegroups_in_place,
+    selection_bounds_from_geometries,
     set_tablegroup_number_with_cascade_in_place,
     set_tablegroup_transforms_in_place,
     tablegroup_number_at,
@@ -2010,11 +2011,19 @@ class KartographMainWindow(tk.Tk):
                 tags=("grid",),
             )
 
-        min_sel_x, min_sel_y, max_sel_x, max_sel_y = self.selection.bounds()
-        x1 = min_sel_x * self.cell_size
-        y1 = min_sel_y * self.cell_size
-        x2 = (max_sel_x + 1) * self.cell_size
-        y2 = (max_sel_y + 1) * self.cell_size
+        selection_bounds = selection_bounds_from_geometries(geometries, selected_cells)
+        if selection_bounds is not None:
+            min_sel_x, min_sel_y, max_sel_x, max_sel_y = selection_bounds
+            x1 = min_sel_x * self.cell_size
+            y1 = min_sel_y * self.cell_size
+            x2 = max_sel_x * self.cell_size
+            y2 = max_sel_y * self.cell_size
+        else:
+            min_sel_x, min_sel_y, max_sel_x, max_sel_y = self.selection.bounds()
+            x1 = min_sel_x * self.cell_size
+            y1 = min_sel_y * self.cell_size
+            x2 = (max_sel_x + 1) * self.cell_size
+            y2 = (max_sel_y + 1) * self.cell_size
 
         self.canvas.create_rectangle(
             x1,
