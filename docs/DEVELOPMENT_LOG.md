@@ -13,6 +13,8 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Startverhalten stabilisiert: das Hauptfenster wird nach dem initialen Layout wieder auf dem Bildschirm zentriert.
+- Startup-Haertung ergaenzt: unerwartete Ausnahmen beim Start werden jetzt abgefangen und als Fehlermeldung angezeigt statt den Prozess abrupt zu beenden.
 - Die sichtbaren Loesch-Hinweise in der Dokumentations-Toolbar wurden auf den tatsaechlichen Shortcut-Umfang angepasst (`Strg+Entf` und `Strg+Backspace`).
 - Der schnelle Symbol-Loeschpfad in der Dokumentationssicht gibt jetzt klare Statusrueckmeldungen, wenn nichts geloescht werden konnte (z. B. kein aktives Symbol oder kein Doku-Eintrag).
 - In der Dokumentations-Toolbar gibt es jetzt eine direkte Aktion "Symbol loeschen (Strg+Entf)", die den schnellen Symbol-Loeschpfad ohne Dialog ausloest.

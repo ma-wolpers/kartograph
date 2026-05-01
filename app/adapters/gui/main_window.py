@@ -198,6 +198,15 @@ class KartographMainWindow(tk.Tk):
         self.apply_theme()
         self.refresh_plan_list()
         self.show_plan_list_view()
+        self.after_idle(self._center_window_on_screen)
+
+    def _center_window_on_screen(self) -> None:
+        self.update_idletasks()
+        width = max(1000, self.winfo_width())
+        height = max(680, self.winfo_height())
+        x_pos = max(0, (self.winfo_screenwidth() - width) // 2)
+        y_pos = max(0, (self.winfo_screenheight() - height) // 2)
+        self.geometry(f"{width}x{height}+{x_pos}+{y_pos}")
 
     def _build_menu_bar(self) -> None:
         menubar = tk.Menu(self)

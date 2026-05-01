@@ -20,6 +20,8 @@ The format is based on Keep a Changelog.
 - Bei geoeffnetem Plan erstellt Kartograph zusaetzlich alle 5 Minuten automatisch ein Snapshot-Backup im selben AppData-Backupbereich.
 
 ### Changed
+- Beim Start wird das Hauptfenster wieder automatisch auf dem Bildschirm zentriert.
+- Startfehler werden jetzt mit einer klaren Fehlermeldung angezeigt, statt dass Kartograph ohne Hinweis abrupt beendet wird.
 - Leere Dokumentationstage werden beim Speichern nicht persistiert; ein Tagesdatum bleibt bis zur ersten Inhalteingabe volatil.
 - Beim Verschieben/Kopieren von Schuelertischen bleiben tagesbezogene Dokumentationseintraege jetzt erhalten.
 - Enter in der Dokumentationsansicht bewegt die aktive Auswahl je nach Modus spaltenweise nach unten oder zeilenweise nach rechts.
