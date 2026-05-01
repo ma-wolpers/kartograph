@@ -664,7 +664,6 @@ class KartographMainWindow(tk.Tk):
             text="Note setzen (Strg+G)",
             command=self.set_selected_documentation_grade_dialog,
         ).pack(side="left", padx=(8, 0))
-        ttk.Label(self.docs_toolbar, textvariable=self.docs_mode_var).pack(side="right")
         ttk.Label(
             self.docs_toolbar,
             text="Datum: Alt+Links/Rechts, Strg+H=Heute, Strg+Shift+S=Symbol, Strg+Entf/Backspace=Loeschen",
