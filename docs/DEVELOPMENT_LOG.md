@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Dokumentations-Toolbar zeigt jetzt dauerhaft die aktive Doku-Zelle (Schuelerzeile + Datumsspalte) als Statusanzeige.
 - Datums-Spaltenauswahl in der Dokumentationssicht per Tastatur erweitert (`Alt+Links/Rechts`), inklusive synchroner Spaltenmarkierung.
 - Der Doku-Navigationsmodus (Spalten-/Zeilenmodus) wird jetzt in den Einstellungen persistiert und beim naechsten Start wiederhergestellt.
 - Beim Laden eines Plans wird das heutige Datum automatisch als Doku-Arbeitsspalte im Arbeitsspeicher initialisiert (weiterhin volatil bis zur ersten Inhalteingabe).

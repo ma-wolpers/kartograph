@@ -154,6 +154,7 @@ class KartographMainWindow(tk.Tk):
 
         self._name_var = tk.StringVar(value="")
         self._selected_marker_var = tk.StringVar(value="")
+        self._doc_selection_status_var = tk.StringVar(value="Doku-Zelle: -")
         self.status_var = tk.StringVar(value="Bereit")
         self._tablegroup_overlay: tk.Toplevel | None = None
         self._tg_number_var: tk.StringVar | None = None
@@ -552,6 +553,7 @@ class KartographMainWindow(tk.Tk):
         ).pack(side="left", padx=(8, 0))
         ttk.Label(self.docs_toolbar, textvariable=self.docs_mode_var).pack(side="right")
         ttk.Label(self.docs_toolbar, text="Datum: Alt+Links/Rechts").pack(side="right", padx=(0, 12))
+        ttk.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
 
         self.docs_table_container = ttk.Frame(self.docs_container)
         self.docs_table_container.pack(fill="both", expand=True, padx=12, pady=(0, 12))
@@ -1580,6 +1582,21 @@ class KartographMainWindow(tk.Tk):
             if idx == self._doc_selected_date_index:
                 title = f"> {date_key}"
             self.docs_tree.heading(col_id, text=title)
+        self._refresh_doc_selection_status()
+
+    def _refresh_doc_selection_status(self) -> None:
+        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+            self._doc_selection_status_var.set("Doku-Zelle: -")
+            return
+        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+        date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
+        x, y = self._doc_student_coords[student_index]
+        desk = self.current_plan.desk_at(x, y)
+        name = ""
+        if desk is not None and desk.desk_type == "student":
+            name = desk.student_name.strip()
+        display_name = name or f"({x},{y})"
+        self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {self._doc_dates[date_index]}")
 
     def _refresh_documentation_table(self) -> None:
         if not self.current_plan:
@@ -1653,6 +1670,7 @@ class KartographMainWindow(tk.Tk):
             self._doc_selected_date_index = 0
 
         self._apply_doc_column_heading_highlight()
+        self._refresh_doc_selection_status()
 
     def _on_docs_tree_click(self, event) -> None:
         row_id = self.docs_tree.identify_row(event.y)
@@ -1680,6 +1698,7 @@ class KartographMainWindow(tk.Tk):
             if iid == row_id:
                 self._doc_selected_student_index = student_idx
                 break
+        self._refresh_doc_selection_status()
 
     def _on_docs_right_tree_click(self, event) -> None:
         row_id = self.docs_right_tree.identify_row(event.y)
