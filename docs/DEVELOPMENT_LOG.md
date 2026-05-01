@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Im Dokumentations-Symboldialog waehlen `1-9` (inkl. Numpad) jetzt direkt die entsprechenden Symbolzeilen fuer schnellere Tastaturbedienung.
 - Der Dokumentations-Symboldialog bietet jetzt zusaetzlich eine explizite Aktion `Loeschen`, die das ausgewaehlte Symbol fuer die aktive Doku-Zelle auf 0 setzt.
 - Der Dokumentations-Symboldialog zeigt jetzt einen sichtbaren Tastaturhinweis fuer `Enter` (uebernehmen) und `Esc` (schliessen).
 - Der Dokumentations-Symboldialog waehlt beim Oeffnen bevorzugt das bereits aktive Symbol der aktuell markierten Doku-Zelle vor.

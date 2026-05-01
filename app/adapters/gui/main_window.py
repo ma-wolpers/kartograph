@@ -1900,7 +1900,7 @@ class KartographMainWindow(tk.Tk):
         frame.pack(fill="both", expand=True, padx=12, pady=12)
 
         ttk.Label(frame, text="Symbol auswählen").pack(anchor="w", pady=(0, 6))
-        ttk.Label(frame, text="Tastatur: Enter uebernimmt, Esc schliesst", foreground="#666666").pack(
+        ttk.Label(frame, text="Tastatur: 1-9 waehlt, Enter uebernimmt, Esc schliesst", foreground="#666666").pack(
             anchor="w", pady=(0, 6)
         )
 
@@ -1948,6 +1948,19 @@ class KartographMainWindow(tk.Tk):
         symbol_listbox.bind("<Double-Button-1>", lambda _event: apply_symbol())
         symbol_listbox.bind("<Return>", lambda _event: apply_symbol())
         symbol_listbox.bind("<KP_Enter>", lambda _event: apply_symbol())
+
+        def select_by_digit(index: int) -> None:
+            if index < 0 or index >= len(self.symbol_catalog):
+                return
+            symbol_listbox.selection_clear(0, tk.END)
+            symbol_listbox.selection_set(index)
+            symbol_listbox.activate(index)
+            symbol_listbox.see(index)
+
+        for digit in range(1, 10):
+            select_index = digit - 1
+            dialog.bind(f"<{digit}>", lambda _event, i=select_index: select_by_digit(i))
+            dialog.bind(f"<KP_{digit}>", lambda _event, i=select_index: select_by_digit(i))
 
         button_row = ttk.Frame(frame)
         button_row.pack(fill="x", pady=(8, 0))
