@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Raster-Symbolaenderungen werden jetzt direkt als heutiger Dokumentationseintrag gespiegelt, damit Raster-Buttons/Shortcuts die Dokuhistorie synchron fortschreiben.
 - Symbol-Shortcuts in der Dokumentationssicht verdrahtet: Tastaturtasten aktualisieren jetzt die aktuell markierte Tageszelle (4er-Zyklus 0->1->2->3->0) analog zum Sitzraster.
 - Symbolkonfiguration erweitert um Spezialsymbole fuer `X` (nicht abgegeben/verweigert) und `∅` (abwesend), inklusive Fallback-Payload im Config-Loader.
 - GUI um eine umschaltbare Dokumentationssicht erweitert (Raster <-> Doku), inklusive neuer UI-Intents, Shortcut `Strg+Shift+D` und Menueeintrag in `Ansicht`.

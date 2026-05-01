@@ -2787,6 +2787,11 @@ class KartographMainWindow(tk.Tk):
             return
 
         next_plan = toggle_symbol(self.current_plan, x, y, symbol)
+        updated_desk = next_plan.desk_at(x, y)
+        next_strength = 0
+        if updated_desk is not None and updated_desk.desk_type == "student":
+            next_strength = int(updated_desk.symbols.get(symbol, 0))
+        next_plan = set_documentation_symbol(next_plan, x, y, symbol, next_strength, self._today_doc_date())
         self._record_and_save(next_plan, "symbol.toggle", f"Symbol '{symbol}' aktualisiert")
         self.redraw_grid()
         self._refresh_details_panel()
