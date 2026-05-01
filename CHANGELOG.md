@@ -54,6 +54,7 @@ The format is based on Keep a Changelog.
 - In der Dokumentationssicht loeschen `Strg+Entf` und `Strg+Backspace` jetzt direkt das erste aktive Symbol der aktuell markierten Doku-Zelle.
 - In der Dokumentationsansicht gibt es jetzt eine direkte Toolbar-Aktion "Symbol loeschen (Strg+Entf)" fuer den schnellen Loeschpfad ohne Dialog.
 - Der schnelle Symbol-Loeschpfad in der Dokumentationsansicht zeigt jetzt klare Statushinweise, wenn kein Symbol geloescht werden konnte.
+- Die sichtbaren Loesch-Hinweise in der Dokumentationsansicht nennen jetzt konsistent `Strg+Entf` und `Strg+Backspace`.
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

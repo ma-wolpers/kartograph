@@ -556,7 +556,7 @@ class KartographMainWindow(tk.Tk):
         ).pack(side="left", padx=(8, 0))
         ttk.Button(
             self.docs_toolbar,
-            text="Symbol loeschen (Strg+Entf)",
+            text="Symbol loeschen (Strg+Entf/Backspace)",
             command=self.clear_selected_documentation_symbol,
         ).pack(side="left", padx=(8, 0))
         ttk.Button(
@@ -567,7 +567,7 @@ class KartographMainWindow(tk.Tk):
         ttk.Label(self.docs_toolbar, textvariable=self.docs_mode_var).pack(side="right")
         ttk.Label(
             self.docs_toolbar,
-            text="Datum: Alt+Links/Rechts, Strg+H=Heute, Strg+Shift+S=Symbol, Strg+Entf=Loeschen",
+            text="Datum: Alt+Links/Rechts, Strg+H=Heute, Strg+Shift+S=Symbol, Strg+Entf/Backspace=Loeschen",
         ).pack(
             side="right", padx=(0, 12)
         )
