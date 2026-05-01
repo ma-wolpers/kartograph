@@ -754,6 +754,7 @@ class KartographMainWindow(tk.Tk):
 
     def clear_selected_documentation_symbol(self) -> None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+            self.status_var.set("Kein Symbol geloescht: keine aktive Doku-Auswahl")
             return
 
         student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
@@ -762,14 +763,17 @@ class KartographMainWindow(tk.Tk):
         date_key = self._doc_dates[date_index]
         desk = self.current_plan.desk_at(x, y)
         if not desk or desk.desk_type != "student":
+            self.status_var.set("Kein Symbol geloescht: Zelle ist kein Schuelertisch")
             return
 
         entry = desk.documentation_entries.get(date_key)
         if not entry:
+            self.status_var.set("Kein Symbol geloescht: fuer dieses Datum kein Doku-Eintrag")
             return
 
         active_symbols = [symbol for symbol in self.symbol_catalog if int(entry.symbols.get(symbol, 0)) > 0]
         if not active_symbols:
+            self.status_var.set("Kein Symbol geloescht: kein aktives Symbol in der Doku-Zelle")
             return
 
         symbol_name = active_symbols[0]
