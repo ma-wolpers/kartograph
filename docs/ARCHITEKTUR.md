@@ -15,6 +15,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Pro Schuelertisch koennen tagesbasierte Dokumentationseintraege (`documentation_entries`) gespeichert werden mit Symbolstaerken, Notenwerten und optionaler Notiz.
 - Leere Tageskontexte bleiben volatil: Beim Speichern werden nur Dokumentationstage persistiert, die mindestens einen inhaltlichen Eintrag enthalten.
 - Sitzplaene werden als JSON-Dateien in `plans/` abgelegt.
+- Bei jedem Speichern wird zusaetzlich ein zeitgestempeltes JSON-Backup in einem versteckten AppData-Pfad (`%APPDATA%/Kartograph/backups/<plan>`) abgelegt; pro Lerngruppe bleibt eine Rotation der letzten 20 Sicherungen erhalten.
 - Symboldefinitionen werden aus `config/symbols.json` gelesen und validiert.
 - PDF-Export wird ueber einen dedizierten Infrastructure-Exporter umgesetzt.
 

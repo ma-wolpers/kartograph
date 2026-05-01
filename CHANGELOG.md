@@ -16,6 +16,7 @@ The format is based on Keep a Changelog.
 - Neue Dokumentationsansicht im Editor: Umschalten zwischen Raster und Doku per `Strg+Shift+D`, Tabellenansicht mit Schuelerzeilen, Datums-Spalten, Zusammenfassung, Notenspalten und Gesamtnote.
 - In der Dokumentationsansicht koennen Datums-Spalten umbenannt und Notenspalten (schriftlich/sonstig + Titel) per Dialog hinzugefuegt werden.
 - Neue Spezialsymbole verfuegbar: `X` fuer nicht abgegebene/verweigerte Leistungen und `∅` fuer abwesende SuS.
+- Bei jedem Speichern wird zusaetzlich ein lokales, verstecktes JSON-Backup im AppData-Pfad erzeugt; pro Lerngruppe bleiben die letzten 20 Sicherungen erhalten.
 
 ### Changed
 - Leere Dokumentationstage werden beim Speichern nicht persistiert; ein Tagesdatum bleibt bis zur ersten Inhalteingabe volatil.

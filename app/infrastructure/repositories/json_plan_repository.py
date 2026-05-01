@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from copy import deepcopy
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.core.domain.models import DocumentationEntry, GradeColumnDefinition, SeatingPlan, Desk
@@ -10,6 +12,8 @@ from app.core.domain.table_groups import normalize_tablegroups_in_place
 
 
 class JsonSeatingPlanRepository:
+    _BACKUP_LIMIT_PER_PLAN = 20
+
     def _coerce_int(self, raw_value: object, default: int) -> int:
         try:
             return int(raw_value)
@@ -45,6 +49,28 @@ class JsonSeatingPlanRepository:
             encoding="utf-8",
         )
         tmp_path.replace(plan_path)
+        self._write_backup(plan_path, payload)
+
+    def _backup_root_dir(self) -> Path:
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            return Path(appdata) / "Kartograph" / "backups"
+        return Path.home() / ".kartograph" / "backups"
+
+    def _write_backup(self, plan_path: Path, payload: dict) -> None:
+        try:
+            backup_dir = self._backup_root_dir() / plan_path.stem
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+            backup_path = backup_dir / f"{timestamp}.json"
+            backup_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+            backups = sorted(backup_dir.glob("*.json"), key=lambda item: item.name, reverse=True)
+            for stale in backups[self._BACKUP_LIMIT_PER_PLAN :]:
+                stale.unlink(missing_ok=True)
+        except Exception:
+            # Backup writing must never block normal save behavior.
+            return
 
     def create_new_plan(self, plans_dir: Path, plan_name: str, overwrite: bool = False) -> tuple[Path, SeatingPlan]:
         plans_dir.mkdir(parents=True, exist_ok=True)

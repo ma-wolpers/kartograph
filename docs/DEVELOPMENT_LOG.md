@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Save-Pipeline um versteckte lokale AppData-Backups erweitert: bei jedem Speichern wird ein Zeitstempel-Backup geschrieben und auf die letzten 20 Dateien pro Lerngruppe rotiert.
 - Sitzraster um Symbolfilter-Dialog erweitert: sichtbare Symbole koennen gezielt ein-/ausgeblendet werden; ohne Auswahl faellt der Filter automatisch auf "alle sichtbar" zurueck.
 - Sitzraster-Symbolanzeige auf Dokumentationszusammenfassung umgestellt: wenn Dokuwerte vorhanden sind, rendert die Kachel dieselben neuesten Symbolstaende wie die Zusammenfassungsspalte der Dokuansicht.
 - Pfeilnavigation um konfigurierbaren Sichtfenster-Puffer erweitert (`viewport_follow_buffer`): bei Wert 0 bleibt das bisherige Zentrierverhalten, bei Wert 1 folgt die Karte erst nach Verlassen des mittleren 3x3 Bereichs.
@@ -80,6 +81,7 @@ Regel:
 - Beim Oeffnen eines Plans erscheint jetzt eine Warnung, wenn enthaltene Schuelertische ausserhalb des aktuell eingestellten Canvas-Radius liegen und daher nicht dargestellt werden koennen.
 
 ### Added
+- Test fuer Backup-Rotation (`tests/test_backup_rotation.py`).
 - Neue Tests fuer Dokumentations-Use-Cases und JSON-v3-Serialisierung/Migration (`tests/test_documentation_usecases.py`, `tests/test_json_repository_documentation.py`).
 - `app/infrastructure/symbol_config_loader.py` fuer Schema-Pruefung und Laden der Symbolkonfiguration.
 - `app/infrastructure/exporters/pdf_exporter.py` fuer PDF-Ausgabe ohne Rasterlinien und mit klaren Tischrahmen.
