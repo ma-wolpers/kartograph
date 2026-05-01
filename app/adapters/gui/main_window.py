@@ -551,6 +551,7 @@ class KartographMainWindow(tk.Tk):
             command=self.set_selected_documentation_grade_dialog,
         ).pack(side="left", padx=(8, 0))
         ttk.Label(self.docs_toolbar, textvariable=self.docs_mode_var).pack(side="right")
+        ttk.Label(self.docs_toolbar, text="Datum: Alt+Links/Rechts").pack(side="right", padx=(0, 12))
 
         self.docs_table_container = ttk.Frame(self.docs_container)
         self.docs_table_container.pack(fill="both", expand=True, padx=12, pady=(0, 12))
@@ -608,6 +609,8 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Control-Shift-d>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
         self.bind("<Control-m>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION_MODE))
         self.bind("<Control-g>", self._on_set_grade_shortcut)
+        self.bind("<Alt-Left>", self._on_docs_prev_date_shortcut)
+        self.bind("<Alt-Right>", self._on_docs_next_date_shortcut)
         self.bind("<Control-x>", lambda _event: self._handle_intent(UiIntent.CUT))
         self.bind("<Control-c>", lambda _event: self._handle_intent(UiIntent.COPY))
         self.bind("<Control-v>", lambda _event: self._handle_intent(UiIntent.PASTE))
@@ -710,6 +713,24 @@ class KartographMainWindow(tk.Tk):
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
             return None
         self.set_selected_documentation_grade_dialog()
+        return "break"
+
+    def _on_docs_prev_date_shortcut(self, _event) -> str | None:
+        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
+            return None
+        if not self._doc_dates:
+            return "break"
+        self._doc_selected_date_index = max(0, self._doc_selected_date_index - 1)
+        self._apply_doc_column_heading_highlight()
+        return "break"
+
+    def _on_docs_next_date_shortcut(self, _event) -> str | None:
+        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
+            return None
+        if not self._doc_dates:
+            return "break"
+        self._doc_selected_date_index = min(len(self._doc_dates) - 1, self._doc_selected_date_index + 1)
+        self._apply_doc_column_heading_highlight()
         return "break"
 
     def _normalize_canvas_radius(self, value: object) -> int:
