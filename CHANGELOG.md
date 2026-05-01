@@ -32,6 +32,7 @@ The format is based on Keep a Changelog.
 - Zusammenfassung, Notenspalten und Gesamtnote bleiben in der Dokumentationsansicht jetzt rechts fix sichtbar, waehrend Datums-Spalten horizontal scrollen.
 - Symbole in der Dokumentationsansicht lassen sich jetzt auch per Button/Dialog setzen (zusaetzlich zu Shortcuts).
 - Die Gewichtung schriftlich/sonstig fuer die Gesamtnote ist in der Dokumentationsansicht jetzt pro Lerngruppe konfigurierbar.
+- Beim Oeffnen eines Plans steht das aktuelle Datum automatisch als Doku-Spalte bereit; ohne Eintrag bleibt sie weiterhin unsaved.
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

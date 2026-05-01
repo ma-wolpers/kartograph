@@ -821,6 +821,7 @@ class KartographMainWindow(tk.Tk):
     def _apply_loaded_plan(self, plan: SeatingPlan) -> SeatingPlan:
         plan = cleanup_unused_color_meanings(plan)
         normalize_tablegroups_in_place(plan)
+        plan = ensure_documentation_date(plan, self._today_doc_date())
         self.current_plan = plan
         self.history.reset(self.current_plan)
         if hasattr(self, "docs_tree"):
