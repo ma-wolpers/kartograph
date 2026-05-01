@@ -146,6 +146,9 @@ class KartographMainWindow(tk.Tk):
         self.tablegroup_overlay_position = self._normalize_tablegroup_overlay_position(
             self._settings.get("tablegroup_overlay_position")
         )
+        self._documentation_mode = self._normalize_documentation_mode(
+            self._settings.get("documentation_mode")
+        )
 
         self.ui_intent_controller = MainWindowUiIntentController(self)
 
@@ -161,7 +164,6 @@ class KartographMainWindow(tk.Tk):
         self._tg_last_changed_field: str = "shift_x"
         self._color_marker_buttons: list[tk.Button] = []
         self._editor_surface: str = "grid"
-        self._documentation_mode: str = "column"
         self._doc_selected_student_index: int = 0
         self._doc_selected_date_index: int = 0
         self._doc_student_coords: list[tuple[int, int]] = []
@@ -511,7 +513,8 @@ class KartographMainWindow(tk.Tk):
         self.docs_toolbar = ttk.Frame(self.docs_container)
         self.docs_toolbar.pack(fill="x", padx=12, pady=(0, 8))
 
-        self.docs_mode_var = tk.StringVar(value="Modus: Spalten")
+        mode_label = "Modus: Spalten" if self._documentation_mode == "column" else "Modus: Zeilen"
+        self.docs_mode_var = tk.StringVar(value=mode_label)
         ttk.Button(
             self.docs_toolbar,
             text="Zur Rasteransicht",
@@ -752,6 +755,12 @@ class KartographMainWindow(tk.Tk):
         normalized = str(value or "").strip().lower()
         if normalized not in {"left", "right", "bottom"}:
             return DEFAULT_TABLEGROUP_OVERLAY_POSITION
+        return normalized
+
+    def _normalize_documentation_mode(self, value: object) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"column", "row"}:
+            return "column"
         return normalized
 
     def _grid_min(self) -> int:
@@ -1456,6 +1465,8 @@ class KartographMainWindow(tk.Tk):
 
     def toggle_documentation_mode(self) -> None:
         self._documentation_mode = "row" if self._documentation_mode == "column" else "column"
+        self._settings["documentation_mode"] = self._documentation_mode
+        self.settings_repository.save_settings(self._settings)
         if self._documentation_mode == "column":
             self.docs_mode_var.set("Modus: Spalten")
         else:

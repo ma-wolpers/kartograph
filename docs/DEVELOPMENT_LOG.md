@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Der Doku-Navigationsmodus (Spalten-/Zeilenmodus) wird jetzt in den Einstellungen persistiert und beim naechsten Start wiederhergestellt.
 - Beim Laden eines Plans wird das heutige Datum automatisch als Doku-Arbeitsspalte im Arbeitsspeicher initialisiert (weiterhin volatil bis zur ersten Inhalteingabe).
 - Lerngruppenspezifische Gewichtung fuer schriftlich/sonstig ist jetzt in der Dokumentationssicht per Dialog konfigurierbar und wirkt direkt auf die Gesamtnotenberechnung.
 - Dokumentationssicht um Button-basierte Symbolerfassung erweitert: Symbole koennen jetzt neben Shortcuts auch per Toolbar-Dialog in die markierte Tageszelle geschrieben werden.
