@@ -1880,6 +1880,21 @@ class KartographMainWindow(tk.Tk):
             messagebox.showinfo("Keine Symbole", "Es sind keine Symbole konfiguriert.", parent=self)
             return
 
+        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+        date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
+        x, y = self._doc_student_coords[student_index]
+        date_key = self._doc_dates[date_index]
+        preferred_symbol: str | None = None
+        desk = self.current_plan.desk_at(x, y)
+        if desk and desk.desk_type == "student":
+            entry = desk.documentation_entries.get(date_key)
+            if entry and entry.symbols:
+                non_zero_symbols = [
+                    symbol for symbol in self.symbol_catalog if int(entry.symbols.get(symbol, 0)) > 0
+                ]
+                if non_zero_symbols:
+                    preferred_symbol = non_zero_symbols[0]
+
         dialog = self._create_overlay_dialog("Symbol setzen", "360x420")
         frame = ttk.Frame(dialog)
         frame.pack(fill="both", expand=True, padx=12, pady=12)
@@ -1896,6 +1911,8 @@ class KartographMainWindow(tk.Tk):
 
         if self.symbol_catalog:
             selected_index = max(0, min(self._docs_symbol_dialog_last_index, len(self.symbol_catalog) - 1))
+            if preferred_symbol in self.symbol_catalog:
+                selected_index = self.symbol_catalog.index(preferred_symbol)
             symbol_listbox.selection_set(selected_index)
             symbol_listbox.activate(selected_index)
             symbol_listbox.see(selected_index)

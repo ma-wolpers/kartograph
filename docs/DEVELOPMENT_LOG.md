@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Der Dokumentations-Symboldialog waehlt beim Oeffnen bevorzugt das bereits aktive Symbol der aktuell markierten Doku-Zelle vor.
 - Der Dokumentations-Symboldialog prueft jetzt auf leeren Symbolkatalog und zeigt dann direkt eine klare Info statt eines leeren Auswahlfensters.
 - Im Dokumentations-Symboldialog uebernimmt jetzt auch `Numpad-Enter` die aktuelle Auswahl.
 - Der Symboldialog der Dokumentationssicht merkt sich die zuletzt gewaehlte Symbolzeile und oeffnet bei erneutem Aufruf mit dieser Vorauswahl.
