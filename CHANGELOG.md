@@ -20,6 +20,10 @@ The format is based on Keep a Changelog.
 - Bei geoeffnetem Plan erstellt Kartograph zusaetzlich alle 5 Minuten automatisch ein Snapshot-Backup im selben AppData-Backupbereich.
 
 ### Changed
+- Die Dokuansicht kann jetzt zwischen Datums- und Rechts-Spalten per Pfeiltasten navigieren; fixe Rechts-Spalten sind als aktive Zielspalte selektierbar.
+- Bei aktiver Notenspalte startet `Enter` jetzt direkt die Bearbeitung genau dieser Notenspalte.
+- In der Dokuansicht ist `Entf` jetzt kontextsensitiv: Notenspalte loescht Note, Datumsspalte loescht Symbolwert.
+- Die Dokuansicht zeigt zusaetzlich `Schriftlich gesamt` und `Sonstig gesamt`, sobald je Kategorie mehr als eine Notenspalte vorhanden ist; die Werte sind ganzzahlig gerundet.
 - Tastatursteuerung wurde auf explizite Kontexte umgestellt: grid-only/docs-only Shortcuts werden jetzt zentral geprueft und im falschen Modus nicht mehr ausgefuehrt.
 - Beim Wechsel in die Dokumentationsansicht wird die Sitzplan-Topbar ausgeblendet und beim Rueckwechsel wieder eingeblendet.
 - In der Dokumentationsansicht werden nur noch benannte Schuelertische als Schueler gefuehrt; leere Tische erhalten keine Dokuzeilen und keine Doku-/Notenwerte.

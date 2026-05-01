@@ -35,6 +35,7 @@ from app.core.usecases.plan_usecases import (
     add_grade_column,
     cleanup_unused_color_meanings,
     compute_grade_display_for_student,
+    compute_grade_subtotal_display_for_student,
     create_student_desk,
     delete_desk,
     ensure_documentation_date,
@@ -205,6 +206,8 @@ class KartographMainWindow(tk.Tk):
         self._doc_tree_iid_by_student_index: dict[int, str] = {}
         self._doc_student_index_by_iid: dict[str, int] = {}
         self._doc_date_column_ids: list[str] = []
+        self._doc_fixed_column_ids: list[str] = []
+        self._doc_selected_fixed_column_id: str | None = None
         self._docs_symbol_dialog_last_index: int = 0
         self._ui_watchdog_last_tick = time.perf_counter()
         self._ui_watchdog_tick_count = 0
@@ -697,8 +700,12 @@ class KartographMainWindow(tk.Tk):
 
         self.docs_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_tree_select())
         self.docs_tree.bind("<Button-1>", self._on_docs_tree_click)
+        self.docs_tree.bind("<Left>", lambda _event: self._on_docs_horizontal_nav(-1))
+        self.docs_tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
         self.docs_right_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_right_tree_select())
         self.docs_right_tree.bind("<Button-1>", self._on_docs_right_tree_click)
+        self.docs_right_tree.bind("<Left>", lambda _event: self._on_docs_horizontal_nav(-1))
+        self.docs_right_tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
         self.canvas.bind("<B1-Motion>", self._on_canvas_drag)
@@ -882,8 +889,18 @@ class KartographMainWindow(tk.Tk):
         x, y = self._doc_student_coords[student_index]
         date_key = self._doc_dates[date_index]
         desk = self.current_plan.desk_at(x, y)
-        if not desk or desk.desk_type != "student":
+        if not desk or not desk.is_named_student():
             self.status_var.set("Kein Symbol geloescht: Zelle ist kein Schuelertisch")
+            return
+
+        if self._doc_selected_fixed_column_id:
+            if self._doc_selected_fixed_column_id.startswith("grade_"):
+                column_id = self._doc_selected_fixed_column_id[len("grade_") :]
+                updated = set_documentation_grade(self.current_plan, x, y, column_id, None, date_key)
+                self._record_and_save(updated, "documentation.grade.clear", "Note geloescht")
+                self._refresh_documentation_table()
+                return
+            self.status_var.set("Kein Eintrag geloescht: Spalte ist schreibgeschuetzt")
             return
 
         entry = desk.documentation_entries.get(date_key)
@@ -1055,6 +1072,10 @@ class KartographMainWindow(tk.Tk):
             return "break"
         if self.editor_view.winfo_ismapped():
             if self._editor_surface == "docs":
+                if self._doc_selected_fixed_column_id and self._doc_selected_fixed_column_id.startswith("grade_"):
+                    selected_column_id = self._doc_selected_fixed_column_id[len("grade_") :]
+                    self.set_selected_documentation_grade_dialog(selected_column_id=selected_column_id)
+                    return "break"
                 self._move_doc_selection_on_enter()
                 return "break"
             if not self.selection.is_single():
@@ -1823,6 +1844,10 @@ class KartographMainWindow(tk.Tk):
         if desk is not None and desk.is_named_student():
             name = desk.student_name.strip()
         display_name = name or f"({x},{y})"
+        if self._doc_selected_fixed_column_id:
+            label = self._doc_fixed_column_label(self._doc_selected_fixed_column_id)
+            self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {label}")
+            return
         self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {self._doc_dates[date_index]}")
 
     def _refresh_documentation_table(self) -> None:
@@ -1840,9 +1865,17 @@ class KartographMainWindow(tk.Tk):
         self._doc_dates = all_dates
         self._doc_date_column_ids = [f"date_{index}" for index in range(len(all_dates))]
 
+        written_columns = [item for item in self.current_plan.grade_columns if item.category == "schriftlich"]
+        sonstige_columns = [item for item in self.current_plan.grade_columns if item.category == "sonstig"]
+
         fixed_columns: list[str] = ["summary"]
         fixed_columns.extend([f"grade_{item.column_id}" for item in self.current_plan.grade_columns])
+        if len(written_columns) > 1:
+            fixed_columns.append("written_total")
+        if len(sonstige_columns) > 1:
+            fixed_columns.append("sonstige_total")
         fixed_columns.append("overall")
+        self._doc_fixed_column_ids = list(fixed_columns)
         self.docs_tree.configure(columns=self._doc_date_column_ids)
         self.docs_right_tree.configure(columns=fixed_columns)
 
@@ -1857,6 +1890,13 @@ class KartographMainWindow(tk.Tk):
             col_id = f"grade_{grade.column_id}"
             self.docs_right_tree.column(col_id, width=120, anchor="center", stretch=False)
             self.docs_right_tree.heading(col_id, text=grade.title)
+
+        if "written_total" in fixed_columns:
+            self.docs_right_tree.column("written_total", width=120, anchor="center", stretch=False)
+            self.docs_right_tree.heading("written_total", text="Schriftlich gesamt")
+        if "sonstige_total" in fixed_columns:
+            self.docs_right_tree.column("sonstige_total", width=120, anchor="center", stretch=False)
+            self.docs_right_tree.heading("sonstige_total", text="Sonstig gesamt")
 
         self.docs_right_tree.column("overall", width=120, anchor="center", stretch=False)
         self.docs_right_tree.heading("overall", text="Gesamtnote")
@@ -1881,6 +1921,10 @@ class KartographMainWindow(tk.Tk):
             fixed_values.append(self._documentation_summary_text(x, y))
             for grade in self.current_plan.grade_columns:
                 fixed_values.append(self._latest_grade_value_for_column(x, y, grade.column_id))
+            if "written_total" in fixed_columns:
+                fixed_values.append(compute_grade_subtotal_display_for_student(self.current_plan, x, y, "schriftlich"))
+            if "sonstige_total" in fixed_columns:
+                fixed_values.append(compute_grade_subtotal_display_for_student(self.current_plan, x, y, "sonstig"))
             fixed_values.append(compute_grade_display_for_student(self.current_plan, x, y))
 
             iid = f"student_{student_idx}"
@@ -1899,6 +1943,9 @@ class KartographMainWindow(tk.Tk):
             self._doc_selected_student_index = 0
             self._doc_selected_date_index = 0
 
+        if self._doc_selected_fixed_column_id not in set(self._doc_fixed_column_ids):
+            self._doc_selected_fixed_column_id = None
+
         self._apply_doc_column_heading_highlight()
         self._refresh_doc_selection_status()
         elapsed = time.perf_counter() - started
@@ -1914,6 +1961,7 @@ class KartographMainWindow(tk.Tk):
         row_id = self.docs_tree.identify_row(event.y)
         if row_id:
             self._set_docs_row_selection(row_id, source="main")
+        self._doc_selected_fixed_column_id = None
         col_id = self.docs_tree.identify_column(event.x)
         if col_id.startswith("#"):
             try:
@@ -1932,12 +1980,22 @@ class KartographMainWindow(tk.Tk):
             return
         row_id = selected[0]
         self._set_docs_row_selection(row_id, source="main")
+        self._doc_selected_fixed_column_id = None
         self._refresh_doc_selection_status()
 
     def _on_docs_right_tree_click(self, event) -> None:
         row_id = self.docs_right_tree.identify_row(event.y)
         if row_id:
             self._set_docs_row_selection(row_id, source="right")
+        col_id = self.docs_right_tree.identify_column(event.x)
+        if col_id.startswith("#"):
+            try:
+                col_index = int(col_id[1:]) - 1
+            except ValueError:
+                col_index = -1
+            if 0 <= col_index < len(self._doc_fixed_column_ids):
+                self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[col_index]
+                self._refresh_doc_selection_status()
 
     def _on_docs_right_tree_select(self) -> None:
         if self._syncing_docs_selection:
@@ -1983,6 +2041,11 @@ class KartographMainWindow(tk.Tk):
     def _move_doc_selection_on_enter(self) -> None:
         if not self._doc_student_coords or not self._doc_dates:
             return
+        if self._doc_selected_fixed_column_id:
+            selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
+            if selected_iid is not None:
+                self._set_docs_row_selection(selected_iid, source="right")
+            return
         if self._documentation_mode == "column":
             self._doc_selected_student_index = (self._doc_selected_student_index + 1) % len(self._doc_student_coords)
         else:
@@ -1992,6 +2055,60 @@ class KartographMainWindow(tk.Tk):
         selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
         if selected_iid is not None:
             self._set_docs_row_selection(selected_iid)
+
+    def _doc_fixed_column_label(self, column_id: str) -> str:
+        if column_id == "summary":
+            return "Zusammenfassung"
+        if column_id == "overall":
+            return "Gesamtnote"
+        if column_id == "written_total":
+            return "Schriftlich gesamt"
+        if column_id == "sonstige_total":
+            return "Sonstig gesamt"
+        if column_id.startswith("grade_"):
+            raw_id = column_id[len("grade_") :]
+            for grade in self.current_plan.grade_columns if self.current_plan else []:
+                if grade.column_id == raw_id:
+                    return grade.title
+        return column_id
+
+    def _on_docs_horizontal_nav(self, delta: int) -> str:
+        if not self._shortcut_scope_allows("docs"):
+            return "break"
+
+        if delta > 0:
+            if self._doc_selected_fixed_column_id is None:
+                if self._doc_fixed_column_ids:
+                    self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[0]
+                self._refresh_doc_selection_status()
+                return "break"
+            if self._doc_selected_fixed_column_id not in self._doc_fixed_column_ids:
+                self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[0] if self._doc_fixed_column_ids else None
+                self._refresh_doc_selection_status()
+                return "break"
+            idx = self._doc_fixed_column_ids.index(self._doc_selected_fixed_column_id)
+            if idx < len(self._doc_fixed_column_ids) - 1:
+                self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[idx + 1]
+            self._refresh_doc_selection_status()
+            return "break"
+
+        if self._doc_selected_fixed_column_id is None:
+            if self._doc_dates:
+                self._doc_selected_date_index = max(0, self._doc_selected_date_index - 1)
+                self._apply_doc_column_heading_highlight()
+            return "break"
+
+        if self._doc_selected_fixed_column_id not in self._doc_fixed_column_ids:
+            self._doc_selected_fixed_column_id = None
+            self._refresh_doc_selection_status()
+            return "break"
+        idx = self._doc_fixed_column_ids.index(self._doc_selected_fixed_column_id)
+        if idx > 0:
+            self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[idx - 1]
+        else:
+            self._doc_selected_fixed_column_id = None
+        self._refresh_doc_selection_status()
+        return "break"
 
     def rename_selected_documentation_date_dialog(self) -> None:
         if not self.current_plan or not self._doc_dates:
@@ -2040,7 +2157,7 @@ class KartographMainWindow(tk.Tk):
         self._record_and_save(updated, "documentation.grade_column.add", "Notenspalte hinzugefuegt")
         self._refresh_documentation_table()
 
-    def set_selected_documentation_grade_dialog(self) -> None:
+    def set_selected_documentation_grade_dialog(self, selected_column_id: str | None = None) -> None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
             return
         if not self.current_plan.grade_columns:
@@ -2052,28 +2169,37 @@ class KartographMainWindow(tk.Tk):
         x, y = self._doc_student_coords[student_index]
         date_key = self._doc_dates[date_index]
 
-        labels = [
-            f"{idx + 1}: {item.title} ({item.category})"
-            for idx, item in enumerate(self.current_plan.grade_columns)
-        ]
-        selected_label = simpledialog.askstring(
-            "Notenspalte waehlen",
-            "Spalte eingeben (Nummer):\n" + "\n".join(labels),
-            parent=self,
-            initialvalue="1",
-        )
-        if selected_label is None:
-            return
-        try:
-            selection_index = int(selected_label.strip()) - 1
-        except ValueError:
-            messagebox.showerror("Ungueltige Eingabe", "Bitte eine gueltige Nummer eingeben.", parent=self)
-            return
-        if selection_index < 0 or selection_index >= len(self.current_plan.grade_columns):
-            messagebox.showerror("Ungueltige Eingabe", "Notenspalte nicht gefunden.", parent=self)
-            return
+        column = None
+        if selected_column_id:
+            for item in self.current_plan.grade_columns:
+                if item.column_id == selected_column_id:
+                    column = item
+                    break
 
-        column = self.current_plan.grade_columns[selection_index]
+        if column is None:
+            labels = [
+                f"{idx + 1}: {item.title} ({item.category})"
+                for idx, item in enumerate(self.current_plan.grade_columns)
+            ]
+            selected_label = simpledialog.askstring(
+                "Notenspalte waehlen",
+                "Spalte eingeben (Nummer):\n" + "\n".join(labels),
+                parent=self,
+                initialvalue="1",
+            )
+            if selected_label is None:
+                return
+            try:
+                selection_index = int(selected_label.strip()) - 1
+            except ValueError:
+                messagebox.showerror("Ungueltige Eingabe", "Bitte eine gueltige Nummer eingeben.", parent=self)
+                return
+            if selection_index < 0 or selection_index >= len(self.current_plan.grade_columns):
+                messagebox.showerror("Ungueltige Eingabe", "Notenspalte nicht gefunden.", parent=self)
+                return
+            column = self.current_plan.grade_columns[selection_index]
+
+        self._doc_selected_fixed_column_id = f"grade_{column.column_id}"
         grade_text = simpledialog.askstring(
             "Note setzen",
             f"Note fuer {column.title} am {date_key} (1-6, leer = loeschen):",

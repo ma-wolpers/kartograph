@@ -4,6 +4,7 @@ from app.core.domain.models import Desk, SeatingPlan
 from app.core.usecases.plan_usecases import (
     add_grade_column,
     compute_grade_display_for_student,
+    compute_grade_subtotal_display_for_student,
     rename_documentation_date,
     set_documentation_grade,
     set_documentation_symbol,
@@ -102,3 +103,15 @@ def test_grade_display_empty_for_unnamed_student_desks() -> None:
     display = compute_grade_display_for_student(plan, 1, 1)
 
     assert display == ""
+
+
+def test_grade_subtotal_display_rounds_category_average() -> None:
+    plan = _base_plan()
+    plan, written_col_a = add_grade_column(plan, "schriftlich", "KA 1")
+    plan, written_col_b = add_grade_column(plan, "schriftlich", "KA 2")
+    plan = set_documentation_grade(plan, 1, 1, written_col_a, 2.4, "2026-05-01")
+    plan = set_documentation_grade(plan, 1, 1, written_col_b, 2.8, "2026-05-02")
+
+    subtotal = compute_grade_subtotal_display_for_student(plan, 1, 1, "schriftlich")
+
+    assert subtotal == "3"

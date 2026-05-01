@@ -269,6 +269,33 @@ def compute_grade_display_for_student(plan: SeatingPlan, x: int, y: int) -> str:
     return f"({_round_half_up_to_int(partial_value)})"
 
 
+def compute_grade_subtotal_display_for_student(plan: SeatingPlan, x: int, y: int, category: GradeCategory) -> str:
+    desk = plan.desk_at(x, y)
+    if not desk or not desk.is_named_student():
+        return ""
+
+    clean_category = str(category).strip().lower()
+    if clean_category not in {"schriftlich", "sonstig"}:
+        return ""
+
+    valid_column_ids = {item.column_id for item in plan.grade_columns if item.category == clean_category}
+    if not valid_column_ids:
+        return ""
+
+    values: list[float] = []
+    for date_key in sorted(desk.documentation_entries.keys()):
+        entry = desk.documentation_entries[date_key]
+        for column_id, grade_value in entry.grades.items():
+            if column_id in valid_column_ids:
+                values.append(float(grade_value))
+
+    if not values:
+        return ""
+
+    avg_value = sum(values) / len(values)
+    return str(_round_half_up_to_int(avg_value))
+
+
 def is_color_used(plan: SeatingPlan, color_key: str) -> bool:
     for desk in plan.desks:
         if desk.desk_type != "student":

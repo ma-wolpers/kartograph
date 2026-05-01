@@ -13,6 +13,10 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Dokumentationssicht um kontextuelle Spaltenauswahl erweitert: fixe Rechts-Spalten koennen jetzt aktiv selektiert werden, inklusive Pfeilnavigation links/rechts zwischen Datums- und Fixspalten.
+- Notenbereich in der Dokusicht erweitert: optionale Spalten `Schriftlich gesamt` und `Sonstig gesamt` werden automatisch eingeblendet, sobald je Kategorie mehr als eine Notenspalte existiert; Werte sind kategoriemittelbasiert und ganzzahlig gerundet.
+- `Enter` in der Dokusicht startet bei aktiver Notenspalte direkt die Notenbearbeitung dieser Spalte.
+- `Entf` in der Dokusicht ist jetzt zellenkontextsensitiv: bei aktiver Notenspalte wird der Notenwert geloescht, bei aktiver Datumsspalte der Symbolwert.
 - Explizites Shortcut-Scope-System eingefuehrt (`global`/`grid`/`docs`/`list`) und zentrale Intent-Gates fuer grid-only/docs-only Aktionen verdrahtet.
 - Beim Wechsel in die Dokumentationsansicht wird die Sitzplan-Topbar ausgeblendet und beim Rueckwechsel wieder eingeblendet.
 - Dokumentations- und Notenlogik behandelt jetzt nur noch benannte Schuelertische als fachliche Schueler; leere Tische bleiben fuer Struktur/Farben erhalten, erscheinen aber nicht mehr in Dokuzeilen und erhalten keine Doku-/Notenwerte.
