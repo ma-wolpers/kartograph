@@ -1420,6 +1420,14 @@ class KartographMainWindow(tk.Tk):
         summary = summarize_latest_symbols_for_student(self.current_plan, x, y)
         return self._documentation_cell_text(summary)
 
+    def _effective_grid_symbols(self, x: int, y: int, fallback_symbols: dict[str, int]) -> dict[str, int]:
+        if not self.current_plan:
+            return dict(fallback_symbols)
+        summary = summarize_latest_symbols_for_student(self.current_plan, x, y)
+        if summary:
+            return summary
+        return dict(fallback_symbols)
+
     def _latest_grade_value_for_column(self, x: int, y: int, column_id: str) -> str:
         if not self.current_plan:
             return ""
@@ -2293,7 +2301,8 @@ class KartographMainWindow(tk.Tk):
             )
 
             main_text = (desk.student_name or "").strip()
-            symbol_lines = self._symbol_grid_lines(desk.symbols)
+            effective_symbols = self._effective_grid_symbols(desk.x, desk.y, desk.symbols)
+            symbol_lines = self._symbol_grid_lines(effective_symbols)
             desk_color_markers = self._ordered_color_markers(desk.color_markers)
             center_px = geometry.center_x * self.cell_size
 
