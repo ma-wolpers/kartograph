@@ -60,6 +60,8 @@ DEFAULT_CELL_SIZE = 92
 DEFAULT_SYMBOL_STRENGTH = 1
 DEFAULT_VIEWPORT_FOLLOW_BUFFER = 0
 DEFAULT_PERIODIC_BACKUP_INTERVAL_MS = 5 * 60 * 1000
+DEFAULT_UI_WATCHDOG_INTERVAL_MS = 1000
+UI_WATCHDOG_WARN_DRIFT_SECONDS = 2.5
 DEFAULT_DETAILS_OVERLAY_POSITION = "bottom"
 DEFAULT_TABLEGROUP_OVERLAY_POSITION = "right"
 LIST_ACTIVE = "list_active"
@@ -179,6 +181,8 @@ class KartographMainWindow(tk.Tk):
         self._doc_tree_iid_by_student_index: dict[int, str] = {}
         self._doc_date_column_ids: list[str] = []
         self._docs_symbol_dialog_last_index: int = 0
+        self._ui_watchdog_last_tick = time.perf_counter()
+        self._ui_watchdog_tick_count = 0
 
         self.color_palette = COLOR_MARKER_PALETTE
         self._color_by_key = {color_key: (label, hex_color) for _key, color_key, label, hex_color in self.color_palette}
@@ -200,6 +204,7 @@ class KartographMainWindow(tk.Tk):
         self._bind_shortcuts()
         self.bind("<Configure>", lambda _event: self._position_tablegroup_overlay(), add="+")
         self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
+        self.after(DEFAULT_UI_WATCHDOG_INTERVAL_MS, self._ui_watchdog_tick)
 
         self.apply_theme()
         self.after_idle(self._initialize_startup_view)
@@ -241,6 +246,31 @@ class KartographMainWindow(tk.Tk):
             screen_width,
             screen_height,
         )
+
+    def _ui_watchdog_tick(self) -> None:
+        now = time.perf_counter()
+        expected_interval = DEFAULT_UI_WATCHDOG_INTERVAL_MS / 1000.0
+        drift = max(0.0, now - self._ui_watchdog_last_tick - expected_interval)
+        if drift > UI_WATCHDOG_WARN_DRIFT_SECONDS:
+            LOGGER.warning(
+                "UI watchdog detected delayed mainloop tick: drift=%.3fs mode=%s surface=%s plan=%s",
+                drift,
+                self.interaction_mode,
+                self._editor_surface,
+                self.current_plan_path,
+            )
+
+        self._ui_watchdog_last_tick = now
+        self._ui_watchdog_tick_count += 1
+        if self._ui_watchdog_tick_count % 60 == 0:
+            LOGGER.info(
+                "UI watchdog heartbeat ok: mode=%s surface=%s plan=%s",
+                self.interaction_mode,
+                self._editor_surface,
+                self.current_plan_path,
+            )
+
+        self.after(DEFAULT_UI_WATCHDOG_INTERVAL_MS, self._ui_watchdog_tick)
 
     def _build_menu_bar(self) -> None:
         menubar = tk.Menu(self)
@@ -1715,6 +1745,7 @@ class KartographMainWindow(tk.Tk):
         self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {self._doc_dates[date_index]}")
 
     def _refresh_documentation_table(self) -> None:
+        started = time.perf_counter()
         if not self.current_plan:
             return
 
@@ -1787,6 +1818,14 @@ class KartographMainWindow(tk.Tk):
 
         self._apply_doc_column_heading_highlight()
         self._refresh_doc_selection_status()
+        elapsed = time.perf_counter() - started
+        if elapsed >= 0.2:
+            LOGGER.info(
+                "_refresh_documentation_table finished in %.3fs (students=%d dates=%d)",
+                elapsed,
+                len(self._doc_student_coords),
+                len(self._doc_dates),
+            )
 
     def _on_docs_tree_click(self, event) -> None:
         row_id = self.docs_tree.identify_row(event.y)
@@ -2114,9 +2153,14 @@ class KartographMainWindow(tk.Tk):
         self.open_plan(plan_path)
 
     def open_plan(self, plan_path: Path) -> None:
+        started = time.perf_counter()
+        LOGGER.info("open_plan started: %s", plan_path)
         try:
+            load_started = time.perf_counter()
             plan = self.plan_repository.load_plan(plan_path)
+            LOGGER.info("open_plan load_plan finished in %.3fs", time.perf_counter() - load_started)
         except Exception as exc:
+            LOGGER.exception("open_plan failed while loading %s", plan_path)
             messagebox.showerror("Fehler beim Öffnen", str(exc))
             return
 
@@ -2129,15 +2173,22 @@ class KartographMainWindow(tk.Tk):
             )
 
         self.current_plan_path = plan_path
+        apply_started = time.perf_counter()
         self._apply_loaded_plan(plan)
+        LOGGER.info("open_plan _apply_loaded_plan finished in %.3fs", time.perf_counter() - apply_started)
         self.plan_name_var.set(f"Plan: {plan.name}")
         self._set_selection_single(0, 0)
 
+        render_started = time.perf_counter()
         self.show_editor_view()
         self.center_on_cell(0, 0)
         self.redraw_grid()
         self._refresh_details_panel()
         self._refresh_documentation_table()
+        LOGGER.info(
+            "open_plan UI render stage finished in %.3fs", time.perf_counter() - render_started
+        )
+        LOGGER.info("open_plan finished in %.3fs", time.perf_counter() - started)
 
     def create_new_plan_dialog(self) -> None:
         while True:

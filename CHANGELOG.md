@@ -57,6 +57,8 @@ The format is based on Keep a Changelog.
 - Die sichtbaren Loesch-Hinweise in der Dokumentationsansicht nennen jetzt konsistent `Strg+Entf` und `Strg+Backspace`.
 - Beim Start wird das Hauptfenster wieder auf den Bildschirm zentriert; die initiale Planlisten-Ladung laeuft jetzt deferred nach dem UI-Aufbau, um Start-Haenger zu reduzieren.
 - Kartograph schreibt beim Start jetzt ein persistentes Diagnose-Log nach `Temp/logs/kartograph_startup.log` (inklusive Startphasen und unbehandelter Exceptions).
+- Falls der Fehler bereits vor dem eigentlichen App-Start auftritt, schreibt `kartograph.py` jetzt fruehe Bootstrap-Fehler nach `Temp/logs/kartograph_bootstrap_failures.log`.
+- Das Startup-Logging enthaelt jetzt zusaetzlich UI-Watchdog-Marker (verzoegerte Mainloop-Ticks) sowie Zeitmessungen fuer Planladen und Doku-Tabellenaufbau.
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.
