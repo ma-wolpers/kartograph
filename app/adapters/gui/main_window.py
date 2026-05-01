@@ -556,6 +556,11 @@ class KartographMainWindow(tk.Tk):
         ).pack(side="left", padx=(8, 0))
         ttk.Button(
             self.docs_toolbar,
+            text="Symbol loeschen (Strg+Entf)",
+            command=self.clear_selected_documentation_symbol,
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            self.docs_toolbar,
             text="Note setzen (Strg+G)",
             command=self.set_selected_documentation_grade_dialog,
         ).pack(side="left", padx=(8, 0))
@@ -744,8 +749,12 @@ class KartographMainWindow(tk.Tk):
     def _on_clear_symbol_shortcut(self, _event) -> str | None:
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
             return None
+        self.clear_selected_documentation_symbol()
+        return "break"
+
+    def clear_selected_documentation_symbol(self) -> None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
-            return "break"
+            return
 
         student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
         date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
@@ -753,21 +762,20 @@ class KartographMainWindow(tk.Tk):
         date_key = self._doc_dates[date_index]
         desk = self.current_plan.desk_at(x, y)
         if not desk or desk.desk_type != "student":
-            return "break"
+            return
 
         entry = desk.documentation_entries.get(date_key)
         if not entry:
-            return "break"
+            return
 
         active_symbols = [symbol for symbol in self.symbol_catalog if int(entry.symbols.get(symbol, 0)) > 0]
         if not active_symbols:
-            return "break"
+            return
 
         symbol_name = active_symbols[0]
         updated = set_documentation_symbol(self.current_plan, x, y, symbol_name, 0, date_key)
         self._record_and_save(updated, "documentation.symbol.clear.shortcut", f"Dokumentation '{symbol_name}' geloescht")
         self._refresh_documentation_table()
-        return "break"
 
     def _on_docs_prev_date_shortcut(self, _event) -> str | None:
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":

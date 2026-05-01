@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- In der Dokumentations-Toolbar gibt es jetzt eine direkte Aktion "Symbol loeschen (Strg+Entf)", die den schnellen Symbol-Loeschpfad ohne Dialog ausloest.
 - In der Dokumentationssicht loeschen `Strg+Entf` und `Strg+Backspace` jetzt direkt das erste aktive Symbol der aktuell markierten Doku-Zelle (ohne Dialog).
 - Im Dokumentations-Symboldialog loest jetzt auch `0` (inkl. Numpad) direkt die Loeschen-Aktion fuer das ausgewaehlte Symbol aus.
 - Der Dokumentations-Symboldialog unterstuetzt jetzt `Entf` und `Backspace` als Tastaturaktion fuer das direkte Loeschen des aktuell ausgewaehlten Symbols.
