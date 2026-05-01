@@ -1876,6 +1876,9 @@ class KartographMainWindow(tk.Tk):
     def set_selected_documentation_symbol_dialog(self) -> None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
             return
+        if not self.symbol_catalog:
+            messagebox.showinfo("Keine Symbole", "Es sind keine Symbole konfiguriert.", parent=self)
+            return
 
         dialog = self._create_overlay_dialog("Symbol setzen", "360x420")
         frame = ttk.Frame(dialog)
