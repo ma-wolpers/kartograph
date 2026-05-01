@@ -26,6 +26,7 @@ The format is based on Keep a Changelog.
 - In der Sitzrasteransicht wird die berechnete Gesamtnote je Schuelertisch oben links eingeblendet.
 - In den Einstellungen gibt es jetzt einen Sichtfenster-Puffer fuer Pfeilnavigation (0 = bisheriges Verhalten, 1 = Bewegung erst ausserhalb des mittleren 3x3 Bereichs).
 - Die Symbolanzeige im Sitzraster nutzt jetzt (falls vorhanden) die gleiche neueste Dokumentationszusammenfassung wie die Doku-Tabelle.
+- Ueber "Symbole filtern" laesst sich nun festlegen, welche Symbole im Sitzraster angezeigt werden (Standard: alle sichtbar).
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

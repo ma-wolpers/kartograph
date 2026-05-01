@@ -174,6 +174,10 @@ class KartographMainWindow(tk.Tk):
         self.symbol_catalog = [item.meaning for item in self.symbol_definitions]
         self._symbol_by_meaning = {item.meaning: item for item in self.symbol_definitions}
         self._shortcut_to_symbol = self._build_symbol_shortcut_map(self.symbol_definitions)
+        self._grid_visible_symbols = self._normalize_grid_visible_symbols(
+            self._settings.get("grid_visible_symbols"),
+            self.symbol_catalog,
+        )
         self.pdf_exporter = PdfSeatingPlanExporter(self.symbol_definitions)
         if warning:
             self.status_var.set(warning)
@@ -401,6 +405,14 @@ class KartographMainWindow(tk.Tk):
         )
         docs_toggle_button.pack(side="left", padx=(8, 0))
         self._bind_editor_return_override(docs_toggle_button)
+
+        grid_filter_button = ttk.Button(
+            self.editor_topbar,
+            text="Symbole filtern",
+            command=self.open_grid_symbol_filter_dialog,
+        )
+        grid_filter_button.pack(side="left", padx=(8, 0))
+        self._bind_editor_return_override(grid_filter_button)
 
         zoom_in_button = ttk.Button(
             self.editor_topbar,
@@ -685,6 +697,18 @@ class KartographMainWindow(tk.Tk):
         except (TypeError, ValueError):
             parsed = DEFAULT_VIEWPORT_FOLLOW_BUFFER
         return max(0, min(5, parsed))
+
+    def _normalize_grid_visible_symbols(self, raw_value: object, symbol_catalog: list[str]) -> set[str]:
+        configured: set[str] = set()
+        if isinstance(raw_value, list):
+            for item in raw_value:
+                meaning = str(item).strip()
+                if meaning:
+                    configured.add(meaning)
+        valid = [meaning for meaning in symbol_catalog if meaning in configured]
+        if valid:
+            return set(valid)
+        return set(symbol_catalog)
 
     def _normalize_details_overlay_position(self, value: object) -> str:
         normalized = str(value or "").strip().lower()
@@ -1422,11 +1446,48 @@ class KartographMainWindow(tk.Tk):
 
     def _effective_grid_symbols(self, x: int, y: int, fallback_symbols: dict[str, int]) -> dict[str, int]:
         if not self.current_plan:
-            return dict(fallback_symbols)
+            return {
+                key: value
+                for key, value in fallback_symbols.items()
+                if key in self._grid_visible_symbols
+            }
         summary = summarize_latest_symbols_for_student(self.current_plan, x, y)
-        if summary:
-            return summary
-        return dict(fallback_symbols)
+        source = summary if summary else dict(fallback_symbols)
+        return {
+            key: value
+            for key, value in source.items()
+            if key in self._grid_visible_symbols
+        }
+
+    def open_grid_symbol_filter_dialog(self) -> None:
+        dialog = self._create_overlay_dialog("Sichtbare Symbole", "420x480")
+
+        container = ttk.Frame(dialog)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
+
+        ttk.Label(container, text="Welche Symbole sollen im Sitzraster angezeigt werden?").pack(anchor="w", pady=(0, 8))
+
+        vars_by_symbol: dict[str, tk.BooleanVar] = {}
+        for symbol in self.symbol_catalog:
+            var = tk.BooleanVar(value=symbol in self._grid_visible_symbols)
+            vars_by_symbol[symbol] = var
+            ttk.Checkbutton(container, text=symbol, variable=var).pack(anchor="w", pady=(0, 2))
+
+        def apply_filter() -> None:
+            selected = [symbol for symbol, var in vars_by_symbol.items() if var.get()]
+            if not selected:
+                selected = list(self.symbol_catalog)
+            self._grid_visible_symbols = set(selected)
+            self._settings["grid_visible_symbols"] = selected
+            self.settings_repository.save_settings(self._settings)
+            dialog.destroy()
+            self.redraw_grid()
+            self._refresh_details_panel()
+
+        button_row = ttk.Frame(container)
+        button_row.pack(fill="x", pady=(10, 0))
+        ttk.Button(button_row, text="Alle", command=lambda: [var.set(True) for var in vars_by_symbol.values()]).pack(side="left")
+        ttk.Button(button_row, text="Speichern", command=apply_filter).pack(side="right")
 
     def _latest_grade_value_for_column(self, x: int, y: int, column_id: str) -> str:
         if not self.current_plan:

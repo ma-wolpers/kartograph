@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Sitzraster um Symbolfilter-Dialog erweitert: sichtbare Symbole koennen gezielt ein-/ausgeblendet werden; ohne Auswahl faellt der Filter automatisch auf "alle sichtbar" zurueck.
 - Sitzraster-Symbolanzeige auf Dokumentationszusammenfassung umgestellt: wenn Dokuwerte vorhanden sind, rendert die Kachel dieselben neuesten Symbolstaende wie die Zusammenfassungsspalte der Dokuansicht.
 - Pfeilnavigation um konfigurierbaren Sichtfenster-Puffer erweitert (`viewport_follow_buffer`): bei Wert 0 bleibt das bisherige Zentrierverhalten, bei Wert 1 folgt die Karte erst nach Verlassen des mittleren 3x3 Bereichs.
 - Grid-Rendering erweitert: die berechnete Gesamtnote wird je Schuelertisch oben links in der Kachel angezeigt.
