@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Symbole im Dokumentations-Symboldialog lassen sich jetzt direkt per Doppelklick oder Enter uebernehmen.
 - Symboldialog in der Dokumentationssicht ist jetzt zusaetzlich per Shortcut `Strg+Shift+S` aufrufbar.
 - Symbolsetzen in der Dokumentationssicht von Freitext auf Auswahl-Dialog mit klickbarer Liste umgestellt (inklusive Symbolglyphen und Shortcut-Hinweisen).
 - "Heute"-Sprung in der Dokumentationssicht zusaetzlich per Shortcut `Strg+H` erreichbar.

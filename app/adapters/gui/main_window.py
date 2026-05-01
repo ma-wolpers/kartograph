@@ -1902,6 +1902,9 @@ class KartographMainWindow(tk.Tk):
             self._toggle_documentation_symbol(symbol_name)
             dialog.destroy()
 
+        symbol_listbox.bind("<Double-Button-1>", lambda _event: apply_symbol())
+        symbol_listbox.bind("<Return>", lambda _event: apply_symbol())
+
         button_row = ttk.Frame(frame)
         button_row.pack(fill="x", pady=(8, 0))
         ttk.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
