@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 import sys
+import time
 from copy import deepcopy
 from datetime import date
 from pathlib import Path
@@ -78,6 +80,7 @@ COLOR_MARKER_PALETTE: list[tuple[str, str, str, str]] = [
 
 APP_USER_MODEL_ID = "7thCloud.Kartograph"
 ICON_PATH = Path(__file__).resolve().parents[3] / "assets" / "kartograph.ico"
+LOGGER = logging.getLogger("kartograph.ui")
 
 
 def configure_windows_process_identity() -> None:
@@ -108,12 +111,15 @@ class KartographMainWindow(tk.Tk):
         default_plans_dir: Path,
         symbols_path: Path,
     ):
+        startup_started = time.perf_counter()
         super().__init__()
+        LOGGER.info("Main window __init__ start")
         configure_windows_process_identity()
         self.title("Kartograph")
         self.geometry("1320x860")
         self.minsize(1000, 680)
         apply_window_icon(self)
+        self.report_callback_exception = self._report_tk_callback_exception
 
         self.settings_repository = settings_repository
         self.plan_repository = plan_repository
@@ -196,20 +202,45 @@ class KartographMainWindow(tk.Tk):
         self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
 
         self.apply_theme()
-        self.after(0, self._complete_startup)
+        self.after_idle(self._initialize_startup_view)
+        LOGGER.info("Main window __init__ finished in %.3fs", time.perf_counter() - startup_started)
 
-    def _complete_startup(self) -> None:
-        self.refresh_plan_list()
-        self.show_plan_list_view()
-        self._center_window_on_screen()
+    def _report_tk_callback_exception(self, exc_type, exc_value, exc_traceback) -> None:
+        LOGGER.exception(
+            "Unhandled Tk callback exception",
+            exc_info=(exc_type, exc_value, exc_traceback),
+        )
+
+    def _initialize_startup_view(self) -> None:
+        started = time.perf_counter()
+        LOGGER.info("Deferred startup view initialization started")
+        try:
+            self._center_window_on_screen()
+            self.refresh_plan_list()
+            self.show_plan_list_view()
+        except Exception:
+            LOGGER.exception("Deferred startup view initialization failed")
+            raise
+        LOGGER.info("Deferred startup view initialization finished in %.3fs", time.perf_counter() - started)
 
     def _center_window_on_screen(self) -> None:
         self.update_idletasks()
-        width = max(1000, self.winfo_width())
-        height = max(680, self.winfo_height())
-        x_pos = max(0, (self.winfo_screenwidth() - width) // 2)
-        y_pos = max(0, (self.winfo_screenheight() - height) // 2)
+        width = max(self.winfo_width(), 1000)
+        height = max(self.winfo_height(), 680)
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x_pos = max(0, (screen_width - width) // 2)
+        y_pos = max(0, (screen_height - height) // 2)
         self.geometry(f"{width}x{height}+{x_pos}+{y_pos}")
+        LOGGER.info(
+            "Window centered to %dx%d at +%d+%d on screen %dx%d",
+            width,
+            height,
+            x_pos,
+            y_pos,
+            screen_width,
+            screen_height,
+        )
 
     def _build_menu_bar(self) -> None:
         menubar = tk.Menu(self)
@@ -1480,6 +1511,8 @@ class KartographMainWindow(tk.Tk):
             )
 
     def refresh_plan_list(self) -> None:
+        started = time.perf_counter()
+        LOGGER.info("refresh_plan_list started")
         preferred_path = self.current_plan_path
         selected = self.plan_listbox.curselection()
         if selected and 0 <= int(selected[0]) < len(self._plan_index):
@@ -1502,6 +1535,7 @@ class KartographMainWindow(tk.Tk):
             self.plan_listbox.insert(tk.END, label)
 
         self._ensure_list_selection(preferred_path=preferred_path)
+        LOGGER.info("refresh_plan_list finished in %.3fs with %d plans", time.perf_counter() - started, len(self._plan_index))
 
     def _ensure_list_selection(self, preferred_path: Path | None = None) -> None:
         if not self._plan_index:

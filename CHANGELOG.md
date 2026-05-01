@@ -20,9 +20,6 @@ The format is based on Keep a Changelog.
 - Bei geoeffnetem Plan erstellt Kartograph zusaetzlich alle 5 Minuten automatisch ein Snapshot-Backup im selben AppData-Backupbereich.
 
 ### Changed
-- Die Startinitialisierung der Planliste laeuft jetzt im ersten Event-Loop-Tick; dadurch reagiert das Fenster beim Oeffnen wieder stabil und bleibt nicht im Zustand "Keine Rueckmeldung" haengen.
-- Beim Start wird das Hauptfenster wieder automatisch auf dem Bildschirm zentriert.
-- Startfehler werden jetzt mit einer klaren Fehlermeldung angezeigt, statt dass Kartograph ohne Hinweis abrupt beendet wird.
 - Leere Dokumentationstage werden beim Speichern nicht persistiert; ein Tagesdatum bleibt bis zur ersten Inhalteingabe volatil.
 - Beim Verschieben/Kopieren von Schuelertischen bleiben tagesbezogene Dokumentationseintraege jetzt erhalten.
 - Enter in der Dokumentationsansicht bewegt die aktive Auswahl je nach Modus spaltenweise nach unten oder zeilenweise nach rechts.
@@ -58,6 +55,8 @@ The format is based on Keep a Changelog.
 - In der Dokumentationsansicht gibt es jetzt eine direkte Toolbar-Aktion "Symbol loeschen (Strg+Entf)" fuer den schnellen Loeschpfad ohne Dialog.
 - Der schnelle Symbol-Loeschpfad in der Dokumentationsansicht zeigt jetzt klare Statushinweise, wenn kein Symbol geloescht werden konnte.
 - Die sichtbaren Loesch-Hinweise in der Dokumentationsansicht nennen jetzt konsistent `Strg+Entf` und `Strg+Backspace`.
+- Beim Start wird das Hauptfenster wieder auf den Bildschirm zentriert; die initiale Planlisten-Ladung laeuft jetzt deferred nach dem UI-Aufbau, um Start-Haenger zu reduzieren.
+- Kartograph schreibt beim Start jetzt ein persistentes Diagnose-Log nach `Temp/logs/kartograph_startup.log` (inklusive Startphasen und unbehandelter Exceptions).
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.
