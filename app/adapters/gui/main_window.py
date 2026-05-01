@@ -1866,18 +1866,36 @@ class KartographMainWindow(tk.Tk):
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
             return
 
-        selected_symbol = simpledialog.askstring(
-            "Symbol setzen",
-            "Symbol auswählen (Name):\n" + "\n".join(self.symbol_catalog),
-            parent=self,
-        )
-        if selected_symbol is None:
-            return
-        symbol_name = selected_symbol.strip()
-        if symbol_name not in self.symbol_catalog:
-            messagebox.showerror("Ungueltige Eingabe", "Bitte ein Symbol aus der Liste eingeben.", parent=self)
-            return
-        self._toggle_documentation_symbol(symbol_name)
+        dialog = self._create_overlay_dialog("Symbol setzen", "360x420")
+        frame = ttk.Frame(dialog)
+        frame.pack(fill="both", expand=True, padx=12, pady=12)
+
+        ttk.Label(frame, text="Symbol auswählen").pack(anchor="w", pady=(0, 6))
+
+        symbol_listbox = tk.Listbox(frame, selectmode="browse", exportselection=False, font=("Segoe UI", 11))
+        symbol_listbox.pack(fill="both", expand=True)
+
+        for symbol in self.symbol_catalog:
+            shortcut = self._symbol_by_meaning.get(symbol).shortcut if self._symbol_by_meaning.get(symbol) else None
+            shortcut_suffix = f" [{shortcut.upper()}]" if shortcut else ""
+            symbol_listbox.insert(tk.END, f"{self._symbol_glyph(symbol)} {symbol}{shortcut_suffix}")
+
+        if self.symbol_catalog:
+            symbol_listbox.selection_set(0)
+        self._focus_overlay_widget(dialog, symbol_listbox)
+
+        def apply_symbol() -> None:
+            selected = symbol_listbox.curselection()
+            if not selected:
+                return
+            symbol_name = self.symbol_catalog[int(selected[0])]
+            self._toggle_documentation_symbol(symbol_name)
+            dialog.destroy()
+
+        button_row = ttk.Frame(frame)
+        button_row.pack(fill="x", pady=(8, 0))
+        ttk.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
+        ttk.Button(button_row, text="Übernehmen", command=apply_symbol).pack(side="right", padx=(0, 8))
 
     def configure_grade_weighting_dialog(self) -> None:
         if not self.current_plan:
