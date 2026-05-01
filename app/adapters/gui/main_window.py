@@ -546,14 +546,22 @@ class KartographMainWindow(tk.Tk):
         self.docs_tree.column("#0", width=220, anchor="w", stretch=False)
         self.docs_tree.heading("#0", text="Schüler:in")
 
-        self.docs_y_scroll = ttk.Scrollbar(self.docs_table_container, orient="vertical", command=self.docs_tree.yview)
+        self.docs_right_tree = ttk.Treeview(self.docs_table_container, show="headings")
+        self.docs_right_tree.pack(side="left", fill="y")
+
+        self.docs_y_scroll = ttk.Scrollbar(self.docs_table_container, orient="vertical", command=self._docs_yview)
         self.docs_y_scroll.pack(side="right", fill="y")
         self.docs_x_scroll = ttk.Scrollbar(self.docs_container, orient="horizontal", command=self.docs_tree.xview)
         self.docs_x_scroll.pack(fill="x", padx=12, pady=(0, 12))
-        self.docs_tree.configure(yscrollcommand=self.docs_y_scroll.set, xscrollcommand=self.docs_x_scroll.set)
+        self._syncing_docs_scroll = False
+        self._syncing_docs_selection = False
+        self.docs_tree.configure(yscrollcommand=self._on_docs_main_yscroll, xscrollcommand=self.docs_x_scroll.set)
+        self.docs_right_tree.configure(yscrollcommand=self._on_docs_right_yscroll)
 
         self.docs_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_tree_select())
         self.docs_tree.bind("<Button-1>", self._on_docs_tree_click)
+        self.docs_right_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_right_tree_select())
+        self.docs_right_tree.bind("<Button-1>", self._on_docs_right_tree_click)
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
         self.canvas.bind("<B1-Motion>", self._on_canvas_drag)
@@ -1546,42 +1554,48 @@ class KartographMainWindow(tk.Tk):
         fixed_columns: list[str] = ["summary"]
         fixed_columns.extend([f"grade_{item.column_id}" for item in self.current_plan.grade_columns])
         fixed_columns.append("overall")
-        columns = [*self._doc_date_column_ids, *fixed_columns]
-        self.docs_tree.configure(columns=columns)
+        self.docs_tree.configure(columns=self._doc_date_column_ids)
+        self.docs_right_tree.configure(columns=fixed_columns)
 
         for idx, date_key in enumerate(all_dates):
             self.docs_tree.column(self._doc_date_column_ids[idx], width=120, anchor="center", stretch=False)
             self.docs_tree.heading(self._doc_date_column_ids[idx], text=date_key)
 
-        self.docs_tree.column("summary", width=180, anchor="w", stretch=False)
-        self.docs_tree.heading("summary", text="Zusammenfassung")
+        self.docs_right_tree.column("summary", width=180, anchor="w", stretch=False)
+        self.docs_right_tree.heading("summary", text="Zusammenfassung")
 
         for grade in self.current_plan.grade_columns:
             col_id = f"grade_{grade.column_id}"
-            self.docs_tree.column(col_id, width=120, anchor="center", stretch=False)
-            self.docs_tree.heading(col_id, text=grade.title)
+            self.docs_right_tree.column(col_id, width=120, anchor="center", stretch=False)
+            self.docs_right_tree.heading(col_id, text=grade.title)
 
-        self.docs_tree.column("overall", width=120, anchor="center", stretch=False)
-        self.docs_tree.heading("overall", text="Gesamtnote")
+        self.docs_right_tree.column("overall", width=120, anchor="center", stretch=False)
+        self.docs_right_tree.heading("overall", text="Gesamtnote")
 
         for row_id in self.docs_tree.get_children():
             self.docs_tree.delete(row_id)
+        for row_id in self.docs_right_tree.get_children():
+            self.docs_right_tree.delete(row_id)
         self._doc_tree_iid_by_student_index = {}
 
         for student_idx, (x, y) in enumerate(self._doc_student_coords):
             desk = self.current_plan.desk_at(x, y)
             if desk is None:
                 continue
-            values: list[str] = []
+            date_values: list[str] = []
             for date_key in all_dates:
                 entry = desk.documentation_entries.get(date_key)
-                values.append(self._documentation_cell_text(entry.symbols) if entry else "")
-            values.append(self._documentation_summary_text(x, y))
-            for grade in self.current_plan.grade_columns:
-                values.append(self._latest_grade_value_for_column(x, y, grade.column_id))
-            values.append(compute_grade_display_for_student(self.current_plan, x, y))
+                date_values.append(self._documentation_cell_text(entry.symbols) if entry else "")
 
-            iid = self.docs_tree.insert("", "end", text=desk.student_name or f"({x},{y})", values=values)
+            fixed_values: list[str] = []
+            fixed_values.append(self._documentation_summary_text(x, y))
+            for grade in self.current_plan.grade_columns:
+                fixed_values.append(self._latest_grade_value_for_column(x, y, grade.column_id))
+            fixed_values.append(compute_grade_display_for_student(self.current_plan, x, y))
+
+            iid = f"student_{student_idx}"
+            self.docs_tree.insert("", "end", iid=iid, text=desk.student_name or f"({x},{y})", values=date_values)
+            self.docs_right_tree.insert("", "end", iid=iid, values=fixed_values)
             self._doc_tree_iid_by_student_index[student_idx] = iid
 
         if self._doc_student_coords:
@@ -1589,9 +1603,7 @@ class KartographMainWindow(tk.Tk):
             self._doc_selected_date_index = max(0, min(self._doc_selected_date_index, max(0, len(all_dates) - 1)))
             selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
             if selected_iid is not None:
-                self.docs_tree.selection_set(selected_iid)
-                self.docs_tree.focus(selected_iid)
-                self.docs_tree.see(selected_iid)
+                self._set_docs_row_selection(selected_iid)
         else:
             self._doc_selected_student_index = 0
             self._doc_selected_date_index = 0
@@ -1601,8 +1613,7 @@ class KartographMainWindow(tk.Tk):
     def _on_docs_tree_click(self, event) -> None:
         row_id = self.docs_tree.identify_row(event.y)
         if row_id:
-            self.docs_tree.selection_set(row_id)
-            self.docs_tree.focus(row_id)
+            self._set_docs_row_selection(row_id)
         col_id = self.docs_tree.identify_column(event.x)
         if col_id.startswith("#"):
             try:
@@ -1614,10 +1625,44 @@ class KartographMainWindow(tk.Tk):
                 self._apply_doc_column_heading_highlight()
 
     def _on_docs_tree_select(self) -> None:
+        if self._syncing_docs_selection:
+            return
         selected = self.docs_tree.selection()
         if not selected:
             return
         row_id = selected[0]
+        self._set_docs_row_selection(row_id)
+        for student_idx, iid in self._doc_tree_iid_by_student_index.items():
+            if iid == row_id:
+                self._doc_selected_student_index = student_idx
+                break
+
+    def _on_docs_right_tree_click(self, event) -> None:
+        row_id = self.docs_right_tree.identify_row(event.y)
+        if row_id:
+            self._set_docs_row_selection(row_id)
+
+    def _on_docs_right_tree_select(self) -> None:
+        if self._syncing_docs_selection:
+            return
+        selected = self.docs_right_tree.selection()
+        if not selected:
+            return
+        row_id = selected[0]
+        self._set_docs_row_selection(row_id)
+
+    def _set_docs_row_selection(self, row_id: str) -> None:
+        self._syncing_docs_selection = True
+        try:
+            self.docs_tree.selection_set(row_id)
+            self.docs_tree.focus(row_id)
+            self.docs_tree.see(row_id)
+            self.docs_right_tree.selection_set(row_id)
+            self.docs_right_tree.focus(row_id)
+            self.docs_right_tree.see(row_id)
+        finally:
+            self._syncing_docs_selection = False
+
         for student_idx, iid in self._doc_tree_iid_by_student_index.items():
             if iid == row_id:
                 self._doc_selected_student_index = student_idx
@@ -1634,9 +1679,7 @@ class KartographMainWindow(tk.Tk):
 
         selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
         if selected_iid is not None:
-            self.docs_tree.selection_set(selected_iid)
-            self.docs_tree.focus(selected_iid)
-            self.docs_tree.see(selected_iid)
+            self._set_docs_row_selection(selected_iid)
 
     def rename_selected_documentation_date_dialog(self) -> None:
         if not self.current_plan or not self._doc_dates:
@@ -2205,6 +2248,30 @@ class KartographMainWindow(tk.Tk):
     def _yview(self, *args) -> None:
         self.canvas.yview(*args)
         self.redraw_grid()
+
+    def _docs_yview(self, *args) -> None:
+        self.docs_tree.yview(*args)
+        self.docs_right_tree.yview(*args)
+
+    def _on_docs_main_yscroll(self, first: str, last: str) -> None:
+        self.docs_y_scroll.set(first, last)
+        if self._syncing_docs_scroll:
+            return
+        self._syncing_docs_scroll = True
+        try:
+            self.docs_right_tree.yview_moveto(float(first))
+        finally:
+            self._syncing_docs_scroll = False
+
+    def _on_docs_right_yscroll(self, first: str, last: str) -> None:
+        self.docs_y_scroll.set(first, last)
+        if self._syncing_docs_scroll:
+            return
+        self._syncing_docs_scroll = True
+        try:
+            self.docs_tree.yview_moveto(float(first))
+        finally:
+            self._syncing_docs_scroll = False
 
     def _on_canvas_xscroll(self, first: str, last: str) -> None:
         self.x_scroll.set(first, last)

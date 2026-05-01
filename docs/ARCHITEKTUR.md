@@ -30,6 +30,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Das S:S-Detailoverlay (Name, Symbole, Farbbuttons) ist in der Ansicht links/rechts/unten andockbar; das Tischgruppen-Overlay kann ebenfalls links/rechts/unten positioniert werden (persistente Settings).
 - Die Editoransicht unterstuetzt zwei Oberflaechen: Rasteransicht und Dokumentationsansicht. Der Wechsel erfolgt ueber UI-Intent (`view.documentation.toggle`) und teilt sich denselben geladenen Planzustand.
 - Die Dokumentationsansicht rendert eine zeilenorientierte Schuelertabelle mit Datums-Spalten, symbolischer Tagesdarstellung, Zusammenfassungs- und Notenspalten sowie Gesamtnotenanzeige aus den Core-Use-Cases.
+- Die Dokumentationsansicht ist horizontal geteilt: links/mitte scrollen Datums-Spalten, rechts steht eine synchronisierte, horizontal fixe Tabelle fuer Zusammenfassung, Notenspalten und Gesamtnote.
 - Symbol-Shortcuts gelten in beiden Editoroberflaechen: In der Rasteransicht toggeln sie Sitzplan-Symbole, in der Dokumentationsansicht schreiben sie in die aktuell markierte Tageszelle der ausgewaehlten Schuelerzeile.
 - Der Symbolkatalog enthaelt zusaetzlich die Spezialsymbole `X` (nicht abgegeben/verweigert) und `∅` (abwesend); sie werden ueber dieselbe Konfigurations- und Shortcut-Pipeline geladen.
 - Preview-Rendering und PDF-Export verwenden dieselbe Domain-Transformationslogik fuer Tischgruppen (x/y-Shift, Rotation), damit die Darstellung konsistent bleibt.
