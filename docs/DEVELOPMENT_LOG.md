@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Periodische Backup-Ticks in der GUI eingefuehrt: bei geoeffnetem Plan wird alle 5 Minuten ein Snapshot-Backup in AppData geschrieben.
 - Dokumentations-Toolbar zeigt jetzt dauerhaft die aktive Doku-Zelle (Schuelerzeile + Datumsspalte) als Statusanzeige.
 - Datums-Spaltenauswahl in der Dokumentationssicht per Tastatur erweitert (`Alt+Links/Rechts`), inklusive synchroner Spaltenmarkierung.
 - Der Doku-Navigationsmodus (Spalten-/Zeilenmodus) wird jetzt in den Einstellungen persistiert und beim naechsten Start wiederhergestellt.
@@ -89,6 +90,7 @@ Regel:
 - Beim Oeffnen eines Plans erscheint jetzt eine Warnung, wenn enthaltene Schuelertische ausserhalb des aktuell eingestellten Canvas-Radius liegen und daher nicht dargestellt werden koennen.
 
 ### Added
+- Repository-API `backup_plan_snapshot` plus Test (`tests/test_backup_snapshot_api.py`) fuer Backup-Erzeugung ohne Primardatei-Write.
 - Test fuer Backup-Rotation (`tests/test_backup_rotation.py`).
 - Neue Tests fuer Dokumentations-Use-Cases und JSON-v3-Serialisierung/Migration (`tests/test_documentation_usecases.py`, `tests/test_json_repository_documentation.py`).
 - `app/infrastructure/symbol_config_loader.py` fuer Schema-Pruefung und Laden der Symbolkonfiguration.

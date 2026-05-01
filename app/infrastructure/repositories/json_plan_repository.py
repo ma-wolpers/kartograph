@@ -51,6 +51,10 @@ class JsonSeatingPlanRepository:
         tmp_path.replace(plan_path)
         self._write_backup(plan_path, payload)
 
+    def backup_plan_snapshot(self, plan: SeatingPlan, plan_path: Path) -> None:
+        payload = self._serialize(plan)
+        self._write_backup(plan_path, payload)
+
     def _backup_root_dir(self) -> Path:
         appdata = os.environ.get("APPDATA")
         if appdata:

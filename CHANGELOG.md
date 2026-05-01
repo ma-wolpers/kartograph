@@ -17,6 +17,7 @@ The format is based on Keep a Changelog.
 - In der Dokumentationsansicht koennen Datums-Spalten umbenannt und Notenspalten (schriftlich/sonstig + Titel) per Dialog hinzugefuegt werden.
 - Neue Spezialsymbole verfuegbar: `X` fuer nicht abgegebene/verweigerte Leistungen und `∅` fuer abwesende SuS.
 - Bei jedem Speichern wird zusaetzlich ein lokales, verstecktes JSON-Backup im AppData-Pfad erzeugt; pro Lerngruppe bleiben die letzten 20 Sicherungen erhalten.
+- Bei geoeffnetem Plan erstellt Kartograph zusaetzlich alle 5 Minuten automatisch ein Snapshot-Backup im selben AppData-Backupbereich.
 
 ### Changed
 - Leere Dokumentationstage werden beim Speichern nicht persistiert; ein Tagesdatum bleibt bis zur ersten Inhalteingabe volatil.

@@ -57,6 +57,7 @@ DEFAULT_CANVAS_RADIUS = 50
 DEFAULT_CELL_SIZE = 92
 DEFAULT_SYMBOL_STRENGTH = 1
 DEFAULT_VIEWPORT_FOLLOW_BUFFER = 0
+DEFAULT_PERIODIC_BACKUP_INTERVAL_MS = 5 * 60 * 1000
 DEFAULT_DETAILS_OVERLAY_POSITION = "bottom"
 DEFAULT_TABLEGROUP_OVERLAY_POSITION = "right"
 LIST_ACTIVE = "list_active"
@@ -191,6 +192,7 @@ class KartographMainWindow(tk.Tk):
         self._build_layout()
         self._bind_shortcuts()
         self.bind("<Configure>", lambda _event: self._position_tablegroup_overlay(), add="+")
+        self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
 
         self.apply_theme()
         self.refresh_plan_list()
@@ -3406,3 +3408,13 @@ class KartographMainWindow(tk.Tk):
             self.refresh_plan_list()
         except Exception as exc:
             self.status_var.set(f"Speichern fehlgeschlagen: {exc}")
+
+    def _periodic_backup_tick(self) -> None:
+        try:
+            if self.current_plan and self.current_plan_path:
+                self.plan_repository.backup_plan_snapshot(self.current_plan, self.current_plan_path)
+        except Exception:
+            pass
+        finally:
+            if self.winfo_exists():
+                self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
