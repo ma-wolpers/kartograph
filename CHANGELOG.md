@@ -42,6 +42,7 @@ The format is based on Keep a Changelog.
 - Das Setzen von Symbolen in der Dokumentationsansicht nutzt jetzt einen Auswahl-Dialog mit klickbarer Liste statt Texteingabe.
 - Der Symboldialog in der Dokumentationsansicht ist jetzt direkt per `Strg+Shift+S` erreichbar.
 - Symbole koennen im Dokumentations-Symboldialog jetzt per Doppelklick oder `Enter` sofort uebernommen werden.
+- Der Dokumentations-Symboldialog merkt sich jetzt die letzte Auswahl und startet beim naechsten Oeffnen auf derselben Symbolzeile.
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

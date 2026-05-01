@@ -172,6 +172,7 @@ class KartographMainWindow(tk.Tk):
         self._doc_dates: list[str] = []
         self._doc_tree_iid_by_student_index: dict[int, str] = {}
         self._doc_date_column_ids: list[str] = []
+        self._docs_symbol_dialog_last_index: int = 0
 
         self.color_palette = COLOR_MARKER_PALETTE
         self._color_by_key = {color_key: (label, hex_color) for _key, color_key, label, hex_color in self.color_palette}
@@ -1891,14 +1892,19 @@ class KartographMainWindow(tk.Tk):
             symbol_listbox.insert(tk.END, f"{self._symbol_glyph(symbol)} {symbol}{shortcut_suffix}")
 
         if self.symbol_catalog:
-            symbol_listbox.selection_set(0)
+            selected_index = max(0, min(self._docs_symbol_dialog_last_index, len(self.symbol_catalog) - 1))
+            symbol_listbox.selection_set(selected_index)
+            symbol_listbox.activate(selected_index)
+            symbol_listbox.see(selected_index)
         self._focus_overlay_widget(dialog, symbol_listbox)
 
         def apply_symbol() -> None:
             selected = symbol_listbox.curselection()
             if not selected:
                 return
-            symbol_name = self.symbol_catalog[int(selected[0])]
+            selected_index = int(selected[0])
+            self._docs_symbol_dialog_last_index = selected_index
+            symbol_name = self.symbol_catalog[selected_index]
             self._toggle_documentation_symbol(symbol_name)
             dialog.destroy()
 
