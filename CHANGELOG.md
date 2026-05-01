@@ -20,6 +20,8 @@ The format is based on Keep a Changelog.
 - Bei geoeffnetem Plan erstellt Kartograph zusaetzlich alle 5 Minuten automatisch ein Snapshot-Backup im selben AppData-Backupbereich.
 
 ### Changed
+- Tastatursteuerung wurde auf explizite Kontexte umgestellt: grid-only/docs-only Shortcuts werden jetzt zentral geprueft und im falschen Modus nicht mehr ausgefuehrt.
+- Beim Wechsel in die Dokumentationsansicht wird die Sitzplan-Topbar ausgeblendet und beim Rueckwechsel wieder eingeblendet.
 - In der Dokumentationsansicht werden nur noch benannte Schuelertische als Schueler gefuehrt; leere Tische erhalten keine Dokuzeilen und keine Doku-/Notenwerte.
 - `X` und `∅` sind jetzt als reine Dokumentationszeichen klassifiziert und werden nicht mehr als Diagnose-Symbole behandelt.
 - In der Rasteransicht werden dokumentations-only Zeichen (`X`, `∅`) nur noch dann angezeigt, wenn sie fuer den heutigen Doku-Tag gesetzt sind.

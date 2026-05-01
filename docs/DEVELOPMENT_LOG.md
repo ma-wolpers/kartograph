@@ -13,6 +13,8 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Explizites Shortcut-Scope-System eingefuehrt (`global`/`grid`/`docs`/`list`) und zentrale Intent-Gates fuer grid-only/docs-only Aktionen verdrahtet.
+- Beim Wechsel in die Dokumentationsansicht wird die Sitzplan-Topbar ausgeblendet und beim Rueckwechsel wieder eingeblendet.
 - Dokumentations- und Notenlogik behandelt jetzt nur noch benannte Schuelertische als fachliche Schueler; leere Tische bleiben fuer Struktur/Farben erhalten, erscheinen aber nicht mehr in Dokuzeilen und erhalten keine Doku-/Notenwerte.
 - Symbolkonfiguration um Rollen erweitert (`diagnostic` vs. `documentation_only`); `X` und `∅` sind jetzt dokumentations-only.
 - Grid-Diagnosepfad trennt jetzt Symbolrollen: dokumentations-only Symbole werden nicht mehr als Diagnose-Symbole getoggelt, aber im Raster weiterhin angezeigt, wenn sie am heutigen Doku-Tag gesetzt sind.

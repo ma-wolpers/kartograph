@@ -84,6 +84,30 @@ APP_USER_MODEL_ID = "7thCloud.Kartograph"
 ICON_PATH = Path(__file__).resolve().parents[3] / "assets" / "kartograph.ico"
 LOGGER = logging.getLogger("kartograph.ui")
 
+GRID_ONLY_INTENTS = {
+    UiIntent.DELETE_DESK,
+    UiIntent.SET_TEACHER_DESK,
+    UiIntent.ADD_SYMBOL,
+    UiIntent.OPEN_TABLEGROUP_SETTINGS,
+    UiIntent.MOVE_UP,
+    UiIntent.MOVE_DOWN,
+    UiIntent.MOVE_LEFT,
+    UiIntent.MOVE_RIGHT,
+    UiIntent.EXPAND_UP,
+    UiIntent.EXPAND_DOWN,
+    UiIntent.EXPAND_LEFT,
+    UiIntent.EXPAND_RIGHT,
+    UiIntent.ZOOM_IN,
+    UiIntent.ZOOM_OUT,
+    UiIntent.RESET_VIEW,
+}
+
+DOCS_ONLY_INTENTS = {
+    UiIntent.TOGGLE_DOCUMENTATION_MODE,
+    UiIntent.RENAME_DOCUMENTATION_DATE,
+    UiIntent.ADD_GRADE_COLUMN,
+}
+
 
 def configure_windows_process_identity() -> None:
     if not sys.platform.startswith("win"):
@@ -793,7 +817,22 @@ class KartographMainWindow(tk.Tk):
         self._position_tablegroup_overlay()
 
     def _handle_intent(self, intent: str) -> str | None:
+        if intent in GRID_ONLY_INTENTS and not self._shortcut_scope_allows("grid"):
+            return None
+        if intent in DOCS_ONLY_INTENTS and not self._shortcut_scope_allows("docs"):
+            return None
         return self.ui_intent_controller.handle_intent(intent)
+
+    def _shortcut_scope_allows(self, scope: str) -> bool:
+        if scope == "global":
+            return True
+        if scope == "list":
+            return self.interaction_mode == LIST_ACTIVE
+        if scope == "grid":
+            return self.editor_view.winfo_ismapped() and self._editor_surface == "grid" and not self._is_text_input_focused()
+        if scope == "docs":
+            return self.editor_view.winfo_ismapped() and self._editor_surface == "docs" and not self._is_text_input_focused()
+        return False
 
     def _on_rename_shortcut(self, _event) -> str | None:
         if self.interaction_mode != LIST_ACTIVE:
@@ -816,25 +855,19 @@ class KartographMainWindow(tk.Tk):
         return self._handle_intent(UiIntent.DELETE_DESK)
 
     def _on_set_grade_shortcut(self, _event) -> str | None:
-        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
-            return None
-        if self._is_text_input_focused():
+        if not self._shortcut_scope_allows("docs"):
             return None
         self.set_selected_documentation_grade_dialog()
         return "break"
 
     def _on_set_symbol_shortcut(self, _event) -> str | None:
-        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
-            return None
-        if self._is_text_input_focused():
+        if not self._shortcut_scope_allows("docs"):
             return None
         self.set_selected_documentation_symbol_dialog()
         return "break"
 
     def _on_clear_symbol_shortcut(self, _event) -> str | None:
-        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
-            return None
-        if self._is_text_input_focused():
+        if not self._shortcut_scope_allows("docs"):
             return None
         self.clear_selected_documentation_symbol()
         return "break"
@@ -869,9 +902,7 @@ class KartographMainWindow(tk.Tk):
         self._refresh_documentation_table()
 
     def _on_docs_prev_date_shortcut(self, _event) -> str | None:
-        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
-            return None
-        if self._is_text_input_focused():
+        if not self._shortcut_scope_allows("docs"):
             return None
         if not self._doc_dates:
             return "break"
@@ -880,9 +911,7 @@ class KartographMainWindow(tk.Tk):
         return "break"
 
     def _on_docs_next_date_shortcut(self, _event) -> str | None:
-        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
-            return None
-        if self._is_text_input_focused():
+        if not self._shortcut_scope_allows("docs"):
             return None
         if not self._doc_dates:
             return "break"
@@ -891,9 +920,7 @@ class KartographMainWindow(tk.Tk):
         return "break"
 
     def _on_docs_today_shortcut(self, _event) -> str | None:
-        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
-            return None
-        if self._is_text_input_focused():
+        if not self._shortcut_scope_allows("docs"):
             return None
         self.select_today_documentation_date()
         return "break"
@@ -1354,7 +1381,7 @@ class KartographMainWindow(tk.Tk):
         return mapping
 
     def _on_symbol_shortcut(self, _event, symbol_name: str) -> str | None:
-        if self._is_text_input_focused():
+        if not self._shortcut_scope_allows("docs") and not self._shortcut_scope_allows("grid"):
             return None
         # Ignore control/alt-modified keys so shortcuts like Ctrl+C remain unaffected.
         if _event.state & 0x0004 or _event.state & 0x0008:
@@ -1377,7 +1404,7 @@ class KartographMainWindow(tk.Tk):
         return "break"
 
     def _on_color_shortcut(self, event, color_key: str) -> str | None:
-        if self._is_text_input_focused():
+        if not self._shortcut_scope_allows("grid"):
             return None
         if event.state & 0x0004 or event.state & 0x0008:
             return None
@@ -1644,6 +1671,8 @@ class KartographMainWindow(tk.Tk):
     def show_grid_surface(self) -> None:
         self._editor_surface = "grid"
         self.docs_container.pack_forget()
+        if not self.editor_topbar.winfo_ismapped():
+            self.editor_topbar.pack(fill="x", padx=12, pady=(12, 8))
         self.grid_stack.pack_forget()
         self.details_container.pack_forget()
         self._apply_details_overlay_position()
@@ -1654,6 +1683,7 @@ class KartographMainWindow(tk.Tk):
         if not self.current_plan:
             return
         self._editor_surface = "docs"
+        self.editor_topbar.pack_forget()
         self.grid_stack.pack_forget()
         self.details_container.pack_forget()
         self.docs_container.pack(fill="both", expand=True)
@@ -1790,7 +1820,7 @@ class KartographMainWindow(tk.Tk):
         x, y = self._doc_student_coords[student_index]
         desk = self.current_plan.desk_at(x, y)
         name = ""
-        if desk is not None and desk.desk_type == "student":
+        if desk is not None and desk.is_named_student():
             name = desk.student_name.strip()
         display_name = name or f"({x},{y})"
         self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {self._doc_dates[date_index]}")
