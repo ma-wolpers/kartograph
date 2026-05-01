@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Dokumentationssicht um Noteneingabe erweitert: per Button/Shortcut (`Strg+G`) lassen sich Noten fuer die markierte Schueler-/Datumskombination in einer gewaehlten Notenspalte setzen oder loeschen.
 - Save-Pipeline um versteckte lokale AppData-Backups erweitert: bei jedem Speichern wird ein Zeitstempel-Backup geschrieben und auf die letzten 20 Dateien pro Lerngruppe rotiert.
 - Sitzraster um Symbolfilter-Dialog erweitert: sichtbare Symbole koennen gezielt ein-/ausgeblendet werden; ohne Auswahl faellt der Filter automatisch auf "alle sichtbar" zurueck.
 - Sitzraster-Symbolanzeige auf Dokumentationszusammenfassung umgestellt: wenn Dokuwerte vorhanden sind, rendert die Kachel dieselben neuesten Symbolstaende wie die Zusammenfassungsspalte der Dokuansicht.

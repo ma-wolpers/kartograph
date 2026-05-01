@@ -39,6 +39,7 @@ from app.core.usecases.plan_usecases import (
     is_color_used,
     rename_documentation_date,
     set_color_meaning,
+    set_documentation_grade,
     set_documentation_symbol,
     set_teacher_desk,
     summarize_latest_symbols_for_student,
@@ -530,6 +531,11 @@ class KartographMainWindow(tk.Tk):
             text="Notenspalte hinzufügen",
             command=lambda: self._handle_intent(UiIntent.ADD_GRADE_COLUMN),
         ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            self.docs_toolbar,
+            text="Note setzen (Strg+G)",
+            command=self.set_selected_documentation_grade_dialog,
+        ).pack(side="left", padx=(8, 0))
         ttk.Label(self.docs_toolbar, textvariable=self.docs_mode_var).pack(side="right")
 
         self.docs_table_container = ttk.Frame(self.docs_container)
@@ -579,6 +585,7 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Control-Shift-D>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
         self.bind("<Control-Shift-d>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
         self.bind("<Control-m>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION_MODE))
+        self.bind("<Control-g>", self._on_set_grade_shortcut)
         self.bind("<Control-x>", lambda _event: self._handle_intent(UiIntent.CUT))
         self.bind("<Control-c>", lambda _event: self._handle_intent(UiIntent.COPY))
         self.bind("<Control-v>", lambda _event: self._handle_intent(UiIntent.PASTE))
@@ -676,6 +683,12 @@ class KartographMainWindow(tk.Tk):
         if self._editor_surface == "docs":
             return "break"
         return self._handle_intent(UiIntent.DELETE_DESK)
+
+    def _on_set_grade_shortcut(self, _event) -> str | None:
+        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
+            return None
+        self.set_selected_documentation_grade_dialog()
+        return "break"
 
     def _normalize_canvas_radius(self, value: object) -> int:
         try:
@@ -1660,6 +1673,63 @@ class KartographMainWindow(tk.Tk):
             messagebox.showerror("Ungueltige Eingabe", "Typ muss 'schriftlich' oder 'sonstig' sein.", parent=self)
             return
         self._record_and_save(updated, "documentation.grade_column.add", "Notenspalte hinzugefuegt")
+        self._refresh_documentation_table()
+
+    def set_selected_documentation_grade_dialog(self) -> None:
+        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+            return
+        if not self.current_plan.grade_columns:
+            messagebox.showinfo("Keine Notenspalten", "Bitte zuerst eine Notenspalte hinzufügen.", parent=self)
+            return
+
+        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+        date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
+        x, y = self._doc_student_coords[student_index]
+        date_key = self._doc_dates[date_index]
+
+        labels = [
+            f"{idx + 1}: {item.title} ({item.category})"
+            for idx, item in enumerate(self.current_plan.grade_columns)
+        ]
+        selected_label = simpledialog.askstring(
+            "Notenspalte waehlen",
+            "Spalte eingeben (Nummer):\n" + "\n".join(labels),
+            parent=self,
+            initialvalue="1",
+        )
+        if selected_label is None:
+            return
+        try:
+            selection_index = int(selected_label.strip()) - 1
+        except ValueError:
+            messagebox.showerror("Ungueltige Eingabe", "Bitte eine gueltige Nummer eingeben.", parent=self)
+            return
+        if selection_index < 0 or selection_index >= len(self.current_plan.grade_columns):
+            messagebox.showerror("Ungueltige Eingabe", "Notenspalte nicht gefunden.", parent=self)
+            return
+
+        column = self.current_plan.grade_columns[selection_index]
+        grade_text = simpledialog.askstring(
+            "Note setzen",
+            f"Note fuer {column.title} am {date_key} (1-6, leer = loeschen):",
+            parent=self,
+            initialvalue="",
+        )
+        if grade_text is None:
+            return
+
+        grade_value: float | None
+        if not grade_text.strip():
+            grade_value = None
+        else:
+            try:
+                grade_value = float(grade_text.strip().replace(",", "."))
+            except ValueError:
+                messagebox.showerror("Ungueltige Eingabe", "Bitte eine Zahl zwischen 1 und 6 eingeben.", parent=self)
+                return
+
+        updated = set_documentation_grade(self.current_plan, x, y, column.column_id, grade_value, date_key)
+        self._record_and_save(updated, "documentation.grade.set", "Note aktualisiert")
         self._refresh_documentation_table()
 
     def open_selected_plan_from_list(self) -> None:
