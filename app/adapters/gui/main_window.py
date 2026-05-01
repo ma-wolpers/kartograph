@@ -1910,6 +1910,7 @@ class KartographMainWindow(tk.Tk):
 
         symbol_listbox.bind("<Double-Button-1>", lambda _event: apply_symbol())
         symbol_listbox.bind("<Return>", lambda _event: apply_symbol())
+        symbol_listbox.bind("<KP_Enter>", lambda _event: apply_symbol())
 
         button_row = ttk.Frame(frame)
         button_row.pack(fill="x", pady=(8, 0))
