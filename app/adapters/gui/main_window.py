@@ -919,6 +919,7 @@ class KartographMainWindow(tk.Tk):
             return None
         if not self._doc_dates:
             return "break"
+        self._doc_selected_fixed_column_id = None
         self._doc_selected_date_index = max(0, self._doc_selected_date_index - 1)
         self._apply_doc_column_heading_highlight()
         return "break"
@@ -928,6 +929,7 @@ class KartographMainWindow(tk.Tk):
             return None
         if not self._doc_dates:
             return "break"
+        self._doc_selected_fixed_column_id = None
         self._doc_selected_date_index = min(len(self._doc_dates) - 1, self._doc_selected_date_index + 1)
         self._apply_doc_column_heading_highlight()
         return "break"
@@ -1811,7 +1813,7 @@ class KartographMainWindow(tk.Tk):
             self.docs_tree.heading(col_id, text=title)
         if hasattr(self, "docs_right_tree") and hasattr(self, "_doc_fixed_column_ids"):
             for idx, fixed_col_id in enumerate(self._doc_fixed_column_ids):
-                col_id = f"#{idx + 1}"
+                col_id = fixed_col_id
                 base_label = self._doc_fixed_column_label(fixed_col_id)
                 if fixed_col_id == self._doc_selected_fixed_column_id:
                     label = f"> {base_label}"
@@ -2174,7 +2176,7 @@ class KartographMainWindow(tk.Tk):
                 col_index = -1
             if 0 <= col_index < len(self._doc_fixed_column_ids):
                 self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[col_index]
-                self._refresh_doc_selection_status()
+                self._apply_doc_column_heading_highlight()
 
     def _on_docs_right_tree_double_click(self, event) -> None:
         row_id = self.docs_right_tree.identify_row(event.y)
@@ -2192,7 +2194,7 @@ class KartographMainWindow(tk.Tk):
             return
         fixed_column_id = self._doc_fixed_column_ids[col_index]
         self._doc_selected_fixed_column_id = fixed_column_id
-        self._refresh_doc_selection_status()
+        self._apply_doc_column_heading_highlight()
         if fixed_column_id.startswith("grade_"):
             self._open_docs_inline_grade_editor(row_id, fixed_column_id)
 
@@ -2210,7 +2212,7 @@ class KartographMainWindow(tk.Tk):
             grade_columns = [item for item in self._doc_fixed_column_ids if item.startswith("grade_")]
             if grade_columns:
                 self._doc_selected_fixed_column_id = grade_columns[0]
-        self._refresh_doc_selection_status()
+        self._apply_doc_column_heading_highlight()
 
     def _set_docs_row_selection(self, row_id: str, source: str | None = None) -> None:
         if not row_id:
@@ -2265,18 +2267,20 @@ class KartographMainWindow(tk.Tk):
 
         if delta > 0:
             if self._doc_selected_fixed_column_id is None:
-                if self._doc_fixed_column_ids:
+                if self._doc_dates and self._doc_selected_date_index < len(self._doc_dates) - 1:
+                    self._doc_selected_date_index += 1
+                elif self._doc_fixed_column_ids:
                     self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[0]
-                self._refresh_doc_selection_status()
+                self._apply_doc_column_heading_highlight()
                 return "break"
             if self._doc_selected_fixed_column_id not in self._doc_fixed_column_ids:
                 self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[0] if self._doc_fixed_column_ids else None
-                self._refresh_doc_selection_status()
+                self._apply_doc_column_heading_highlight()
                 return "break"
             idx = self._doc_fixed_column_ids.index(self._doc_selected_fixed_column_id)
             if idx < len(self._doc_fixed_column_ids) - 1:
                 self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[idx + 1]
-            self._refresh_doc_selection_status()
+            self._apply_doc_column_heading_highlight()
             return "break"
 
         if self._doc_selected_fixed_column_id is None:
@@ -2287,14 +2291,14 @@ class KartographMainWindow(tk.Tk):
 
         if self._doc_selected_fixed_column_id not in self._doc_fixed_column_ids:
             self._doc_selected_fixed_column_id = None
-            self._refresh_doc_selection_status()
+            self._apply_doc_column_heading_highlight()
             return "break"
         idx = self._doc_fixed_column_ids.index(self._doc_selected_fixed_column_id)
         if idx > 0:
             self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[idx - 1]
         else:
             self._doc_selected_fixed_column_id = None
-        self._refresh_doc_selection_status()
+        self._apply_doc_column_heading_highlight()
         return "break"
 
     def rename_selected_documentation_date_dialog(self) -> None:
@@ -2317,6 +2321,7 @@ class KartographMainWindow(tk.Tk):
     def select_today_documentation_date(self) -> None:
         if not self._doc_dates:
             return
+        self._doc_selected_fixed_column_id = None
         today = self._today_doc_date()
         if today in self._doc_dates:
             self._doc_selected_date_index = self._doc_dates.index(today)
@@ -4051,3 +4056,4 @@ class KartographMainWindow(tk.Tk):
         finally:
             if self.winfo_exists():
                 self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
+
