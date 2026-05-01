@@ -50,6 +50,7 @@ The format is based on Keep a Changelog.
 - Im Dokumentations-Symboldialog gibt es jetzt eine explizite Aktion `Loeschen`, die das ausgewaehlte Symbol fuer die aktive Doku-Zelle direkt auf 0 setzt.
 - Im Dokumentations-Symboldialog waehlen `1-9` (inkl. Numpad) jetzt direkt die entsprechenden Symbolzeilen.
 - Im Dokumentations-Symboldialog loeschen jetzt auch `Entf` und `Backspace` direkt das aktuell ausgewaehlte Symbol.
+- Im Dokumentations-Symboldialog loest jetzt auch `0` (inkl. Numpad) direkt die Loeschen-Aktion fuer das ausgewaehlte Symbol aus.
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

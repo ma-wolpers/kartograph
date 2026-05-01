@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Im Dokumentations-Symboldialog loest jetzt auch `0` (inkl. Numpad) direkt die Loeschen-Aktion fuer das ausgewaehlte Symbol aus.
 - Der Dokumentations-Symboldialog unterstuetzt jetzt `Entf` und `Backspace` als Tastaturaktion fuer das direkte Loeschen des aktuell ausgewaehlten Symbols.
 - Im Dokumentations-Symboldialog waehlen `1-9` (inkl. Numpad) jetzt direkt die entsprechenden Symbolzeilen fuer schnellere Tastaturbedienung.
 - Der Dokumentations-Symboldialog bietet jetzt zusaetzlich eine explizite Aktion `Loeschen`, die das ausgewaehlte Symbol fuer die aktive Doku-Zelle auf 0 setzt.
