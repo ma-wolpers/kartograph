@@ -41,6 +41,7 @@ from app.core.usecases.plan_usecases import (
     set_color_meaning,
     set_documentation_grade,
     set_documentation_symbol,
+    set_grade_weighting,
     set_teacher_desk,
     summarize_latest_symbols_for_student,
     toggle_color_marker,
@@ -530,6 +531,11 @@ class KartographMainWindow(tk.Tk):
             self.docs_toolbar,
             text="Notenspalte hinzufügen",
             command=lambda: self._handle_intent(UiIntent.ADD_GRADE_COLUMN),
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            self.docs_toolbar,
+            text="Gewichtung",
+            command=self.configure_grade_weighting_dialog,
         ).pack(side="left", padx=(8, 0))
         ttk.Button(
             self.docs_toolbar,
@@ -1796,6 +1802,38 @@ class KartographMainWindow(tk.Tk):
             messagebox.showerror("Ungueltige Eingabe", "Bitte ein Symbol aus der Liste eingeben.", parent=self)
             return
         self._toggle_documentation_symbol(symbol_name)
+
+    def configure_grade_weighting_dialog(self) -> None:
+        if not self.current_plan:
+            return
+
+        written_text = simpledialog.askstring(
+            "Gewichtung",
+            "Anteil schriftlich in %:",
+            parent=self,
+            initialvalue=str(self.current_plan.written_weight_percent),
+        )
+        if written_text is None:
+            return
+        sonstige_text = simpledialog.askstring(
+            "Gewichtung",
+            "Anteil sonstig in %:",
+            parent=self,
+            initialvalue=str(self.current_plan.sonstige_weight_percent),
+        )
+        if sonstige_text is None:
+            return
+
+        try:
+            written_percent = int(written_text.strip())
+            sonstige_percent = int(sonstige_text.strip())
+        except ValueError:
+            messagebox.showerror("Ungueltige Eingabe", "Bitte ganze Prozentzahlen eingeben.", parent=self)
+            return
+
+        updated = set_grade_weighting(self.current_plan, written_percent, sonstige_percent)
+        self._record_and_save(updated, "documentation.weighting.set", "Gewichtung aktualisiert")
+        self._refresh_documentation_table()
 
     def open_selected_plan_from_list(self) -> None:
         self._ensure_list_selection()
