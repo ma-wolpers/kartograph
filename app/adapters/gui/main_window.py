@@ -1900,6 +1900,9 @@ class KartographMainWindow(tk.Tk):
         frame.pack(fill="both", expand=True, padx=12, pady=12)
 
         ttk.Label(frame, text="Symbol auswählen").pack(anchor="w", pady=(0, 6))
+        ttk.Label(frame, text="Tastatur: Enter uebernimmt, Esc schliesst", foreground="#666666").pack(
+            anchor="w", pady=(0, 6)
+        )
 
         symbol_listbox = tk.Listbox(frame, selectmode="browse", exportselection=False, font=("Segoe UI", 11))
         symbol_listbox.pack(fill="both", expand=True)

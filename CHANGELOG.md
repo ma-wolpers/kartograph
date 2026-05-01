@@ -46,6 +46,7 @@ The format is based on Keep a Changelog.
 - Im Dokumentations-Symboldialog uebernimmt jetzt auch `Numpad-Enter` die aktuelle Symbolauswahl.
 - Bei leerem Symbolkatalog zeigt der Dokumentations-Symboldialog jetzt eine direkte Hinweismeldung statt eines leeren Dialogfensters.
 - Beim Oeffnen des Dokumentations-Symboldialogs wird jetzt bevorzugt das bereits aktive Symbol der aktuell markierten Doku-Zelle vorselektiert.
+- Der Dokumentations-Symboldialog zeigt jetzt einen sichtbaren Tastaturhinweis fuer `Enter` (uebernehmen) und `Esc` (schliessen).
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.
