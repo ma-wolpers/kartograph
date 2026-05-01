@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Pfeilnavigation um konfigurierbaren Sichtfenster-Puffer erweitert (`viewport_follow_buffer`): bei Wert 0 bleibt das bisherige Zentrierverhalten, bei Wert 1 folgt die Karte erst nach Verlassen des mittleren 3x3 Bereichs.
 - Grid-Rendering erweitert: die berechnete Gesamtnote wird je Schuelertisch oben links in der Kachel angezeigt.
 - Raster-Symbolaenderungen werden jetzt direkt als heutiger Dokumentationseintrag gespiegelt, damit Raster-Buttons/Shortcuts die Dokuhistorie synchron fortschreiben.
 - Symbol-Shortcuts in der Dokumentationssicht verdrahtet: Tastaturtasten aktualisieren jetzt die aktuell markierte Tageszelle (4er-Zyklus 0->1->2->3->0) analog zum Sitzraster.

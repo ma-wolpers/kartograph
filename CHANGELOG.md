@@ -24,6 +24,7 @@ The format is based on Keep a Changelog.
 - Symbol-Shortcuts funktionieren jetzt auch in der Dokumentationsansicht und schreiben direkt in die markierte Tageszelle.
 - Symbolaenderungen im Sitzraster werden jetzt automatisch als heutiger Dokumentationseintrag uebernommen.
 - In der Sitzrasteransicht wird die berechnete Gesamtnote je Schuelertisch oben links eingeblendet.
+- In den Einstellungen gibt es jetzt einen Sichtfenster-Puffer fuer Pfeilnavigation (0 = bisheriges Verhalten, 1 = Bewegung erst ausserhalb des mittleren 3x3 Bereichs).
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

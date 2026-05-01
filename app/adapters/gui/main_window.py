@@ -54,6 +54,7 @@ MIN_CANVAS_RADIUS = 1
 DEFAULT_CANVAS_RADIUS = 50
 DEFAULT_CELL_SIZE = 92
 DEFAULT_SYMBOL_STRENGTH = 1
+DEFAULT_VIEWPORT_FOLLOW_BUFFER = 0
 DEFAULT_DETAILS_OVERLAY_POSITION = "bottom"
 DEFAULT_TABLEGROUP_OVERLAY_POSITION = "right"
 LIST_ACTIVE = "list_active"
@@ -134,6 +135,9 @@ class KartographMainWindow(tk.Tk):
         self.theme_key = normalize_theme_key(self._settings.get("theme"))
         self.canvas_radius = self._normalize_canvas_radius(self._settings.get("canvas_radius"))
         self.symbol_strength = self._normalize_symbol_strength(self._settings.get("symbol_strength"))
+        self.viewport_follow_buffer = self._normalize_viewport_follow_buffer(
+            self._settings.get("viewport_follow_buffer")
+        )
         self.details_overlay_position = self._normalize_details_overlay_position(
             self._settings.get("details_overlay_position")
         )
@@ -674,6 +678,13 @@ class KartographMainWindow(tk.Tk):
         except (TypeError, ValueError):
             parsed = DEFAULT_SYMBOL_STRENGTH
         return max(0, min(2, parsed))
+
+    def _normalize_viewport_follow_buffer(self, value: object) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            parsed = DEFAULT_VIEWPORT_FOLLOW_BUFFER
+        return max(0, min(5, parsed))
 
     def _normalize_details_overlay_position(self, value: object) -> str:
         normalized = str(value or "").strip().lower()
@@ -1998,6 +2009,20 @@ class KartographMainWindow(tk.Tk):
         )
         symbol_strength_combo.pack(side="left", padx=(10, 0))
 
+        follow_row = ttk.Frame(frame)
+        follow_row.pack(fill="x", pady=(0, 12))
+        ttk.Label(follow_row, text="Sichtfenster-Puffer (0-5)").pack(side="left")
+        follow_buffer_var = tk.StringVar(value=str(self.viewport_follow_buffer))
+        follow_spin = ttk.Spinbox(
+            follow_row,
+            from_=0,
+            to=5,
+            textvariable=follow_buffer_var,
+            width=8,
+        )
+        follow_spin.pack(side="left", padx=(10, 0))
+        ttk.Label(follow_row, text="0 = immer zentrieren, 1 = 3x3-Zentrum").pack(side="left", padx=(10, 0))
+
         def save() -> None:
             selected_path = Path(path_var.get().strip() or str(self.default_plans_dir))
             selected_path.mkdir(parents=True, exist_ok=True)
@@ -2020,6 +2045,8 @@ class KartographMainWindow(tk.Tk):
             self._settings["canvas_radius"] = new_radius
             self.symbol_strength = symbol_strength_values.get(symbol_strength_var.get(), DEFAULT_SYMBOL_STRENGTH)
             self._settings["symbol_strength"] = self.symbol_strength
+            self.viewport_follow_buffer = self._normalize_viewport_follow_buffer(follow_buffer_var.get())
+            self._settings["viewport_follow_buffer"] = self.viewport_follow_buffer
             self.settings_repository.save_settings(self._settings)
             self._update_scroll_region()
             self._set_selection_single(*self.selection.active_cell())
@@ -2525,7 +2552,7 @@ class KartographMainWindow(tk.Tk):
         x, y = self.selection.active_cell()
         self._set_selection_single(x + dx, y + dy)
         self.interaction_mode = GRID_SELECTED
-        self.center_on_cell(*self.selection.active_cell())
+        self._follow_selection_viewport(*self.selection.active_cell())
         self.redraw_grid()
         self._refresh_details_panel()
 
@@ -2536,9 +2563,36 @@ class KartographMainWindow(tk.Tk):
         x, y = self.selection.active_cell()
         self._set_selection_focus(x + dx, y + dy)
         self.interaction_mode = GRID_SELECTED
-        self.center_on_cell(*self.selection.active_cell())
+        self._follow_selection_viewport(*self.selection.active_cell())
         self.redraw_grid()
         self._refresh_details_panel()
+
+    def _follow_selection_viewport(self, x: int, y: int) -> None:
+        buffer_cells = self.viewport_follow_buffer
+        if buffer_cells <= 0:
+            self.center_on_cell(x, y)
+            return
+
+        self.update_idletasks()
+        width = max(1, self.canvas.winfo_width())
+        height = max(1, self.canvas.winfo_height())
+
+        left_cell = int(self.canvas.canvasx(0) // self.cell_size)
+        right_cell = int(self.canvas.canvasx(width - 1) // self.cell_size)
+        top_cell = int(self.canvas.canvasy(0) // self.cell_size)
+        bottom_cell = int(self.canvas.canvasy(height - 1) // self.cell_size)
+
+        if right_cell - left_cell < buffer_cells * 2 or bottom_cell - top_cell < buffer_cells * 2:
+            self.center_on_cell(x, y)
+            return
+
+        safe_min_x = left_cell + buffer_cells
+        safe_max_x = right_cell - buffer_cells
+        safe_min_y = top_cell + buffer_cells
+        safe_max_y = bottom_cell - buffer_cells
+
+        if x < safe_min_x or x > safe_max_x or y < safe_min_y or y > safe_max_y:
+            self.center_on_cell(x, y)
 
     def handle_escape(self) -> None:
         if self._is_name_entry_focused():
