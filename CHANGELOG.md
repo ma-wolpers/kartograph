@@ -11,8 +11,12 @@ The format is based on Keep a Changelog.
 - Neues Tischeinstellungen-Overlay rechts per `Strg+T` mit TG-Nummer, x-shift, y-shift und Rotation.
 - Farbpunkte fuer Schuelertische: pro Tisch koennen per Tastatur `1..9` oder per Farbbuttons Marker in neun Farben gesetzt/entfernt werden (Gelb, Orange, Rot, Magenta, Lila, Marine, Cyan, Tuerkis, Gruen).
 - Bei der ersten Nutzung einer Farbe in einem Plan fragt Kartograph die Bedeutung ab und zeigt sie als eigene Legendenzeile; wird der letzte Marker dieser Farbe entfernt, verschwindet die Bedeutungszeile automatisch.
+- Grundlagen fuer die neue Dokumentationssicht sind vorhanden: Plandateien nutzen jetzt JSON v3 mit tagesbezogener Dokumentationsstruktur, Notenspalten-Definitionen und lerngruppenspezifischer Gewichtung schriftlich/sonstig.
+- Neue Dokumentations-Use-Cases sind eingefuehrt (Datum anlegen/umbenennen, Symbol-/Notenwerte setzen, Symbolzusammenfassung, Gesamtnotenanzeige).
 
 ### Changed
+- Leere Dokumentationstage werden beim Speichern nicht persistiert; ein Tagesdatum bleibt bis zur ersten Inhalteingabe volatil.
+- Beim Verschieben/Kopieren von Schuelertischen bleiben tagesbezogene Dokumentationseintraege jetzt erhalten.
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

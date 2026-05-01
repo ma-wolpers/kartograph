@@ -11,6 +11,9 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Tischgruppen werden im Domain-Layer als Zusammenhangskomponenten (4er-Nachbarschaft) aus Schuelertischen berechnet; Lehrertische sind ausgeschlossen. Leere Schuelertische koennen Teil einer benannten Tischgruppe sein, duerfen aber keine eigene Tischgruppe bilden.
 - Pro Tischgruppe werden Metadaten (TG-Nummer, x/y-Shift, Rotation) pro Schuelertisch persistiert und bei allen Planmutationen normalisiert.
 - Pro Schuelertisch werden optionale Farbmarker (`color_markers`) persistiert; planweit werden Farb-Bedeutungen (`color_meanings`) gefuehrt.
+- Das Planmodell wurde auf JSON v3 erweitert: planweit werden Dokumentationstage (`documentation.dates`), Notenspalten (`documentation.grade_columns`) und Gewichtung schriftlich/sonstig (`documentation.grade_weighting`) gehalten.
+- Pro Schuelertisch koennen tagesbasierte Dokumentationseintraege (`documentation_entries`) gespeichert werden mit Symbolstaerken, Notenwerten und optionaler Notiz.
+- Leere Tageskontexte bleiben volatil: Beim Speichern werden nur Dokumentationstage persistiert, die mindestens einen inhaltlichen Eintrag enthalten.
 - Sitzplaene werden als JSON-Dateien in `plans/` abgelegt.
 - Symboldefinitionen werden aus `config/symbols.json` gelesen und validiert.
 - PDF-Export wird ueber einen dedizierten Infrastructure-Exporter umgesetzt.

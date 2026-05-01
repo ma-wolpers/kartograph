@@ -13,6 +13,11 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- JSON-Repository auf Format v3 erweitert: neue Sektion `documentation` (Tage, Notenspalten, Gewichtung), tagesbezogene Desk-Eintraege (`documentation_entries`) sowie abwaertskompatibles Laden bestehender v2-Plaene.
+- Persistenzregel fuer Tageskontexte umgesetzt: Dokumentationstage ohne Inhalt werden nicht in JSON geschrieben (volatile Tagesspalten bleiben bis zur ersten echten Eingabe unsaved).
+- Domainmodell erweitert um `DocumentationEntry` und `GradeColumnDefinition`; `Desk` traegt jetzt tagesbezogene Dokumentationsdaten, `SeatingPlan` planweite Notenspalten-/Gewichtungsmetadaten.
+- Use-Case-Layer um Dokumentations-/Notenfunktionen erweitert (Datum anlegen/umbenennen, Symbol-/Notenwerte setzen, Symbolzusammenfassung je Schueler, Gesamtnotenanzeige nach Rundungs- und Gewichtungsregeln).
+- Clipboard- und Teacher-Move-Pfade uebernehmen jetzt auch Dokumentationseintraege, damit keine tagesbezogenen Informationen bei Strukturaktionen verloren gehen.
 - Tischgruppen-Normalisierung erweitert: leere Schuelertische koennen in benannten Tischgruppen mitlaufen; Komponenten ohne mindestens einen benannten Schuelertisch werden weiterhin zwingend auf TG 0 zurueckgesetzt.
 - Tischgruppen-Transformationen und TG-Nachschlagefunktionen greifen jetzt fuer alle Schuelertische einer Gruppe (inklusive leerer Tische), damit Shift/Rotation konsistent auf die gesamte Gruppe wirken.
 - Der aktive Markierungsrahmen im Grid-Rendering basiert jetzt auf transformierten Tischpolygonen statt auf starren Grid-Bounds, damit die Auswahl bei verschobenen/rotierten Gruppen korrekt auf dem Tisch liegt.
@@ -65,6 +70,7 @@ Regel:
 - Beim Oeffnen eines Plans erscheint jetzt eine Warnung, wenn enthaltene Schuelertische ausserhalb des aktuell eingestellten Canvas-Radius liegen und daher nicht dargestellt werden koennen.
 
 ### Added
+- Neue Tests fuer Dokumentations-Use-Cases und JSON-v3-Serialisierung/Migration (`tests/test_documentation_usecases.py`, `tests/test_json_repository_documentation.py`).
 - `app/infrastructure/symbol_config_loader.py` fuer Schema-Pruefung und Laden der Symbolkonfiguration.
 - `app/infrastructure/exporters/pdf_exporter.py` fuer PDF-Ausgabe ohne Rasterlinien und mit klaren Tischrahmen.
 - `docs/TODO.md` mit offenem Hinweis zur spaeteren Warnung bzgl. Standardperspektive (Lehrertisch unten).

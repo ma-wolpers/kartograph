@@ -46,6 +46,7 @@ class DeskClipboard:
                 tablegroup_shift_x=desk.tablegroup_shift_x,
                 tablegroup_shift_y=desk.tablegroup_shift_y,
                 tablegroup_rotation=desk.tablegroup_rotation,
+                documentation_entries=deepcopy(desk.documentation_entries),
             )
 
         return len(self._payload)
@@ -102,6 +103,7 @@ class DeskClipboard:
                     tablegroup_shift_x=source.tablegroup_shift_x,
                     tablegroup_shift_y=source.tablegroup_shift_y,
                     tablegroup_rotation=source.tablegroup_rotation,
+                    documentation_entries=deepcopy(source.documentation_entries),
                 )
             )
             pasted_count += 1
