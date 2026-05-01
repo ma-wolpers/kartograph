@@ -1848,7 +1848,9 @@ class KartographMainWindow(tk.Tk):
         if not selected:
             return
         row_id = selected[0]
-        self._set_docs_row_selection(row_id)
+        right_selected = self.docs_right_tree.selection()
+        if not right_selected or right_selected[0] != row_id:
+            self._set_docs_row_selection(row_id)
         for student_idx, iid in self._doc_tree_iid_by_student_index.items():
             if iid == row_id:
                 self._doc_selected_student_index = student_idx
@@ -1867,9 +1869,16 @@ class KartographMainWindow(tk.Tk):
         if not selected:
             return
         row_id = selected[0]
-        self._set_docs_row_selection(row_id)
+        left_selected = self.docs_tree.selection()
+        if not left_selected or left_selected[0] != row_id:
+            self._set_docs_row_selection(row_id)
 
     def _set_docs_row_selection(self, row_id: str) -> None:
+        left_selected = self.docs_tree.selection()
+        right_selected = self.docs_right_tree.selection()
+        if left_selected and right_selected and left_selected[0] == row_id and right_selected[0] == row_id:
+            return
+
         self._syncing_docs_selection = True
         try:
             self.docs_tree.selection_set(row_id)
