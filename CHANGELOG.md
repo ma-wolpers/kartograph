@@ -30,6 +30,7 @@ The format is based on Keep a Changelog.
 - Ueber "Symbole filtern" laesst sich nun festlegen, welche Symbole im Sitzraster angezeigt werden (Standard: alle sichtbar).
 - In der Dokumentationsansicht koennen Noten jetzt direkt fuer markierte Schueler-/Datumseintraege gesetzt oder geloescht werden (Button oder `Strg+G`).
 - Zusammenfassung, Notenspalten und Gesamtnote bleiben in der Dokumentationsansicht jetzt rechts fix sichtbar, waehrend Datums-Spalten horizontal scrollen.
+- Symbole in der Dokumentationsansicht lassen sich jetzt auch per Button/Dialog setzen (zusaetzlich zu Shortcuts).
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

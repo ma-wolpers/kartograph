@@ -533,6 +533,11 @@ class KartographMainWindow(tk.Tk):
         ).pack(side="left", padx=(8, 0))
         ttk.Button(
             self.docs_toolbar,
+            text="Symbol setzen",
+            command=self.set_selected_documentation_symbol_dialog,
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            self.docs_toolbar,
             text="Note setzen (Strg+G)",
             command=self.set_selected_documentation_grade_dialog,
         ).pack(side="left", padx=(8, 0))
@@ -1774,6 +1779,23 @@ class KartographMainWindow(tk.Tk):
         updated = set_documentation_grade(self.current_plan, x, y, column.column_id, grade_value, date_key)
         self._record_and_save(updated, "documentation.grade.set", "Note aktualisiert")
         self._refresh_documentation_table()
+
+    def set_selected_documentation_symbol_dialog(self) -> None:
+        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+            return
+
+        selected_symbol = simpledialog.askstring(
+            "Symbol setzen",
+            "Symbol auswählen (Name):\n" + "\n".join(self.symbol_catalog),
+            parent=self,
+        )
+        if selected_symbol is None:
+            return
+        symbol_name = selected_symbol.strip()
+        if symbol_name not in self.symbol_catalog:
+            messagebox.showerror("Ungueltige Eingabe", "Bitte ein Symbol aus der Liste eingeben.", parent=self)
+            return
+        self._toggle_documentation_symbol(symbol_name)
 
     def open_selected_plan_from_list(self) -> None:
         self._ensure_list_selection()
