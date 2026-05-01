@@ -20,6 +20,7 @@ The format is based on Keep a Changelog.
 - Bei geoeffnetem Plan erstellt Kartograph zusaetzlich alle 5 Minuten automatisch ein Snapshot-Backup im selben AppData-Backupbereich.
 
 ### Changed
+- Die Startinitialisierung der Planliste laeuft jetzt im ersten Event-Loop-Tick; dadurch reagiert das Fenster beim Oeffnen wieder stabil und bleibt nicht im Zustand "Keine Rueckmeldung" haengen.
 - Beim Start wird das Hauptfenster wieder automatisch auf dem Bildschirm zentriert.
 - Startfehler werden jetzt mit einer klaren Fehlermeldung angezeigt, statt dass Kartograph ohne Hinweis abrupt beendet wird.
 - Leere Dokumentationstage werden beim Speichern nicht persistiert; ein Tagesdatum bleibt bis zur ersten Inhalteingabe volatil.

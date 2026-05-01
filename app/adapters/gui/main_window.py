@@ -196,9 +196,12 @@ class KartographMainWindow(tk.Tk):
         self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
 
         self.apply_theme()
+        self.after(0, self._complete_startup)
+
+    def _complete_startup(self) -> None:
         self.refresh_plan_list()
         self.show_plan_list_view()
-        self.after_idle(self._center_window_on_screen)
+        self._center_window_on_screen()
 
     def _center_window_on_screen(self) -> None:
         self.update_idletasks()
