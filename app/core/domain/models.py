@@ -38,6 +38,12 @@ class Desk:
     tablegroup_rotation: float = 0.0
     documentation_entries: dict[str, DocumentationEntry] = field(default_factory=dict)
 
+    def is_student(self) -> bool:
+        return self.desk_type == "student"
+
+    def is_named_student(self) -> bool:
+        return self.is_student() and bool(self.student_name.strip())
+
 
 @dataclass(slots=True)
 class SeatingPlan:

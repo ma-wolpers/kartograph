@@ -67,3 +67,38 @@ def test_grade_display_partial_data_in_parentheses() -> None:
     display = compute_grade_display_for_student(plan, 1, 1)
 
     assert display == "(2)"
+
+
+def test_documentation_symbols_ignore_unnamed_student_desks() -> None:
+    plan = SeatingPlan(
+        version=3,
+        plan_id="test",
+        name="Klasse 7A",
+        desks=[
+            Desk(x=0, y=0, desk_type="teacher"),
+            Desk(x=1, y=1, desk_type="student", student_name=""),
+        ],
+    )
+
+    updated = set_documentation_symbol(plan, 1, 1, "Beteiligung", 2, "2026-05-01")
+    desk = updated.desk_at(1, 1)
+    assert desk is not None
+    assert desk.documentation_entries == {}
+
+
+def test_grade_display_empty_for_unnamed_student_desks() -> None:
+    plan = SeatingPlan(
+        version=3,
+        plan_id="test",
+        name="Klasse 7A",
+        desks=[
+            Desk(x=0, y=0, desk_type="teacher"),
+            Desk(x=1, y=1, desk_type="student", student_name=""),
+        ],
+    )
+    plan, written_col = add_grade_column(plan, "schriftlich", "KA 1")
+    plan = set_documentation_grade(plan, 1, 1, written_col, 3.0, "2026-05-01")
+
+    display = compute_grade_display_for_student(plan, 1, 1)
+
+    assert display == ""

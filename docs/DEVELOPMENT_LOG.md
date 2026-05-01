@@ -13,6 +13,11 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Dokumentations- und Notenlogik behandelt jetzt nur noch benannte Schuelertische als fachliche Schueler; leere Tische bleiben fuer Struktur/Farben erhalten, erscheinen aber nicht mehr in Dokuzeilen und erhalten keine Doku-/Notenwerte.
+- Symbolkonfiguration um Rollen erweitert (`diagnostic` vs. `documentation_only`); `X` und `∅` sind jetzt dokumentations-only.
+- Grid-Diagnosepfad trennt jetzt Symbolrollen: dokumentations-only Symbole werden nicht mehr als Diagnose-Symbole getoggelt, aber im Raster weiterhin angezeigt, wenn sie am heutigen Doku-Tag gesetzt sind.
+- Shortcut-Gating auf Fokuskontext erweitert: bei aktivem Text-/Dialogfokus werden globale Symbol-/Farb-Shortcuts und Doku-Aktionsshortcuts nicht mehr ausgewertet.
+- `Entf` in der Dokuansicht loescht jetzt direkt den aktuell markierten Doku-Symboleintrag (statt nur zu blocken).
 - Einstieg ueber `kartograph.py` wurde fuer Fehlerdiagnose gehaertet: Import-/Bootstrap-Ausnahmen werden jetzt frueh in `Temp/logs/kartograph_bootstrap_failures.log` geschrieben.
 - GUI-Diagnostik erweitert: ein Mainloop-Watchdog protokolliert verzoegerte UI-Ticks, und `open_plan`/Doku-Tabellenaufbau schreiben jetzt Laufzeitmarken ins Startup-Log.
 - Der Doku-Selektionspfad wurde gegen Re-Entry gehaertet: links/rechts synchronisieren jetzt source-aware und idempotent, redundante `selection_set`-Aufrufe entfallen, und stale IIDs werden vor Sync verworfen.

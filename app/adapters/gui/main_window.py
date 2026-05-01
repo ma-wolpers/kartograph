@@ -190,6 +190,10 @@ class KartographMainWindow(tk.Tk):
 
         self.symbol_definitions, warning = self._load_symbols()
         self.symbol_catalog = [item.meaning for item in self.symbol_definitions]
+        self.diagnostic_symbol_catalog = [item.meaning for item in self.symbol_definitions if item.role == "diagnostic"]
+        self._documentation_only_symbols = {
+            item.meaning for item in self.symbol_definitions if item.role == "documentation_only"
+        }
         self._symbol_by_meaning = {item.meaning: item for item in self.symbol_definitions}
         self._shortcut_to_symbol = self._build_symbol_shortcut_map(self.symbol_definitions)
         self._grid_visible_symbols = self._normalize_grid_visible_symbols(
@@ -805,11 +809,16 @@ class KartographMainWindow(tk.Tk):
         if self.interaction_mode == LIST_ACTIVE:
             return self._handle_intent(UiIntent.DELETE_SELECTED_PLAN)
         if self._editor_surface == "docs":
+            if self._is_text_input_focused():
+                return None
+            self.clear_selected_documentation_symbol()
             return "break"
         return self._handle_intent(UiIntent.DELETE_DESK)
 
     def _on_set_grade_shortcut(self, _event) -> str | None:
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
+            return None
+        if self._is_text_input_focused():
             return None
         self.set_selected_documentation_grade_dialog()
         return "break"
@@ -817,11 +826,15 @@ class KartographMainWindow(tk.Tk):
     def _on_set_symbol_shortcut(self, _event) -> str | None:
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
             return None
+        if self._is_text_input_focused():
+            return None
         self.set_selected_documentation_symbol_dialog()
         return "break"
 
     def _on_clear_symbol_shortcut(self, _event) -> str | None:
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
+            return None
+        if self._is_text_input_focused():
             return None
         self.clear_selected_documentation_symbol()
         return "break"
@@ -858,6 +871,8 @@ class KartographMainWindow(tk.Tk):
     def _on_docs_prev_date_shortcut(self, _event) -> str | None:
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
             return None
+        if self._is_text_input_focused():
+            return None
         if not self._doc_dates:
             return "break"
         self._doc_selected_date_index = max(0, self._doc_selected_date_index - 1)
@@ -867,6 +882,8 @@ class KartographMainWindow(tk.Tk):
     def _on_docs_next_date_shortcut(self, _event) -> str | None:
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
             return None
+        if self._is_text_input_focused():
+            return None
         if not self._doc_dates:
             return "break"
         self._doc_selected_date_index = min(len(self._doc_dates) - 1, self._doc_selected_date_index + 1)
@@ -875,6 +892,8 @@ class KartographMainWindow(tk.Tk):
 
     def _on_docs_today_shortcut(self, _event) -> str | None:
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
+            return None
+        if self._is_text_input_focused():
             return None
         self.select_today_documentation_date()
         return "break"
@@ -1005,7 +1024,7 @@ class KartographMainWindow(tk.Tk):
         return plan
 
     def _on_return_key(self, _event) -> str | None:
-        if self._is_name_entry_focused():
+        if self._is_text_input_focused():
             return "break"
         if self.editor_view.winfo_ismapped():
             if self._editor_surface == "docs":
@@ -1047,6 +1066,24 @@ class KartographMainWindow(tk.Tk):
 
     def _is_name_entry_focused(self) -> bool:
         return self.focus_get() == self.name_entry
+
+    def _is_text_input_focused(self) -> bool:
+        focused_widget = self.focus_get()
+        if focused_widget is None:
+            return False
+
+        widget_class = str(focused_widget.winfo_class())
+        if widget_class in {"Entry", "TEntry", "Text", "Spinbox", "Listbox", "TCombobox", "Combobox"}:
+            return True
+
+        if self._is_tablegroup_overlay_focused():
+            return True
+
+        focused_toplevel = focused_widget.winfo_toplevel()
+        if isinstance(focused_toplevel, tk.Toplevel) and focused_toplevel is not self:
+            return True
+
+        return False
 
     def _is_tablegroup_overlay_focused(self) -> bool:
         if not self._tablegroup_overlay or not self._tablegroup_overlay.winfo_exists():
@@ -1317,9 +1354,7 @@ class KartographMainWindow(tk.Tk):
         return mapping
 
     def _on_symbol_shortcut(self, _event, symbol_name: str) -> str | None:
-        if self._is_name_entry_focused():
-            return None
-        if self._is_tablegroup_overlay_focused():
+        if self._is_text_input_focused():
             return None
         # Ignore control/alt-modified keys so shortcuts like Ctrl+C remain unaffected.
         if _event.state & 0x0004 or _event.state & 0x0008:
@@ -1335,14 +1370,14 @@ class KartographMainWindow(tk.Tk):
 
         if self._editor_surface != "grid":
             return None
+        if symbol_name not in self.diagnostic_symbol_catalog:
+            return None
 
         self._toggle_selected_symbol(symbol_name)
         return "break"
 
     def _on_color_shortcut(self, event, color_key: str) -> str | None:
-        if self._is_name_entry_focused():
-            return None
-        if self._is_tablegroup_overlay_focused():
+        if self._is_text_input_focused():
             return None
         if event.state & 0x0004 or event.state & 0x0008:
             return None
@@ -1667,11 +1702,26 @@ class KartographMainWindow(tk.Tk):
             }
         summary = summarize_latest_symbols_for_student(self.current_plan, x, y)
         source = summary if summary else dict(fallback_symbols)
-        return {
+        effective = {
             key: value
             for key, value in source.items()
+            if key not in self._documentation_only_symbols
             if key in self._grid_visible_symbols
         }
+
+        desk = self.current_plan.desk_at(x, y)
+        today_entry = None
+        if desk and desk.is_named_student():
+            today_entry = desk.documentation_entries.get(self._today_doc_date())
+        if today_entry:
+            for key, value in today_entry.symbols.items():
+                if key not in self._documentation_only_symbols:
+                    continue
+                if key not in self._grid_visible_symbols:
+                    continue
+                effective[key] = int(value)
+
+        return effective
 
     def open_grid_symbol_filter_dialog(self) -> None:
         dialog = self._create_overlay_dialog("Sichtbare Symbole", "420x480")
@@ -1753,7 +1803,7 @@ class KartographMainWindow(tk.Tk):
         self._doc_student_coords = [
             (desk.x, desk.y)
             for desk in sorted(self.current_plan.desks, key=lambda item: (item.y, item.x))
-            if desk.desk_type == "student"
+            if desk.is_named_student()
         ]
 
         all_dates = sorted(set(self.current_plan.documentation_dates) | {self._today_doc_date()})
@@ -3355,13 +3405,13 @@ class KartographMainWindow(tk.Tk):
 
         ttk.Label(self.symbols_frame, text="Symbole").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
         symbol_cols = self._details_button_columns()
-        for symbol in self.symbol_catalog:
+        for symbol in self.diagnostic_symbol_catalog:
             count = int(desk.symbols.get(symbol, 0))
             icon = self._symbol_glyph(symbol)
             shortcut = self._symbol_by_meaning.get(symbol).shortcut if self._symbol_by_meaning.get(symbol) else None
             shortcut_suffix = f" [{shortcut.upper()}]" if shortcut else ""
             caption = f"{icon} {symbol}{shortcut_suffix}" if count == 0 else f"{icon} {symbol} x{count}{shortcut_suffix}"
-            idx = self.symbol_catalog.index(symbol)
+            idx = self.diagnostic_symbol_catalog.index(symbol)
             row = 1 + (idx // symbol_cols)
             col = idx % symbol_cols
             button = ttk.Button(
@@ -3445,8 +3495,11 @@ class KartographMainWindow(tk.Tk):
 
         x, y = self.selected_cell
         desk = self.current_plan.desk_at(x, y)
-        if not desk or desk.desk_type != "student":
+        if not desk or not desk.is_named_student():
             self.status_var.set("Symbol nur für Schülertische")
+            return
+        if symbol not in self.diagnostic_symbol_catalog:
+            self.status_var.set("Dieses Symbol ist nur fuer die Dokumentation verfuegbar")
             return
 
         next_plan = toggle_symbol(self.current_plan, x, y, symbol)
@@ -3469,7 +3522,7 @@ class KartographMainWindow(tk.Tk):
         date_key = self._doc_dates[date_index]
 
         desk = self.current_plan.desk_at(x, y)
-        if not desk or desk.desk_type != "student":
+        if not desk or not desk.is_named_student():
             return
 
         entry = desk.documentation_entries.get(date_key)
@@ -3499,9 +3552,9 @@ class KartographMainWindow(tk.Tk):
 
         listbox = tk.Listbox(dialog, selectmode="browse", exportselection=False, font=("Segoe UI", 11))
         listbox.pack(fill="both", expand=True, padx=12, pady=(0, 10))
-        for symbol in self.symbol_catalog:
+        for symbol in self.diagnostic_symbol_catalog:
             listbox.insert(tk.END, symbol)
-        if self.symbol_catalog:
+        if self.diagnostic_symbol_catalog:
             listbox.selection_set(0)
         self._focus_overlay_widget(dialog, listbox)
 
@@ -3509,7 +3562,7 @@ class KartographMainWindow(tk.Tk):
             selected = listbox.curselection()
             if not selected:
                 return
-            symbol = self.symbol_catalog[int(selected[0])]
+            symbol = self.diagnostic_symbol_catalog[int(selected[0])]
             self._toggle_selected_symbol(symbol)
             dialog.destroy()
 

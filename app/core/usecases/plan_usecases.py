@@ -91,7 +91,7 @@ def rename_documentation_date(plan: SeatingPlan, old_date: str, new_date: str) -
 
     next_plan = deepcopy(plan)
     for desk in next_plan.desks:
-        if desk.desk_type != "student":
+        if not desk.is_named_student():
             continue
         old_entry = desk.documentation_entries.get(clean_old)
         if old_entry is None:
@@ -127,7 +127,7 @@ def set_documentation_symbol(
 
     next_plan = ensure_documentation_date(plan, doc_date)
     desk = next_plan.desk_at(x, y)
-    if not desk or desk.desk_type != "student":
+    if not desk or not desk.is_named_student():
         return next_plan
 
     date_key = _normalize_doc_date(doc_date)
@@ -185,7 +185,7 @@ def set_documentation_grade(
 
     next_plan = ensure_documentation_date(plan, doc_date)
     desk = next_plan.desk_at(x, y)
-    if not desk or desk.desk_type != "student":
+    if not desk or not desk.is_named_student():
         return next_plan
 
     date_key = _normalize_doc_date(doc_date)
@@ -217,7 +217,7 @@ def set_grade_weighting(plan: SeatingPlan, written_percent: int, sonstige_percen
 
 def summarize_latest_symbols_for_student(plan: SeatingPlan, x: int, y: int) -> dict[str, int]:
     desk = plan.desk_at(x, y)
-    if not desk or desk.desk_type != "student":
+    if not desk or not desk.is_named_student():
         return {}
 
     summary: dict[str, int] = {}
@@ -230,7 +230,7 @@ def summarize_latest_symbols_for_student(plan: SeatingPlan, x: int, y: int) -> d
 
 def compute_grade_display_for_student(plan: SeatingPlan, x: int, y: int) -> str:
     desk = plan.desk_at(x, y)
-    if not desk or desk.desk_type != "student":
+    if not desk or not desk.is_named_student():
         return ""
 
     category_by_column: dict[str, str] = {column.column_id: column.category for column in plan.grade_columns}

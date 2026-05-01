@@ -104,6 +104,7 @@
       "codepoint": "0058",
       "meaning": "Nicht abgegeben / verweigert",
       "shortcut": "x",
+      "role": "documentation_only",
       "legend": {
         "three": "wiederholt nicht abgegeben oder Arbeitsverweigerung",
         "two": "mehrfach nicht abgegeben oder verweigert",
@@ -114,6 +115,7 @@
       "codepoint": "2205",
       "meaning": "Abwesend",
       "shortcut": "u",
+      "role": "documentation_only",
       "legend": {
         "three": "an mehreren Terminen abwesend",
         "two": "wiederholt abwesend",

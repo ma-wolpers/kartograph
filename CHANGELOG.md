@@ -20,6 +20,11 @@ The format is based on Keep a Changelog.
 - Bei geoeffnetem Plan erstellt Kartograph zusaetzlich alle 5 Minuten automatisch ein Snapshot-Backup im selben AppData-Backupbereich.
 
 ### Changed
+- In der Dokumentationsansicht werden nur noch benannte Schuelertische als Schueler gefuehrt; leere Tische erhalten keine Dokuzeilen und keine Doku-/Notenwerte.
+- `X` und `∅` sind jetzt als reine Dokumentationszeichen klassifiziert und werden nicht mehr als Diagnose-Symbole behandelt.
+- In der Rasteransicht werden dokumentations-only Zeichen (`X`, `∅`) nur noch dann angezeigt, wenn sie fuer den heutigen Doku-Tag gesetzt sind.
+- Symbol-/Farb-Shortcuts werden bei aktivem Text- oder Dialogfokus nicht mehr ausgewertet, damit Eingaben in Textfeldern nicht versehentlich als Shortcuts wirken.
+- `Entf` in der Dokumentationsansicht loescht jetzt den aktuell markierten Doku-Symboleintrag statt nur zu blocken.
 - Die Synchronisierung der linken/rechten Doku-Tabelle wurde gegen Re-Entry stabilisiert; redundante Auswahl-Syncs beim Zeilenwechsel wurden reduziert, wodurch Haenger im Selektionspfad vermieden werden.
 - Leere Dokumentationstage werden beim Speichern nicht persistiert; ein Tagesdatum bleibt bis zur ersten Inhalteingabe volatil.
 - Beim Verschieben/Kopieren von Schuelertischen bleiben tagesbezogene Dokumentationseintraege jetzt erhalten.

@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
+
+
+SymbolRole = Literal["diagnostic", "documentation_only"]
 
 
 @dataclass(frozen=True)
@@ -13,6 +17,7 @@ class SymbolDefinition:
     legend_one: str
     legend_two: str
     legend_three: str
+    role: SymbolRole = "diagnostic"
 
     def legend_for_count(self, count: int) -> str:
         if count >= 3:
@@ -58,6 +63,7 @@ _DEFAULT_SYMBOLS_PAYLOAD = {
             "codepoint": "0058",
             "meaning": "Nicht abgegeben / verweigert",
             "shortcut": "x",
+            "role": "documentation_only",
             "legend": {
                 "three": "wiederholt nicht abgegeben oder Arbeitsverweigerung",
                 "two": "mehrfach nicht abgegeben oder verweigert",
@@ -68,6 +74,7 @@ _DEFAULT_SYMBOLS_PAYLOAD = {
             "codepoint": "2205",
             "meaning": "Abwesend",
             "shortcut": "u",
+            "role": "documentation_only",
             "legend": {
                 "three": "an mehreren Terminen abwesend",
                 "two": "wiederholt abwesend",
@@ -104,6 +111,13 @@ def _parse_shortcut(raw_value: object) -> str | None:
     return text
 
 
+def _parse_role(raw_value: object) -> SymbolRole:
+    text = str(raw_value or "").strip().lower()
+    if text == "documentation_only":
+        return "documentation_only"
+    return "diagnostic"
+
+
 def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | None]:
     if not path.exists():
         _write_default_payload(path)
@@ -131,6 +145,7 @@ def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | N
         meaning = str(item.get("meaning") or "").strip()
         glyph = _parse_codepoint(item.get("codepoint"))
         shortcut = _parse_shortcut(item.get("shortcut"))
+        role = _parse_role(item.get("role"))
         legend = item.get("legend")
         if not meaning or glyph is None or not isinstance(legend, dict):
             continue
@@ -146,6 +161,7 @@ def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | N
                 meaning=meaning,
                 glyph=glyph,
                 shortcut=shortcut,
+                role=role,
                 legend_one=one,
                 legend_two=two,
                 legend_three=three,
