@@ -559,7 +559,7 @@ class KartographMainWindow(tk.Tk):
             command=self.set_selected_documentation_grade_dialog,
         ).pack(side="left", padx=(8, 0))
         ttk.Label(self.docs_toolbar, textvariable=self.docs_mode_var).pack(side="right")
-        ttk.Label(self.docs_toolbar, text="Datum: Alt+Links/Rechts").pack(side="right", padx=(0, 12))
+        ttk.Label(self.docs_toolbar, text="Datum: Alt+Links/Rechts, Strg+H=Heute").pack(side="right", padx=(0, 12))
         ttk.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
 
         self.docs_table_container = ttk.Frame(self.docs_container)
@@ -618,6 +618,7 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Control-Shift-d>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
         self.bind("<Control-m>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION_MODE))
         self.bind("<Control-g>", self._on_set_grade_shortcut)
+        self.bind("<Control-h>", self._on_docs_today_shortcut)
         self.bind("<Alt-Left>", self._on_docs_prev_date_shortcut)
         self.bind("<Alt-Right>", self._on_docs_next_date_shortcut)
         self.bind("<Control-x>", lambda _event: self._handle_intent(UiIntent.CUT))
@@ -740,6 +741,12 @@ class KartographMainWindow(tk.Tk):
             return "break"
         self._doc_selected_date_index = min(len(self._doc_dates) - 1, self._doc_selected_date_index + 1)
         self._apply_doc_column_heading_highlight()
+        return "break"
+
+    def _on_docs_today_shortcut(self, _event) -> str | None:
+        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
+            return None
+        self.select_today_documentation_date()
         return "break"
 
     def _normalize_canvas_radius(self, value: object) -> int:

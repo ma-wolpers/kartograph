@@ -13,6 +13,7 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- "Heute"-Sprung in der Dokumentationssicht zusaetzlich per Shortcut `Strg+H` erreichbar.
 - Dokumentations-Toolbar um "Heute"-Aktion erweitert: die aktive Datumsspalte springt direkt auf das aktuelle Datum.
 - Periodische Backup-Ticks in der GUI eingefuehrt: bei geoeffnetem Plan wird alle 5 Minuten ein Snapshot-Backup in AppData geschrieben.
 - Dokumentations-Toolbar zeigt jetzt dauerhaft die aktive Doku-Zelle (Schuelerzeile + Datumsspalte) als Statusanzeige.
