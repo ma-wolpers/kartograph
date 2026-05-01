@@ -37,6 +37,7 @@ The format is based on Keep a Changelog.
 - Der zuletzt genutzte Spalten-/Zeilenmodus der Dokumentationsansicht wird jetzt gespeichert.
 - In der Dokumentationsansicht kann die aktive Datumsspalte per `Alt+Links/Rechts` gewechselt werden.
 - Die Dokumentationsansicht zeigt jetzt dauerhaft die aktive Zelle (Schueler + Datum) in der Toolbar an.
+- In der Dokumentationsansicht springt der neue "Heute"-Button direkt zur aktuellen Datumsspalte.
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

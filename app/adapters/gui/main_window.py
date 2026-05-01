@@ -535,6 +535,11 @@ class KartographMainWindow(tk.Tk):
         ).pack(side="left", padx=(8, 0))
         ttk.Button(
             self.docs_toolbar,
+            text="Heute",
+            command=self.select_today_documentation_date,
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            self.docs_toolbar,
             text="Notenspalte hinzufügen",
             command=lambda: self._handle_intent(UiIntent.ADD_GRADE_COLUMN),
         ).pack(side="left", padx=(8, 0))
@@ -1762,6 +1767,16 @@ class KartographMainWindow(tk.Tk):
         updated = ensure_documentation_date(updated, new_date)
         self._record_and_save(updated, "documentation.date.rename", "Dokudatum umbenannt")
         self._refresh_documentation_table()
+
+    def select_today_documentation_date(self) -> None:
+        if not self._doc_dates:
+            return
+        today = self._today_doc_date()
+        if today in self._doc_dates:
+            self._doc_selected_date_index = self._doc_dates.index(today)
+        else:
+            self._doc_selected_date_index = len(self._doc_dates) - 1
+        self._apply_doc_column_heading_highlight()
 
     def add_grade_column_dialog(self) -> None:
         if not self.current_plan:
