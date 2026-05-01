@@ -23,6 +23,7 @@ The format is based on Keep a Changelog.
 - Enter in der Dokumentationsansicht bewegt die aktive Auswahl je nach Modus spaltenweise nach unten oder zeilenweise nach rechts.
 - Symbol-Shortcuts funktionieren jetzt auch in der Dokumentationsansicht und schreiben direkt in die markierte Tageszelle.
 - Symbolaenderungen im Sitzraster werden jetzt automatisch als heutiger Dokumentationseintrag uebernommen.
+- In der Sitzrasteransicht wird die berechnete Gesamtnote je Schuelertisch oben links eingeblendet.
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

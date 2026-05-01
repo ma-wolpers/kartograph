@@ -2289,6 +2289,18 @@ class KartographMainWindow(tk.Tk):
                         tags=("grid",),
                     )
 
+            overall_grade = compute_grade_display_for_student(self.current_plan, desk.x, desk.y)
+            if overall_grade:
+                self.canvas.create_text(
+                    min_px + self.cell_size * 0.08,
+                    min_py + self.cell_size * 0.09,
+                    text=overall_grade,
+                    fill=theme["fg_muted"],
+                    font=("Segoe UI", max(6, int(self.cell_size * 0.085)), "bold"),
+                    anchor="nw",
+                    tags=("grid",),
+                )
+
             if main_text:
                 self.canvas.create_text(
                     center_px,
