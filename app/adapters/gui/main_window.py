@@ -560,7 +560,10 @@ class KartographMainWindow(tk.Tk):
             command=self.set_selected_documentation_grade_dialog,
         ).pack(side="left", padx=(8, 0))
         ttk.Label(self.docs_toolbar, textvariable=self.docs_mode_var).pack(side="right")
-        ttk.Label(self.docs_toolbar, text="Datum: Alt+Links/Rechts, Strg+H=Heute, Strg+Shift+S=Symbol").pack(
+        ttk.Label(
+            self.docs_toolbar,
+            text="Datum: Alt+Links/Rechts, Strg+H=Heute, Strg+Shift+S=Symbol, Strg+Entf=Loeschen",
+        ).pack(
             side="right", padx=(0, 12)
         )
         ttk.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
@@ -623,6 +626,8 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Control-g>", self._on_set_grade_shortcut)
         self.bind("<Control-Shift-S>", self._on_set_symbol_shortcut)
         self.bind("<Control-Shift-s>", self._on_set_symbol_shortcut)
+        self.bind("<Control-Delete>", self._on_clear_symbol_shortcut)
+        self.bind("<Control-BackSpace>", self._on_clear_symbol_shortcut)
         self.bind("<Control-h>", self._on_docs_today_shortcut)
         self.bind("<Alt-Left>", self._on_docs_prev_date_shortcut)
         self.bind("<Alt-Right>", self._on_docs_next_date_shortcut)
@@ -734,6 +739,34 @@ class KartographMainWindow(tk.Tk):
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
             return None
         self.set_selected_documentation_symbol_dialog()
+        return "break"
+
+    def _on_clear_symbol_shortcut(self, _event) -> str | None:
+        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
+            return None
+        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+            return "break"
+
+        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+        date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
+        x, y = self._doc_student_coords[student_index]
+        date_key = self._doc_dates[date_index]
+        desk = self.current_plan.desk_at(x, y)
+        if not desk or desk.desk_type != "student":
+            return "break"
+
+        entry = desk.documentation_entries.get(date_key)
+        if not entry:
+            return "break"
+
+        active_symbols = [symbol for symbol in self.symbol_catalog if int(entry.symbols.get(symbol, 0)) > 0]
+        if not active_symbols:
+            return "break"
+
+        symbol_name = active_symbols[0]
+        updated = set_documentation_symbol(self.current_plan, x, y, symbol_name, 0, date_key)
+        self._record_and_save(updated, "documentation.symbol.clear.shortcut", f"Dokumentation '{symbol_name}' geloescht")
+        self._refresh_documentation_table()
         return "break"
 
     def _on_docs_prev_date_shortcut(self, _event) -> str | None:
