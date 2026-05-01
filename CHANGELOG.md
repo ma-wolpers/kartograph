@@ -20,8 +20,10 @@ The format is based on Keep a Changelog.
 - Bei geoeffnetem Plan erstellt Kartograph zusaetzlich alle 5 Minuten automatisch ein Snapshot-Backup im selben AppData-Backupbereich.
 
 ### Changed
-- Die Dokumentationsansicht hat jetzt eine feste Noten-Editorleiste mit Eingabefeld sowie `Uebernehmen`/`Loeschen`; Notenzellen werden damit ohne Popup bearbeitet.
-- `Strg+G` und `Enter` auf aktiver Notenspalte oeffnen jetzt keinen Dialog mehr, sondern fokussieren direkt den festen Doku-Editor.
+- Notenzellen in der Dokumentationsansicht werden jetzt direkt in der Zelle bearbeitet (In-Cell-Editor statt separater Editorleiste).
+- `Enter` auf aktiver Notenspalte startet jetzt direkt den In-Cell-Editor der markierten Zelle.
+- Doppelklick auf eine Notenzelle oeffnet den In-Cell-Editor unmittelbar.
+- `Strg+G` oeffnet die Spaltenauswahl und startet danach direkt die In-Cell-Bearbeitung der Zielzelle.
 - Die Dokuansicht kann jetzt zwischen Datums- und Rechts-Spalten per Pfeiltasten navigieren; fixe Rechts-Spalten sind als aktive Zielspalte selektierbar.
 - Bei aktiver Notenspalte startet `Enter` jetzt direkt die Bearbeitung genau dieser Notenspalte.
 - In der Dokuansicht ist `Entf` jetzt kontextsensitiv: Notenspalte loescht Note, Datumsspalte loescht Symbolwert.

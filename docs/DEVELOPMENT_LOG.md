@@ -13,9 +13,10 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
-- Eigene Noten-Editorleiste in der Dokumentationsansicht eingefuehrt (ohne Popup-Workflow): aktive Notenspalten koennen direkt per Eingabefeld + `Uebernehmen`/`Loeschen` bearbeitet werden.
-- `Strg+G` und `Enter` auf aktiver Notenspalte fokussieren jetzt den festen Doku-Editor statt Dialoge zu oeffnen.
-- Der rechte Doku-Tree setzt bei Zeilenselektion automatisch ein editierbares Notenziel, damit Notenbearbeitung ohne Zusatzschritte erreichbar ist.
+- Notenbearbeitung in der Dokumentationsansicht auf Inline-Editing in der Zelle umgestellt; die separate Editorleiste wurde entfernt.
+- `Enter` auf aktiver Notenspalte startet jetzt direkt den In-Cell-Editor der markierten Notenzelle.
+- Doppelklick auf eine Notenzelle im rechten Doku-Tree oeffnet direkt den In-Cell-Editor.
+- `Strg+G` nutzt weiterhin die Spaltenauswahl, startet danach aber direkt den In-Cell-Editor der Zielzelle.
 - Dokumentationssicht um kontextuelle Spaltenauswahl erweitert: fixe Rechts-Spalten koennen jetzt aktiv selektiert werden, inklusive Pfeilnavigation links/rechts zwischen Datums- und Fixspalten.
 - Notenbereich in der Dokusicht erweitert: optionale Spalten `Schriftlich gesamt` und `Sonstig gesamt` werden automatisch eingeblendet, sobald je Kategorie mehr als eine Notenspalte existiert; Werte sind kategoriemittelbasiert und ganzzahlig gerundet.
 - `Enter` in der Dokusicht startet bei aktiver Notenspalte direkt die Notenbearbeitung dieser Spalte.

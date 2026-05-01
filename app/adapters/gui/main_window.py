@@ -208,8 +208,11 @@ class KartographMainWindow(tk.Tk):
         self._doc_date_column_ids: list[str] = []
         self._doc_fixed_column_ids: list[str] = []
         self._doc_selected_fixed_column_id: str | None = None
-        self._doc_editor_target_var = tk.StringVar(value="Editor: -")
-        self._doc_editor_value_var = tk.StringVar(value="")
+        self._docs_inline_editor: ttk.Entry | None = None
+        self._docs_inline_editor_tree: ttk.Treeview | None = None
+        self._docs_inline_editor_row_id: str | None = None
+        self._docs_inline_editor_kind: str | None = None
+        self._docs_inline_editor_model_column: str | None = None
         self._docs_symbol_dialog_last_index: int = 0
         self._ui_watchdog_last_tick = time.perf_counter()
         self._ui_watchdog_tick_count = 0
@@ -680,28 +683,6 @@ class KartographMainWindow(tk.Tk):
         )
         ttk.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
 
-        self.docs_editor_bar = ttk.Frame(self.docs_container)
-        self.docs_editor_bar.pack(fill="x", padx=12, pady=(0, 8))
-        ttk.Label(self.docs_editor_bar, textvariable=self._doc_editor_target_var).pack(side="left")
-        self.docs_editor_entry = ttk.Entry(self.docs_editor_bar, width=12, textvariable=self._doc_editor_value_var)
-        self.docs_editor_entry.pack(side="left", padx=(12, 0))
-        self.docs_editor_entry.bind("<Return>", self._on_docs_editor_apply_return)
-        self.docs_editor_entry.bind("<KP_Enter>", self._on_docs_editor_apply_return)
-        self.docs_editor_entry.bind("<Escape>", self._on_docs_editor_escape)
-        self.docs_editor_apply_button = ttk.Button(
-            self.docs_editor_bar,
-            text="Uebernehmen",
-            command=self.apply_selected_documentation_grade_from_editor,
-        )
-        self.docs_editor_apply_button.pack(side="left", padx=(8, 0))
-        self.docs_editor_clear_button = ttk.Button(
-            self.docs_editor_bar,
-            text="Loeschen",
-            command=self.clear_selected_documentation_grade_from_editor,
-        )
-        self.docs_editor_clear_button.pack(side="left", padx=(8, 0))
-        self._set_docs_grade_editor_enabled(False)
-
         self.docs_table_container = ttk.Frame(self.docs_container)
         self.docs_table_container.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
@@ -728,6 +709,7 @@ class KartographMainWindow(tk.Tk):
         self.docs_tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
         self.docs_right_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_right_tree_select())
         self.docs_right_tree.bind("<Button-1>", self._on_docs_right_tree_click)
+        self.docs_right_tree.bind("<Double-Button-1>", self._on_docs_right_tree_double_click)
         self.docs_right_tree.bind("<Left>", lambda _event: self._on_docs_horizontal_nav(-1))
         self.docs_right_tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
 
@@ -1093,14 +1075,11 @@ class KartographMainWindow(tk.Tk):
 
     def _on_return_key(self, _event) -> str | None:
         if self._is_text_input_focused():
-            if self.focus_get() == self.docs_editor_entry:
-                self.apply_selected_documentation_grade_from_editor()
             return "break"
         if self.editor_view.winfo_ismapped():
             if self._editor_surface == "docs":
                 if self._doc_selected_fixed_column_id and self._doc_selected_fixed_column_id.startswith("grade_"):
-                    selected_column_id = self._doc_selected_fixed_column_id[len("grade_") :]
-                    self.set_selected_documentation_grade_dialog(selected_column_id=selected_column_id)
+                    self._open_selected_docs_grade_cell_editor()
                     return "break"
                 self._move_doc_selection_on_enter()
                 return "break"
@@ -1861,7 +1840,6 @@ class KartographMainWindow(tk.Tk):
     def _refresh_doc_selection_status(self) -> None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
             self._doc_selection_status_var.set("Doku-Zelle: -")
-            self._refresh_docs_grade_editor_state()
             return
         student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
         date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
@@ -1874,10 +1852,8 @@ class KartographMainWindow(tk.Tk):
         if self._doc_selected_fixed_column_id:
             label = self._doc_fixed_column_label(self._doc_selected_fixed_column_id)
             self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {label}")
-            self._refresh_docs_grade_editor_state()
             return
         self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {self._doc_dates[date_index]}")
-        self._refresh_docs_grade_editor_state()
 
     def _selected_docs_coordinates_and_date(self) -> tuple[int, int, str] | None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
@@ -1887,62 +1863,37 @@ class KartographMainWindow(tk.Tk):
         x, y = self._doc_student_coords[student_index]
         return x, y, self._doc_dates[date_index]
 
-    def _set_docs_grade_editor_enabled(self, enabled: bool) -> None:
-        state = "normal" if enabled else "disabled"
-        self.docs_editor_entry.configure(state=state)
-        self.docs_editor_apply_button.configure(state=state)
-        self.docs_editor_clear_button.configure(state=state)
-
-    def _refresh_docs_grade_editor_state(self) -> None:
-        if not hasattr(self, "docs_editor_entry"):
-            return
-        if not self.current_plan or not self._doc_selected_fixed_column_id:
-            self._doc_editor_target_var.set("Editor: -")
-            self._doc_editor_value_var.set("")
-            self._set_docs_grade_editor_enabled(False)
-            return
-        if not self._doc_selected_fixed_column_id.startswith("grade_"):
-            self._doc_editor_target_var.set("Editor: schreibgeschuetzte Spalte")
-            self._doc_editor_value_var.set("")
-            self._set_docs_grade_editor_enabled(False)
+    def _close_docs_inline_editor(self, apply_changes: bool = False) -> None:
+        editor = self._docs_inline_editor
+        if editor is None:
             return
 
-        selected = self._selected_docs_coordinates_and_date()
-        if selected is None:
-            self._doc_editor_target_var.set("Editor: -")
-            self._doc_editor_value_var.set("")
-            self._set_docs_grade_editor_enabled(False)
+        if apply_changes:
+            self._apply_docs_inline_editor_value()
+
+        if editor.winfo_exists():
+            editor.destroy()
+        self._docs_inline_editor = None
+        self._docs_inline_editor_tree = None
+        self._docs_inline_editor_row_id = None
+        self._docs_inline_editor_kind = None
+        self._docs_inline_editor_model_column = None
+
+    def _apply_docs_inline_editor_value(self) -> None:
+        if not self.current_plan:
             return
-
-        x, y, date_key = selected
-        column_id = self._doc_selected_fixed_column_id[len("grade_") :]
-        column_title = self._doc_fixed_column_label(self._doc_selected_fixed_column_id)
-        self._doc_editor_target_var.set(f"Editor: {column_title} @ {date_key}")
-
-        desk = self.current_plan.desk_at(x, y)
-        value_text = ""
-        if desk and desk.is_named_student():
-            entry = desk.documentation_entries.get(date_key)
-            if entry:
-                value = entry.grades.get(column_id)
-                if value is not None:
-                    value_text = f"{float(value):.2f}".rstrip("0").rstrip(".")
-        self._doc_editor_value_var.set(value_text)
-        self._set_docs_grade_editor_enabled(True)
-
-    def apply_selected_documentation_grade_from_editor(self) -> None:
-        if not self.current_plan or not self._doc_selected_fixed_column_id:
-            return
-        if not self._doc_selected_fixed_column_id.startswith("grade_"):
+        if self._docs_inline_editor is None or self._docs_inline_editor_kind != "grade":
             return
 
         selected = self._selected_docs_coordinates_and_date()
         if selected is None:
             return
         x, y, date_key = selected
-        column_id = self._doc_selected_fixed_column_id[len("grade_") :]
 
-        raw_text = self._doc_editor_value_var.get().strip()
+        column_id = self._docs_inline_editor_model_column
+        if not column_id:
+            return
+        raw_text = self._docs_inline_editor.get().strip()
         grade_value: float | None
         if not raw_text:
             grade_value = None
@@ -1955,27 +1906,82 @@ class KartographMainWindow(tk.Tk):
 
         updated = set_documentation_grade(self.current_plan, x, y, column_id, grade_value, date_key)
         status = "Note geloescht" if grade_value is None else "Note aktualisiert"
-        self._record_and_save(updated, "documentation.grade.editor", status)
+        self._record_and_save(updated, "documentation.grade.inline", status)
         self._refresh_documentation_table()
-        self.docs_editor_entry.focus_set()
 
-    def clear_selected_documentation_grade_from_editor(self) -> None:
-        self._doc_editor_value_var.set("")
-        self.apply_selected_documentation_grade_from_editor()
-
-    def _on_docs_editor_apply_return(self, _event) -> str:
-        self.apply_selected_documentation_grade_from_editor()
-        return "break"
-
-    def _on_docs_editor_escape(self, _event) -> str:
+    def _on_docs_inline_editor_return(self, _event) -> str:
+        self._close_docs_inline_editor(apply_changes=True)
         if self.docs_right_tree.winfo_exists():
             self.docs_right_tree.focus_set()
         return "break"
+
+    def _on_docs_inline_editor_escape(self, _event) -> str:
+        self._close_docs_inline_editor(apply_changes=False)
+        if self.docs_right_tree.winfo_exists():
+            self.docs_right_tree.focus_set()
+        return "break"
+
+    def _open_docs_inline_grade_editor(self, row_id: str, fixed_column_id: str) -> None:
+        if not self.current_plan:
+            return
+        if not fixed_column_id.startswith("grade_"):
+            return
+        if row_id not in self.docs_right_tree.get_children():
+            return
+
+        self._close_docs_inline_editor(apply_changes=False)
+
+        fixed_index = self._doc_fixed_column_ids.index(fixed_column_id)
+        tree_column = f"#{fixed_index + 1}"
+        bbox = self.docs_right_tree.bbox(row_id, tree_column)
+        if not bbox:
+            return
+        x, y, width, height = bbox
+
+        selected = self._selected_docs_coordinates_and_date()
+        if selected is None:
+            return
+        coords_x, coords_y, date_key = selected
+        model_column_id = fixed_column_id[len("grade_") :]
+
+        current_text = ""
+        desk = self.current_plan.desk_at(coords_x, coords_y)
+        if desk and desk.is_named_student():
+            entry = desk.documentation_entries.get(date_key)
+            if entry:
+                value = entry.grades.get(model_column_id)
+                if value is not None:
+                    current_text = f"{float(value):.2f}".rstrip("0").rstrip(".")
+
+        editor = ttk.Entry(self.docs_right_tree)
+        editor.insert(0, current_text)
+        editor.place(x=x, y=y, width=width, height=height)
+        editor.focus_set()
+        editor.selection_range(0, tk.END)
+        editor.bind("<Return>", self._on_docs_inline_editor_return)
+        editor.bind("<KP_Enter>", self._on_docs_inline_editor_return)
+        editor.bind("<Escape>", self._on_docs_inline_editor_escape)
+        editor.bind("<FocusOut>", lambda _event: self._close_docs_inline_editor(apply_changes=True))
+
+        self._docs_inline_editor = editor
+        self._docs_inline_editor_tree = self.docs_right_tree
+        self._docs_inline_editor_row_id = row_id
+        self._docs_inline_editor_kind = "grade"
+        self._docs_inline_editor_model_column = model_column_id
+
+    def _open_selected_docs_grade_cell_editor(self) -> None:
+        if not self._doc_selected_fixed_column_id or not self._doc_selected_fixed_column_id.startswith("grade_"):
+            return
+        selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
+        if selected_iid is None:
+            return
+        self._open_docs_inline_grade_editor(selected_iid, self._doc_selected_fixed_column_id)
 
     def _refresh_documentation_table(self) -> None:
         started = time.perf_counter()
         if not self.current_plan:
             return
+        self._close_docs_inline_editor(apply_changes=False)
 
         self._doc_student_coords = [
             (desk.x, desk.y)
@@ -2118,6 +2124,26 @@ class KartographMainWindow(tk.Tk):
             if 0 <= col_index < len(self._doc_fixed_column_ids):
                 self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[col_index]
                 self._refresh_doc_selection_status()
+
+    def _on_docs_right_tree_double_click(self, event) -> None:
+        row_id = self.docs_right_tree.identify_row(event.y)
+        if not row_id:
+            return
+        self._set_docs_row_selection(row_id, source="right")
+        col_id = self.docs_right_tree.identify_column(event.x)
+        if not col_id.startswith("#"):
+            return
+        try:
+            col_index = int(col_id[1:]) - 1
+        except ValueError:
+            return
+        if not (0 <= col_index < len(self._doc_fixed_column_ids)):
+            return
+        fixed_column_id = self._doc_fixed_column_ids[col_index]
+        self._doc_selected_fixed_column_id = fixed_column_id
+        self._refresh_doc_selection_status()
+        if fixed_column_id.startswith("grade_"):
+            self._open_docs_inline_grade_editor(row_id, fixed_column_id)
 
     def _on_docs_right_tree_select(self) -> None:
         if self._syncing_docs_selection:
@@ -2310,8 +2336,7 @@ class KartographMainWindow(tk.Tk):
 
         self._doc_selected_fixed_column_id = f"grade_{column.column_id}"
         self._refresh_doc_selection_status()
-        self.docs_editor_entry.focus_set()
-        self.docs_editor_entry.selection_range(0, tk.END)
+        self._open_selected_docs_grade_cell_editor()
 
     def set_selected_documentation_symbol_dialog(self) -> None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
