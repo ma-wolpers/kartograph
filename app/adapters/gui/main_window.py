@@ -208,6 +208,8 @@ class KartographMainWindow(tk.Tk):
         self._doc_date_column_ids: list[str] = []
         self._doc_fixed_column_ids: list[str] = []
         self._doc_selected_fixed_column_id: str | None = None
+        self._doc_editor_target_var = tk.StringVar(value="Editor: -")
+        self._doc_editor_value_var = tk.StringVar(value="")
         self._docs_symbol_dialog_last_index: int = 0
         self._ui_watchdog_last_tick = time.perf_counter()
         self._ui_watchdog_tick_count = 0
@@ -678,6 +680,28 @@ class KartographMainWindow(tk.Tk):
         )
         ttk.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
 
+        self.docs_editor_bar = ttk.Frame(self.docs_container)
+        self.docs_editor_bar.pack(fill="x", padx=12, pady=(0, 8))
+        ttk.Label(self.docs_editor_bar, textvariable=self._doc_editor_target_var).pack(side="left")
+        self.docs_editor_entry = ttk.Entry(self.docs_editor_bar, width=12, textvariable=self._doc_editor_value_var)
+        self.docs_editor_entry.pack(side="left", padx=(12, 0))
+        self.docs_editor_entry.bind("<Return>", self._on_docs_editor_apply_return)
+        self.docs_editor_entry.bind("<KP_Enter>", self._on_docs_editor_apply_return)
+        self.docs_editor_entry.bind("<Escape>", self._on_docs_editor_escape)
+        self.docs_editor_apply_button = ttk.Button(
+            self.docs_editor_bar,
+            text="Uebernehmen",
+            command=self.apply_selected_documentation_grade_from_editor,
+        )
+        self.docs_editor_apply_button.pack(side="left", padx=(8, 0))
+        self.docs_editor_clear_button = ttk.Button(
+            self.docs_editor_bar,
+            text="Loeschen",
+            command=self.clear_selected_documentation_grade_from_editor,
+        )
+        self.docs_editor_clear_button.pack(side="left", padx=(8, 0))
+        self._set_docs_grade_editor_enabled(False)
+
         self.docs_table_container = ttk.Frame(self.docs_container)
         self.docs_table_container.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
@@ -1069,6 +1093,8 @@ class KartographMainWindow(tk.Tk):
 
     def _on_return_key(self, _event) -> str | None:
         if self._is_text_input_focused():
+            if self.focus_get() == self.docs_editor_entry:
+                self.apply_selected_documentation_grade_from_editor()
             return "break"
         if self.editor_view.winfo_ismapped():
             if self._editor_surface == "docs":
@@ -1835,6 +1861,7 @@ class KartographMainWindow(tk.Tk):
     def _refresh_doc_selection_status(self) -> None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
             self._doc_selection_status_var.set("Doku-Zelle: -")
+            self._refresh_docs_grade_editor_state()
             return
         student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
         date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
@@ -1847,8 +1874,103 @@ class KartographMainWindow(tk.Tk):
         if self._doc_selected_fixed_column_id:
             label = self._doc_fixed_column_label(self._doc_selected_fixed_column_id)
             self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {label}")
+            self._refresh_docs_grade_editor_state()
             return
         self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {self._doc_dates[date_index]}")
+        self._refresh_docs_grade_editor_state()
+
+    def _selected_docs_coordinates_and_date(self) -> tuple[int, int, str] | None:
+        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+            return None
+        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+        date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
+        x, y = self._doc_student_coords[student_index]
+        return x, y, self._doc_dates[date_index]
+
+    def _set_docs_grade_editor_enabled(self, enabled: bool) -> None:
+        state = "normal" if enabled else "disabled"
+        self.docs_editor_entry.configure(state=state)
+        self.docs_editor_apply_button.configure(state=state)
+        self.docs_editor_clear_button.configure(state=state)
+
+    def _refresh_docs_grade_editor_state(self) -> None:
+        if not hasattr(self, "docs_editor_entry"):
+            return
+        if not self.current_plan or not self._doc_selected_fixed_column_id:
+            self._doc_editor_target_var.set("Editor: -")
+            self._doc_editor_value_var.set("")
+            self._set_docs_grade_editor_enabled(False)
+            return
+        if not self._doc_selected_fixed_column_id.startswith("grade_"):
+            self._doc_editor_target_var.set("Editor: schreibgeschuetzte Spalte")
+            self._doc_editor_value_var.set("")
+            self._set_docs_grade_editor_enabled(False)
+            return
+
+        selected = self._selected_docs_coordinates_and_date()
+        if selected is None:
+            self._doc_editor_target_var.set("Editor: -")
+            self._doc_editor_value_var.set("")
+            self._set_docs_grade_editor_enabled(False)
+            return
+
+        x, y, date_key = selected
+        column_id = self._doc_selected_fixed_column_id[len("grade_") :]
+        column_title = self._doc_fixed_column_label(self._doc_selected_fixed_column_id)
+        self._doc_editor_target_var.set(f"Editor: {column_title} @ {date_key}")
+
+        desk = self.current_plan.desk_at(x, y)
+        value_text = ""
+        if desk and desk.is_named_student():
+            entry = desk.documentation_entries.get(date_key)
+            if entry:
+                value = entry.grades.get(column_id)
+                if value is not None:
+                    value_text = f"{float(value):.2f}".rstrip("0").rstrip(".")
+        self._doc_editor_value_var.set(value_text)
+        self._set_docs_grade_editor_enabled(True)
+
+    def apply_selected_documentation_grade_from_editor(self) -> None:
+        if not self.current_plan or not self._doc_selected_fixed_column_id:
+            return
+        if not self._doc_selected_fixed_column_id.startswith("grade_"):
+            return
+
+        selected = self._selected_docs_coordinates_and_date()
+        if selected is None:
+            return
+        x, y, date_key = selected
+        column_id = self._doc_selected_fixed_column_id[len("grade_") :]
+
+        raw_text = self._doc_editor_value_var.get().strip()
+        grade_value: float | None
+        if not raw_text:
+            grade_value = None
+        else:
+            try:
+                grade_value = float(raw_text.replace(",", "."))
+            except ValueError:
+                self.status_var.set("Ungueltige Note: bitte Zahl zwischen 1 und 6 eingeben")
+                return
+
+        updated = set_documentation_grade(self.current_plan, x, y, column_id, grade_value, date_key)
+        status = "Note geloescht" if grade_value is None else "Note aktualisiert"
+        self._record_and_save(updated, "documentation.grade.editor", status)
+        self._refresh_documentation_table()
+        self.docs_editor_entry.focus_set()
+
+    def clear_selected_documentation_grade_from_editor(self) -> None:
+        self._doc_editor_value_var.set("")
+        self.apply_selected_documentation_grade_from_editor()
+
+    def _on_docs_editor_apply_return(self, _event) -> str:
+        self.apply_selected_documentation_grade_from_editor()
+        return "break"
+
+    def _on_docs_editor_escape(self, _event) -> str:
+        if self.docs_right_tree.winfo_exists():
+            self.docs_right_tree.focus_set()
+        return "break"
 
     def _refresh_documentation_table(self) -> None:
         started = time.perf_counter()
@@ -2005,6 +2127,12 @@ class KartographMainWindow(tk.Tk):
             return
         row_id = selected[0]
         self._set_docs_row_selection(row_id, source="right")
+        if self._doc_selected_fixed_column_id not in set(self._doc_fixed_column_ids):
+            self._doc_selected_fixed_column_id = None
+        if self._doc_selected_fixed_column_id is None:
+            grade_columns = [item for item in self._doc_fixed_column_ids if item.startswith("grade_")]
+            if grade_columns:
+                self._doc_selected_fixed_column_id = grade_columns[0]
         self._refresh_doc_selection_status()
 
     def _set_docs_row_selection(self, row_id: str, source: str | None = None) -> None:
@@ -2163,12 +2291,6 @@ class KartographMainWindow(tk.Tk):
         if not self.current_plan.grade_columns:
             messagebox.showinfo("Keine Notenspalten", "Bitte zuerst eine Notenspalte hinzufügen.", parent=self)
             return
-
-        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-        date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
-        x, y = self._doc_student_coords[student_index]
-        date_key = self._doc_dates[date_index]
-
         column = None
         if selected_column_id:
             for item in self.current_plan.grade_columns:
@@ -2177,51 +2299,19 @@ class KartographMainWindow(tk.Tk):
                     break
 
         if column is None:
-            labels = [
-                f"{idx + 1}: {item.title} ({item.category})"
-                for idx, item in enumerate(self.current_plan.grade_columns)
-            ]
-            selected_label = simpledialog.askstring(
-                "Notenspalte waehlen",
-                "Spalte eingeben (Nummer):\n" + "\n".join(labels),
-                parent=self,
-                initialvalue="1",
-            )
-            if selected_label is None:
-                return
-            try:
-                selection_index = int(selected_label.strip()) - 1
-            except ValueError:
-                messagebox.showerror("Ungueltige Eingabe", "Bitte eine gueltige Nummer eingeben.", parent=self)
-                return
-            if selection_index < 0 or selection_index >= len(self.current_plan.grade_columns):
-                messagebox.showerror("Ungueltige Eingabe", "Notenspalte nicht gefunden.", parent=self)
-                return
-            column = self.current_plan.grade_columns[selection_index]
+            if self._doc_selected_fixed_column_id and self._doc_selected_fixed_column_id.startswith("grade_"):
+                selected_column_id = self._doc_selected_fixed_column_id[len("grade_") :]
+                for item in self.current_plan.grade_columns:
+                    if item.column_id == selected_column_id:
+                        column = item
+                        break
+            if column is None:
+                column = self.current_plan.grade_columns[0]
 
         self._doc_selected_fixed_column_id = f"grade_{column.column_id}"
-        grade_text = simpledialog.askstring(
-            "Note setzen",
-            f"Note fuer {column.title} am {date_key} (1-6, leer = loeschen):",
-            parent=self,
-            initialvalue="",
-        )
-        if grade_text is None:
-            return
-
-        grade_value: float | None
-        if not grade_text.strip():
-            grade_value = None
-        else:
-            try:
-                grade_value = float(grade_text.strip().replace(",", "."))
-            except ValueError:
-                messagebox.showerror("Ungueltige Eingabe", "Bitte eine Zahl zwischen 1 und 6 eingeben.", parent=self)
-                return
-
-        updated = set_documentation_grade(self.current_plan, x, y, column.column_id, grade_value, date_key)
-        self._record_and_save(updated, "documentation.grade.set", "Note aktualisiert")
-        self._refresh_documentation_table()
+        self._refresh_doc_selection_status()
+        self.docs_editor_entry.focus_set()
+        self.docs_editor_entry.selection_range(0, tk.END)
 
     def set_selected_documentation_symbol_dialog(self) -> None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
