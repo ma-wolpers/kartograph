@@ -1931,6 +1931,20 @@ class KartographMainWindow(tk.Tk):
             self._toggle_documentation_symbol(symbol_name)
             dialog.destroy()
 
+        def clear_symbol() -> None:
+            if not self.current_plan:
+                return
+            selected = symbol_listbox.curselection()
+            if not selected:
+                return
+            selected_index = int(selected[0])
+            self._docs_symbol_dialog_last_index = selected_index
+            symbol_name = self.symbol_catalog[selected_index]
+            updated = set_documentation_symbol(self.current_plan, x, y, symbol_name, 0, date_key)
+            self._record_and_save(updated, "documentation.symbol.clear", f"Dokumentation '{symbol_name}' geloescht")
+            self._refresh_documentation_table()
+            dialog.destroy()
+
         symbol_listbox.bind("<Double-Button-1>", lambda _event: apply_symbol())
         symbol_listbox.bind("<Return>", lambda _event: apply_symbol())
         symbol_listbox.bind("<KP_Enter>", lambda _event: apply_symbol())
@@ -1939,6 +1953,7 @@ class KartographMainWindow(tk.Tk):
         button_row.pack(fill="x", pady=(8, 0))
         ttk.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
         ttk.Button(button_row, text="Übernehmen", command=apply_symbol).pack(side="right", padx=(0, 8))
+        ttk.Button(button_row, text="Loeschen", command=clear_symbol).pack(side="left")
 
     def configure_grade_weighting_dialog(self) -> None:
         if not self.current_plan:
