@@ -15,6 +15,7 @@ Regel:
 ### Changed
 - Einstieg ueber `kartograph.py` wurde fuer Fehlerdiagnose gehaertet: Import-/Bootstrap-Ausnahmen werden jetzt frueh in `Temp/logs/kartograph_bootstrap_failures.log` geschrieben.
 - GUI-Diagnostik erweitert: ein Mainloop-Watchdog protokolliert verzoegerte UI-Ticks, und `open_plan`/Doku-Tabellenaufbau schreiben jetzt Laufzeitmarken ins Startup-Log.
+- Der Doku-Selektionspfad wurde gegen Re-Entry gehaertet: links/rechts synchronisieren jetzt source-aware und idempotent, redundante `selection_set`-Aufrufe entfallen, und stale IIDs werden vor Sync verworfen.
 - Die sichtbaren Loesch-Hinweise in der Dokumentations-Toolbar wurden auf den tatsaechlichen Shortcut-Umfang angepasst (`Strg+Entf` und `Strg+Backspace`).
 - Der schnelle Symbol-Loeschpfad in der Dokumentationssicht gibt jetzt klare Statusrueckmeldungen, wenn nichts geloescht werden konnte (z. B. kein aktives Symbol oder kein Doku-Eintrag).
 - In der Dokumentations-Toolbar gibt es jetzt eine direkte Aktion "Symbol loeschen (Strg+Entf)", die den schnellen Symbol-Loeschpfad ohne Dialog ausloest.

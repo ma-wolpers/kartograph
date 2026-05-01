@@ -179,6 +179,7 @@ class KartographMainWindow(tk.Tk):
         self._doc_student_coords: list[tuple[int, int]] = []
         self._doc_dates: list[str] = []
         self._doc_tree_iid_by_student_index: dict[int, str] = {}
+        self._doc_student_index_by_iid: dict[str, int] = {}
         self._doc_date_column_ids: list[str] = []
         self._docs_symbol_dialog_last_index: int = 0
         self._ui_watchdog_last_tick = time.perf_counter()
@@ -1785,6 +1786,7 @@ class KartographMainWindow(tk.Tk):
         for row_id in self.docs_right_tree.get_children():
             self.docs_right_tree.delete(row_id)
         self._doc_tree_iid_by_student_index = {}
+        self._doc_student_index_by_iid = {}
 
         for student_idx, (x, y) in enumerate(self._doc_student_coords):
             desk = self.current_plan.desk_at(x, y)
@@ -1805,6 +1807,7 @@ class KartographMainWindow(tk.Tk):
             self.docs_tree.insert("", "end", iid=iid, text=desk.student_name or f"({x},{y})", values=date_values)
             self.docs_right_tree.insert("", "end", iid=iid, values=fixed_values)
             self._doc_tree_iid_by_student_index[student_idx] = iid
+            self._doc_student_index_by_iid[iid] = student_idx
 
         if self._doc_student_coords:
             self._doc_selected_student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
@@ -1830,7 +1833,7 @@ class KartographMainWindow(tk.Tk):
     def _on_docs_tree_click(self, event) -> None:
         row_id = self.docs_tree.identify_row(event.y)
         if row_id:
-            self._set_docs_row_selection(row_id)
+            self._set_docs_row_selection(row_id, source="main")
         col_id = self.docs_tree.identify_column(event.x)
         if col_id.startswith("#"):
             try:
@@ -1848,19 +1851,13 @@ class KartographMainWindow(tk.Tk):
         if not selected:
             return
         row_id = selected[0]
-        right_selected = self.docs_right_tree.selection()
-        if not right_selected or right_selected[0] != row_id:
-            self._set_docs_row_selection(row_id)
-        for student_idx, iid in self._doc_tree_iid_by_student_index.items():
-            if iid == row_id:
-                self._doc_selected_student_index = student_idx
-                break
+        self._set_docs_row_selection(row_id, source="main")
         self._refresh_doc_selection_status()
 
     def _on_docs_right_tree_click(self, event) -> None:
         row_id = self.docs_right_tree.identify_row(event.y)
         if row_id:
-            self._set_docs_row_selection(row_id)
+            self._set_docs_row_selection(row_id, source="right")
 
     def _on_docs_right_tree_select(self) -> None:
         if self._syncing_docs_selection:
@@ -1869,31 +1866,39 @@ class KartographMainWindow(tk.Tk):
         if not selected:
             return
         row_id = selected[0]
-        left_selected = self.docs_tree.selection()
-        if not left_selected or left_selected[0] != row_id:
-            self._set_docs_row_selection(row_id)
+        self._set_docs_row_selection(row_id, source="right")
+        self._refresh_doc_selection_status()
 
-    def _set_docs_row_selection(self, row_id: str) -> None:
-        left_selected = self.docs_tree.selection()
-        right_selected = self.docs_right_tree.selection()
-        if left_selected and right_selected and left_selected[0] == row_id and right_selected[0] == row_id:
+    def _set_docs_row_selection(self, row_id: str, source: str | None = None) -> None:
+        if not row_id:
             return
-
+        if self._syncing_docs_selection:
+            return
+        if not self.docs_tree.exists(row_id) or not self.docs_right_tree.exists(row_id):
+            return
         self._syncing_docs_selection = True
         try:
-            self.docs_tree.selection_set(row_id)
-            self.docs_tree.focus(row_id)
-            self.docs_tree.see(row_id)
-            self.docs_right_tree.selection_set(row_id)
-            self.docs_right_tree.focus(row_id)
-            self.docs_right_tree.see(row_id)
+            if source != "main":
+                main_selected = self.docs_tree.selection()
+                if len(main_selected) != 1 or main_selected[0] != row_id:
+                    self.docs_tree.selection_set(row_id)
+                if self.docs_tree.focus() != row_id:
+                    self.docs_tree.focus(row_id)
+                self.docs_tree.see(row_id)
+
+            if source != "right":
+                right_selected = self.docs_right_tree.selection()
+                if len(right_selected) != 1 or right_selected[0] != row_id:
+                    self.docs_right_tree.selection_set(row_id)
+                if self.docs_right_tree.focus() != row_id:
+                    self.docs_right_tree.focus(row_id)
+                self.docs_right_tree.see(row_id)
         finally:
             self._syncing_docs_selection = False
 
-        for student_idx, iid in self._doc_tree_iid_by_student_index.items():
-            if iid == row_id:
-                self._doc_selected_student_index = student_idx
-                break
+        student_idx = self._doc_student_index_by_iid.get(row_id)
+        if student_idx is not None:
+            self._doc_selected_student_index = student_idx
 
     def _move_doc_selection_on_enter(self) -> None:
         if not self._doc_student_coords or not self._doc_dates:
