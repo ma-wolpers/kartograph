@@ -68,6 +68,24 @@ class MainWindowUiIntentController:
         if intent == UiIntent.GO_TO_LIST:
             self.app.show_plan_list_view()
             return "break"
+        if intent == UiIntent.VIEW_GRID:
+            self.app.show_grid_surface()
+            return "break"
+        if intent == UiIntent.VIEW_DOCUMENTATION:
+            self.app.show_documentation_surface()
+            return "break"
+        if intent == UiIntent.TOGGLE_DOCUMENTATION:
+            self.app.toggle_documentation_surface()
+            return "break"
+        if intent == UiIntent.TOGGLE_DOCUMENTATION_MODE:
+            self.app.toggle_documentation_mode()
+            return "break"
+        if intent == UiIntent.RENAME_DOCUMENTATION_DATE:
+            self.app.rename_selected_documentation_date_dialog()
+            return "break"
+        if intent == UiIntent.ADD_GRADE_COLUMN:
+            self.app.add_grade_column_dialog()
+            return "break"
         if intent == UiIntent.TOGGLE_THEME:
             self.app.toggle_theme()
             return "break"

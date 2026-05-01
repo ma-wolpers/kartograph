@@ -13,6 +13,9 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- GUI um eine umschaltbare Dokumentationssicht erweitert (Raster <-> Doku), inklusive neuer UI-Intents, Shortcut `Strg+Shift+D` und Menueeintrag in `Ansicht`.
+- Dokumentationssicht zeigt Schuelerzeilen mit Datums-Spalten, Symboltagesinhalten, Zusammenfassungs- und Notenspalten sowie berechneter Gesamtnote; Enter-Navigation unterstuetzt Spalten-/Zeilenmodus.
+- Dialogaktionen fuer Dokumentationssicht ergaenzt: Datum umbenennen und Notenspalte hinzufuegen (Typ schriftlich/sonstig, Titel).
 - JSON-Repository auf Format v3 erweitert: neue Sektion `documentation` (Tage, Notenspalten, Gewichtung), tagesbezogene Desk-Eintraege (`documentation_entries`) sowie abwaertskompatibles Laden bestehender v2-Plaene.
 - Persistenzregel fuer Tageskontexte umgesetzt: Dokumentationstage ohne Inhalt werden nicht in JSON geschrieben (volatile Tagesspalten bleiben bis zur ersten echten Eingabe unsaved).
 - Domainmodell erweitert um `DocumentationEntry` und `GradeColumnDefinition`; `Desk` traegt jetzt tagesbezogene Dokumentationsdaten, `SeatingPlan` planweite Notenspalten-/Gewichtungsmetadaten.

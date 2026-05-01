@@ -27,6 +27,8 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Farbmarker und deren planweite Bedeutungen werden im JSON-Repository serialisiert; ungenutzte Bedeutungszeilen werden beim Mutieren/Laden bereinigt.
 - Symbolkonfiguration wird beim App-Start geladen und in der GUI als Katalog/Legende genutzt.
 - Das S:S-Detailoverlay (Name, Symbole, Farbbuttons) ist in der Ansicht links/rechts/unten andockbar; das Tischgruppen-Overlay kann ebenfalls links/rechts/unten positioniert werden (persistente Settings).
+- Die Editoransicht unterstuetzt zwei Oberflaechen: Rasteransicht und Dokumentationsansicht. Der Wechsel erfolgt ueber UI-Intent (`view.documentation.toggle`) und teilt sich denselben geladenen Planzustand.
+- Die Dokumentationsansicht rendert eine zeilenorientierte Schuelertabelle mit Datums-Spalten, symbolischer Tagesdarstellung, Zusammenfassungs- und Notenspalten sowie Gesamtnotenanzeige aus den Core-Use-Cases.
 - Preview-Rendering und PDF-Export verwenden dieselbe Domain-Transformationslogik fuer Tischgruppen (x/y-Shift, Rotation), damit die Darstellung konsistent bleibt.
 - Der Markierungsrahmen fuer aktive Auswahlen wird aus transformierten Tischpolygonen abgeleitet, damit Shift/Rotation der Tischgruppe visuell korrekt abgebildet werden.
 - Bei Transformationskollisionen (Lehrer- oder Schuelertisch) wird der zuletzt geaenderte Transformationswert auf 0 zurueckgesetzt.

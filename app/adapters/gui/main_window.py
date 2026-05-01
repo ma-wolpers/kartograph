@@ -3,6 +3,7 @@ from __future__ import annotations
 import tkinter as tk
 import sys
 from copy import deepcopy
+from datetime import date
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from tkinter import font as tkfont
@@ -29,12 +30,17 @@ from app.core.domain.table_groups import (
     tablegroup_number_at,
 )
 from app.core.usecases.plan_usecases import (
+    add_grade_column,
     cleanup_unused_color_meanings,
+    compute_grade_display_for_student,
     create_student_desk,
     delete_desk,
+    ensure_documentation_date,
     is_color_used,
+    rename_documentation_date,
     set_color_meaning,
     set_teacher_desk,
+    summarize_latest_symbols_for_student,
     toggle_color_marker,
     toggle_symbol,
     update_student_name,
@@ -147,6 +153,14 @@ class KartographMainWindow(tk.Tk):
         self._tg_status_var: tk.StringVar | None = None
         self._tg_last_changed_field: str = "shift_x"
         self._color_marker_buttons: list[tk.Button] = []
+        self._editor_surface: str = "grid"
+        self._documentation_mode: str = "column"
+        self._doc_selected_student_index: int = 0
+        self._doc_selected_date_index: int = 0
+        self._doc_student_coords: list[tuple[int, int]] = []
+        self._doc_dates: list[str] = []
+        self._doc_tree_iid_by_student_index: dict[int, str] = {}
+        self._doc_date_column_ids: list[str] = []
 
         self.color_palette = COLOR_MARKER_PALETTE
         self._color_by_key = {color_key: (label, hex_color) for _key, color_key, label, hex_color in self.color_palette}
@@ -209,6 +223,11 @@ class KartographMainWindow(tk.Tk):
         for key in theme_names():
             label = THEMES[key].get("label", key)
             view_menu.add_radiobutton(label=label, value=key, variable=self.theme_var, command=self._on_theme_changed)
+        view_menu.add_separator()
+        view_menu.add_command(
+            label="Dokumentationssicht umschalten (Strg+Shift+D)",
+            command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION),
+        )
         view_menu.add_separator()
         view_menu.add_command(label="Tisch-Overlay (S:S)", state="disabled")
         self.details_overlay_position_var = tk.StringVar(value=self.details_overlay_position)
@@ -370,6 +389,14 @@ class KartographMainWindow(tk.Tk):
         set_teacher_button.pack(side="left", padx=(8, 0))
         self._bind_editor_return_override(set_teacher_button)
 
+        docs_toggle_button = ttk.Button(
+            self.editor_topbar,
+            text="Dokuansicht (Strg+Shift+D)",
+            command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION),
+        )
+        docs_toggle_button.pack(side="left", padx=(8, 0))
+        self._bind_editor_return_override(docs_toggle_button)
+
         zoom_in_button = ttk.Button(
             self.editor_topbar,
             text="Zoom + (Strg++)",
@@ -460,6 +487,51 @@ class KartographMainWindow(tk.Tk):
 
         self._apply_details_overlay_position()
 
+        self.docs_container = ttk.Frame(self.editor_view)
+
+        self.docs_toolbar = ttk.Frame(self.docs_container)
+        self.docs_toolbar.pack(fill="x", padx=12, pady=(0, 8))
+
+        self.docs_mode_var = tk.StringVar(value="Modus: Spalten")
+        ttk.Button(
+            self.docs_toolbar,
+            text="Zur Rasteransicht",
+            command=lambda: self._handle_intent(UiIntent.VIEW_GRID),
+        ).pack(side="left")
+        ttk.Button(
+            self.docs_toolbar,
+            text="Modus wechseln (Strg+M)",
+            command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION_MODE),
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            self.docs_toolbar,
+            text="Datum umbenennen",
+            command=lambda: self._handle_intent(UiIntent.RENAME_DOCUMENTATION_DATE),
+        ).pack(side="left", padx=(8, 0))
+        ttk.Button(
+            self.docs_toolbar,
+            text="Notenspalte hinzufügen",
+            command=lambda: self._handle_intent(UiIntent.ADD_GRADE_COLUMN),
+        ).pack(side="left", padx=(8, 0))
+        ttk.Label(self.docs_toolbar, textvariable=self.docs_mode_var).pack(side="right")
+
+        self.docs_table_container = ttk.Frame(self.docs_container)
+        self.docs_table_container.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+
+        self.docs_tree = ttk.Treeview(self.docs_table_container, show="tree headings")
+        self.docs_tree.pack(side="left", fill="both", expand=True)
+        self.docs_tree.column("#0", width=220, anchor="w", stretch=False)
+        self.docs_tree.heading("#0", text="Schüler:in")
+
+        self.docs_y_scroll = ttk.Scrollbar(self.docs_table_container, orient="vertical", command=self.docs_tree.yview)
+        self.docs_y_scroll.pack(side="right", fill="y")
+        self.docs_x_scroll = ttk.Scrollbar(self.docs_container, orient="horizontal", command=self.docs_tree.xview)
+        self.docs_x_scroll.pack(fill="x", padx=12, pady=(0, 12))
+        self.docs_tree.configure(yscrollcommand=self.docs_y_scroll.set, xscrollcommand=self.docs_x_scroll.set)
+
+        self.docs_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_tree_select())
+        self.docs_tree.bind("<Button-1>", self._on_docs_tree_click)
+
         self.canvas.bind("<Button-1>", self._on_canvas_click)
         self.canvas.bind("<B1-Motion>", self._on_canvas_drag)
         self.canvas.bind("<ButtonRelease-1>", self._on_canvas_release)
@@ -487,6 +559,9 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Control-z>", lambda _event: self._handle_intent(UiIntent.UNDO))
         self.bind("<Control-y>", lambda _event: self._handle_intent(UiIntent.REDO))
         self.bind("<Control-t>", lambda _event: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS))
+        self.bind("<Control-Shift-D>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
+        self.bind("<Control-Shift-d>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
+        self.bind("<Control-m>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION_MODE))
         self.bind("<Control-x>", lambda _event: self._handle_intent(UiIntent.CUT))
         self.bind("<Control-c>", lambda _event: self._handle_intent(UiIntent.COPY))
         self.bind("<Control-v>", lambda _event: self._handle_intent(UiIntent.PASTE))
@@ -581,6 +656,8 @@ class KartographMainWindow(tk.Tk):
     def _on_delete_key(self, _event) -> str | None:
         if self.interaction_mode == LIST_ACTIVE:
             return self._handle_intent(UiIntent.DELETE_SELECTED_PLAN)
+        if self._editor_surface == "docs":
+            return "break"
         return self._handle_intent(UiIntent.DELETE_DESK)
 
     def _normalize_canvas_radius(self, value: object) -> int:
@@ -670,18 +747,25 @@ class KartographMainWindow(tk.Tk):
         self.current_plan = new_plan
         self.history.record(self.current_plan, action_kind)
         self._save_current_plan(status)
+        if hasattr(self, "docs_tree"):
+            self._refresh_documentation_table()
 
     def _apply_loaded_plan(self, plan: SeatingPlan) -> SeatingPlan:
         plan = cleanup_unused_color_meanings(plan)
         normalize_tablegroups_in_place(plan)
         self.current_plan = plan
         self.history.reset(self.current_plan)
+        if hasattr(self, "docs_tree"):
+            self._refresh_documentation_table()
         return plan
 
     def _on_return_key(self, _event) -> str | None:
         if self._is_name_entry_focused():
             return "break"
         if self.editor_view.winfo_ismapped():
+            if self._editor_surface == "docs":
+                self._move_doc_selection_on_enter()
+                return "break"
             if not self.selection.is_single():
                 self._collapse_selection_to_anchor()
                 self.redraw_grid()
@@ -997,6 +1081,8 @@ class KartographMainWindow(tk.Tk):
             return None
         if not self.editor_view.winfo_ismapped():
             return None
+        if self._editor_surface != "grid":
+            return None
         if not self.current_plan or not self.current_plan_path:
             return None
 
@@ -1011,6 +1097,8 @@ class KartographMainWindow(tk.Tk):
         if event.state & 0x0004 or event.state & 0x0008:
             return None
         if not self.editor_view.winfo_ismapped():
+            return None
+        if self._editor_surface != "grid":
             return None
         if not self.current_plan or not self.current_plan_path:
             return None
@@ -1142,6 +1230,9 @@ class KartographMainWindow(tk.Tk):
         self.details_container.configure(style="Panel.TFrame")
         self.details_header.configure(style="Panel.TFrame")
         self.details_frame.configure(style="Panel.TFrame")
+        self.docs_container.configure(style="Panel.TFrame")
+        self.docs_toolbar.configure(style="StrongPanel.TFrame")
+        self.docs_table_container.configure(style="Panel.TFrame")
         self.canvas.configure(bg=theme["bg_surface"])
         self.x_scroll.configure(
             bg=theme["scroll_thumb"],
@@ -1172,6 +1263,20 @@ class KartographMainWindow(tk.Tk):
             borderwidth=1,
             relief="solid",
         )
+
+        self.style.configure(
+            "Treeview",
+            background=theme["bg_surface"],
+            fieldbackground=theme["bg_surface"],
+            foreground=theme["fg_main"],
+            bordercolor=theme["grid_line"],
+        )
+        self.style.configure(
+            "Treeview.Heading",
+            background=theme["bg_panel"],
+            foreground=theme["fg_main"],
+        )
+        self.style.map("Treeview", background=[("selected", theme["accent"])], foreground=[("selected", "#FFFFFF")])
 
         self._apply_color_button_theme()
 
@@ -1242,8 +1347,234 @@ class KartographMainWindow(tk.Tk):
         self.editor_view.pack(fill="both", expand=True)
         self.interaction_mode = GRID_SELECTED
         self._set_selection_single(*self.selection.active_cell())
-        self.canvas.focus_set()
+        if self._editor_surface == "docs":
+            self.show_documentation_surface()
+        else:
+            self.show_grid_surface()
         self._position_tablegroup_overlay()
+
+    def show_grid_surface(self) -> None:
+        self._editor_surface = "grid"
+        self.docs_container.pack_forget()
+        self.grid_stack.pack_forget()
+        self.details_container.pack_forget()
+        self._apply_details_overlay_position()
+        self.interaction_mode = GRID_SELECTED
+        self.canvas.focus_set()
+
+    def show_documentation_surface(self) -> None:
+        if not self.current_plan:
+            return
+        self._editor_surface = "docs"
+        self.grid_stack.pack_forget()
+        self.details_container.pack_forget()
+        self.docs_container.pack(fill="both", expand=True)
+        self._refresh_documentation_table()
+        self.docs_tree.focus_set()
+
+    def toggle_documentation_surface(self) -> None:
+        if not self.editor_view.winfo_ismapped():
+            return
+        if self._editor_surface == "docs":
+            self.show_grid_surface()
+        else:
+            self.show_documentation_surface()
+
+    def toggle_documentation_mode(self) -> None:
+        self._documentation_mode = "row" if self._documentation_mode == "column" else "column"
+        if self._documentation_mode == "column":
+            self.docs_mode_var.set("Modus: Spalten")
+        else:
+            self.docs_mode_var.set("Modus: Zeilen")
+
+    def _today_doc_date(self) -> str:
+        return date.today().isoformat()
+
+    def _documentation_cell_text(self, symbols: dict[str, int]) -> str:
+        chunks: list[str] = []
+        for symbol, strength in sorted(symbols.items()):
+            glyph = self._symbol_glyph(symbol)
+            chunks.append(glyph * max(1, min(3, int(strength))))
+        return " ".join(chunks)
+
+    def _documentation_summary_text(self, x: int, y: int) -> str:
+        if not self.current_plan:
+            return ""
+        summary = summarize_latest_symbols_for_student(self.current_plan, x, y)
+        return self._documentation_cell_text(summary)
+
+    def _latest_grade_value_for_column(self, x: int, y: int, column_id: str) -> str:
+        if not self.current_plan:
+            return ""
+        desk = self.current_plan.desk_at(x, y)
+        if not desk or desk.desk_type != "student":
+            return ""
+        latest: float | None = None
+        for date_key in sorted(desk.documentation_entries.keys()):
+            entry = desk.documentation_entries[date_key]
+            value = entry.grades.get(column_id)
+            if value is None:
+                continue
+            latest = float(value)
+        if latest is None:
+            return ""
+        return f"{latest:.2f}"
+
+    def _apply_doc_column_heading_highlight(self) -> None:
+        if not hasattr(self, "docs_tree"):
+            return
+        for idx, date_key in enumerate(self._doc_dates):
+            col_id = self._doc_date_column_ids[idx]
+            title = date_key
+            if idx == self._doc_selected_date_index:
+                title = f"> {date_key}"
+            self.docs_tree.heading(col_id, text=title)
+
+    def _refresh_documentation_table(self) -> None:
+        if not self.current_plan:
+            return
+
+        self._doc_student_coords = [
+            (desk.x, desk.y)
+            for desk in sorted(self.current_plan.desks, key=lambda item: (item.y, item.x))
+            if desk.desk_type == "student"
+        ]
+
+        all_dates = sorted(set(self.current_plan.documentation_dates) | {self._today_doc_date()})
+        self._doc_dates = all_dates
+        self._doc_date_column_ids = [f"date_{index}" for index in range(len(all_dates))]
+
+        fixed_columns: list[str] = ["summary"]
+        fixed_columns.extend([f"grade_{item.column_id}" for item in self.current_plan.grade_columns])
+        fixed_columns.append("overall")
+        columns = [*self._doc_date_column_ids, *fixed_columns]
+        self.docs_tree.configure(columns=columns)
+
+        for idx, date_key in enumerate(all_dates):
+            self.docs_tree.column(self._doc_date_column_ids[idx], width=120, anchor="center", stretch=False)
+            self.docs_tree.heading(self._doc_date_column_ids[idx], text=date_key)
+
+        self.docs_tree.column("summary", width=180, anchor="w", stretch=False)
+        self.docs_tree.heading("summary", text="Zusammenfassung")
+
+        for grade in self.current_plan.grade_columns:
+            col_id = f"grade_{grade.column_id}"
+            self.docs_tree.column(col_id, width=120, anchor="center", stretch=False)
+            self.docs_tree.heading(col_id, text=grade.title)
+
+        self.docs_tree.column("overall", width=120, anchor="center", stretch=False)
+        self.docs_tree.heading("overall", text="Gesamtnote")
+
+        for row_id in self.docs_tree.get_children():
+            self.docs_tree.delete(row_id)
+        self._doc_tree_iid_by_student_index = {}
+
+        for student_idx, (x, y) in enumerate(self._doc_student_coords):
+            desk = self.current_plan.desk_at(x, y)
+            if desk is None:
+                continue
+            values: list[str] = []
+            for date_key in all_dates:
+                entry = desk.documentation_entries.get(date_key)
+                values.append(self._documentation_cell_text(entry.symbols) if entry else "")
+            values.append(self._documentation_summary_text(x, y))
+            for grade in self.current_plan.grade_columns:
+                values.append(self._latest_grade_value_for_column(x, y, grade.column_id))
+            values.append(compute_grade_display_for_student(self.current_plan, x, y))
+
+            iid = self.docs_tree.insert("", "end", text=desk.student_name or f"({x},{y})", values=values)
+            self._doc_tree_iid_by_student_index[student_idx] = iid
+
+        if self._doc_student_coords:
+            self._doc_selected_student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+            self._doc_selected_date_index = max(0, min(self._doc_selected_date_index, max(0, len(all_dates) - 1)))
+            selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
+            if selected_iid is not None:
+                self.docs_tree.selection_set(selected_iid)
+                self.docs_tree.focus(selected_iid)
+                self.docs_tree.see(selected_iid)
+        else:
+            self._doc_selected_student_index = 0
+            self._doc_selected_date_index = 0
+
+        self._apply_doc_column_heading_highlight()
+
+    def _on_docs_tree_click(self, event) -> None:
+        row_id = self.docs_tree.identify_row(event.y)
+        if row_id:
+            self.docs_tree.selection_set(row_id)
+            self.docs_tree.focus(row_id)
+        col_id = self.docs_tree.identify_column(event.x)
+        if col_id.startswith("#"):
+            try:
+                col_index = int(col_id[1:]) - 1
+            except ValueError:
+                col_index = -1
+            if 0 <= col_index < len(self._doc_dates):
+                self._doc_selected_date_index = col_index
+                self._apply_doc_column_heading_highlight()
+
+    def _on_docs_tree_select(self) -> None:
+        selected = self.docs_tree.selection()
+        if not selected:
+            return
+        row_id = selected[0]
+        for student_idx, iid in self._doc_tree_iid_by_student_index.items():
+            if iid == row_id:
+                self._doc_selected_student_index = student_idx
+                break
+
+    def _move_doc_selection_on_enter(self) -> None:
+        if not self._doc_student_coords or not self._doc_dates:
+            return
+        if self._documentation_mode == "column":
+            self._doc_selected_student_index = (self._doc_selected_student_index + 1) % len(self._doc_student_coords)
+        else:
+            self._doc_selected_date_index = (self._doc_selected_date_index + 1) % len(self._doc_dates)
+            self._apply_doc_column_heading_highlight()
+
+        selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
+        if selected_iid is not None:
+            self.docs_tree.selection_set(selected_iid)
+            self.docs_tree.focus(selected_iid)
+            self.docs_tree.see(selected_iid)
+
+    def rename_selected_documentation_date_dialog(self) -> None:
+        if not self.current_plan or not self._doc_dates:
+            return
+        old_date = self._doc_dates[self._doc_selected_date_index]
+        new_date = simpledialog.askstring(
+            "Datum umbenennen",
+            "Neues Datum (YYYY-MM-DD):",
+            parent=self,
+            initialvalue=old_date,
+        )
+        if new_date is None:
+            return
+        updated = rename_documentation_date(self.current_plan, old_date, new_date)
+        updated = ensure_documentation_date(updated, new_date)
+        self._record_and_save(updated, "documentation.date.rename", "Dokudatum umbenannt")
+        self._refresh_documentation_table()
+
+    def add_grade_column_dialog(self) -> None:
+        if not self.current_plan:
+            return
+        category = simpledialog.askstring(
+            "Notenspalte",
+            "Typ eingeben: schriftlich oder sonstig",
+            parent=self,
+        )
+        if category is None:
+            return
+        title = simpledialog.askstring("Notenspalte", "Kurzer Titel:", parent=self)
+        if title is None:
+            return
+        updated, column_id = add_grade_column(self.current_plan, category.strip().lower(), title)
+        if not column_id:
+            messagebox.showerror("Ungueltige Eingabe", "Typ muss 'schriftlich' oder 'sonstig' sein.", parent=self)
+            return
+        self._record_and_save(updated, "documentation.grade_column.add", "Notenspalte hinzugefuegt")
+        self._refresh_documentation_table()
 
     def open_selected_plan_from_list(self) -> None:
         self._ensure_list_selection()
@@ -1282,6 +1613,7 @@ class KartographMainWindow(tk.Tk):
         self.center_on_cell(0, 0)
         self.redraw_grid()
         self._refresh_details_panel()
+        self._refresh_documentation_table()
 
     def create_new_plan_dialog(self) -> None:
         while True:
