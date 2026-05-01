@@ -15,11 +15,13 @@ The format is based on Keep a Changelog.
 - Neue Dokumentations-Use-Cases sind eingefuehrt (Datum anlegen/umbenennen, Symbol-/Notenwerte setzen, Symbolzusammenfassung, Gesamtnotenanzeige).
 - Neue Dokumentationsansicht im Editor: Umschalten zwischen Raster und Doku per `Strg+Shift+D`, Tabellenansicht mit Schuelerzeilen, Datums-Spalten, Zusammenfassung, Notenspalten und Gesamtnote.
 - In der Dokumentationsansicht koennen Datums-Spalten umbenannt und Notenspalten (schriftlich/sonstig + Titel) per Dialog hinzugefuegt werden.
+- Neue Spezialsymbole verfuegbar: `X` fuer nicht abgegebene/verweigerte Leistungen und `∅` fuer abwesende SuS.
 
 ### Changed
 - Leere Dokumentationstage werden beim Speichern nicht persistiert; ein Tagesdatum bleibt bis zur ersten Inhalteingabe volatil.
 - Beim Verschieben/Kopieren von Schuelertischen bleiben tagesbezogene Dokumentationseintraege jetzt erhalten.
 - Enter in der Dokumentationsansicht bewegt die aktive Auswahl je nach Modus spaltenweise nach unten oder zeilenweise nach rechts.
+- Symbol-Shortcuts funktionieren jetzt auch in der Dokumentationsansicht und schreiben direkt in die markierte Tageszelle.
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

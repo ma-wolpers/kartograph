@@ -54,6 +54,26 @@ _DEFAULT_SYMBOLS_PAYLOAD = {
                 "one": "meldet sich gelegentlich",
             },
         },
+        {
+            "codepoint": "0058",
+            "meaning": "Nicht abgegeben / verweigert",
+            "shortcut": "x",
+            "legend": {
+                "three": "wiederholt nicht abgegeben oder Arbeitsverweigerung",
+                "two": "mehrfach nicht abgegeben oder verweigert",
+                "one": "einmalig nicht abgegeben oder verweigert",
+            },
+        },
+        {
+            "codepoint": "2205",
+            "meaning": "Abwesend",
+            "shortcut": "u",
+            "legend": {
+                "three": "an mehreren Terminen abwesend",
+                "two": "wiederholt abwesend",
+                "one": "am Termin abwesend",
+            },
+        },
     ]
 }
 

@@ -39,6 +39,7 @@ from app.core.usecases.plan_usecases import (
     is_color_used,
     rename_documentation_date,
     set_color_meaning,
+    set_documentation_symbol,
     set_teacher_desk,
     summarize_latest_symbols_for_student,
     toggle_color_marker,
@@ -1081,9 +1082,14 @@ class KartographMainWindow(tk.Tk):
             return None
         if not self.editor_view.winfo_ismapped():
             return None
-        if self._editor_surface != "grid":
-            return None
         if not self.current_plan or not self.current_plan_path:
+            return None
+
+        if self._editor_surface == "docs":
+            self._toggle_documentation_symbol(symbol_name)
+            return "break"
+
+        if self._editor_surface != "grid":
             return None
 
         self._toggle_selected_symbol(symbol_name)
@@ -2784,6 +2790,26 @@ class KartographMainWindow(tk.Tk):
         self._record_and_save(next_plan, "symbol.toggle", f"Symbol '{symbol}' aktualisiert")
         self.redraw_grid()
         self._refresh_details_panel()
+
+    def _toggle_documentation_symbol(self, symbol: str) -> None:
+        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+            return
+
+        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+        date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
+        x, y = self._doc_student_coords[student_index]
+        date_key = self._doc_dates[date_index]
+
+        desk = self.current_plan.desk_at(x, y)
+        if not desk or desk.desk_type != "student":
+            return
+
+        entry = desk.documentation_entries.get(date_key)
+        current_count = 0 if entry is None else int(entry.symbols.get(symbol, 0))
+        next_count = (current_count + 1) % 4
+        updated = set_documentation_symbol(self.current_plan, x, y, symbol, next_count, date_key)
+        self._record_and_save(updated, "documentation.symbol.toggle", f"Dokumentation '{symbol}' aktualisiert")
+        self._refresh_documentation_table()
 
     def add_symbol_to_selected_desk_dialog(self) -> None:
         if not self.current_plan:

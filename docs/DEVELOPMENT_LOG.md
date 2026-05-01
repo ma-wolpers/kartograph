@@ -13,6 +13,8 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Symbol-Shortcuts in der Dokumentationssicht verdrahtet: Tastaturtasten aktualisieren jetzt die aktuell markierte Tageszelle (4er-Zyklus 0->1->2->3->0) analog zum Sitzraster.
+- Symbolkonfiguration erweitert um Spezialsymbole fuer `X` (nicht abgegeben/verweigert) und `∅` (abwesend), inklusive Fallback-Payload im Config-Loader.
 - GUI um eine umschaltbare Dokumentationssicht erweitert (Raster <-> Doku), inklusive neuer UI-Intents, Shortcut `Strg+Shift+D` und Menueeintrag in `Ansicht`.
 - Dokumentationssicht zeigt Schuelerzeilen mit Datums-Spalten, Symboltagesinhalten, Zusammenfassungs- und Notenspalten sowie berechneter Gesamtnote; Enter-Navigation unterstuetzt Spalten-/Zeilenmodus.
 - Dialogaktionen fuer Dokumentationssicht ergaenzt: Datum umbenennen und Notenspalte hinzufuegen (Typ schriftlich/sonstig, Titel).
