@@ -1900,7 +1900,11 @@ class KartographMainWindow(tk.Tk):
         frame.pack(fill="both", expand=True, padx=12, pady=12)
 
         ttk.Label(frame, text="Symbol auswählen").pack(anchor="w", pady=(0, 6))
-        ttk.Label(frame, text="Tastatur: 1-9 waehlt, Enter uebernimmt, Esc schliesst", foreground="#666666").pack(
+        ttk.Label(
+            frame,
+            text="Tastatur: 1-9 waehlt, Enter uebernimmt, Entf/Backspace loescht, Esc schliesst",
+            foreground="#666666",
+        ).pack(
             anchor="w", pady=(0, 6)
         )
 
@@ -1944,6 +1948,9 @@ class KartographMainWindow(tk.Tk):
             self._record_and_save(updated, "documentation.symbol.clear", f"Dokumentation '{symbol_name}' geloescht")
             self._refresh_documentation_table()
             dialog.destroy()
+
+        dialog.bind("<Delete>", lambda _event: clear_symbol())
+        dialog.bind("<BackSpace>", lambda _event: clear_symbol())
 
         symbol_listbox.bind("<Double-Button-1>", lambda _event: apply_symbol())
         symbol_listbox.bind("<Return>", lambda _event: apply_symbol())
