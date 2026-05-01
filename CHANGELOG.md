@@ -40,6 +40,7 @@ The format is based on Keep a Changelog.
 - In der Dokumentationsansicht springt der neue "Heute"-Button direkt zur aktuellen Datumsspalte.
 - Der "Heute"-Sprung in der Dokumentationsansicht ist jetzt auch per `Strg+H` verfuegbar.
 - Das Setzen von Symbolen in der Dokumentationsansicht nutzt jetzt einen Auswahl-Dialog mit klickbarer Liste statt Texteingabe.
+- Der Symboldialog in der Dokumentationsansicht ist jetzt direkt per `Strg+Shift+S` erreichbar.
 - Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
 - Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
 - Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.

@@ -559,7 +559,9 @@ class KartographMainWindow(tk.Tk):
             command=self.set_selected_documentation_grade_dialog,
         ).pack(side="left", padx=(8, 0))
         ttk.Label(self.docs_toolbar, textvariable=self.docs_mode_var).pack(side="right")
-        ttk.Label(self.docs_toolbar, text="Datum: Alt+Links/Rechts, Strg+H=Heute").pack(side="right", padx=(0, 12))
+        ttk.Label(self.docs_toolbar, text="Datum: Alt+Links/Rechts, Strg+H=Heute, Strg+Shift+S=Symbol").pack(
+            side="right", padx=(0, 12)
+        )
         ttk.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
 
         self.docs_table_container = ttk.Frame(self.docs_container)
@@ -618,6 +620,8 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Control-Shift-d>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
         self.bind("<Control-m>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION_MODE))
         self.bind("<Control-g>", self._on_set_grade_shortcut)
+        self.bind("<Control-Shift-S>", self._on_set_symbol_shortcut)
+        self.bind("<Control-Shift-s>", self._on_set_symbol_shortcut)
         self.bind("<Control-h>", self._on_docs_today_shortcut)
         self.bind("<Alt-Left>", self._on_docs_prev_date_shortcut)
         self.bind("<Alt-Right>", self._on_docs_next_date_shortcut)
@@ -723,6 +727,12 @@ class KartographMainWindow(tk.Tk):
         if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
             return None
         self.set_selected_documentation_grade_dialog()
+        return "break"
+
+    def _on_set_symbol_shortcut(self, _event) -> str | None:
+        if not self.editor_view.winfo_ismapped() or self._editor_surface != "docs":
+            return None
+        self.set_selected_documentation_symbol_dialog()
         return "break"
 
     def _on_docs_prev_date_shortcut(self, _event) -> str | None:
