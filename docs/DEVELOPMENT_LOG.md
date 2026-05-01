@@ -13,67 +13,10 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
-- Notenbearbeitung in der Dokumentationsansicht auf Inline-Editing in der Zelle umgestellt; die separate Editorleiste wurde entfernt.
-- `Enter` auf aktiver Notenspalte startet jetzt direkt den In-Cell-Editor der markierten Notenzelle.
-- Doppelklick auf eine Notenzelle im rechten Doku-Tree oeffnet direkt den In-Cell-Editor.
-- `Strg+G` nutzt weiterhin die Spaltenauswahl, startet danach aber direkt den In-Cell-Editor der Zielzelle.
-- Dokumentationssicht um kontextuelle Spaltenauswahl erweitert: fixe Rechts-Spalten koennen jetzt aktiv selektiert werden, inklusive Pfeilnavigation links/rechts zwischen Datums- und Fixspalten.
-- Notenbereich in der Dokusicht erweitert: optionale Spalten `Schriftlich gesamt` und `Sonstig gesamt` werden automatisch eingeblendet, sobald je Kategorie mehr als eine Notenspalte existiert; Werte sind kategoriemittelbasiert und ganzzahlig gerundet.
-- `Enter` in der Dokusicht startet bei aktiver Notenspalte direkt die Notenbearbeitung dieser Spalte.
-- `Entf` in der Dokusicht ist jetzt zellenkontextsensitiv: bei aktiver Notenspalte wird der Notenwert geloescht, bei aktiver Datumsspalte der Symbolwert.
-- Explizites Shortcut-Scope-System eingefuehrt (`global`/`grid`/`docs`/`list`) und zentrale Intent-Gates fuer grid-only/docs-only Aktionen verdrahtet.
-- Beim Wechsel in die Dokumentationsansicht wird die Sitzplan-Topbar ausgeblendet und beim Rueckwechsel wieder eingeblendet.
-- Dokumentations- und Notenlogik behandelt jetzt nur noch benannte Schuelertische als fachliche Schueler; leere Tische bleiben fuer Struktur/Farben erhalten, erscheinen aber nicht mehr in Dokuzeilen und erhalten keine Doku-/Notenwerte.
-- Symbolkonfiguration um Rollen erweitert (`diagnostic` vs. `documentation_only`); `X` und `∅` sind jetzt dokumentations-only.
-- Grid-Diagnosepfad trennt jetzt Symbolrollen: dokumentations-only Symbole werden nicht mehr als Diagnose-Symbole getoggelt, aber im Raster weiterhin angezeigt, wenn sie am heutigen Doku-Tag gesetzt sind.
-- Shortcut-Gating auf Fokuskontext erweitert: bei aktivem Text-/Dialogfokus werden globale Symbol-/Farb-Shortcuts und Doku-Aktionsshortcuts nicht mehr ausgewertet.
-- `Entf` in der Dokuansicht loescht jetzt direkt den aktuell markierten Doku-Symboleintrag (statt nur zu blocken).
-- Einstieg ueber `kartograph.py` wurde fuer Fehlerdiagnose gehaertet: Import-/Bootstrap-Ausnahmen werden jetzt frueh in `Temp/logs/kartograph_bootstrap_failures.log` geschrieben.
-- GUI-Diagnostik erweitert: ein Mainloop-Watchdog protokolliert verzoegerte UI-Ticks, und `open_plan`/Doku-Tabellenaufbau schreiben jetzt Laufzeitmarken ins Startup-Log.
-- Der Doku-Selektionspfad wurde gegen Re-Entry gehaertet: links/rechts synchronisieren jetzt source-aware und idempotent, redundante `selection_set`-Aufrufe entfallen, und stale IIDs werden vor Sync verworfen.
-- Die sichtbaren Loesch-Hinweise in der Dokumentations-Toolbar wurden auf den tatsaechlichen Shortcut-Umfang angepasst (`Strg+Entf` und `Strg+Backspace`).
-- Der schnelle Symbol-Loeschpfad in der Dokumentationssicht gibt jetzt klare Statusrueckmeldungen, wenn nichts geloescht werden konnte (z. B. kein aktives Symbol oder kein Doku-Eintrag).
-- In der Dokumentations-Toolbar gibt es jetzt eine direkte Aktion "Symbol loeschen (Strg+Entf)", die den schnellen Symbol-Loeschpfad ohne Dialog ausloest.
-- In der Dokumentationssicht loeschen `Strg+Entf` und `Strg+Backspace` jetzt direkt das erste aktive Symbol der aktuell markierten Doku-Zelle (ohne Dialog).
-- Im Dokumentations-Symboldialog loest jetzt auch `0` (inkl. Numpad) direkt die Loeschen-Aktion fuer das ausgewaehlte Symbol aus.
-- Der Dokumentations-Symboldialog unterstuetzt jetzt `Entf` und `Backspace` als Tastaturaktion fuer das direkte Loeschen des aktuell ausgewaehlten Symbols.
-- Im Dokumentations-Symboldialog waehlen `1-9` (inkl. Numpad) jetzt direkt die entsprechenden Symbolzeilen fuer schnellere Tastaturbedienung.
-- Der Dokumentations-Symboldialog bietet jetzt zusaetzlich eine explizite Aktion `Loeschen`, die das ausgewaehlte Symbol fuer die aktive Doku-Zelle auf 0 setzt.
-- Der Dokumentations-Symboldialog zeigt jetzt einen sichtbaren Tastaturhinweis fuer `Enter` (uebernehmen) und `Esc` (schliessen).
-- Der Dokumentations-Symboldialog waehlt beim Oeffnen bevorzugt das bereits aktive Symbol der aktuell markierten Doku-Zelle vor.
-- Der Dokumentations-Symboldialog prueft jetzt auf leeren Symbolkatalog und zeigt dann direkt eine klare Info statt eines leeren Auswahlfensters.
-- Im Dokumentations-Symboldialog uebernimmt jetzt auch `Numpad-Enter` die aktuelle Auswahl.
-- Der Symboldialog der Dokumentationssicht merkt sich die zuletzt gewaehlte Symbolzeile und oeffnet bei erneutem Aufruf mit dieser Vorauswahl.
-- Symbole im Dokumentations-Symboldialog lassen sich jetzt direkt per Doppelklick oder Enter uebernehmen.
-- Symboldialog in der Dokumentationssicht ist jetzt zusaetzlich per Shortcut `Strg+Shift+S` aufrufbar.
-- Symbolsetzen in der Dokumentationssicht von Freitext auf Auswahl-Dialog mit klickbarer Liste umgestellt (inklusive Symbolglyphen und Shortcut-Hinweisen).
-- "Heute"-Sprung in der Dokumentationssicht zusaetzlich per Shortcut `Strg+H` erreichbar.
-- Dokumentations-Toolbar um "Heute"-Aktion erweitert: die aktive Datumsspalte springt direkt auf das aktuelle Datum.
-- Periodische Backup-Ticks in der GUI eingefuehrt: bei geoeffnetem Plan wird alle 5 Minuten ein Snapshot-Backup in AppData geschrieben.
-- Dokumentations-Toolbar zeigt jetzt dauerhaft die aktive Doku-Zelle (Schuelerzeile + Datumsspalte) als Statusanzeige.
-- Datums-Spaltenauswahl in der Dokumentationssicht per Tastatur erweitert (`Alt+Links/Rechts`), inklusive synchroner Spaltenmarkierung.
-- Der Doku-Navigationsmodus (Spalten-/Zeilenmodus) wird jetzt in den Einstellungen persistiert und beim naechsten Start wiederhergestellt.
-- Beim Laden eines Plans wird das heutige Datum automatisch als Doku-Arbeitsspalte im Arbeitsspeicher initialisiert (weiterhin volatil bis zur ersten Inhalteingabe).
-- Lerngruppenspezifische Gewichtung fuer schriftlich/sonstig ist jetzt in der Dokumentationssicht per Dialog konfigurierbar und wirkt direkt auf die Gesamtnotenberechnung.
-- Dokumentationssicht um Button-basierte Symbolerfassung erweitert: Symbole koennen jetzt neben Shortcuts auch per Toolbar-Dialog in die markierte Tageszelle geschrieben werden.
-- Dokumentationstabelle in zwei synchronisierte Bereiche aufgeteilt: Datums-Spalten bleiben horizontal scrollbar, waehrend Zusammenfassung/Notenspalten/Gesamtnote rechts fix sichtbar bleiben.
-- Dokumentationssicht um Noteneingabe erweitert: per Button/Shortcut (`Strg+G`) lassen sich Noten fuer die markierte Schueler-/Datumskombination in einer gewaehlten Notenspalte setzen oder loeschen.
-- Save-Pipeline um versteckte lokale AppData-Backups erweitert: bei jedem Speichern wird ein Zeitstempel-Backup geschrieben und auf die letzten 20 Dateien pro Lerngruppe rotiert.
-- Sitzraster um Symbolfilter-Dialog erweitert: sichtbare Symbole koennen gezielt ein-/ausgeblendet werden; ohne Auswahl faellt der Filter automatisch auf "alle sichtbar" zurueck.
-- Sitzraster-Symbolanzeige auf Dokumentationszusammenfassung umgestellt: wenn Dokuwerte vorhanden sind, rendert die Kachel dieselben neuesten Symbolstaende wie die Zusammenfassungsspalte der Dokuansicht.
-- Pfeilnavigation um konfigurierbaren Sichtfenster-Puffer erweitert (`viewport_follow_buffer`): bei Wert 0 bleibt das bisherige Zentrierverhalten, bei Wert 1 folgt die Karte erst nach Verlassen des mittleren 3x3 Bereichs.
-- Grid-Rendering erweitert: die berechnete Gesamtnote wird je Schuelertisch oben links in der Kachel angezeigt.
-- Raster-Symbolaenderungen werden jetzt direkt als heutiger Dokumentationseintrag gespiegelt, damit Raster-Buttons/Shortcuts die Dokuhistorie synchron fortschreiben.
-- Symbol-Shortcuts in der Dokumentationssicht verdrahtet: Tastaturtasten aktualisieren jetzt die aktuell markierte Tageszelle (4er-Zyklus 0->1->2->3->0) analog zum Sitzraster.
-- Symbolkonfiguration erweitert um Spezialsymbole fuer `X` (nicht abgegeben/verweigert) und `∅` (abwesend), inklusive Fallback-Payload im Config-Loader.
-- GUI um eine umschaltbare Dokumentationssicht erweitert (Raster <-> Doku), inklusive neuer UI-Intents, Shortcut `Strg+Shift+D` und Menueeintrag in `Ansicht`.
-- Dokumentationssicht zeigt Schuelerzeilen mit Datums-Spalten, Symboltagesinhalten, Zusammenfassungs- und Notenspalten sowie berechneter Gesamtnote; Enter-Navigation unterstuetzt Spalten-/Zeilenmodus.
-- Dialogaktionen fuer Dokumentationssicht ergaenzt: Datum umbenennen und Notenspalte hinzufuegen (Typ schriftlich/sonstig, Titel).
-- JSON-Repository auf Format v3 erweitert: neue Sektion `documentation` (Tage, Notenspalten, Gewichtung), tagesbezogene Desk-Eintraege (`documentation_entries`) sowie abwaertskompatibles Laden bestehender v2-Plaene.
-- Persistenzregel fuer Tageskontexte umgesetzt: Dokumentationstage ohne Inhalt werden nicht in JSON geschrieben (volatile Tagesspalten bleiben bis zur ersten echten Eingabe unsaved).
-- Domainmodell erweitert um `DocumentationEntry` und `GradeColumnDefinition`; `Desk` traegt jetzt tagesbezogene Dokumentationsdaten, `SeatingPlan` planweite Notenspalten-/Gewichtungsmetadaten.
-- Use-Case-Layer um Dokumentations-/Notenfunktionen erweitert (Datum anlegen/umbenennen, Symbol-/Notenwerte setzen, Symbolzusammenfassung je Schueler, Gesamtnotenanzeige nach Rundungs- und Gewichtungsregeln).
-- Clipboard- und Teacher-Move-Pfade uebernehmen jetzt auch Dokumentationseintraege, damit keine tagesbezogenen Informationen bei Strukturaktionen verloren gehen.
+- Navigations-Moduswechsel in der Dokumentationsansicht entfernt: `_documentation_mode`, `toggle_documentation_mode`, `_move_doc_selection_on_enter` und alle zugehoerigen State- und UI-Elemente (Toolbar-Button, Strg+M-Shortcut, Intent-Handler) wurden vollstaendig entfernt.
+- Enter-Verhalten in der Dokumentationsansicht vereinfacht: Enter oeffnet jetzt den In-Cell-Editor auf der aktiven Notenspalte; wenn kein editierbares Feld aktiv ist, passiert nichts; kein Positions-Sprung mehr.
+- Persistente Zellenhervorhebung eingefuehrt: die aktive Doku-Zelle wird immer mit einem hellen Label-Overlay hervorgehoben (auch ausserhalb des Schreibmodus); die Zeile bleibt im normalen Treeview-Selection-Stil markiert.
+- Header-Markierung erweitert: der aktive Spaltenkopf wird fuer Datums- und fixe Spalten (rechter Tree) gleichermassen mit einem `>` Praefix markiert; bei Wechsel der aktiven Spalte wird der Praefix korrekt umgesetzt.
 - Tischgruppen-Normalisierung erweitert: leere Schuelertische koennen in benannten Tischgruppen mitlaufen; Komponenten ohne mindestens einen benannten Schuelertisch werden weiterhin zwingend auf TG 0 zurueckgesetzt.
 - Tischgruppen-Transformationen und TG-Nachschlagefunktionen greifen jetzt fuer alle Schuelertische einer Gruppe (inklusive leerer Tische), damit Shift/Rotation konsistent auf die gesamte Gruppe wirken.
 - Der aktive Markierungsrahmen im Grid-Rendering basiert jetzt auf transformierten Tischpolygonen statt auf starren Grid-Bounds, damit die Auswahl bei verschobenen/rotierten Gruppen korrekt auf dem Tisch liegt.
@@ -126,9 +69,6 @@ Regel:
 - Beim Oeffnen eines Plans erscheint jetzt eine Warnung, wenn enthaltene Schuelertische ausserhalb des aktuell eingestellten Canvas-Radius liegen und daher nicht dargestellt werden koennen.
 
 ### Added
-- Repository-API `backup_plan_snapshot` plus Test (`tests/test_backup_snapshot_api.py`) fuer Backup-Erzeugung ohne Primardatei-Write.
-- Test fuer Backup-Rotation (`tests/test_backup_rotation.py`).
-- Neue Tests fuer Dokumentations-Use-Cases und JSON-v3-Serialisierung/Migration (`tests/test_documentation_usecases.py`, `tests/test_json_repository_documentation.py`).
 - `app/infrastructure/symbol_config_loader.py` fuer Schema-Pruefung und Laden der Symbolkonfiguration.
 - `app/infrastructure/exporters/pdf_exporter.py` fuer PDF-Ausgabe ohne Rasterlinien und mit klaren Tischrahmen.
 - `docs/TODO.md` mit offenem Hinweis zur spaeteren Warnung bzgl. Standardperspektive (Lehrertisch unten).

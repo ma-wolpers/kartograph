@@ -104,7 +104,6 @@ GRID_ONLY_INTENTS = {
 }
 
 DOCS_ONLY_INTENTS = {
-    UiIntent.TOGGLE_DOCUMENTATION_MODE,
     UiIntent.RENAME_DOCUMENTATION_DATE,
     UiIntent.ADD_GRADE_COLUMN,
 }
@@ -180,9 +179,6 @@ class KartographMainWindow(tk.Tk):
         self.tablegroup_overlay_position = self._normalize_tablegroup_overlay_position(
             self._settings.get("tablegroup_overlay_position")
         )
-        self._documentation_mode = self._normalize_documentation_mode(
-            self._settings.get("documentation_mode")
-        )
 
         self.ui_intent_controller = MainWindowUiIntentController(self)
 
@@ -213,6 +209,7 @@ class KartographMainWindow(tk.Tk):
         self._docs_inline_editor_row_id: str | None = None
         self._docs_inline_editor_kind: str | None = None
         self._docs_inline_editor_model_column: str | None = None
+        self._docs_cell_overlay: tk.Label | None = None
         self._docs_symbol_dialog_last_index: int = 0
         self._ui_watchdog_last_tick = time.perf_counter()
         self._ui_watchdog_tick_count = 0
@@ -627,18 +624,11 @@ class KartographMainWindow(tk.Tk):
         self.docs_toolbar = ttk.Frame(self.docs_container)
         self.docs_toolbar.pack(fill="x", padx=12, pady=(0, 8))
 
-        mode_label = "Modus: Spalten" if self._documentation_mode == "column" else "Modus: Zeilen"
-        self.docs_mode_var = tk.StringVar(value=mode_label)
         ttk.Button(
             self.docs_toolbar,
             text="Zur Rasteransicht",
             command=lambda: self._handle_intent(UiIntent.VIEW_GRID),
         ).pack(side="left")
-        ttk.Button(
-            self.docs_toolbar,
-            text="Modus wechseln (Strg+M)",
-            command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION_MODE),
-        ).pack(side="left", padx=(8, 0))
         ttk.Button(
             self.docs_toolbar,
             text="Datum umbenennen",
@@ -707,11 +697,13 @@ class KartographMainWindow(tk.Tk):
         self.docs_tree.bind("<Button-1>", self._on_docs_tree_click)
         self.docs_tree.bind("<Left>", lambda _event: self._on_docs_horizontal_nav(-1))
         self.docs_tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
+        self.docs_tree.bind("<MouseWheel>", lambda _event: self.after_idle(self._update_docs_cell_highlight))
         self.docs_right_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_right_tree_select())
         self.docs_right_tree.bind("<Button-1>", self._on_docs_right_tree_click)
         self.docs_right_tree.bind("<Double-Button-1>", self._on_docs_right_tree_double_click)
         self.docs_right_tree.bind("<Left>", lambda _event: self._on_docs_horizontal_nav(-1))
         self.docs_right_tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
+        self.docs_right_tree.bind("<MouseWheel>", lambda _event: self.after_idle(self._update_docs_cell_highlight))
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
         self.canvas.bind("<B1-Motion>", self._on_canvas_drag)
@@ -742,7 +734,6 @@ class KartographMainWindow(tk.Tk):
         self.bind("<Control-t>", lambda _event: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS))
         self.bind("<Control-Shift-D>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
         self.bind("<Control-Shift-d>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
-        self.bind("<Control-m>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION_MODE))
         self.bind("<Control-g>", self._on_set_grade_shortcut)
         self.bind("<Control-Shift-S>", self._on_set_symbol_shortcut)
         self.bind("<Control-Shift-s>", self._on_set_symbol_shortcut)
@@ -993,12 +984,6 @@ class KartographMainWindow(tk.Tk):
             return DEFAULT_TABLEGROUP_OVERLAY_POSITION
         return normalized
 
-    def _normalize_documentation_mode(self, value: object) -> str:
-        normalized = str(value or "").strip().lower()
-        if normalized not in {"column", "row"}:
-            return "column"
-        return normalized
-
     def _grid_min(self) -> int:
         return -self.canvas_radius
 
@@ -1081,7 +1066,6 @@ class KartographMainWindow(tk.Tk):
                 if self._doc_selected_fixed_column_id and self._doc_selected_fixed_column_id.startswith("grade_"):
                     self._open_selected_docs_grade_cell_editor()
                     return "break"
-                self._move_doc_selection_on_enter()
                 return "break"
             if not self.selection.is_single():
                 self._collapse_selection_to_anchor()
@@ -1724,15 +1708,6 @@ class KartographMainWindow(tk.Tk):
         else:
             self.show_documentation_surface()
 
-    def toggle_documentation_mode(self) -> None:
-        self._documentation_mode = "row" if self._documentation_mode == "column" else "column"
-        self._settings["documentation_mode"] = self._documentation_mode
-        self.settings_repository.save_settings(self._settings)
-        if self._documentation_mode == "column":
-            self.docs_mode_var.set("Modus: Spalten")
-        else:
-            self.docs_mode_var.set("Modus: Zeilen")
-
     def _today_doc_date(self) -> str:
         return date.today().isoformat()
 
@@ -1832,10 +1807,84 @@ class KartographMainWindow(tk.Tk):
         for idx, date_key in enumerate(self._doc_dates):
             col_id = self._doc_date_column_ids[idx]
             title = date_key
-            if idx == self._doc_selected_date_index:
+            if idx == self._doc_selected_date_index and not self._doc_selected_fixed_column_id:
                 title = f"> {date_key}"
             self.docs_tree.heading(col_id, text=title)
+        if hasattr(self, "docs_right_tree") and hasattr(self, "_doc_fixed_column_ids"):
+            for idx, fixed_col_id in enumerate(self._doc_fixed_column_ids):
+                col_id = f"#{idx + 1}"
+                base_label = self._doc_fixed_column_label(fixed_col_id)
+                if fixed_col_id == self._doc_selected_fixed_column_id:
+                    label = f"> {base_label}"
+                else:
+                    label = base_label
+                self.docs_right_tree.heading(col_id, text=label)
         self._refresh_doc_selection_status()
+
+    def _update_docs_cell_highlight(self) -> None:
+        """Place a visible overlay label on the currently active docs cell."""
+        if self._docs_cell_overlay is not None:
+            try:
+                if self._docs_cell_overlay.winfo_exists():
+                    self._docs_cell_overlay.destroy()
+            except Exception:
+                pass
+            self._docs_cell_overlay = None
+
+        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+            return
+        if self._docs_inline_editor is not None:
+            return
+
+        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+        row_iid = self._doc_tree_iid_by_student_index.get(student_index)
+        if row_iid is None:
+            return
+
+        if self._doc_selected_fixed_column_id:
+            tree = self.docs_right_tree
+            try:
+                col_index = self._doc_fixed_column_ids.index(self._doc_selected_fixed_column_id)
+                tree_col = f"#{col_index + 1}"
+            except (ValueError, AttributeError):
+                return
+            if row_iid not in tree.get_children():
+                return
+            values = tree.item(row_iid, "values")
+            cell_text = str(values[col_index]) if values and col_index < len(values) else ""
+        else:
+            tree = self.docs_tree
+            date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
+            if date_index >= len(self._doc_date_column_ids):
+                return
+            tree_col = self._doc_date_column_ids[date_index]
+            if row_iid not in tree.get_children():
+                return
+            values = tree.item(row_iid, "values")
+            cell_text = str(values[date_index]) if values and date_index < len(values) else ""
+
+        bbox = tree.bbox(row_iid, tree_col)
+        if not bbox:
+            return
+        bx, by, bw, bh = bbox
+
+        theme = THEMES.get(self.theme_key, THEMES[list(THEMES.keys())[0]])
+        cell_bg = theme.get("accent_soft", "#fffde7")
+        cell_fg = theme.get("fg_primary", "#000000")
+
+        label = tk.Label(
+            tree,
+            text=cell_text,
+            background=cell_bg,
+            foreground=cell_fg,
+            bd=1,
+            relief="solid",
+            anchor="w",
+            padx=4,
+            pady=0,
+        )
+        label.place(x=bx, y=by, width=bw, height=bh)
+        self._docs_cell_overlay = label
 
     def _refresh_doc_selection_status(self) -> None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
@@ -1852,8 +1901,10 @@ class KartographMainWindow(tk.Tk):
         if self._doc_selected_fixed_column_id:
             label = self._doc_fixed_column_label(self._doc_selected_fixed_column_id)
             self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {label}")
+            self.after_idle(self._update_docs_cell_highlight)
             return
         self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {self._doc_dates[date_index]}")
+        self.after_idle(self._update_docs_cell_highlight)
 
     def _selected_docs_coordinates_and_date(self) -> tuple[int, int, str] | None:
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
@@ -1878,6 +1929,7 @@ class KartographMainWindow(tk.Tk):
         self._docs_inline_editor_row_id = None
         self._docs_inline_editor_kind = None
         self._docs_inline_editor_model_column = None
+        self.after_idle(self._update_docs_cell_highlight)
 
     def _apply_docs_inline_editor_value(self) -> None:
         if not self.current_plan:
@@ -2191,24 +2243,6 @@ class KartographMainWindow(tk.Tk):
         student_idx = self._doc_student_index_by_iid.get(row_id)
         if student_idx is not None:
             self._doc_selected_student_index = student_idx
-
-    def _move_doc_selection_on_enter(self) -> None:
-        if not self._doc_student_coords or not self._doc_dates:
-            return
-        if self._doc_selected_fixed_column_id:
-            selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
-            if selected_iid is not None:
-                self._set_docs_row_selection(selected_iid, source="right")
-            return
-        if self._documentation_mode == "column":
-            self._doc_selected_student_index = (self._doc_selected_student_index + 1) % len(self._doc_student_coords)
-        else:
-            self._doc_selected_date_index = (self._doc_selected_date_index + 1) % len(self._doc_dates)
-            self._apply_doc_column_heading_highlight()
-
-        selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
-        if selected_iid is not None:
-            self._set_docs_row_selection(selected_iid)
 
     def _doc_fixed_column_label(self, column_id: str) -> str:
         if column_id == "summary":

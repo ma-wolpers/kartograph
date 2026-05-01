@@ -77,9 +77,6 @@ class MainWindowUiIntentController:
         if intent == UiIntent.TOGGLE_DOCUMENTATION:
             self.app.toggle_documentation_surface()
             return "break"
-        if intent == UiIntent.TOGGLE_DOCUMENTATION_MODE:
-            self.app.toggle_documentation_mode()
-            return "break"
         if intent == UiIntent.RENAME_DOCUMENTATION_DATE:
             self.app.rename_selected_documentation_date_dialog()
             return "break"

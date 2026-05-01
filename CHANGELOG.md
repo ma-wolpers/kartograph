@@ -6,94 +6,11 @@ The format is based on Keep a Changelog.
 
 ## [Unreleased]
 
-### Added
-- Tischgruppen als Zusammenhangskomponenten fuer Schuelertische mit sichtbarer TG-Nummer unter jeder Gruppe.
-- Neues Tischeinstellungen-Overlay rechts per `Strg+T` mit TG-Nummer, x-shift, y-shift und Rotation.
-- Farbpunkte fuer Schuelertische: pro Tisch koennen per Tastatur `1..9` oder per Farbbuttons Marker in neun Farben gesetzt/entfernt werden (Gelb, Orange, Rot, Magenta, Lila, Marine, Cyan, Tuerkis, Gruen).
-- Bei der ersten Nutzung einer Farbe in einem Plan fragt Kartograph die Bedeutung ab und zeigt sie als eigene Legendenzeile; wird der letzte Marker dieser Farbe entfernt, verschwindet die Bedeutungszeile automatisch.
-- Grundlagen fuer die neue Dokumentationssicht sind vorhanden: Plandateien nutzen jetzt JSON v3 mit tagesbezogener Dokumentationsstruktur, Notenspalten-Definitionen und lerngruppenspezifischer Gewichtung schriftlich/sonstig.
-- Neue Dokumentations-Use-Cases sind eingefuehrt (Datum anlegen/umbenennen, Symbol-/Notenwerte setzen, Symbolzusammenfassung, Gesamtnotenanzeige).
-- Neue Dokumentationsansicht im Editor: Umschalten zwischen Raster und Doku per `Strg+Shift+D`, Tabellenansicht mit Schuelerzeilen, Datums-Spalten, Zusammenfassung, Notenspalten und Gesamtnote.
-- In der Dokumentationsansicht koennen Datums-Spalten umbenannt und Notenspalten (schriftlich/sonstig + Titel) per Dialog hinzugefuegt werden.
-- Neue Spezialsymbole verfuegbar: `X` fuer nicht abgegebene/verweigerte Leistungen und `∅` fuer abwesende SuS.
-- Bei jedem Speichern wird zusaetzlich ein lokales, verstecktes JSON-Backup im AppData-Pfad erzeugt; pro Lerngruppe bleiben die letzten 20 Sicherungen erhalten.
-- Bei geoeffnetem Plan erstellt Kartograph zusaetzlich alle 5 Minuten automatisch ein Snapshot-Backup im selben AppData-Backupbereich.
-
 ### Changed
-- Notenzellen in der Dokumentationsansicht werden jetzt direkt in der Zelle bearbeitet (In-Cell-Editor statt separater Editorleiste).
-- `Enter` auf aktiver Notenspalte startet jetzt direkt den In-Cell-Editor der markierten Zelle.
-- Doppelklick auf eine Notenzelle oeffnet den In-Cell-Editor unmittelbar.
-- `Strg+G` oeffnet die Spaltenauswahl und startet danach direkt die In-Cell-Bearbeitung der Zielzelle.
-- Die Dokuansicht kann jetzt zwischen Datums- und Rechts-Spalten per Pfeiltasten navigieren; fixe Rechts-Spalten sind als aktive Zielspalte selektierbar.
-- Bei aktiver Notenspalte startet `Enter` jetzt direkt die Bearbeitung genau dieser Notenspalte.
-- In der Dokuansicht ist `Entf` jetzt kontextsensitiv: Notenspalte loescht Note, Datumsspalte loescht Symbolwert.
-- Die Dokuansicht zeigt zusaetzlich `Schriftlich gesamt` und `Sonstig gesamt`, sobald je Kategorie mehr als eine Notenspalte vorhanden ist; die Werte sind ganzzahlig gerundet.
-- Tastatursteuerung wurde auf explizite Kontexte umgestellt: grid-only/docs-only Shortcuts werden jetzt zentral geprueft und im falschen Modus nicht mehr ausgefuehrt.
-- Beim Wechsel in die Dokumentationsansicht wird die Sitzplan-Topbar ausgeblendet und beim Rueckwechsel wieder eingeblendet.
-- In der Dokumentationsansicht werden nur noch benannte Schuelertische als Schueler gefuehrt; leere Tische erhalten keine Dokuzeilen und keine Doku-/Notenwerte.
-- `X` und `∅` sind jetzt als reine Dokumentationszeichen klassifiziert und werden nicht mehr als Diagnose-Symbole behandelt.
-- In der Rasteransicht werden dokumentations-only Zeichen (`X`, `∅`) nur noch dann angezeigt, wenn sie fuer den heutigen Doku-Tag gesetzt sind.
-- Symbol-/Farb-Shortcuts werden bei aktivem Text- oder Dialogfokus nicht mehr ausgewertet, damit Eingaben in Textfeldern nicht versehentlich als Shortcuts wirken.
-- `Entf` in der Dokumentationsansicht loescht jetzt den aktuell markierten Doku-Symboleintrag statt nur zu blocken.
-- Die Synchronisierung der linken/rechten Doku-Tabelle wurde gegen Re-Entry stabilisiert; redundante Auswahl-Syncs beim Zeilenwechsel wurden reduziert, wodurch Haenger im Selektionspfad vermieden werden.
-- Leere Dokumentationstage werden beim Speichern nicht persistiert; ein Tagesdatum bleibt bis zur ersten Inhalteingabe volatil.
-- Beim Verschieben/Kopieren von Schuelertischen bleiben tagesbezogene Dokumentationseintraege jetzt erhalten.
-- Enter in der Dokumentationsansicht bewegt die aktive Auswahl je nach Modus spaltenweise nach unten oder zeilenweise nach rechts.
-- Symbol-Shortcuts funktionieren jetzt auch in der Dokumentationsansicht und schreiben direkt in die markierte Tageszelle.
-- Symbolaenderungen im Sitzraster werden jetzt automatisch als heutiger Dokumentationseintrag uebernommen.
-- In der Sitzrasteransicht wird die berechnete Gesamtnote je Schuelertisch oben links eingeblendet.
-- In den Einstellungen gibt es jetzt einen Sichtfenster-Puffer fuer Pfeilnavigation (0 = bisheriges Verhalten, 1 = Bewegung erst ausserhalb des mittleren 3x3 Bereichs).
-- Die Symbolanzeige im Sitzraster nutzt jetzt (falls vorhanden) die gleiche neueste Dokumentationszusammenfassung wie die Doku-Tabelle.
-- Ueber "Symbole filtern" laesst sich nun festlegen, welche Symbole im Sitzraster angezeigt werden (Standard: alle sichtbar).
-- In der Dokumentationsansicht koennen Noten jetzt direkt fuer markierte Schueler-/Datumseintraege gesetzt oder geloescht werden (Button oder `Strg+G`).
-- Zusammenfassung, Notenspalten und Gesamtnote bleiben in der Dokumentationsansicht jetzt rechts fix sichtbar, waehrend Datums-Spalten horizontal scrollen.
-- Symbole in der Dokumentationsansicht lassen sich jetzt auch per Button/Dialog setzen (zusaetzlich zu Shortcuts).
-- Die Gewichtung schriftlich/sonstig fuer die Gesamtnote ist in der Dokumentationsansicht jetzt pro Lerngruppe konfigurierbar.
-- Beim Oeffnen eines Plans steht das aktuelle Datum automatisch als Doku-Spalte bereit; ohne Eintrag bleibt sie weiterhin unsaved.
-- Der zuletzt genutzte Spalten-/Zeilenmodus der Dokumentationsansicht wird jetzt gespeichert.
-- In der Dokumentationsansicht kann die aktive Datumsspalte per `Alt+Links/Rechts` gewechselt werden.
-- Die Dokumentationsansicht zeigt jetzt dauerhaft die aktive Zelle (Schueler + Datum) in der Toolbar an.
-- In der Dokumentationsansicht springt der neue "Heute"-Button direkt zur aktuellen Datumsspalte.
-- Der "Heute"-Sprung in der Dokumentationsansicht ist jetzt auch per `Strg+H` verfuegbar.
-- Das Setzen von Symbolen in der Dokumentationsansicht nutzt jetzt einen Auswahl-Dialog mit klickbarer Liste statt Texteingabe.
-- Der Symboldialog in der Dokumentationsansicht ist jetzt direkt per `Strg+Shift+S` erreichbar.
-- Symbole koennen im Dokumentations-Symboldialog jetzt per Doppelklick oder `Enter` sofort uebernommen werden.
-- Der Dokumentations-Symboldialog merkt sich jetzt die letzte Auswahl und startet beim naechsten Oeffnen auf derselben Symbolzeile.
-- Im Dokumentations-Symboldialog uebernimmt jetzt auch `Numpad-Enter` die aktuelle Symbolauswahl.
-- Bei leerem Symbolkatalog zeigt der Dokumentations-Symboldialog jetzt eine direkte Hinweismeldung statt eines leeren Dialogfensters.
-- Beim Oeffnen des Dokumentations-Symboldialogs wird jetzt bevorzugt das bereits aktive Symbol der aktuell markierten Doku-Zelle vorselektiert.
-- Der Dokumentations-Symboldialog zeigt jetzt einen sichtbaren Tastaturhinweis fuer `Enter` (uebernehmen) und `Esc` (schliessen).
-- Im Dokumentations-Symboldialog gibt es jetzt eine explizite Aktion `Loeschen`, die das ausgewaehlte Symbol fuer die aktive Doku-Zelle direkt auf 0 setzt.
-- Im Dokumentations-Symboldialog waehlen `1-9` (inkl. Numpad) jetzt direkt die entsprechenden Symbolzeilen.
-- Im Dokumentations-Symboldialog loeschen jetzt auch `Entf` und `Backspace` direkt das aktuell ausgewaehlte Symbol.
-- Im Dokumentations-Symboldialog loest jetzt auch `0` (inkl. Numpad) direkt die Loeschen-Aktion fuer das ausgewaehlte Symbol aus.
-- In der Dokumentationssicht loeschen `Strg+Entf` und `Strg+Backspace` jetzt direkt das erste aktive Symbol der aktuell markierten Doku-Zelle.
-- In der Dokumentationsansicht gibt es jetzt eine direkte Toolbar-Aktion "Symbol loeschen (Strg+Entf)" fuer den schnellen Loeschpfad ohne Dialog.
-- Der schnelle Symbol-Loeschpfad in der Dokumentationsansicht zeigt jetzt klare Statushinweise, wenn kein Symbol geloescht werden konnte.
-- Die sichtbaren Loesch-Hinweise in der Dokumentationsansicht nennen jetzt konsistent `Strg+Entf` und `Strg+Backspace`.
-- Beim Start wird das Hauptfenster wieder auf den Bildschirm zentriert; die initiale Planlisten-Ladung laeuft jetzt deferred nach dem UI-Aufbau, um Start-Haenger zu reduzieren.
-- Kartograph schreibt beim Start jetzt ein persistentes Diagnose-Log nach `Temp/logs/kartograph_startup.log` (inklusive Startphasen und unbehandelter Exceptions).
-- Falls der Fehler bereits vor dem eigentlichen App-Start auftritt, schreibt `kartograph.py` jetzt fruehe Bootstrap-Fehler nach `Temp/logs/kartograph_bootstrap_failures.log`.
-- Das Startup-Logging enthaelt jetzt zusaetzlich UI-Watchdog-Marker (verzoegerte Mainloop-Ticks) sowie Zeitmessungen fuer Planladen und Doku-Tabellenaufbau.
-- Fuer Freeze-Diagnosen erzeugt Kartograph jetzt alle 15 Sekunden Thread-Stackdumps nach `Temp/logs/kartograph_hang_traces.log` (solange die App laeuft).
-- Die Zeilensynchronisierung zwischen linker und rechter Doku-Tabelle vermeidet jetzt redundante Select-Events, um moegliche UI-Blockaden bei Auswahlwechseln zu reduzieren.
-- Beim S:S-Overlay in Position `links`/`rechts` wurden Button- und Legendenzeilen auf deutlich staerkere Umbrueche umgestellt, damit Inhalte nicht seitlich abgeschnitten werden.
-- Farbkreise im Tisch wurden in y-Richtung weiter nach oben verschoben, damit sie nicht mehr mit Namenslabels kollidieren.
-- Nach dem Bedeutungs-Popup fuer eine neu verwendete Farbe springt der Fokus wieder auf das markierte Feld im Grid zurueck.
-- In der Kursansicht wurde der Toolbar-Button `Einstellungen` durch direkte Planaktionen ersetzt: `Umbenennen`, `Loeschen` und `Duplizieren`.
-- `Duplizieren` fragt den Zielnamen jetzt immer per Dialog ab (mit vorbelegtem Vorschlag `<Name> Kopie`) und nutzt bei Namenskonflikten denselben Ueberschreiben-Dialog wie beim Erstellen neuer Plaene.
-- Planaktionen in der Kursansicht (`Umbenennen`, `Loeschen`, `Duplizieren`) sind jetzt in `Rueckgaengig`/`Wiederholen` eingebunden.
-- Fuer die neuen Kursansicht-Aktionen gibt es Tastatur-Shortcuts: `F2` (Umbenennen), `Entf` in der Liste (Loeschen), `Strg+D` (Duplizieren).
-- Neue Tischgruppen entstehen jetzt immer mit der naechsten hoechsten TG-Nummer (Nummerierung nach Entstehung statt links-nach-rechts-Zuweisung).
-- Das Tisch-Overlay mit Name/Symbolen/Farbbuttons ist in `Ansicht` jetzt links, rechts oder unten andockbar; die Position wird in den Einstellungen gespeichert.
-- Das Tischgruppen-Overlay ist in `Ansicht` ebenfalls auf links, rechts oder unten umstellbar (persistente Position).
-- Leere Schuelertische (ohne Namen) koennen Mitglied einer bestehenden Tischgruppe sein, bilden aber niemals eigenstaendig eine Tischgruppe.
-- Tischgruppen lassen sich manuell umnummerieren; bei Nummernkonflikten werden bestehende Gruppen automatisch hochgezaehlt (Kaskadeneffekt).
-- x/y-Shift wirkt jetzt sowohl in der Vorschau als auch im PDF-Export konsistent auf die Tischdarstellung.
-- Rotationen von Tischgruppen werden sofort in Vorschau und Export dargestellt (begrenzt auf -45 bis +45 Grad).
-- Bei markierten Teilen einer Tischgruppe wird ein zusaetzlicher, schwaecherer Gruppenrahmen angezeigt.
-- Der Markierungsrahmen folgt bei verschobenen/rotierten Tischgruppen jetzt der transformierten Tischgeometrie statt den urspruenglichen Grid-Koordinaten.
-- Ueberlappungen mit Lehrer- oder Schuelertischen fuehren zum automatischen Zuruecksetzen des zuletzt geaenderten Transformationswerts auf 0.
+- In der Dokumentationsansicht gibt es keinen Moduswechsel mehr: der Toolbar-Button und `Strg+M` wurden entfernt.
+- Enter navigiert in der Dokumentationsansicht nicht mehr; Enter betritt das Eingabefeld der aktiven Notenspalte bzw. schließt es wieder.
+- Die aktive Doku-Zelle ist jetzt immer sichtbar markiert, auch ohne offenen Schreibmodus (helle Zellhervorhebung gegen dunklen Zeilenhintergrund).
+- Der aktive Spaltenkopf wird jetzt fuer beide Tabellenbereiche (Datumsspalten und fixe Spalten rechts) sichtbar markiert.
 
 ## [0.2.0] - 2026-04-22
 
