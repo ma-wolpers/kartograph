@@ -22,7 +22,7 @@ from app.adapters.gui.keybinding_registry import (
     KeybindingRegistry,
     KeybindingRuntimeContext,
 )
-from app.adapters.gui.popup_policy import POPUP_KIND_MODAL, PopupPolicy, PopupPolicyRegistry
+from app.adapters.gui.popup_policy import POPUP_KIND_MODAL, POPUP_KIND_NON_MODAL, PopupPolicy, PopupPolicyRegistry
 from app.adapters.gui.ui_theme import THEMES, normalize_theme_key, theme_names
 from app.core.domain.desk_clipboard import DeskClipboard
 from app.core.domain.models import SeatingPlan
@@ -200,6 +200,14 @@ class KartographMainWindow(tk.Tk):
         self._runtime_shortcuts = KeybindingRegistry()
         self._popup_registry = PopupPolicyRegistry()
         self._popup_registry.register_policy(PopupPolicy(policy_id="dialog.modal", kind=POPUP_KIND_MODAL))
+        self._popup_registry.register_policy(
+            PopupPolicy(
+                policy_id="dialog.non_blocking",
+                kind=POPUP_KIND_NON_MODAL,
+                trap_focus=False,
+                affects_mode=False,
+            )
+        )
         self._tracked_popup_ids: set[str] = set()
         self._shortcut_runtime_offline = False
         self._shortcut_runtime_debug_window: tk.Toplevel | None = None
@@ -821,11 +829,11 @@ class KartographMainWindow(tk.Tk):
         self._runtime_shortcuts.register(definition)
         return definition
 
-    def _track_popup_window(self, window: tk.Toplevel) -> None:
+    def _track_popup_window(self, window: tk.Toplevel, *, policy_id: str = "dialog.modal") -> None:
         popup_id = str(window)
         if popup_id in self._tracked_popup_ids:
             return
-        self._popup_registry.open_popup(popup_id=popup_id, title=str(window.title() or ""), policy_id="dialog.modal")
+        self._popup_registry.open_popup(popup_id=popup_id, title=str(window.title() or ""), policy_id=policy_id)
         self._tracked_popup_ids.add(popup_id)
 
     def _sync_popup_sessions_from_windows(self) -> None:
@@ -856,7 +864,7 @@ class KartographMainWindow(tk.Tk):
     def _build_runtime_context(self, event: tk.Event[tk.Misc] | None = None) -> KeybindingRuntimeContext:
         self._sync_popup_sessions_from_windows()
         text_input_focused = self._is_text_input_focused()
-        dialog_open = self._popup_registry.has_active_popup()
+        dialog_open = self._popup_registry.has_mode_blocking_popup()
         offline = bool(self._shortcut_runtime_offline)
 
         if offline:
@@ -927,7 +935,7 @@ class KartographMainWindow(tk.Tk):
         window.title("Shortcut Runtime Debug")
         window.geometry("980x520")
         window.minsize(820, 420)
-        self._track_popup_window(window)
+        self._track_popup_window(window, policy_id="dialog.non_blocking")
 
         toolbar = ttk.Frame(window, padding=(10, 8))
         toolbar.pack(fill="x")
