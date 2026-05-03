@@ -8,6 +8,7 @@ The format is based on Keep a Changelog.
 
 ### Changed
 - Grundlage fuer vereinheitlichte Tastatur- und Popup-Steuerung eingefuehrt: zentrale Module fuer KeyBindings (`app/adapters/gui/keybinding_registry.py`) und Popup-Policies (`app/adapters/gui/popup_policy.py`) sind jetzt Teil der App-Struktur.
+- Governance checks now enforce changelog updates for user- or co-developer-relevant changes, and commit/push process hints are local-only (not emitted in CI logs).
 - In der Dokumentationsansicht gibt es keinen Moduswechsel mehr: der Toolbar-Button und `Strg+M` wurden entfernt.
 - Enter navigiert in der Dokumentationsansicht nicht mehr; Enter betritt das Eingabefeld der aktiven Notenspalte bzw. schließt es wieder.
 - Die aktive Doku-Zelle ist jetzt immer sichtbar markiert, auch ohne offenen Schreibmodus (helle Zellhervorhebung gegen dunklen Zeilenhintergrund).
