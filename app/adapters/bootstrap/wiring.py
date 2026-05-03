@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.app_info import APP_INFO, AppInfo
 from bw_libs.app_shell import AppShellConfig
 
 from app.infrastructure.repositories.json_plan_repository import JsonSeatingPlanRepository
@@ -13,6 +14,7 @@ from app.infrastructure.repositories.settings_repository import JsonSettingsRepo
 class AppDependencies:
     """Composition-root payload for Kartograph GUI startup."""
 
+    app_info: AppInfo
     shell_config: AppShellConfig
     settings_repository: JsonSettingsRepository
     plan_repository: JsonSeatingPlanRepository
@@ -28,8 +30,9 @@ def build_gui_dependencies(workspace_root: Path) -> AppDependencies:
     default_plans_dir = workspace_root / "plans"
 
     return AppDependencies(
+        app_info=APP_INFO,
         shell_config=AppShellConfig(
-            title="Kartograph",
+            title=APP_INFO.window_title,
             geometry="1320x860",
             min_width=1000,
             min_height=680,

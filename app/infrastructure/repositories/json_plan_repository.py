@@ -7,6 +7,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.app_info import APP_INFO
 from bw_libs.app_paths import atomic_write_json
 from app.core.domain.models import DocumentationEntry, GradeColumnDefinition, SeatingPlan, Desk
 from app.core.domain.table_groups import normalize_tablegroups_in_place
@@ -53,8 +54,8 @@ class JsonSeatingPlanRepository:
     def _backup_root_dir(self) -> Path:
         appdata = os.environ.get("APPDATA")
         if appdata:
-            return Path(appdata) / "Kartograph" / "backups"
-        return Path.home() / ".kartograph" / "backups"
+            return Path(appdata) / APP_INFO.appdata_folder / "backups"
+        return Path.home() / f".{APP_INFO.appdata_folder.lower()}" / "backups"
 
     def _write_backup(self, plan_path: Path, payload: dict) -> None:
         try:

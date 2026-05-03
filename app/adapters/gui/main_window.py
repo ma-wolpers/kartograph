@@ -10,6 +10,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from tkinter import font as tkfont
 
+from app.app_info import APP_INFO
 from app.adapters.gui.ui_intent_controller import MainWindowUiIntentController
 from app.adapters.gui.ui_intents import UiIntent
 from bw_libs.app_shell import AppShellConfig, TkinterAppShell
@@ -173,7 +174,7 @@ class KartographMainWindow(tk.Tk):
         LOGGER.info("Main window __init__ start")
         configure_windows_process_identity()
         resolved_shell_config = shell_config or AppShellConfig(
-            title="Kartograph",
+            title=APP_INFO.window_title,
             geometry="1320x860",
             min_width=1000,
             min_height=680,

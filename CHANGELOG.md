@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- App identity metadata is now centralized in `app/app_info.py`; startup shell settings and backup appdata folder naming now read from this shared identity source.
 - Application startup now uses a centralized GUI dependency builder (`AppDependencies`) and a shared Tk shell lifecycle configuration (`bw_libs/app_shell.py`).
 - Plan and symbol-config JSON persistence now use the centralized atomic writer from `bw_libs/app_paths.py`.
 - Shared app path/atomic-write foundation introduced via `bw_libs/app_paths.py`; settings persistence now uses the centralized atomic JSON writer.
