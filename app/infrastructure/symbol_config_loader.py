@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from bw_libs.app_paths import atomic_write_json
+
 
 SymbolRole = Literal["diagnostic", "documentation_only"]
 
@@ -86,8 +88,7 @@ _DEFAULT_SYMBOLS_PAYLOAD = {
 
 
 def _write_default_payload(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(_DEFAULT_SYMBOLS_PAYLOAD, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_write_json(path, _DEFAULT_SYMBOLS_PAYLOAD)
 
 
 def _parse_codepoint(raw_value: object) -> str | None:

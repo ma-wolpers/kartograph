@@ -20,6 +20,7 @@ GUARDRAIL_RELEVANT_PATHS = {
     "bw_libs/ui_contract/keybinding.py",
     "bw_libs/ui_contract/popup.py",
     "bw_libs/ui_contract/hsm.py",
+    "bw_libs/app_paths.py",
 }
 PROCESS_GUIDANCE_RULES = {
     "feature_commit": "Feature-Aenderungen werden in eigenstaendigen Commits",
@@ -33,6 +34,7 @@ CHANGELOG_CODEV_RELEVANT_PATHS = {
     "bw_libs/ui_contract/keybinding.py",
     "bw_libs/ui_contract/popup.py",
     "bw_libs/ui_contract/hsm.py",
+    "bw_libs/app_paths.py",
 }
 
 
@@ -246,6 +248,7 @@ def main() -> int:
     _read("bw_libs/ui_contract/keybinding.py")
     _read("bw_libs/ui_contract/popup.py")
     _read("bw_libs/ui_contract/hsm.py")
+    _read("bw_libs/app_paths.py")
 
     architecture = _read("docs/ARCHITEKTUR.md")
     _require_substring(architecture, "aktuellen Ist-Zustand", "docs/ARCHITEKTUR.md", errors)

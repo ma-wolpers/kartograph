@@ -7,12 +7,14 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- Plan and symbol-config JSON persistence now use the centralized atomic writer from `bw_libs/app_paths.py`.
+- Shared app path/atomic-write foundation introduced via `bw_libs/app_paths.py`; settings persistence now uses the centralized atomic JSON writer.
 - Central UI contracts for keybindings, popup policy, and HSM semantics now live in shared `bw_libs/ui_contract` modules to avoid duplicate maintenance.
 - Escape navigation now follows a centralized priority order: close active popup first, then leave inline editing, then return to the parent view.
 - Runtime shortcuts now validate their intents against a central HSM contract before execution.
 - Intent dispatch now blocks unknown intents early, improving navigation and shortcut compatibility guarantees.
 - The shortcut runtime debug popup now runs as a non-blocking parallel popup and no longer forces dialog-mode shortcut resolution for the main window.
-- Grundlage fuer vereinheitlichte Tastatur- und Popup-Steuerung eingefuehrt: zentrale Module fuer KeyBindings (`app/adapters/gui/keybinding_registry.py`) und Popup-Policies (`app/adapters/gui/popup_policy.py`) sind jetzt Teil der App-Struktur.
+- Grundlage fuer vereinheitlichte Tastatur- und Popup-Steuerung eingefuehrt: zentrale Module fuer KeyBindings (`bw_libs/ui_contract/keybinding.py`) und Popup-Policies (`bw_libs/ui_contract/popup.py`) sind jetzt Teil der App-Struktur.
 - Global shortcuts are now routed through a centralized runtime keybinding resolver with mode/offline/text-focus/dialog evaluation.
 - Popup lifecycle is now tracked centrally for runtime shortcut dialog-priority decisions.
 - Debug runtime controls were integrated into the intent pipeline (`OPEN_SHORTCUT_RUNTIME_DEBUG`, `TOGGLE_SHORTCUT_RUNTIME_OFFLINE`).

@@ -7,6 +7,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
+from bw_libs.app_paths import atomic_write_json
 from app.core.domain.models import DocumentationEntry, GradeColumnDefinition, SeatingPlan, Desk
 from app.core.domain.table_groups import normalize_tablegroups_in_place
 
@@ -41,14 +42,8 @@ class JsonSeatingPlanRepository:
         return self._deserialize(payload)
 
     def save_plan(self, plan: SeatingPlan, plan_path: Path) -> None:
-        plan_path.parent.mkdir(parents=True, exist_ok=True)
         payload = self._serialize(plan)
-        tmp_path = plan_path.with_suffix(plan_path.suffix + ".tmp")
-        tmp_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        tmp_path.replace(plan_path)
+        atomic_write_json(plan_path, payload)
         self._write_backup(plan_path, payload)
 
     def backup_plan_snapshot(self, plan: SeatingPlan, plan_path: Path) -> None:
@@ -67,7 +62,7 @@ class JsonSeatingPlanRepository:
             backup_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
             backup_path = backup_dir / f"{timestamp}.json"
-            backup_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            atomic_write_json(backup_path, payload)
 
             backups = sorted(backup_dir.glob("*.json"), key=lambda item: item.name, reverse=True)
             for stale in backups[self._BACKUP_LIMIT_PER_PLAN :]:
