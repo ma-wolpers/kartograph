@@ -12,13 +12,13 @@ from tkinter import font as tkfont
 
 from app.adapters.gui.ui_intent_controller import MainWindowUiIntentController
 from app.adapters.gui.ui_intents import UiIntent
-from app.adapters.gui.hsm_contract import (
+from bw_libs.ui_contract.hsm import (
     ESCAPE_CLOSE_POPUP,
     ESCAPE_EXIT_INLINE_EDITOR,
     ESCAPE_POP_PARENT,
     build_ui_hsm_contract,
 )
-from app.adapters.gui.keybinding_registry import (
+from bw_libs.ui_contract.keybinding import (
     UI_MODE_DIALOG,
     UI_MODE_EDITOR,
     UI_MODE_GLOBAL,
@@ -28,7 +28,7 @@ from app.adapters.gui.keybinding_registry import (
     KeybindingRegistry,
     KeybindingRuntimeContext,
 )
-from app.adapters.gui.popup_policy import POPUP_KIND_MODAL, POPUP_KIND_NON_MODAL, PopupPolicy, PopupPolicyRegistry
+from bw_libs.ui_contract.popup import POPUP_KIND_MODAL, POPUP_KIND_NON_MODAL, PopupPolicy, PopupPolicyRegistry
 from app.adapters.gui.ui_theme import THEMES, normalize_theme_key, theme_names
 from app.core.domain.desk_clipboard import DeskClipboard
 from app.core.domain.models import SeatingPlan

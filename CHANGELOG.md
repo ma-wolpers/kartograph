@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- Central UI contracts for keybindings, popup policy, and HSM semantics now live in shared `bw_libs/ui_contract` modules to avoid duplicate maintenance.
 - Escape navigation now follows a centralized priority order: close active popup first, then leave inline editing, then return to the parent view.
 - Runtime shortcuts now validate their intents against a central HSM contract before execution.
 - Intent dispatch now blocks unknown intents early, improving navigation and shortcut compatibility guarantees.

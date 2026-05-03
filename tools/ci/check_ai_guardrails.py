@@ -17,8 +17,9 @@ GUARDRAIL_RELEVANT_PATHS = {
     "docs/DEVELOPMENT_LOG.md",
     "CHANGELOG.md",
     "tools/ci/check_ai_guardrails.py",
-    "app/adapters/gui/keybinding_registry.py",
-    "app/adapters/gui/popup_policy.py",
+    "bw_libs/ui_contract/keybinding.py",
+    "bw_libs/ui_contract/popup.py",
+    "bw_libs/ui_contract/hsm.py",
 }
 PROCESS_GUIDANCE_RULES = {
     "feature_commit": "Feature-Aenderungen werden in eigenstaendigen Commits",
@@ -29,8 +30,9 @@ CHANGELOG_CODEV_RELEVANT_PATHS = {
     ".github/copilot-instructions.md",
     ".github/pull_request_template.md",
     "tools/ci/check_ai_guardrails.py",
-    "app/adapters/gui/keybinding_registry.py",
-    "app/adapters/gui/popup_policy.py",
+    "bw_libs/ui_contract/keybinding.py",
+    "bw_libs/ui_contract/popup.py",
+    "bw_libs/ui_contract/hsm.py",
 }
 
 
@@ -110,6 +112,7 @@ def _check_development_log_updated(staged: set[str], errors: list[str]) -> None:
 
     requires_log = any(
         path.startswith("app/")
+        or path.startswith("bw_libs/")
         or path == "kartograph.py"
         or path == "docs/ARCHITEKTUR.md"
         for path in normalized
@@ -132,6 +135,7 @@ def _check_changelog_updated(staged: set[str], errors: list[str]) -> None:
     requires_changelog = any(
         path.startswith("app/adapters/gui/")
         or path.startswith("app/core/usecases/")
+        or path.startswith("bw_libs/")
         or path == "kartograph.py"
         for path in normalized
     ) or any(path in CHANGELOG_CODEV_RELEVANT_PATHS for path in normalized)
@@ -239,8 +243,9 @@ def main() -> int:
     _read("docs/ARCHITEKTUR.md")
     _read("docs/DEVELOPMENT_LOG.md")
     _read("CHANGELOG.md")
-    _read("app/adapters/gui/keybinding_registry.py")
-    _read("app/adapters/gui/popup_policy.py")
+    _read("bw_libs/ui_contract/keybinding.py")
+    _read("bw_libs/ui_contract/popup.py")
+    _read("bw_libs/ui_contract/hsm.py")
 
     architecture = _read("docs/ARCHITEKTUR.md")
     _require_substring(architecture, "aktuellen Ist-Zustand", "docs/ARCHITEKTUR.md", errors)

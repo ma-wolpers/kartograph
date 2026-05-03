@@ -26,8 +26,8 @@ Verbindliche Regeln:
 - Ein Verstoss blockiert den Build.
 
 5. Zentrale UI-Steuerung
-- KeyBindings werden zentral in `app/adapters/gui/keybinding_registry.py` verwaltet.
-- Pop-up-Verhalten wird zentral in `app/adapters/gui/popup_policy.py` verwaltet.
+- KeyBindings werden zentral in `bw_libs/ui_contract/keybinding.py` verwaltet.
+- Pop-up-Verhalten wird zentral in `bw_libs/ui_contract/popup.py` verwaltet.
 - Neue Shortcuts und neue Pop-ups werden zuerst in diesen Zentralmodulen definiert und danach in Views angebunden.
 
 6. Feature-Commit und Push-Disziplin
