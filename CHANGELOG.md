@@ -7,6 +7,9 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- Escape navigation now follows a centralized priority order: close active popup first, then leave inline editing, then return to the parent view.
+- Runtime shortcuts now validate their intents against a central HSM contract before execution.
+- Intent dispatch now blocks unknown intents early, improving navigation and shortcut compatibility guarantees.
 - The shortcut runtime debug popup now runs as a non-blocking parallel popup and no longer forces dialog-mode shortcut resolution for the main window.
 - Grundlage fuer vereinheitlichte Tastatur- und Popup-Steuerung eingefuehrt: zentrale Module fuer KeyBindings (`app/adapters/gui/keybinding_registry.py`) und Popup-Policies (`app/adapters/gui/popup_policy.py`) sind jetzt Teil der App-Struktur.
 - Global shortcuts are now routed through a centralized runtime keybinding resolver with mode/offline/text-focus/dialog evaluation.

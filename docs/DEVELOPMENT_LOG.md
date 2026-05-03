@@ -13,8 +13,13 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 - Runtime-Debug-Popup fuer Shortcuts in der Ansicht (`Ansicht -> Shortcut-Runtime-Debug anzeigen`, `Strg+Shift+R`) inkl. Offline-Simulation (`Strg+Shift+O`) und tabellarischer Aktiv/Disabled-Gruende.
 - Neue Runtime-Tests fuer Zentralmodule: `tests/test_keybinding_registry_runtime.py` und `tests/test_popup_policy_registry.py`.
+- HSM-Contract-Modul `app/adapters/gui/hsm_contract.py` eingefuehrt (Intent-/Payload-Validierung, Transition-Regeln, Escape-Resolver).
+- Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Runtime-Shortcut-Registrierung validiert Intents jetzt gegen den zentralen HSM-Contract; unbekannte Intents werden frueh als Konfigurationsfehler geblockt.
+- Intent-Dispatch validiert zur Laufzeit den Intent-Katalog vor der Controller-Ausfuehrung.
+- Escape-Verhalten folgt jetzt zentraler Prioritaet: erst aktives Popup, dann Inline-Editor, dann Rueckkehr zur Elternansicht.
 - Runtime-Debug-Popup ist jetzt als nicht mode-blockierendes Parallel-Popup (`dialog.non_blocking`) registriert; der Resolver nutzt nur mode-blockierende Popup-Sessions fuer Dialog-Prioritaet.
 - Wave-B-Integration gestartet: `app/adapters/gui/main_window.py` nutzt jetzt zentrale Runtime-Shortcut-Registrierung mit `evaluate_runtime` und PopupPolicy-basiertem Dialogkontext.
 - Intent-Schiene erweitert: `UiIntent` und `MainWindowUiIntentController` enthalten eigene Debug-Intents fuer Runtime-Popup und Offline-Simulation.

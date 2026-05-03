@@ -12,6 +12,12 @@ from tkinter import font as tkfont
 
 from app.adapters.gui.ui_intent_controller import MainWindowUiIntentController
 from app.adapters.gui.ui_intents import UiIntent
+from app.adapters.gui.hsm_contract import (
+    ESCAPE_CLOSE_POPUP,
+    ESCAPE_EXIT_INLINE_EDITOR,
+    ESCAPE_POP_PARENT,
+    build_ui_hsm_contract,
+)
 from app.adapters.gui.keybinding_registry import (
     UI_MODE_DIALOG,
     UI_MODE_EDITOR,
@@ -120,6 +126,18 @@ DOCS_ONLY_INTENTS = {
 }
 
 
+def _known_ui_intents() -> tuple[str, ...]:
+    """Return all declared UiIntent string values."""
+
+    values: list[str] = []
+    for key, value in UiIntent.__dict__.items():
+        if key.startswith("_"):
+            continue
+        if isinstance(value, str):
+            values.append(value)
+    return tuple(sorted(set(values)))
+
+
 def configure_windows_process_identity() -> None:
     if not sys.platform.startswith("win"):
         return
@@ -192,6 +210,7 @@ class KartographMainWindow(tk.Tk):
         )
 
         self.ui_intent_controller = MainWindowUiIntentController(self)
+        self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
 
         self._name_var = tk.StringVar(value="")
         self._selected_marker_var = tk.StringVar(value="")
@@ -818,6 +837,10 @@ class KartographMainWindow(tk.Tk):
         allow_when_text_input: bool = False,
         allow_when_offline: bool = True,
     ) -> KeyBindingDefinition:
+        intent_ok, _intent_reason = self._hsm_contract.validate_intent(intent)
+        if not intent_ok:
+            raise ValueError(f"Unknown runtime shortcut intent: {intent}")
+
         definition = KeyBindingDefinition(
             binding_id=binding_id,
             sequence=sequence,
@@ -1080,6 +1103,11 @@ class KartographMainWindow(tk.Tk):
         self._position_tablegroup_overlay()
 
     def _handle_intent(self, intent: str) -> str | None:
+        intent_ok, intent_reason = self._hsm_contract.validate_intent(intent)
+        if not intent_ok:
+            self.status_var.set(f"Unbekannter Intent blockiert: {intent_reason}")
+            return None
+
         if intent in GRID_ONLY_INTENTS and not self._shortcut_scope_allows("grid"):
             return None
         if intent in DOCS_ONLY_INTENTS and not self._shortcut_scope_allows("docs"):
@@ -3815,15 +3843,37 @@ class KartographMainWindow(tk.Tk):
             self.center_on_cell(x, y)
 
     def handle_escape(self) -> None:
-        if self._is_name_entry_focused():
+        self._sync_popup_sessions_from_windows()
+        has_popup = self._popup_registry.has_active_popup()
+        has_inline_editor = self._is_name_entry_focused() or self.interaction_mode == NAME_EDITING
+        has_parent_state = self.editor_view.winfo_ismapped()
+
+        action = self._hsm_contract.resolve_escape_action(
+            has_popup=has_popup,
+            has_inline_editor=has_inline_editor,
+            has_parent_state=has_parent_state,
+        )
+
+        if action == ESCAPE_CLOSE_POPUP:
+            active_popup = self._popup_registry.active_popup()
+            if active_popup is not None:
+                popup_id = active_popup.popup_id
+                for child in self.winfo_children():
+                    if not isinstance(child, tk.Toplevel):
+                        continue
+                    if str(child) != popup_id:
+                        continue
+                    self._destroy_tracked_dialog(child)
+                    return
+                self._popup_registry.close_popup(popup_id)
+                self._tracked_popup_ids.discard(popup_id)
+                return
+
+        if action == ESCAPE_EXIT_INLINE_EDITOR:
             self.exit_name_edit_mode()
             return
 
-        if self.interaction_mode == NAME_EDITING:
-            self.exit_name_edit_mode()
-            return
-
-        if self.editor_view.winfo_ismapped():
+        if action == ESCAPE_POP_PARENT:
             self.show_plan_list_view()
             return
 
