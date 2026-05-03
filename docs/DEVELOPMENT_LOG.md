@@ -13,6 +13,9 @@ Regel:
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
 
 ### Changed
+- Zentrale UI-Governance gestartet: `app/adapters/gui/keybinding_registry.py` und `app/adapters/gui/popup_policy.py` als gemeinsame API-Basis fuer Shortcut- und Popup-Steuerung eingefuehrt.
+- Guardrails erweitert: AGENTS/Copilot/PR-Template verlangen zentrale Shortcut-/Popup-Registrierung sowie Feature-Commit-Disziplin bei manuellem Push.
+- `tools/ci/check_ai_guardrails.py` prueft die Existenz der neuen Zentralmodule und meldet Commit-/Push-Prozessdrift als non-blocking Warnung.
 - Navigations-Moduswechsel in der Dokumentationsansicht entfernt: `_documentation_mode`, `toggle_documentation_mode`, `_move_doc_selection_on_enter` und alle zugehoerigen State- und UI-Elemente (Toolbar-Button, Strg+M-Shortcut, Intent-Handler) wurden vollstaendig entfernt.
 - Enter-Verhalten in der Dokumentationsansicht vereinfacht: Enter oeffnet jetzt den In-Cell-Editor auf der aktiven Notenspalte; wenn kein editierbares Feld aktiv ist, passiert nichts; kein Positions-Sprung mehr.
 - Persistente Zellenhervorhebung eingefuehrt: die aktive Doku-Zelle wird immer mit einem hellen Label-Overlay hervorgehoben (auch ausserhalb des Schreibmodus); die Zeile bleibt im normalen Treeview-Selection-Stil markiert.

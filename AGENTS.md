@@ -24,3 +24,12 @@ Verbindliche Regeln:
 4. Automatische Gates
 - Lokaler Check und CI pruefen die Guardrails ueber `tools/ci/check_ai_guardrails.py`.
 - Ein Verstoss blockiert den Build.
+
+5. Zentrale UI-Steuerung
+- KeyBindings werden zentral in `app/adapters/gui/keybinding_registry.py` verwaltet.
+- Pop-up-Verhalten wird zentral in `app/adapters/gui/popup_policy.py` verwaltet.
+- Neue Shortcuts und neue Pop-ups werden zuerst in diesen Zentralmodulen definiert und danach in Views angebunden.
+
+6. Feature-Commit und Push-Disziplin
+- Feature-Aenderungen werden in eigenstaendigen Commits gebuendelt.
+- Push erfolgt manuell durch den Nutzer; kein Auto-Push.
