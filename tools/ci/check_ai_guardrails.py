@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -16,6 +17,22 @@ GUARDRAIL_RELEVANT_PATHS = {
     "docs/DEVELOPMENT_LOG.md",
     "CHANGELOG.md",
     "tools/ci/check_ai_guardrails.py",
+    "bw_libs/ui_contract/keybinding.py",
+    "bw_libs/ui_contract/popup.py",
+    "bw_libs/ui_contract/hsm.py",
+}
+PROCESS_GUIDANCE_RULES = {
+    "feature_commit": "Feature-Aenderungen werden in eigenstaendigen Commits",
+    "manual_push": "Push erfolgt manuell",
+}
+CHANGELOG_CODEV_RELEVANT_PATHS = {
+    "AGENTS.md",
+    ".github/copilot-instructions.md",
+    ".github/pull_request_template.md",
+    "tools/ci/check_ai_guardrails.py",
+    "bw_libs/ui_contract/keybinding.py",
+    "bw_libs/ui_contract/popup.py",
+    "bw_libs/ui_contract/hsm.py",
 }
 
 
@@ -95,6 +112,7 @@ def _check_development_log_updated(staged: set[str], errors: list[str]) -> None:
 
     requires_log = any(
         path.startswith("app/")
+        or path.startswith("bw_libs/")
         or path == "kartograph.py"
         or path == "docs/ARCHITEKTUR.md"
         for path in normalized
@@ -117,11 +135,94 @@ def _check_changelog_updated(staged: set[str], errors: list[str]) -> None:
     requires_changelog = any(
         path.startswith("app/adapters/gui/")
         or path.startswith("app/core/usecases/")
+        or path.startswith("bw_libs/")
         or path == "kartograph.py"
         for path in normalized
-    )
+    ) or any(path in CHANGELOG_CODEV_RELEVANT_PATHS for path in normalized)
     if requires_changelog:
-        errors.append("CHANGELOG.md missing update: user-facing changes require a changelog entry")
+        errors.append(
+            "CHANGELOG.md missing update: user- or co-developer-relevant changes require a changelog entry"
+        )
+
+
+def _collect_process_guidance_warnings() -> list[str]:
+    """Collect non-blocking warnings for commit/push process guidance drift."""
+    warnings: list[str] = []
+    sources = {
+        "AGENTS.md": _read("AGENTS.md"),
+        ".github/copilot-instructions.md": _read(".github/copilot-instructions.md"),
+        ".github/pull_request_template.md": _read(".github/pull_request_template.md"),
+    }
+
+    for label, needle in PROCESS_GUIDANCE_RULES.items():
+        if not any(needle in text for text in sources.values()):
+            warnings.append(
+                f"process-guidance ({label}) not found in governance docs/templates"
+            )
+    return warnings
+
+
+def _is_ci_environment() -> bool:
+    """Return whether the check runs in a CI environment."""
+    return bool(os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"))
+
+
+def _check_runtime_shortcut_integration(errors: list[str]) -> None:
+    """Require runtime shortcut integration and debug intents in GUI flow."""
+
+    main_window = _read("app/adapters/gui/main_window.py")
+    _require_substring(
+        main_window,
+        "self._runtime_shortcuts = KeybindingRegistry()",
+        "main_window.py",
+        errors,
+    )
+    _require_substring(
+        main_window,
+        "self._popup_registry = PopupPolicyRegistry()",
+        "main_window.py",
+        errors,
+    )
+    _require_substring(
+        main_window,
+        "self._runtime_shortcuts.evaluate_runtime(",
+        "main_window.py",
+        errors,
+    )
+    _require_substring(
+        main_window,
+        "def open_shortcut_runtime_debug_dialog(self) -> None:",
+        "main_window.py",
+        errors,
+    )
+
+    intent_defs = _read("app/adapters/gui/ui_intents.py")
+    _require_substring(
+        intent_defs,
+        "OPEN_SHORTCUT_RUNTIME_DEBUG",
+        "ui_intents.py",
+        errors,
+    )
+    _require_substring(
+        intent_defs,
+        "TOGGLE_SHORTCUT_RUNTIME_OFFLINE",
+        "ui_intents.py",
+        errors,
+    )
+
+    intent_controller = _read("app/adapters/gui/ui_intent_controller.py")
+    _require_substring(
+        intent_controller,
+        "if intent == UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG:",
+        "ui_intent_controller.py",
+        errors,
+    )
+    _require_substring(
+        intent_controller,
+        "if intent == UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE:",
+        "ui_intent_controller.py",
+        errors,
+    )
 
 
 def main() -> int:
@@ -142,6 +243,9 @@ def main() -> int:
     _read("docs/ARCHITEKTUR.md")
     _read("docs/DEVELOPMENT_LOG.md")
     _read("CHANGELOG.md")
+    _read("bw_libs/ui_contract/keybinding.py")
+    _read("bw_libs/ui_contract/popup.py")
+    _read("bw_libs/ui_contract/hsm.py")
 
     architecture = _read("docs/ARCHITEKTUR.md")
     _require_substring(architecture, "aktuellen Ist-Zustand", "docs/ARCHITEKTUR.md", errors)
@@ -154,12 +258,19 @@ def main() -> int:
 
     _check_development_log_updated(staged, errors)
     _check_changelog_updated(staged, errors)
+    _check_runtime_shortcut_integration(errors)
+    warnings = _collect_process_guidance_warnings()
 
     if errors:
         print("AI guardrail check failed:")
         for item in errors:
             print(f" - {item}")
         return 2
+
+    if warnings and not _is_ci_environment():
+        print("AI guardrail process warnings (non-blocking):")
+        for item in warnings:
+            print(f" - {item}")
 
     print("AI guardrail check passed.")
     return 0

@@ -38,6 +38,12 @@ class MainWindowUiIntentController:
         if intent == UiIntent.OPEN_TABLEGROUP_SETTINGS:
             self.app.open_tablegroup_settings_overlay()
             return "break"
+        if intent == UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG:
+            self.app.open_shortcut_runtime_debug_dialog()
+            return "break"
+        if intent == UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE:
+            self.app.toggle_shortcut_runtime_offline()
+            return "break"
         if intent == UiIntent.ESCAPE:
             self.app.handle_escape()
             return "break"

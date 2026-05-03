@@ -7,10 +7,23 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- Central UI contracts for keybindings, popup policy, and HSM semantics now live in shared `bw_libs/ui_contract` modules to avoid duplicate maintenance.
+- Escape navigation now follows a centralized priority order: close active popup first, then leave inline editing, then return to the parent view.
+- Runtime shortcuts now validate their intents against a central HSM contract before execution.
+- Intent dispatch now blocks unknown intents early, improving navigation and shortcut compatibility guarantees.
+- The shortcut runtime debug popup now runs as a non-blocking parallel popup and no longer forces dialog-mode shortcut resolution for the main window.
+- Grundlage fuer vereinheitlichte Tastatur- und Popup-Steuerung eingefuehrt: zentrale Module fuer KeyBindings (`app/adapters/gui/keybinding_registry.py`) und Popup-Policies (`app/adapters/gui/popup_policy.py`) sind jetzt Teil der App-Struktur.
+- Global shortcuts are now routed through a centralized runtime keybinding resolver with mode/offline/text-focus/dialog evaluation.
+- Popup lifecycle is now tracked centrally for runtime shortcut dialog-priority decisions.
+- Debug runtime controls were integrated into the intent pipeline (`OPEN_SHORTCUT_RUNTIME_DEBUG`, `TOGGLE_SHORTCUT_RUNTIME_OFFLINE`).
+- Guardrail checks now validate runtime integration and debug intent routing in addition to module presence.
+- Governance checks now enforce changelog updates for user- or co-developer-relevant changes, and commit/push process hints are local-only (not emitted in CI logs).
 - In der Dokumentationsansicht gibt es keinen Moduswechsel mehr: der Toolbar-Button und `Strg+M` wurden entfernt.
 - Enter navigiert in der Dokumentationsansicht nicht mehr; Enter betritt das Eingabefeld der aktiven Notenspalte bzw. schließt es wieder.
 - Die aktive Doku-Zelle ist jetzt immer sichtbar markiert, auch ohne offenen Schreibmodus (helle Zellhervorhebung gegen dunklen Zeilenhintergrund).
 - Der aktive Spaltenkopf wird jetzt fuer beide Tabellenbereiche (Datumsspalten und fixe Spalten rechts) sichtbar markiert.
+- Neue Runtime-Debug-Ansicht fuer Shortcuts unter `Ansicht` mit Offline-Simulation (`Strg+Shift+R`, `Strg+Shift+O`).
+- Runtime module tests added for keybinding evaluation and popup policy stack behavior.
 
 ## [0.2.0] - 2026-04-22
 

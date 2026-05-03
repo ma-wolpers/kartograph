@@ -11,8 +11,26 @@ Regel:
 ### Added
 - Guardrail-Basis eingefuehrt: `AGENTS.md`, `.github/copilot-instructions.md`, PR-Template und CI-Check.
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
+- Runtime-Debug-Popup fuer Shortcuts in der Ansicht (`Ansicht -> Shortcut-Runtime-Debug anzeigen`, `Strg+Shift+R`) inkl. Offline-Simulation (`Strg+Shift+O`) und tabellarischer Aktiv/Disabled-Gruende.
+- Neue Runtime-Tests fuer Zentralmodule: `tests/test_keybinding_registry_runtime.py` und `tests/test_popup_policy_registry.py`.
+- HSM-Contract-Modul `app/adapters/gui/hsm_contract.py` eingefuehrt (Intent-/Payload-Validierung, Transition-Regeln, Escape-Resolver).
+- Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- UI-Contracts fuer Keybindings, Popup-Lifecycle und HSM wurden auf das Shared-Paket `bw_libs/ui_contract/` umgestellt; GUI und Tests importieren die Vertraege nun zentral statt aus lokalen Duplikatmodulen.
+- Guardrails wurden auf die zentralen `bw_libs/ui_contract`-Pfade umgestellt und beruecksichtigen `bw_libs/` in Changelog-/Development-Log-Pflichten.
+- Runtime-Shortcut-Registrierung validiert Intents jetzt gegen den zentralen HSM-Contract; unbekannte Intents werden frueh als Konfigurationsfehler geblockt.
+- Intent-Dispatch validiert zur Laufzeit den Intent-Katalog vor der Controller-Ausfuehrung.
+- Escape-Verhalten folgt jetzt zentraler Prioritaet: erst aktives Popup, dann Inline-Editor, dann Rueckkehr zur Elternansicht.
+- Runtime-Debug-Popup ist jetzt als nicht mode-blockierendes Parallel-Popup (`dialog.non_blocking`) registriert; der Resolver nutzt nur mode-blockierende Popup-Sessions fuer Dialog-Prioritaet.
+- Wave-B-Integration gestartet: `app/adapters/gui/main_window.py` nutzt jetzt zentrale Runtime-Shortcut-Registrierung mit `evaluate_runtime` und PopupPolicy-basiertem Dialogkontext.
+- Intent-Schiene erweitert: `UiIntent` und `MainWindowUiIntentController` enthalten eigene Debug-Intents fuer Runtime-Popup und Offline-Simulation.
+- `app/adapters/gui/keybinding_registry.py` um `KeybindingRuntimeContext` und `evaluate_runtime` erweitert.
+- Guardrails erweitert: `tools/ci/check_ai_guardrails.py` validiert Runtime-Integration sowie Debug-Intent-Routing.
+- Guardrails praezisiert: `CHANGELOG.md` wird nun bei nutzer- oder coentwicklerrelevanten Aenderungen erzwungen; Prozesswarnungen (Commit-/Push-Guidance) werden nur noch lokal und nicht in CI ausgegeben.
+- Zentrale UI-Governance gestartet: `app/adapters/gui/keybinding_registry.py` und `app/adapters/gui/popup_policy.py` als gemeinsame API-Basis fuer Shortcut- und Popup-Steuerung eingefuehrt.
+- Guardrails erweitert: AGENTS/Copilot/PR-Template verlangen zentrale Shortcut-/Popup-Registrierung sowie Feature-Commit-Disziplin bei manuellem Push.
+- `tools/ci/check_ai_guardrails.py` prueft die Existenz der neuen Zentralmodule und meldet Commit-/Push-Prozessdrift als non-blocking Warnung.
 - Navigations-Moduswechsel in der Dokumentationsansicht entfernt: `_documentation_mode`, `toggle_documentation_mode`, `_move_doc_selection_on_enter` und alle zugehoerigen State- und UI-Elemente (Toolbar-Button, Strg+M-Shortcut, Intent-Handler) wurden vollstaendig entfernt.
 - Enter-Verhalten in der Dokumentationsansicht vereinfacht: Enter oeffnet jetzt den In-Cell-Editor auf der aktiven Notenspalte; wenn kein editierbares Feld aktiv ist, passiert nichts; kein Positions-Sprung mehr.
 - Persistente Zellenhervorhebung eingefuehrt: die aktive Doku-Zelle wird immer mit einem hellen Label-Overlay hervorgehoben (auch ausserhalb des Schreibmodus); die Zeile bleibt im normalen Treeview-Selection-Stil markiert.

@@ -9,6 +9,8 @@ class UiIntent:
     SET_TEACHER_DESK = "desk.set_teacher"
     ADD_SYMBOL = "desk.add_symbol"
     OPEN_TABLEGROUP_SETTINGS = "tablegroup.settings.open"
+    OPEN_SHORTCUT_RUNTIME_DEBUG = "debug.shortcut.runtime.open"
+    TOGGLE_SHORTCUT_RUNTIME_OFFLINE = "debug.shortcut.runtime.offline.toggle"
     ESCAPE = "selection.clear"
     CONFIRM_SELECTION = "selection.confirm"
     MOVE_UP = "selection.up"

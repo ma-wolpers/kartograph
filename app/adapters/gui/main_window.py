@@ -12,6 +12,23 @@ from tkinter import font as tkfont
 
 from app.adapters.gui.ui_intent_controller import MainWindowUiIntentController
 from app.adapters.gui.ui_intents import UiIntent
+from bw_libs.ui_contract.hsm import (
+    ESCAPE_CLOSE_POPUP,
+    ESCAPE_EXIT_INLINE_EDITOR,
+    ESCAPE_POP_PARENT,
+    build_ui_hsm_contract,
+)
+from bw_libs.ui_contract.keybinding import (
+    UI_MODE_DIALOG,
+    UI_MODE_EDITOR,
+    UI_MODE_GLOBAL,
+    UI_MODE_OFFLINE,
+    UI_MODE_PREVIEW,
+    KeyBindingDefinition,
+    KeybindingRegistry,
+    KeybindingRuntimeContext,
+)
+from bw_libs.ui_contract.popup import POPUP_KIND_MODAL, POPUP_KIND_NON_MODAL, PopupPolicy, PopupPolicyRegistry
 from app.adapters.gui.ui_theme import THEMES, normalize_theme_key, theme_names
 from app.core.domain.desk_clipboard import DeskClipboard
 from app.core.domain.models import SeatingPlan
@@ -109,6 +126,18 @@ DOCS_ONLY_INTENTS = {
 }
 
 
+def _known_ui_intents() -> tuple[str, ...]:
+    """Return all declared UiIntent string values."""
+
+    values: list[str] = []
+    for key, value in UiIntent.__dict__.items():
+        if key.startswith("_"):
+            continue
+        if isinstance(value, str):
+            values.append(value)
+    return tuple(sorted(set(values)))
+
+
 def configure_windows_process_identity() -> None:
     if not sys.platform.startswith("win"):
         return
@@ -181,11 +210,30 @@ class KartographMainWindow(tk.Tk):
         )
 
         self.ui_intent_controller = MainWindowUiIntentController(self)
+        self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
 
         self._name_var = tk.StringVar(value="")
         self._selected_marker_var = tk.StringVar(value="")
         self._doc_selection_status_var = tk.StringVar(value="Doku-Zelle: -")
         self.status_var = tk.StringVar(value="Bereit")
+        self._runtime_shortcuts = KeybindingRegistry()
+        self._popup_registry = PopupPolicyRegistry()
+        self._popup_registry.register_policy(PopupPolicy(policy_id="dialog.modal", kind=POPUP_KIND_MODAL))
+        self._popup_registry.register_policy(
+            PopupPolicy(
+                policy_id="dialog.non_blocking",
+                kind=POPUP_KIND_NON_MODAL,
+                trap_focus=False,
+                affects_mode=False,
+            )
+        )
+        self._tracked_popup_ids: set[str] = set()
+        self._shortcut_runtime_offline = False
+        self._shortcut_runtime_debug_window: tk.Toplevel | None = None
+        self._shortcut_runtime_debug_table: ttk.Treeview | None = None
+        self._shortcut_runtime_debug_context_var = tk.StringVar(value="")
+        self._shortcut_runtime_debug_summary_var = tk.StringVar(value="")
+        self._shortcut_runtime_debug_offline_var = tk.BooleanVar(value=False)
         self._tablegroup_overlay: tk.Toplevel | None = None
         self._tg_number_var: tk.StringVar | None = None
         self._tg_shift_x_var: tk.StringVar | None = None
@@ -351,6 +399,14 @@ class KartographMainWindow(tk.Tk):
         view_menu.add_command(
             label="Dokumentationssicht umschalten (Strg+Shift+D)",
             command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION),
+        )
+        view_menu.add_command(
+            label="Shortcut-Runtime-Debug anzeigen (Strg+Shift+R)",
+            command=lambda: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG),
+        )
+        view_menu.add_command(
+            label="Offline-Simulation umschalten (Strg+Shift+O)",
+            command=lambda: self._handle_intent(UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE),
         )
         view_menu.add_separator()
         view_menu.add_command(label="Tisch-Overlay (S:S)", state="disabled")
@@ -714,40 +770,42 @@ class KartographMainWindow(tk.Tk):
         self.canvas.bind("<Control-MouseWheel>", self._on_ctrl_mouse_wheel)
 
     def _bind_shortcuts(self) -> None:
-        self.bind("<Control-n>", lambda _event: self._handle_intent(UiIntent.NEW_PLAN))
-        self.bind("<Control-d>", self._on_duplicate_shortcut)
-        self.bind("<F2>", self._on_rename_shortcut)
-        self.bind("<Control-e>", lambda _event: self._handle_intent(UiIntent.EXPORT_PDF))
-        self.bind("<Control-comma>", lambda _event: self._handle_intent(UiIntent.OPEN_SETTINGS))
-        self.bind("<Control-,>", lambda _event: self._handle_intent(UiIntent.OPEN_SETTINGS))
-        self.bind("<Control-0>", lambda _event: self._handle_intent(UiIntent.RESET_VIEW))
-        self.bind("<Control-Return>", lambda _event: self._handle_intent(UiIntent.SET_TEACHER_DESK))
-        self.bind("<Control-KP_Enter>", lambda _event: self._handle_intent(UiIntent.SET_TEACHER_DESK))
-        self.bind("<Control-plus>", lambda _event: self._handle_intent(UiIntent.ZOOM_IN))
-        self.bind("<Control-equal>", lambda _event: self._handle_intent(UiIntent.ZOOM_IN))
-        self.bind("<Control-KP_Add>", lambda _event: self._handle_intent(UiIntent.ZOOM_IN))
-        self.bind("<Control-minus>", lambda _event: self._handle_intent(UiIntent.ZOOM_OUT))
-        self.bind("<Control-KP_Subtract>", lambda _event: self._handle_intent(UiIntent.ZOOM_OUT))
-        self.bind("<Control-z>", lambda _event: self._handle_intent(UiIntent.UNDO))
-        self.bind("<Control-y>", lambda _event: self._handle_intent(UiIntent.REDO))
-        self.bind("<Control-t>", lambda _event: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS))
-        self.bind("<Control-Shift-D>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
-        self.bind("<Control-Shift-d>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION))
-        self.bind("<Control-g>", self._on_set_grade_shortcut)
-        self.bind("<Control-Shift-S>", self._on_set_symbol_shortcut)
-        self.bind("<Control-Shift-s>", self._on_set_symbol_shortcut)
-        self.bind("<Control-Delete>", self._on_clear_symbol_shortcut)
-        self.bind("<Control-BackSpace>", self._on_clear_symbol_shortcut)
-        self.bind("<Control-h>", self._on_docs_today_shortcut)
-        self.bind("<Alt-Left>", self._on_docs_prev_date_shortcut)
-        self.bind("<Alt-Right>", self._on_docs_next_date_shortcut)
-        self.bind("<Control-x>", lambda _event: self._handle_intent(UiIntent.CUT))
-        self.bind("<Control-c>", lambda _event: self._handle_intent(UiIntent.COPY))
-        self.bind("<Control-v>", lambda _event: self._handle_intent(UiIntent.PASTE))
-        self.bind("<Delete>", self._on_delete_key)
-        self.bind("<Escape>", lambda _event: self._handle_intent(UiIntent.ESCAPE))
-        self.bind("<Return>", self._on_return_key)
-        self.bind("<KP_Enter>", self._on_return_key)
+        self._bind_runtime_shortcut("<Control-n>", lambda _event: self._handle_intent(UiIntent.NEW_PLAN), binding_id="global.new", intent=UiIntent.NEW_PLAN, modes=(UI_MODE_GLOBAL, UI_MODE_DIALOG), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-d>", self._on_duplicate_shortcut, binding_id="global.duplicate", intent=UiIntent.DUPLICATE_SELECTED_PLAN, modes=(UI_MODE_GLOBAL,), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<F2>", self._on_rename_shortcut, binding_id="global.rename", intent=UiIntent.RENAME_SELECTED_PLAN, modes=(UI_MODE_GLOBAL,), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-e>", lambda _event: self._handle_intent(UiIntent.EXPORT_PDF), binding_id="global.export", intent=UiIntent.EXPORT_PDF, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-comma>", lambda _event: self._handle_intent(UiIntent.OPEN_SETTINGS), binding_id="global.settings.comma", intent=UiIntent.OPEN_SETTINGS, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-,>", lambda _event: self._handle_intent(UiIntent.OPEN_SETTINGS), binding_id="global.settings.comma.alt", intent=UiIntent.OPEN_SETTINGS, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-0>", lambda _event: self._handle_intent(UiIntent.RESET_VIEW), binding_id="viewport.reset", intent=UiIntent.RESET_VIEW, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-Return>", lambda _event: self._handle_intent(UiIntent.SET_TEACHER_DESK), binding_id="desk.teacher", intent=UiIntent.SET_TEACHER_DESK, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-KP_Enter>", lambda _event: self._handle_intent(UiIntent.SET_TEACHER_DESK), binding_id="desk.teacher.numpad", intent=UiIntent.SET_TEACHER_DESK, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-plus>", lambda _event: self._handle_intent(UiIntent.ZOOM_IN), binding_id="viewport.zoom.in", intent=UiIntent.ZOOM_IN, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-equal>", lambda _event: self._handle_intent(UiIntent.ZOOM_IN), binding_id="viewport.zoom.in.equal", intent=UiIntent.ZOOM_IN, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-KP_Add>", lambda _event: self._handle_intent(UiIntent.ZOOM_IN), binding_id="viewport.zoom.in.numpad", intent=UiIntent.ZOOM_IN, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-minus>", lambda _event: self._handle_intent(UiIntent.ZOOM_OUT), binding_id="viewport.zoom.out", intent=UiIntent.ZOOM_OUT, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-KP_Subtract>", lambda _event: self._handle_intent(UiIntent.ZOOM_OUT), binding_id="viewport.zoom.out.numpad", intent=UiIntent.ZOOM_OUT, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-z>", lambda _event: self._handle_intent(UiIntent.UNDO), binding_id="edit.undo", intent=UiIntent.UNDO, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-y>", lambda _event: self._handle_intent(UiIntent.REDO), binding_id="edit.redo", intent=UiIntent.REDO, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-t>", lambda _event: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS), binding_id="tablegroup.settings", intent=UiIntent.OPEN_TABLEGROUP_SETTINGS, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-Shift-D>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION), binding_id="view.docs.toggle", intent=UiIntent.TOGGLE_DOCUMENTATION, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-Shift-d>", lambda _event: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION), binding_id="view.docs.toggle.lower", intent=UiIntent.TOGGLE_DOCUMENTATION, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-Shift-r>", lambda _event: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG), binding_id="debug.runtime.open", intent=UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-Shift-o>", lambda _event: self._handle_intent(UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE), binding_id="debug.runtime.offline", intent=UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-g>", self._on_set_grade_shortcut, binding_id="docs.grade", intent="docs.grade", modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-Shift-S>", self._on_set_symbol_shortcut, binding_id="docs.symbol", intent="docs.symbol", modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-Shift-s>", self._on_set_symbol_shortcut, binding_id="docs.symbol.lower", intent="docs.symbol.lower", modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-Delete>", self._on_clear_symbol_shortcut, binding_id="docs.clear", intent="docs.clear", modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-BackSpace>", self._on_clear_symbol_shortcut, binding_id="docs.clear.backspace", intent="docs.clear.backspace", modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-h>", self._on_docs_today_shortcut, binding_id="docs.today", intent="docs.today", modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Alt-Left>", self._on_docs_prev_date_shortcut, binding_id="docs.prev", intent="docs.prev", modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Alt-Right>", self._on_docs_next_date_shortcut, binding_id="docs.next", intent="docs.next", modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-x>", lambda _event: self._handle_intent(UiIntent.CUT), binding_id="edit.cut", intent=UiIntent.CUT, modes=(UI_MODE_PREVIEW,), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-c>", lambda _event: self._handle_intent(UiIntent.COPY), binding_id="edit.copy", intent=UiIntent.COPY, modes=(UI_MODE_PREVIEW,), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Control-v>", lambda _event: self._handle_intent(UiIntent.PASTE), binding_id="edit.paste", intent=UiIntent.PASTE, modes=(UI_MODE_PREVIEW,), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Delete>", self._on_delete_key, binding_id="global.delete", intent="global.delete", modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Escape>", lambda _event: self._handle_intent(UiIntent.ESCAPE), binding_id="global.escape", intent=UiIntent.ESCAPE, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<Return>", self._on_return_key, binding_id="global.return", intent="global.return", modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)
+        self._bind_runtime_shortcut("<KP_Enter>", self._on_return_key, binding_id="global.return.numpad", intent="global.return.numpad", modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)
 
         self.canvas.bind("<Up>", lambda _event: self._handle_intent(UiIntent.MOVE_UP))
         self.canvas.bind("<Down>", lambda _event: self._handle_intent(UiIntent.MOVE_DOWN))
@@ -768,6 +826,231 @@ class KartographMainWindow(tk.Tk):
 
         for key, _color_key, _label, _hex_color in self.color_palette:
             self.bind_all(f"<KeyPress-{key}>", lambda event, color_key=_color_key: self._on_color_shortcut(event, color_key), add="+")
+
+    def _register_runtime_shortcut(
+        self,
+        *,
+        binding_id: str,
+        sequence: str,
+        intent: str,
+        modes: tuple[str, ...],
+        allow_when_text_input: bool = False,
+        allow_when_offline: bool = True,
+    ) -> KeyBindingDefinition:
+        intent_ok, _intent_reason = self._hsm_contract.validate_intent(intent)
+        if not intent_ok:
+            raise ValueError(f"Unknown runtime shortcut intent: {intent}")
+
+        definition = KeyBindingDefinition(
+            binding_id=binding_id,
+            sequence=sequence,
+            intent=intent,
+            modes=modes,
+            allow_when_text_input=allow_when_text_input,
+            allow_when_offline=allow_when_offline,
+        )
+        self._runtime_shortcuts.register(definition)
+        return definition
+
+    def _track_popup_window(self, window: tk.Toplevel, *, policy_id: str = "dialog.modal") -> None:
+        popup_id = str(window)
+        if popup_id in self._tracked_popup_ids:
+            return
+        self._popup_registry.open_popup(popup_id=popup_id, title=str(window.title() or ""), policy_id=policy_id)
+        self._tracked_popup_ids.add(popup_id)
+
+    def _sync_popup_sessions_from_windows(self) -> None:
+        visible_popup_ids: set[str] = set()
+        for child in self.winfo_children():
+            if not isinstance(child, tk.Toplevel):
+                continue
+            try:
+                if not int(child.winfo_exists()):
+                    continue
+                if str(child.state()).lower() == "withdrawn":
+                    continue
+            except Exception:
+                continue
+
+            popup_id = str(child)
+            visible_popup_ids.add(popup_id)
+            if popup_id in self._tracked_popup_ids:
+                continue
+            self._popup_registry.open_popup(popup_id=popup_id, title=str(child.title() or ""), policy_id="dialog.modal")
+            self._tracked_popup_ids.add(popup_id)
+
+        stale_ids = self._tracked_popup_ids - visible_popup_ids
+        for popup_id in tuple(stale_ids):
+            self._popup_registry.close_popup(popup_id)
+            self._tracked_popup_ids.discard(popup_id)
+
+    def _build_runtime_context(self, event: tk.Event[tk.Misc] | None = None) -> KeybindingRuntimeContext:
+        self._sync_popup_sessions_from_windows()
+        text_input_focused = self._is_text_input_focused()
+        dialog_open = self._popup_registry.has_mode_blocking_popup()
+        offline = bool(self._shortcut_runtime_offline)
+
+        if offline:
+            active_mode = UI_MODE_OFFLINE
+        elif dialog_open:
+            active_mode = UI_MODE_DIALOG
+        elif text_input_focused:
+            active_mode = UI_MODE_EDITOR
+        elif self.editor_view.winfo_ismapped():
+            active_mode = UI_MODE_PREVIEW
+        else:
+            active_mode = UI_MODE_GLOBAL
+
+        return KeybindingRuntimeContext(
+            active_mode=active_mode,
+            offline=offline,
+            text_input_focused=text_input_focused,
+            dialog_open=dialog_open,
+        )
+
+    def _bind_runtime_shortcut(
+        self,
+        sequence: str,
+        handler,
+        *,
+        binding_id: str,
+        intent: str,
+        modes: tuple[str, ...],
+        allow_when_text_input: bool = False,
+        allow_when_offline: bool = True,
+    ) -> None:
+        definition = self._register_runtime_shortcut(
+            binding_id=binding_id,
+            sequence=sequence,
+            intent=intent,
+            modes=modes,
+            allow_when_text_input=allow_when_text_input,
+            allow_when_offline=allow_when_offline,
+        )
+
+        def _wrapped(event):
+            context = self._build_runtime_context(event)
+            can_execute, _reason = self._runtime_shortcuts.evaluate_runtime(definition, context)
+            if not can_execute:
+                return None
+            return handler(event)
+
+        self.bind(sequence, _wrapped)
+
+    def toggle_shortcut_runtime_offline(self) -> None:
+        self._shortcut_runtime_offline = not bool(self._shortcut_runtime_offline)
+        self._shortcut_runtime_debug_offline_var.set(bool(self._shortcut_runtime_offline))
+        self._refresh_shortcut_runtime_debug_dialog()
+
+    def _on_shortcut_runtime_offline_var_changed(self) -> None:
+        self._shortcut_runtime_offline = bool(self._shortcut_runtime_debug_offline_var.get())
+        self._refresh_shortcut_runtime_debug_dialog()
+
+    def open_shortcut_runtime_debug_dialog(self) -> None:
+        if self._shortcut_runtime_debug_window is not None and int(self._shortcut_runtime_debug_window.winfo_exists()):
+            self._refresh_shortcut_runtime_debug_dialog()
+            self._shortcut_runtime_debug_window.deiconify()
+            self._shortcut_runtime_debug_window.lift()
+            self._shortcut_runtime_debug_window.focus_force()
+            return
+
+        window = tk.Toplevel(self)
+        window.title("Shortcut Runtime Debug")
+        window.geometry("980x520")
+        window.minsize(820, 420)
+        self._track_popup_window(window, policy_id="dialog.non_blocking")
+
+        toolbar = ttk.Frame(window, padding=(10, 8))
+        toolbar.pack(fill="x")
+        ttk.Label(toolbar, textvariable=self._shortcut_runtime_debug_context_var, style="Muted.TLabel").pack(
+            side="left", fill="x", expand=True
+        )
+        ttk.Checkbutton(
+            toolbar,
+            text="Offline simulieren",
+            variable=self._shortcut_runtime_debug_offline_var,
+            command=self._on_shortcut_runtime_offline_var_changed,
+        ).pack(side="left", padx=(12, 0))
+        ttk.Button(toolbar, text="Aktualisieren", command=self._refresh_shortcut_runtime_debug_dialog).pack(
+            side="left", padx=(8, 0)
+        )
+
+        body = ttk.Frame(window, padding=(10, 0, 10, 8))
+        body.pack(fill="both", expand=True)
+        columns = ("mode", "key", "binding", "status", "reason")
+        table = ttk.Treeview(body, columns=columns, show="headings")
+        table.heading("mode", text="Mode")
+        table.heading("key", text="Key")
+        table.heading("binding", text="Binding")
+        table.heading("status", text="Status")
+        table.heading("reason", text="Reason")
+        table.column("mode", width=100, anchor="center", stretch=False)
+        table.column("key", width=130, anchor="center", stretch=False)
+        table.column("binding", width=300, anchor="w", stretch=True)
+        table.column("status", width=90, anchor="center", stretch=False)
+        table.column("reason", width=180, anchor="w", stretch=True)
+        table.pack(side="left", fill="both", expand=True)
+        y_scroll = ttk.Scrollbar(body, orient="vertical", command=table.yview)
+        y_scroll.pack(side="right", fill="y")
+        table.configure(yscrollcommand=y_scroll.set)
+
+        ttk.Label(window, textvariable=self._shortcut_runtime_debug_summary_var, style="Muted.TLabel").pack(
+            fill="x", padx=10, pady=(0, 8)
+        )
+
+        self._shortcut_runtime_debug_window = window
+        self._shortcut_runtime_debug_table = table
+        window.protocol("WM_DELETE_WINDOW", self._close_shortcut_runtime_debug_dialog)
+        self._refresh_shortcut_runtime_debug_dialog()
+
+    def _close_shortcut_runtime_debug_dialog(self) -> None:
+        if self._shortcut_runtime_debug_window is not None and int(self._shortcut_runtime_debug_window.winfo_exists()):
+            popup_id = str(self._shortcut_runtime_debug_window)
+            self._popup_registry.close_popup(popup_id)
+            self._tracked_popup_ids.discard(popup_id)
+            self._shortcut_runtime_debug_window.destroy()
+        self._shortcut_runtime_debug_window = None
+        self._shortcut_runtime_debug_table = None
+
+    def _refresh_shortcut_runtime_debug_dialog(self) -> None:
+        table = self._shortcut_runtime_debug_table
+        if table is None:
+            return
+
+        context = self._build_runtime_context()
+        self._shortcut_runtime_debug_context_var.set(
+            f"mode={context.active_mode} | offline={context.offline} | dialog={context.dialog_open} | text-focus={context.text_input_focused}"
+        )
+
+        for item_id in table.get_children(""):
+            table.delete(item_id)
+
+        active_count = 0
+        disabled_count = 0
+        for mode in (UI_MODE_GLOBAL, UI_MODE_EDITOR, UI_MODE_PREVIEW, UI_MODE_DIALOG, UI_MODE_OFFLINE):
+            for definition in self._runtime_shortcuts.all():
+                if mode not in definition.modes and UI_MODE_GLOBAL not in definition.modes:
+                    continue
+                can_execute, reason = self._runtime_shortcuts.evaluate_runtime(
+                    definition,
+                    context,
+                    active_mode_override=mode,
+                )
+                status = "active" if can_execute else "disabled"
+                if can_execute:
+                    active_count += 1
+                else:
+                    disabled_count += 1
+                table.insert(
+                    "",
+                    tk.END,
+                    values=(mode, definition.sequence, definition.binding_id, status, "" if can_execute else reason),
+                )
+
+        total = active_count + disabled_count
+        self._shortcut_runtime_debug_summary_var.set(
+            f"Bindings: {total} total | {active_count} active | {disabled_count} disabled"
+        )
 
     def _apply_details_overlay_position(self) -> None:
         if not hasattr(self, "grid_stack"):
@@ -820,6 +1103,11 @@ class KartographMainWindow(tk.Tk):
         self._position_tablegroup_overlay()
 
     def _handle_intent(self, intent: str) -> str | None:
+        intent_ok, intent_reason = self._hsm_contract.validate_intent(intent)
+        if not intent_ok:
+            self.status_var.set(f"Unbekannter Intent blockiert: {intent_reason}")
+            return None
+
         if intent in GRID_ONLY_INTENTS and not self._shortcut_scope_allows("grid"):
             return None
         if intent in DOCS_ONLY_INTENTS and not self._shortcut_scope_allows("docs"):
@@ -1152,6 +1440,7 @@ class KartographMainWindow(tk.Tk):
         overlay.title("Tischeinstellungen")
         overlay.resizable(False, False)
         overlay.transient(self)
+        self._track_popup_window(overlay)
         overlay.protocol("WM_DELETE_WINDOW", self._close_tablegroup_overlay)
         overlay.bind("<Escape>", lambda _event: self._close_tablegroup_overlay())
         self._tablegroup_overlay = overlay
@@ -1234,6 +1523,9 @@ class KartographMainWindow(tk.Tk):
 
     def _close_tablegroup_overlay(self) -> None:
         if self._tablegroup_overlay and self._tablegroup_overlay.winfo_exists():
+            popup_id = str(self._tablegroup_overlay)
+            self._popup_registry.close_popup(popup_id)
+            self._tracked_popup_ids.discard(popup_id)
             self._tablegroup_overlay.destroy()
         self._tablegroup_overlay = None
         self._tg_number_var = None
@@ -3551,15 +3843,37 @@ class KartographMainWindow(tk.Tk):
             self.center_on_cell(x, y)
 
     def handle_escape(self) -> None:
-        if self._is_name_entry_focused():
+        self._sync_popup_sessions_from_windows()
+        has_popup = self._popup_registry.has_active_popup()
+        has_inline_editor = self._is_name_entry_focused() or self.interaction_mode == NAME_EDITING
+        has_parent_state = self.editor_view.winfo_ismapped()
+
+        action = self._hsm_contract.resolve_escape_action(
+            has_popup=has_popup,
+            has_inline_editor=has_inline_editor,
+            has_parent_state=has_parent_state,
+        )
+
+        if action == ESCAPE_CLOSE_POPUP:
+            active_popup = self._popup_registry.active_popup()
+            if active_popup is not None:
+                popup_id = active_popup.popup_id
+                for child in self.winfo_children():
+                    if not isinstance(child, tk.Toplevel):
+                        continue
+                    if str(child) != popup_id:
+                        continue
+                    self._destroy_tracked_dialog(child)
+                    return
+                self._popup_registry.close_popup(popup_id)
+                self._tracked_popup_ids.discard(popup_id)
+                return
+
+        if action == ESCAPE_EXIT_INLINE_EDITOR:
             self.exit_name_edit_mode()
             return
 
-        if self.interaction_mode == NAME_EDITING:
-            self.exit_name_edit_mode()
-            return
-
-        if self.editor_view.winfo_ismapped():
+        if action == ESCAPE_POP_PARENT:
             self.show_plan_list_view()
             return
 
@@ -4022,11 +4336,18 @@ class KartographMainWindow(tk.Tk):
         dialog.title(title)
         dialog.geometry(geometry)
         dialog.transient(self)
+        self._track_popup_window(dialog)
         dialog.grab_set()
-        dialog.bind("<Escape>", lambda _event: dialog.destroy())
-        dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+        dialog.bind("<Escape>", lambda _event: self._destroy_tracked_dialog(dialog))
+        dialog.protocol("WM_DELETE_WINDOW", lambda: self._destroy_tracked_dialog(dialog))
         self._focus_overlay_widget(dialog, dialog)
         return dialog
+
+    def _destroy_tracked_dialog(self, dialog: tk.Toplevel) -> None:
+        popup_id = str(dialog)
+        self._popup_registry.close_popup(popup_id)
+        self._tracked_popup_ids.discard(popup_id)
+        dialog.destroy()
 
     def _focus_overlay_widget(self, dialog: tk.Toplevel, widget: tk.Widget) -> None:
         def _apply_focus() -> None:

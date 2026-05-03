@@ -22,6 +22,9 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 
 ## Datenfluss
 - GUI-Interaktionen werden in Use-Cases ueberfuehrt.
+- KeyBindings werden zentral ueber `bw_libs/ui_contract/keybinding.py` verwaltet; modebezogene Aktivierungen und Konflikte sind dort nachvollziehbar.
+- Pop-up-Verhalten wird zentral ueber `bw_libs/ui_contract/popup.py` mit einheitlicher Focus-/Lifecycle-Policy gefuehrt.
+- HSM-Vertragslogik fuer Intent-Katalog, Escape-Prioritaet und Transition-Validierung liegt zentral in `bw_libs/ui_contract/hsm.py`.
 - Globale Keyboard-Shortcuts werden im GUI-Adapter auf UI-Intents gemappt; `Strg+T` oeffnet das Tischgruppen-Overlay, `1..9` toggeln Farbpunkte am markierten Schuelertisch.
 - Use-Cases lesen/schreiben ueber Repository-Schnittstellen.
 - Persistenz erfolgt ueber JSON-Repository-Implementierungen.
