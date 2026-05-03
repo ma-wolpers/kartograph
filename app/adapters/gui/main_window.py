@@ -12,6 +12,7 @@ from tkinter import font as tkfont
 
 from app.adapters.gui.ui_intent_controller import MainWindowUiIntentController
 from app.adapters.gui.ui_intents import UiIntent
+from bw_libs.app_shell import AppShellConfig, TkinterAppShell
 from bw_libs.ui_contract.hsm import (
     ESCAPE_CLOSE_POPUP,
     ESCAPE_EXIT_INLINE_EDITOR,
@@ -165,14 +166,19 @@ class KartographMainWindow(tk.Tk):
         plan_repository,
         default_plans_dir: Path,
         symbols_path: Path,
+        shell_config: AppShellConfig | None = None,
     ):
         startup_started = time.perf_counter()
         super().__init__()
         LOGGER.info("Main window __init__ start")
         configure_windows_process_identity()
-        self.title("Kartograph")
-        self.geometry("1320x860")
-        self.minsize(1000, 680)
+        resolved_shell_config = shell_config or AppShellConfig(
+            title="Kartograph",
+            geometry="1320x860",
+            min_width=1000,
+            min_height=680,
+        )
+        self.app_shell = TkinterAppShell(self, resolved_shell_config, on_close=self._on_shell_close)
         apply_window_icon(self)
         self.report_callback_exception = self._report_tk_callback_exception
 
@@ -291,6 +297,21 @@ class KartographMainWindow(tk.Tk):
         self.apply_theme()
         self.after_idle(self._initialize_startup_view)
         LOGGER.info("Main window __init__ finished in %.3fs", time.perf_counter() - startup_started)
+
+    def _on_shell_close(self) -> bool:
+        """Close tracked overlays before the shell destroys the root window."""
+
+        try:
+            self._close_shortcut_runtime_debug_dialog()
+        except Exception:
+            pass
+
+        try:
+            self._close_tablegroup_overlay()
+        except Exception:
+            pass
+
+        return True
 
     def _report_tk_callback_exception(self, exc_type, exc_value, exc_traceback) -> None:
         LOGGER.exception(

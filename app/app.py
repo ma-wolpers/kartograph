@@ -7,9 +7,8 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from app.adapters.bootstrap.wiring import build_gui_dependencies
 from app.adapters.gui.main_window import KartographMainWindow
-from app.infrastructure.repositories.json_plan_repository import JsonSeatingPlanRepository
-from app.infrastructure.repositories.settings_repository import JsonSettingsRepository
 
 
 def _configure_startup_logging(workspace_root: Path) -> Path:
@@ -85,19 +84,15 @@ def main() -> None:
     logger.info("Application bootstrap started")
     _configure_hang_trace_logging(workspace_root)
 
-    config_path = workspace_root / "config" / "kartograph_settings.json"
-    symbols_path = workspace_root / "config" / "symbols.json"
-    default_plans_dir = workspace_root / "plans"
-
-    settings_repository = JsonSettingsRepository(config_path=config_path)
-    plan_repository = JsonSeatingPlanRepository()
+    dependencies = build_gui_dependencies(workspace_root)
 
     logger.info("Creating main window")
     app = KartographMainWindow(
-        settings_repository=settings_repository,
-        plan_repository=plan_repository,
-        default_plans_dir=default_plans_dir,
-        symbols_path=symbols_path,
+        settings_repository=dependencies.settings_repository,
+        plan_repository=dependencies.plan_repository,
+        default_plans_dir=dependencies.default_plans_dir,
+        symbols_path=dependencies.symbols_path,
+        shell_config=dependencies.shell_config,
     )
     logger.info("Entering Tk mainloop")
     app.mainloop()

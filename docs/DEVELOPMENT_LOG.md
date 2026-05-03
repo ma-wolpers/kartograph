@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- G3/G4 gestartet: GUI-Startup wurde in einen expliziten Composition-Root (`app/adapters/bootstrap/wiring.py` mit `build_gui_dependencies()`/`AppDependencies`) ueberfuehrt; das Hauptfenster nutzt jetzt die Shared-Shell-Basis `bw_libs/app_shell.py`.
 - G2.2 erweitert: `app/infrastructure/repositories/json_plan_repository.py` und `app/infrastructure/symbol_config_loader.py` nutzen jetzt zentrale Atomic-JSON-Writes ueber `bw_libs/app_paths.py`.
 - G2.1 gestartet: Shared-Modul `bw_libs/app_paths.py` eingefuehrt (AppPaths-Discovery sowie atomische JSON/Text-Write-Helfer).
 - Persistenz-Pilot: `app/infrastructure/repositories/settings_repository.py` nutzt jetzt die zentrale `atomic_write_json`-API.
