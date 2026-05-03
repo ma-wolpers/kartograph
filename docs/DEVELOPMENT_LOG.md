@@ -11,8 +11,14 @@ Regel:
 ### Added
 - Guardrail-Basis eingefuehrt: `AGENTS.md`, `.github/copilot-instructions.md`, PR-Template und CI-Check.
 - `app/core/domain/table_groups.py` als zentrale Domainlogik fuer Zusammenhangskomponenten, TG-Normalisierung, Kaskaden-Umnummerierung und Transformationskollisionen.
+- Runtime-Debug-Popup fuer Shortcuts in der Ansicht (`Ansicht -> Shortcut-Runtime-Debug anzeigen`, `Strg+Shift+R`) inkl. Offline-Simulation (`Strg+Shift+O`) und tabellarischer Aktiv/Disabled-Gruende.
+- Neue Runtime-Tests fuer Zentralmodule: `tests/test_keybinding_registry_runtime.py` und `tests/test_popup_policy_registry.py`.
 
 ### Changed
+- Wave-B-Integration gestartet: `app/adapters/gui/main_window.py` nutzt jetzt zentrale Runtime-Shortcut-Registrierung mit `evaluate_runtime` und PopupPolicy-basiertem Dialogkontext.
+- Intent-Schiene erweitert: `UiIntent` und `MainWindowUiIntentController` enthalten eigene Debug-Intents fuer Runtime-Popup und Offline-Simulation.
+- `app/adapters/gui/keybinding_registry.py` um `KeybindingRuntimeContext` und `evaluate_runtime` erweitert.
+- Guardrails erweitert: `tools/ci/check_ai_guardrails.py` validiert Runtime-Integration sowie Debug-Intent-Routing.
 - Guardrails praezisiert: `CHANGELOG.md` wird nun bei nutzer- oder coentwicklerrelevanten Aenderungen erzwungen; Prozesswarnungen (Commit-/Push-Guidance) werden nur noch lokal und nicht in CI ausgegeben.
 - Zentrale UI-Governance gestartet: `app/adapters/gui/keybinding_registry.py` und `app/adapters/gui/popup_policy.py` als gemeinsame API-Basis fuer Shortcut- und Popup-Steuerung eingefuehrt.
 - Guardrails erweitert: AGENTS/Copilot/PR-Template verlangen zentrale Shortcut-/Popup-Registrierung sowie Feature-Commit-Disziplin bei manuellem Push.

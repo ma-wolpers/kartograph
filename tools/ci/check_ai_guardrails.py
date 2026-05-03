@@ -163,6 +163,64 @@ def _is_ci_environment() -> bool:
     return bool(os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"))
 
 
+def _check_runtime_shortcut_integration(errors: list[str]) -> None:
+    """Require runtime shortcut integration and debug intents in GUI flow."""
+
+    main_window = _read("app/adapters/gui/main_window.py")
+    _require_substring(
+        main_window,
+        "self._runtime_shortcuts = KeybindingRegistry()",
+        "main_window.py",
+        errors,
+    )
+    _require_substring(
+        main_window,
+        "self._popup_registry = PopupPolicyRegistry()",
+        "main_window.py",
+        errors,
+    )
+    _require_substring(
+        main_window,
+        "self._runtime_shortcuts.evaluate_runtime(",
+        "main_window.py",
+        errors,
+    )
+    _require_substring(
+        main_window,
+        "def open_shortcut_runtime_debug_dialog(self) -> None:",
+        "main_window.py",
+        errors,
+    )
+
+    intent_defs = _read("app/adapters/gui/ui_intents.py")
+    _require_substring(
+        intent_defs,
+        "OPEN_SHORTCUT_RUNTIME_DEBUG",
+        "ui_intents.py",
+        errors,
+    )
+    _require_substring(
+        intent_defs,
+        "TOGGLE_SHORTCUT_RUNTIME_OFFLINE",
+        "ui_intents.py",
+        errors,
+    )
+
+    intent_controller = _read("app/adapters/gui/ui_intent_controller.py")
+    _require_substring(
+        intent_controller,
+        "if intent == UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG:",
+        "ui_intent_controller.py",
+        errors,
+    )
+    _require_substring(
+        intent_controller,
+        "if intent == UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE:",
+        "ui_intent_controller.py",
+        errors,
+    )
+
+
 def main() -> int:
     """Execute kartograph guardrail checks and return CI-compatible status code."""
     repo_root = _repo_root()
@@ -195,6 +253,7 @@ def main() -> int:
 
     _check_development_log_updated(staged, errors)
     _check_changelog_updated(staged, errors)
+    _check_runtime_shortcut_integration(errors)
     warnings = _collect_process_guidance_warnings()
 
     if errors:
