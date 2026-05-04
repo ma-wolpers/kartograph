@@ -15,7 +15,7 @@ class AppInfo:
 
 APP_INFO = AppInfo(
     name="Kartograph",
-    version="0.2.0",
+    version="0.2.1",
     appdata_folder="Kartograph",
     window_title="Kartograph",
 )

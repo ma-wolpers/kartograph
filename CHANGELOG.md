@@ -6,6 +6,8 @@ The format is based on Keep a Changelog.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-04
+
 ### Changed
 - App identity metadata is now centralized in `app/app_info.py`; startup shell settings and backup appdata folder naming now read from this shared identity source.
 - Application startup now uses a centralized GUI dependency builder (`AppDependencies`) and a shared Tk shell lifecycle configuration (`bw_libs/app_shell.py`).
@@ -28,6 +30,9 @@ The format is based on Keep a Changelog.
 - Der aktive Spaltenkopf wird jetzt fuer beide Tabellenbereiche (Datumsspalten und fixe Spalten rechts) sichtbar markiert.
 - Neue Runtime-Debug-Ansicht fuer Shortcuts unter `Ansicht` mit Offline-Simulation (`Strg+Shift+R`, `Strg+Shift+O`).
 - Runtime module tests added for keybinding evaluation and popup policy stack behavior.
+
+### Fixed
+- Startup no longer crashes when runtime shortcuts are registered: docs/global shortcut intents are now declared centrally and validated successfully.
 
 ## [0.2.0] - 2026-04-22
 
