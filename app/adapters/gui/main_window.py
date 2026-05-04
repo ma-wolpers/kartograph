@@ -649,7 +649,14 @@ class KartographMainWindow(tk.Tk):
         else:
             text = label
 
+        existing = getattr(widget, "_bw_hover_tooltip", None)
+        if existing is not None:
+            setattr(existing, "text", text)
+            setattr(existing, "theme_key", self._shared_menu_theme_key())
+            return
+
         tooltip = SharedHoverTooltip(widget, text, theme_key=self._shared_menu_theme_key())
+        setattr(widget, "_bw_hover_tooltip", tooltip)
         self._hover_tooltips.append(tooltip)
 
     def _create_toolbar_shortcut_button(
@@ -664,9 +671,9 @@ class KartographMainWindow(tk.Tk):
         padx=(0, 8),
         bind_editor_return: bool = False,
     ) -> ttk.Button:
-        """Create compact icon-first toolbar button with shortcut badge and hover help."""
+        """Create compact icon-first toolbar button and surface shortcut details via hover help."""
 
-        caption = f"{icon} {shortcut}" if shortcut else icon
+        caption = icon.strip() or label
         button = ttk.Button(parent, text=caption, command=command)
         button.pack(side=side, padx=padx)
         if bind_editor_return:
@@ -912,52 +919,73 @@ class KartographMainWindow(tk.Tk):
         self.docs_toolbar = ttk.Frame(self.docs_container)
         self.docs_toolbar.pack(fill="x", padx=12, pady=(0, 8))
 
-        ttk.Button(
+        docs_grid_button = ttk.Button(
             self.docs_toolbar,
             text="Zur Rasteransicht",
             command=lambda: self._handle_intent(UiIntent.VIEW_GRID),
-        ).pack(side="left")
-        ttk.Button(
+        )
+        docs_grid_button.pack(side="left")
+        self._attach_hover_help(docs_grid_button, label="Zur Rasteransicht wechseln", shortcut="Ctrl+Shift+D")
+
+        docs_rename_date_button = ttk.Button(
             self.docs_toolbar,
             text="Datum umbenennen",
             command=lambda: self._handle_intent(UiIntent.RENAME_DOCUMENTATION_DATE),
-        ).pack(side="left", padx=(8, 0))
-        ttk.Button(
+        )
+        docs_rename_date_button.pack(side="left", padx=(8, 0))
+        self._attach_hover_help(docs_rename_date_button, label="Ausgewaehltes Datum umbenennen")
+
+        docs_today_button = ttk.Button(
             self.docs_toolbar,
             text="Heute",
             command=self.select_today_documentation_date,
-        ).pack(side="left", padx=(8, 0))
-        ttk.Button(
+        )
+        docs_today_button.pack(side="left", padx=(8, 0))
+        self._attach_hover_help(docs_today_button, label="Auf heutiges Datum springen", shortcut="Ctrl+H")
+
+        docs_add_grade_column_button = ttk.Button(
             self.docs_toolbar,
             text="Notenspalte hinzufügen",
             command=lambda: self._handle_intent(UiIntent.ADD_GRADE_COLUMN),
-        ).pack(side="left", padx=(8, 0))
-        ttk.Button(
+        )
+        docs_add_grade_column_button.pack(side="left", padx=(8, 0))
+        self._attach_hover_help(docs_add_grade_column_button, label="Neue Notenspalte anlegen")
+
+        docs_weighting_button = ttk.Button(
             self.docs_toolbar,
             text="Gewichtung",
             command=self.configure_grade_weighting_dialog,
-        ).pack(side="left", padx=(8, 0))
-        ttk.Button(
+        )
+        docs_weighting_button.pack(side="left", padx=(8, 0))
+        self._attach_hover_help(docs_weighting_button, label="Gewichtung konfigurieren")
+
+        docs_set_symbol_button = ttk.Button(
             self.docs_toolbar,
             text="Symbol setzen",
             command=self.set_selected_documentation_symbol_dialog,
-        ).pack(side="left", padx=(8, 0))
-        ttk.Button(
-            self.docs_toolbar,
-            text="Symbol loeschen (Strg+Entf/Backspace)",
-            command=self.clear_selected_documentation_symbol,
-        ).pack(side="left", padx=(8, 0))
-        ttk.Button(
-            self.docs_toolbar,
-            text="Note setzen (Strg+G)",
-            command=self.set_selected_documentation_grade_dialog,
-        ).pack(side="left", padx=(8, 0))
-        ttk.Label(
-            self.docs_toolbar,
-            text="Datum: Alt+Links/Rechts, Strg+H=Heute, Strg+Shift+S=Symbol, Strg+Entf/Backspace=Loeschen",
-        ).pack(
-            side="right", padx=(0, 12)
         )
+        docs_set_symbol_button.pack(side="left", padx=(8, 0))
+        self._attach_hover_help(docs_set_symbol_button, label="Dokumentationssymbol setzen", shortcut="Ctrl+Shift+S")
+
+        docs_clear_symbol_button = ttk.Button(
+            self.docs_toolbar,
+            text="Symbol loeschen",
+            command=self.clear_selected_documentation_symbol,
+        )
+        docs_clear_symbol_button.pack(side="left", padx=(8, 0))
+        self._attach_hover_help(
+            docs_clear_symbol_button,
+            label="Dokumentationssymbol loeschen",
+            shortcut="Ctrl+Entf oder Ctrl+Backspace",
+        )
+
+        docs_set_grade_button = ttk.Button(
+            self.docs_toolbar,
+            text="Note setzen",
+            command=self.set_selected_documentation_grade_dialog,
+        )
+        docs_set_grade_button.pack(side="left", padx=(8, 0))
+        self._attach_hover_help(docs_set_grade_button, label="Note setzen", shortcut="Ctrl+G")
         ttk.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
 
         self.docs_table_container = ttk.Frame(self.docs_container)
@@ -2142,9 +2170,21 @@ class KartographMainWindow(tk.Tk):
             self._shared_menu_bar.refresh_theme(self._shared_menu_theme_key())
 
         shared_theme_key = self._shared_menu_theme_key()
+        active_tooltips: list[object] = []
         for tooltip in self._hover_tooltips:
+            owner = getattr(tooltip, "widget", None)
+            if owner is None:
+                continue
+            try:
+                if not int(owner.winfo_exists()):
+                    continue
+            except Exception:
+                continue
+
             if hasattr(tooltip, "theme_key"):
                 setattr(tooltip, "theme_key", shared_theme_key)
+            active_tooltips.append(tooltip)
+        self._hover_tooltips = active_tooltips
 
         self._apply_color_button_theme()
 
@@ -2950,7 +2990,7 @@ class KartographMainWindow(tk.Tk):
         ttk.Label(frame, text="Symbol auswählen").pack(anchor="w", pady=(0, 6))
         ttk.Label(
             frame,
-            text="Tastatur: 1-9 waehlt, 0 loescht, Enter uebernimmt, Entf/Backspace loescht, Esc schliesst",
+            text="Tastaturhilfe im Hover",
             foreground="#666666",
         ).pack(
             anchor="w", pady=(0, 6)
@@ -2958,6 +2998,11 @@ class KartographMainWindow(tk.Tk):
 
         symbol_listbox = tk.Listbox(frame, selectmode="browse", exportselection=False, font=("Segoe UI", 11))
         symbol_listbox.pack(fill="both", expand=True)
+        self._attach_hover_help(
+            symbol_listbox,
+            label="Symbolauswahl per Tastatur",
+            shortcut="1-9 waehlt, 0 loescht, Enter uebernimmt, Entf/Backspace loescht, Esc schliesst",
+        )
 
         for symbol in self.symbol_catalog:
             shortcut = self._symbol_by_meaning.get(symbol).shortcut if self._symbol_by_meaning.get(symbol) else None
@@ -4285,8 +4330,7 @@ class KartographMainWindow(tk.Tk):
             count = int(desk.symbols.get(symbol, 0))
             icon = self._symbol_glyph(symbol)
             shortcut = self._symbol_by_meaning.get(symbol).shortcut if self._symbol_by_meaning.get(symbol) else None
-            shortcut_suffix = f" [{shortcut.upper()}]" if shortcut else ""
-            caption = f"{icon} {symbol}{shortcut_suffix}" if count == 0 else f"{icon} {symbol} x{count}{shortcut_suffix}"
+            caption = f"{icon} {symbol}" if count == 0 else f"{icon} {symbol} x{count}"
             idx = self.diagnostic_symbol_catalog.index(symbol)
             row = 1 + (idx // symbol_cols)
             col = idx % symbol_cols
@@ -4296,6 +4340,11 @@ class KartographMainWindow(tk.Tk):
                 command=lambda s=symbol: self._toggle_selected_symbol(s),
             )
             button.grid(row=row, column=col, sticky="ew", padx=(0, 6), pady=(0, 4))
+            self._attach_hover_help(
+                button,
+                label=f"Symbol {symbol} umschalten",
+                shortcut=shortcut.upper() if shortcut else None,
+            )
 
         for col in range(symbol_cols):
             self.symbols_frame.columnconfigure(col, weight=1)
@@ -4309,7 +4358,7 @@ class KartographMainWindow(tk.Tk):
         color_cols = self._details_button_columns()
         for key, color_key, label, hex_color in self.color_palette:
             active = color_key in desk.color_markers
-            caption = f"{key}:{label}" if not active else f"{key}:{label}*"
+            caption = label if not active else f"{label}*"
             idx = int(key) - 1
             row = 1 + (idx // color_cols)
             col = idx % color_cols
@@ -4324,6 +4373,7 @@ class KartographMainWindow(tk.Tk):
             )
             button.grid(row=row, column=col, sticky="ew", padx=(0, 6), pady=(0, 4))
             self._color_marker_buttons.append(button)
+            self._attach_hover_help(button, label=f"Farbpunkt {label} umschalten", shortcut=key)
 
         for col in range(color_cols):
             self.colors_frame.columnconfigure(col, weight=1)

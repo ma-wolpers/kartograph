@@ -21,6 +21,7 @@ Regel:
 - Dialogpfad zentralisiert: direkte `messagebox`/`simpledialog`-Aufrufe laufen jetzt ueber ein zentrales Dialog-Gateway mit PopupPolicy-Tracking, damit Runtime-Shortcut-Dialogkontext konsistent bleibt.
 - Popup-Lifecycle-Sync unterscheidet jetzt explizit zwischen mode-blockierenden Modaldialogen und non-blocking Shared-Menue-Popups.
 - Toolbar-UX harmonisiert: Listen- und Editor-Toolbar nutzen jetzt icon-first Buttons mit Shortcut-Badges; erklaerende Hover-Overlays (Action + Shortcut) werden ueber das Shared-Tooltip-Widget angezeigt.
+- Shortcut-Texte aus Button-Labels entfernt: Toolbars sowie dynamische Symbol-/Farbpunkt-Buttons zeigen keine Shortcut-Hinweise mehr im Label; Shortcut-Hinweise liegen jetzt konsequent im Hover.
 - G5 abgeschlossen: AppIdentity-Manifest `app/app_info.py` eingefuehrt; Startup-Metadaten und AppData-Backup-Pfad (`json_plan_repository.py`) nutzen jetzt diese zentrale Identitaetsquelle.
 - G3/G4 gestartet: GUI-Startup wurde in einen expliziten Composition-Root (`app/adapters/bootstrap/wiring.py` mit `build_gui_dependencies()`/`AppDependencies`) ueberfuehrt; das Hauptfenster nutzt jetzt die Shared-Shell-Basis `bw_libs/app_shell.py`.
 - G2.2 erweitert: `app/infrastructure/repositories/json_plan_repository.py` und `app/infrastructure/symbol_config_loader.py` nutzen jetzt zentrale Atomic-JSON-Writes ueber `bw_libs/app_paths.py`.
