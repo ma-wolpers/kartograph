@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import logging
-import tkinter as tk
 import sys
 import time
 from copy import deepcopy
 from datetime import date
 from pathlib import Path
-from tkinter import ttk
-from tkinter import font as tkfont
 
 from app.app_info import APP_INFO
 from app.adapters.gui.dialog_services import filedialog, messagebox, simpledialog
@@ -76,6 +73,8 @@ from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
 from app.infrastructure.symbol_config_loader import SymbolDefinition, load_symbol_definitions
 
 ensure_bw_gui_on_path()
+from bw_gui.runtime import fonts, ui, widgets
+
 try:
     from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar
     from bw_gui.menu import MenuDefinition as SharedMenuDefinition
@@ -165,7 +164,7 @@ def configure_windows_process_identity() -> None:
         return
 
 
-def apply_window_icon(window: tk.Tk) -> None:
+def apply_window_icon(window: ui.Tk) -> None:
     if not sys.platform.startswith("win") or not ICON_PATH.exists():
         return
     try:
@@ -174,7 +173,7 @@ def apply_window_icon(window: tk.Tk) -> None:
         return
 
 
-class KartographMainWindow(tk.Tk):
+class KartographMainWindow(ui.Tk):
     def __init__(
         self,
         settings_repository,
@@ -233,10 +232,10 @@ class KartographMainWindow(tk.Tk):
         self.ui_intent_controller = MainWindowUiIntentController(self)
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
 
-        self._name_var = tk.StringVar(value="")
-        self._selected_marker_var = tk.StringVar(value="")
-        self._doc_selection_status_var = tk.StringVar(value="Doku-Zelle: -")
-        self.status_var = tk.StringVar(value="Bereit")
+        self._name_var = ui.StringVar(value="")
+        self._selected_marker_var = ui.StringVar(value="")
+        self._doc_selection_status_var = ui.StringVar(value="Doku-Zelle: -")
+        self.status_var = ui.StringVar(value="Bereit")
         self._runtime_shortcuts = KeybindingRegistry()
         self._popup_registry = PopupPolicyRegistry()
         self._popup_registry.register_policy(PopupPolicy(policy_id="dialog.modal", kind=POPUP_KIND_MODAL))
@@ -252,19 +251,19 @@ class KartographMainWindow(tk.Tk):
         self._shared_menu_bar = None
         self._hover_tooltips: list[object] = []
         self._shortcut_runtime_offline = False
-        self._shortcut_runtime_debug_window: tk.Toplevel | None = None
-        self._shortcut_runtime_debug_table: ttk.Treeview | None = None
-        self._shortcut_runtime_debug_context_var = tk.StringVar(value="")
-        self._shortcut_runtime_debug_summary_var = tk.StringVar(value="")
-        self._shortcut_runtime_debug_offline_var = tk.BooleanVar(value=False)
-        self._tablegroup_overlay: tk.Toplevel | None = None
-        self._tg_number_var: tk.StringVar | None = None
-        self._tg_shift_x_var: tk.StringVar | None = None
-        self._tg_shift_y_var: tk.StringVar | None = None
-        self._tg_rotation_var: tk.StringVar | None = None
-        self._tg_status_var: tk.StringVar | None = None
+        self._shortcut_runtime_debug_window: ui.Toplevel | None = None
+        self._shortcut_runtime_debug_table: tui.Treeview | None = None
+        self._shortcut_runtime_debug_context_var = ui.StringVar(value="")
+        self._shortcut_runtime_debug_summary_var = ui.StringVar(value="")
+        self._shortcut_runtime_debug_offline_var = ui.BooleanVar(value=False)
+        self._tablegroup_overlay: ui.Toplevel | None = None
+        self._tg_number_var: ui.StringVar | None = None
+        self._tg_shift_x_var: ui.StringVar | None = None
+        self._tg_shift_y_var: ui.StringVar | None = None
+        self._tg_rotation_var: ui.StringVar | None = None
+        self._tg_status_var: ui.StringVar | None = None
         self._tg_last_changed_field: str = "shift_x"
-        self._color_marker_buttons: list[tk.Button] = []
+        self._color_marker_buttons: list[ui.Button] = []
         self._editor_surface: str = "grid"
         self._doc_selected_student_index: int = 0
         self._doc_selected_date_index: int = 0
@@ -275,12 +274,12 @@ class KartographMainWindow(tk.Tk):
         self._doc_date_column_ids: list[str] = []
         self._doc_fixed_column_ids: list[str] = []
         self._doc_selected_fixed_column_id: str | None = None
-        self._docs_inline_editor: ttk.Entry | None = None
-        self._docs_inline_editor_tree: ttk.Treeview | None = None
+        self._docs_inline_editor: tui.Entry | None = None
+        self._docs_inline_editor_tree: tui.Treeview | None = None
         self._docs_inline_editor_row_id: str | None = None
         self._docs_inline_editor_kind: str | None = None
         self._docs_inline_editor_model_column: str | None = None
-        self._docs_cell_overlay: tk.Label | None = None
+        self._docs_cell_overlay: ui.Label | None = None
         self._docs_symbol_dialog_last_index: int = 0
         self._ui_watchdog_last_tick = time.perf_counter()
         self._ui_watchdog_tick_count = 0
@@ -393,9 +392,9 @@ class KartographMainWindow(tk.Tk):
         self.after(DEFAULT_UI_WATCHDOG_INTERVAL_MS, self._ui_watchdog_tick)
 
     def _build_menu_bar(self) -> None:
-        self.theme_var = tk.StringVar(value=self.theme_key)
-        self.details_overlay_position_var = tk.StringVar(value=self.details_overlay_position)
-        self.tablegroup_overlay_position_var = tk.StringVar(value=self.tablegroup_overlay_position)
+        self.theme_var = ui.StringVar(value=self.theme_key)
+        self.details_overlay_position_var = ui.StringVar(value=self.details_overlay_position)
+        self.tablegroup_overlay_position_var = ui.StringVar(value=self.tablegroup_overlay_position)
 
         if SharedCustomMenuBar is None or SharedMenuDefinition is None or SharedMenuItem is None:
             self.config(menu="")
@@ -577,19 +576,19 @@ class KartographMainWindow(tk.Tk):
         return tuple(theme_items + static_items)
 
     def _build_layout(self) -> None:
-        self.style = ttk.Style(self)
+        self.style = tui.Style(self)
         self.style.theme_use("clam")
 
-        self.main_frame = ttk.Frame(self)
+        self.main_frame = tui.Frame(self)
         self.main_frame.pack(fill="both", expand=True)
 
-        self.list_view = ttk.Frame(self.main_frame)
-        self.editor_view = ttk.Frame(self.main_frame)
+        self.list_view = tui.Frame(self.main_frame)
+        self.editor_view = tui.Frame(self.main_frame)
 
         self._build_list_view()
         self._build_editor_view()
 
-    def _attach_hover_help(self, widget: tk.Widget, *, label: str, shortcut: str | None = None) -> None:
+    def _attach_hover_help(self, widget: ui.Widget, *, label: str, shortcut: str | None = None) -> None:
         """Attach shared hover overlay with readable action text and shortcut hint."""
 
         if SharedHoverTooltip is None:
@@ -613,7 +612,7 @@ class KartographMainWindow(tk.Tk):
 
     def _create_toolbar_shortcut_button(
         self,
-        parent: tk.Widget,
+        parent: ui.Widget,
         *,
         icon: str,
         shortcut: str,
@@ -622,11 +621,11 @@ class KartographMainWindow(tk.Tk):
         side: str = "left",
         padx=(0, 8),
         bind_editor_return: bool = False,
-    ) -> ttk.Button:
+    ) -> tui.Button:
         """Create compact icon-first toolbar button and surface shortcut details via hover help."""
 
         caption = icon.strip() or label
-        button = ttk.Button(parent, text=caption, command=command)
+        button = tui.Button(parent, text=caption, command=command)
         button.pack(side=side, padx=padx)
         if bind_editor_return:
             self._bind_editor_return_override(button)
@@ -634,7 +633,7 @@ class KartographMainWindow(tk.Tk):
         return button
 
     def _build_list_view(self) -> None:
-        self.list_toolbar = ttk.Frame(self.list_view)
+        self.list_toolbar = tui.Frame(self.list_view)
         self.list_toolbar.pack(fill="x", padx=14, pady=(14, 8))
 
         self._create_toolbar_shortcut_button(
@@ -674,10 +673,10 @@ class KartographMainWindow(tk.Tk):
             padx=(0, 0),
         )
 
-        self.list_body = ttk.Frame(self.list_view)
+        self.list_body = tui.Frame(self.list_view)
         self.list_body.pack(fill="both", expand=True, padx=14, pady=(0, 14))
 
-        self.plan_listbox = tk.Listbox(
+        self.plan_listbox = ui.Listbox(
             self.list_body,
             selectmode="browse",
             activestyle="none",
@@ -690,12 +689,12 @@ class KartographMainWindow(tk.Tk):
         self.plan_listbox.bind("<Return>", lambda _event: self._handle_intent(UiIntent.LIST_OPEN_SELECTED))
         self.plan_listbox.bind("<<ListboxSelect>>", lambda _event: self._ensure_list_selection())
 
-        scroll = ttk.Scrollbar(self.list_body, orient="vertical", command=self.plan_listbox.yview)
+        scroll = tui.Scrollbar(self.list_body, orient="vertical", command=self.plan_listbox.yview)
         scroll.pack(side="right", fill="y")
         self.plan_listbox.configure(yscrollcommand=scroll.set)
 
     def _build_editor_view(self) -> None:
-        self.editor_topbar = ttk.Frame(self.editor_view)
+        self.editor_topbar = tui.Frame(self.editor_view)
         self.editor_topbar.pack(fill="x", padx=12, pady=(12, 8))
 
         self._create_toolbar_shortcut_button(
@@ -792,16 +791,16 @@ class KartographMainWindow(tk.Tk):
             padx=(0, 0),
         )
 
-        self.plan_name_var = tk.StringVar(value="")
-        ttk.Label(self.editor_topbar, textvariable=self.plan_name_var).pack(side="right", padx=(0, 14))
+        self.plan_name_var = ui.StringVar(value="")
+        tui.Label(self.editor_topbar, textvariable=self.plan_name_var).pack(side="right", padx=(0, 14))
 
-        self.grid_stack = ttk.Frame(self.editor_view)
-        self.grid_container = ttk.Frame(self.grid_stack)
+        self.grid_stack = tui.Frame(self.editor_view)
+        self.grid_container = tui.Frame(self.grid_stack)
 
-        self.canvas = tk.Canvas(self.grid_container, highlightthickness=0)
+        self.canvas = ui.Canvas(self.grid_container, highlightthickness=0)
         self.canvas.pack(side="left", fill="both", expand=True)
 
-        self.y_scroll = tk.Scrollbar(
+        self.y_scroll = ui.Scrollbar(
             self.grid_container,
             orient="vertical",
             command=self._yview,
@@ -811,7 +810,7 @@ class KartographMainWindow(tk.Tk):
             takefocus=0,
         )
         self.y_scroll.pack(side="right", fill="y")
-        self.x_scroll = tk.Scrollbar(
+        self.x_scroll = ui.Scrollbar(
             self.grid_stack,
             orient="horizontal",
             command=self._xview,
@@ -828,22 +827,22 @@ class KartographMainWindow(tk.Tk):
         )
         self._update_scroll_region()
 
-        self.details_container = ttk.Frame(self.editor_view, style="Panel.TFrame")
+        self.details_container = tui.Frame(self.editor_view, style="Panel.TFrame")
 
-        self.details_header = ttk.Frame(self.details_container, style="Panel.TFrame")
+        self.details_header = tui.Frame(self.details_container, style="Panel.TFrame")
         self.details_header.pack(fill="x", padx=12, pady=(8, 0))
 
-        ttk.Label(self.details_header, textvariable=self.status_var, style="Panel.TLabel").pack(side="left")
-        ttk.Label(self.details_header, textvariable=self._selected_marker_var, style="Panel.TLabel").pack(side="right")
+        tui.Label(self.details_header, textvariable=self.status_var, style="Panel.TLabel").pack(side="left")
+        tui.Label(self.details_header, textvariable=self._selected_marker_var, style="Panel.TLabel").pack(side="right")
 
-        self.details_frame = ttk.Frame(self.details_container)
+        self.details_frame = tui.Frame(self.details_container)
         self.details_frame.pack(fill="x", padx=12, pady=(4, 12))
 
-        self.details_form = ttk.Frame(self.details_frame, style="Panel.TFrame")
+        self.details_form = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.details_form.pack(fill="x", pady=(4, 0))
 
-        ttk.Label(self.details_form, text="Name", style="Panel.TLabel").pack(side="left")
-        self.name_entry = ttk.Entry(self.details_form, textvariable=self._name_var, width=40)
+        tui.Label(self.details_form, text="Name", style="Panel.TLabel").pack(side="left")
+        self.name_entry = tui.Entry(self.details_form, textvariable=self._name_var, width=40)
         self.name_entry.pack(side="left", padx=(8, 16))
         self.name_entry.bind("<KeyRelease>", lambda _event: self._on_name_changed())
         self.name_entry.bind("<Escape>", self._on_name_entry_escape)
@@ -851,27 +850,27 @@ class KartographMainWindow(tk.Tk):
         self.name_entry.bind("<FocusIn>", self._on_name_entry_focus_in)
         self.name_entry.bind("<FocusOut>", self._on_name_entry_focus_out)
 
-        self.symbols_frame = ttk.Frame(self.details_frame, style="Panel.TFrame")
+        self.symbols_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.symbols_frame.pack(fill="x", pady=(6, 0))
 
-        self.symbol_legend_frame = ttk.Frame(self.details_frame, style="Panel.TFrame")
+        self.symbol_legend_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.symbol_legend_frame.pack(fill="x", pady=(4, 0))
 
-        self.colors_frame = ttk.Frame(self.details_frame, style="Panel.TFrame")
+        self.colors_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.colors_frame.pack(fill="x", pady=(6, 0))
 
-        self.color_legend_frame = ttk.Frame(self.details_frame, style="Panel.TFrame")
+        self.color_legend_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.color_legend_frame.pack(fill="x", pady=(4, 0))
         self._details_panel_visible = True
 
         self._apply_details_overlay_position()
 
-        self.docs_container = ttk.Frame(self.editor_view)
+        self.docs_container = tui.Frame(self.editor_view)
 
-        self.docs_toolbar = ttk.Frame(self.docs_container)
+        self.docs_toolbar = tui.Frame(self.docs_container)
         self.docs_toolbar.pack(fill="x", padx=12, pady=(0, 8))
 
-        docs_grid_button = ttk.Button(
+        docs_grid_button = tui.Button(
             self.docs_toolbar,
             text="Zur Rasteransicht",
             command=lambda: self._handle_intent(UiIntent.VIEW_GRID),
@@ -879,7 +878,7 @@ class KartographMainWindow(tk.Tk):
         docs_grid_button.pack(side="left")
         self._attach_hover_help(docs_grid_button, label="Zur Rasteransicht wechseln", shortcut="Ctrl+Shift+D")
 
-        docs_rename_date_button = ttk.Button(
+        docs_rename_date_button = tui.Button(
             self.docs_toolbar,
             text="Datum umbenennen",
             command=lambda: self._handle_intent(UiIntent.RENAME_DOCUMENTATION_DATE),
@@ -887,7 +886,7 @@ class KartographMainWindow(tk.Tk):
         docs_rename_date_button.pack(side="left", padx=(8, 0))
         self._attach_hover_help(docs_rename_date_button, label="Ausgewaehltes Datum umbenennen")
 
-        docs_today_button = ttk.Button(
+        docs_today_button = tui.Button(
             self.docs_toolbar,
             text="Heute",
             command=self.select_today_documentation_date,
@@ -895,7 +894,7 @@ class KartographMainWindow(tk.Tk):
         docs_today_button.pack(side="left", padx=(8, 0))
         self._attach_hover_help(docs_today_button, label="Auf heutiges Datum springen", shortcut="Ctrl+H")
 
-        docs_add_grade_column_button = ttk.Button(
+        docs_add_grade_column_button = tui.Button(
             self.docs_toolbar,
             text="Notenspalte hinzufügen",
             command=lambda: self._handle_intent(UiIntent.ADD_GRADE_COLUMN),
@@ -903,7 +902,7 @@ class KartographMainWindow(tk.Tk):
         docs_add_grade_column_button.pack(side="left", padx=(8, 0))
         self._attach_hover_help(docs_add_grade_column_button, label="Neue Notenspalte anlegen")
 
-        docs_weighting_button = ttk.Button(
+        docs_weighting_button = tui.Button(
             self.docs_toolbar,
             text="Gewichtung",
             command=self.configure_grade_weighting_dialog,
@@ -911,7 +910,7 @@ class KartographMainWindow(tk.Tk):
         docs_weighting_button.pack(side="left", padx=(8, 0))
         self._attach_hover_help(docs_weighting_button, label="Gewichtung konfigurieren")
 
-        docs_set_symbol_button = ttk.Button(
+        docs_set_symbol_button = tui.Button(
             self.docs_toolbar,
             text="Symbol setzen",
             command=self.set_selected_documentation_symbol_dialog,
@@ -919,7 +918,7 @@ class KartographMainWindow(tk.Tk):
         docs_set_symbol_button.pack(side="left", padx=(8, 0))
         self._attach_hover_help(docs_set_symbol_button, label="Dokumentationssymbol setzen", shortcut="Ctrl+Shift+S")
 
-        docs_clear_symbol_button = ttk.Button(
+        docs_clear_symbol_button = tui.Button(
             self.docs_toolbar,
             text="Symbol loeschen",
             command=self.clear_selected_documentation_symbol,
@@ -931,29 +930,29 @@ class KartographMainWindow(tk.Tk):
             shortcut="Ctrl+Entf oder Ctrl+Backspace",
         )
 
-        docs_set_grade_button = ttk.Button(
+        docs_set_grade_button = tui.Button(
             self.docs_toolbar,
             text="Note setzen",
             command=self.set_selected_documentation_grade_dialog,
         )
         docs_set_grade_button.pack(side="left", padx=(8, 0))
         self._attach_hover_help(docs_set_grade_button, label="Note setzen", shortcut="Ctrl+G")
-        ttk.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
+        tui.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
 
-        self.docs_table_container = ttk.Frame(self.docs_container)
+        self.docs_table_container = tui.Frame(self.docs_container)
         self.docs_table_container.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
-        self.docs_tree = ttk.Treeview(self.docs_table_container, show="tree headings")
+        self.docs_tree = tui.Treeview(self.docs_table_container, show="tree headings")
         self.docs_tree.pack(side="left", fill="both", expand=True)
         self.docs_tree.column("#0", width=220, anchor="w", stretch=False)
         self.docs_tree.heading("#0", text="Schüler:in")
 
-        self.docs_right_tree = ttk.Treeview(self.docs_table_container, show="headings")
+        self.docs_right_tree = tui.Treeview(self.docs_table_container, show="headings")
         self.docs_right_tree.pack(side="left", fill="y")
 
-        self.docs_y_scroll = ttk.Scrollbar(self.docs_table_container, orient="vertical", command=self._docs_yview)
+        self.docs_y_scroll = tui.Scrollbar(self.docs_table_container, orient="vertical", command=self._docs_yview)
         self.docs_y_scroll.pack(side="right", fill="y")
-        self.docs_x_scroll = ttk.Scrollbar(self.docs_container, orient="horizontal", command=self.docs_tree.xview)
+        self.docs_x_scroll = tui.Scrollbar(self.docs_container, orient="horizontal", command=self.docs_tree.xview)
         self.docs_x_scroll.pack(fill="x", padx=12, pady=(0, 12))
         self._syncing_docs_scroll = False
         self._syncing_docs_selection = False
@@ -1064,7 +1063,7 @@ class KartographMainWindow(tk.Tk):
         self._runtime_shortcuts.register(definition)
         return definition
 
-    def _track_popup_window(self, window: tk.Toplevel, *, policy_id: str = "dialog.modal") -> None:
+    def _track_popup_window(self, window: ui.Toplevel, *, policy_id: str = "dialog.modal") -> None:
         popup_id = str(window)
         if popup_id in self._tracked_popup_ids:
             return
@@ -1086,7 +1085,7 @@ class KartographMainWindow(tk.Tk):
     def _sync_popup_sessions_from_windows(self) -> None:
         visible_popup_ids: set[str] = set()
         for child in self.winfo_children():
-            if not isinstance(child, tk.Toplevel):
+            if not isinstance(child, ui.Toplevel):
                 continue
             try:
                 if not int(child.winfo_exists()):
@@ -1109,7 +1108,7 @@ class KartographMainWindow(tk.Tk):
             self._popup_registry.close_popup(popup_id)
             self._tracked_popup_ids.discard(popup_id)
 
-    def _build_runtime_context(self, event: tk.Event[tk.Misc] | None = None) -> KeybindingRuntimeContext:
+    def _build_runtime_context(self, event: ui.Event[ui.Misc] | None = None) -> KeybindingRuntimeContext:
         self._sync_popup_sessions_from_windows()
         text_input_focused = self._is_text_input_focused()
         dialog_open = self._popup_registry.has_mode_blocking_popup()
@@ -1179,31 +1178,31 @@ class KartographMainWindow(tk.Tk):
             self._shortcut_runtime_debug_window.focus_force()
             return
 
-        window = tk.Toplevel(self)
+        window = ui.Toplevel(self)
         window.title("Shortcut Runtime Debug")
         window.geometry("980x520")
         window.minsize(820, 420)
         self._track_popup_window(window, policy_id="dialog.non_blocking")
 
-        toolbar = ttk.Frame(window, padding=(10, 8))
+        toolbar = tui.Frame(window, padding=(10, 8))
         toolbar.pack(fill="x")
-        ttk.Label(toolbar, textvariable=self._shortcut_runtime_debug_context_var, style="Muted.TLabel").pack(
+        tui.Label(toolbar, textvariable=self._shortcut_runtime_debug_context_var, style="Muted.TLabel").pack(
             side="left", fill="x", expand=True
         )
-        ttk.Checkbutton(
+        tui.Checkbutton(
             toolbar,
             text="Offline simulieren",
             variable=self._shortcut_runtime_debug_offline_var,
             command=self._on_shortcut_runtime_offline_var_changed,
         ).pack(side="left", padx=(12, 0))
-        ttk.Button(toolbar, text="Aktualisieren", command=self._refresh_shortcut_runtime_debug_dialog).pack(
+        tui.Button(toolbar, text="Aktualisieren", command=self._refresh_shortcut_runtime_debug_dialog).pack(
             side="left", padx=(8, 0)
         )
 
-        body = ttk.Frame(window, padding=(10, 0, 10, 8))
+        body = tui.Frame(window, padding=(10, 0, 10, 8))
         body.pack(fill="both", expand=True)
         columns = ("mode", "key", "binding", "status", "reason")
-        table = ttk.Treeview(body, columns=columns, show="headings")
+        table = tui.Treeview(body, columns=columns, show="headings")
         table.heading("mode", text="Mode")
         table.heading("key", text="Key")
         table.heading("binding", text="Binding")
@@ -1215,11 +1214,11 @@ class KartographMainWindow(tk.Tk):
         table.column("status", width=90, anchor="center", stretch=False)
         table.column("reason", width=180, anchor="w", stretch=True)
         table.pack(side="left", fill="both", expand=True)
-        y_scroll = ttk.Scrollbar(body, orient="vertical", command=table.yview)
+        y_scroll = tui.Scrollbar(body, orient="vertical", command=table.yview)
         y_scroll.pack(side="right", fill="y")
         table.configure(yscrollcommand=y_scroll.set)
 
-        ttk.Label(window, textvariable=self._shortcut_runtime_debug_summary_var, style="Muted.TLabel").pack(
+        tui.Label(window, textvariable=self._shortcut_runtime_debug_summary_var, style="Muted.TLabel").pack(
             fill="x", padx=10, pady=(0, 8)
         )
 
@@ -1268,7 +1267,7 @@ class KartographMainWindow(tk.Tk):
                     disabled_count += 1
                 table.insert(
                     "",
-                    tk.END,
+                    ui.END,
                     values=(mode, definition.sequence, definition.binding_id, status, "" if can_execute else reason),
                 )
 
@@ -1598,7 +1597,7 @@ class KartographMainWindow(tk.Tk):
         self.exit_name_edit_mode()
         return "break"
 
-    def _bind_editor_return_override(self, widget: tk.Widget) -> None:
+    def _bind_editor_return_override(self, widget: ui.Widget) -> None:
         widget.bind("<Return>", self._on_return_key)
         widget.bind("<KP_Enter>", self._on_return_key)
 
@@ -1631,7 +1630,7 @@ class KartographMainWindow(tk.Tk):
             return True
 
         focused_toplevel = focused_widget.winfo_toplevel()
-        if isinstance(focused_toplevel, tk.Toplevel) and focused_toplevel is not self:
+        if isinstance(focused_toplevel, ui.Toplevel) and focused_toplevel is not self:
             return True
 
         return False
@@ -1661,7 +1660,7 @@ class KartographMainWindow(tk.Tk):
             self._tablegroup_overlay.focus_force()
             return
 
-        overlay = tk.Toplevel(self)
+        overlay = ui.Toplevel(self)
         overlay.title("Tischeinstellungen")
         overlay.resizable(False, False)
         overlay.transient(self)
@@ -1671,49 +1670,49 @@ class KartographMainWindow(tk.Tk):
         self._tablegroup_overlay = overlay
         self._position_tablegroup_overlay()
 
-        body = ttk.Frame(overlay)
+        body = tui.Frame(overlay)
         body.pack(fill="both", expand=True, padx=12, pady=12)
 
-        self._tg_number_var = tk.StringVar(value="")
-        self._tg_shift_x_var = tk.StringVar(value="0.00")
-        self._tg_shift_y_var = tk.StringVar(value="0.00")
-        self._tg_rotation_var = tk.StringVar(value="0.00")
-        self._tg_status_var = tk.StringVar(value="")
+        self._tg_number_var = ui.StringVar(value="")
+        self._tg_shift_x_var = ui.StringVar(value="0.00")
+        self._tg_shift_y_var = ui.StringVar(value="0.00")
+        self._tg_rotation_var = ui.StringVar(value="0.00")
+        self._tg_status_var = ui.StringVar(value="")
 
-        ttk.Label(body, text="TG-Nummer").grid(row=0, column=0, sticky="w", pady=(0, 4))
-        number_entry = ttk.Entry(body, textvariable=self._tg_number_var, width=10)
+        tui.Label(body, text="TG-Nummer").grid(row=0, column=0, sticky="w", pady=(0, 4))
+        number_entry = tui.Entry(body, textvariable=self._tg_number_var, width=10)
         number_entry.grid(row=0, column=1, sticky="w", pady=(0, 4))
         number_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("number"))
 
-        ttk.Label(body, text=f"x-shift (-{TG_SHIFT_LIMIT:.2f}..{TG_SHIFT_LIMIT:.2f})").grid(
+        tui.Label(body, text=f"x-shift (-{TG_SHIFT_LIMIT:.2f}..{TG_SHIFT_LIMIT:.2f})").grid(
             row=1, column=0, sticky="w", pady=(0, 4)
         )
-        shift_x_entry = ttk.Entry(body, textvariable=self._tg_shift_x_var, width=10)
+        shift_x_entry = tui.Entry(body, textvariable=self._tg_shift_x_var, width=10)
         shift_x_entry.grid(row=1, column=1, sticky="w", pady=(0, 4))
         shift_x_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("shift_x"))
 
-        ttk.Label(body, text=f"y-shift (-{TG_SHIFT_LIMIT:.2f}..{TG_SHIFT_LIMIT:.2f})").grid(
+        tui.Label(body, text=f"y-shift (-{TG_SHIFT_LIMIT:.2f}..{TG_SHIFT_LIMIT:.2f})").grid(
             row=2, column=0, sticky="w", pady=(0, 4)
         )
-        shift_y_entry = ttk.Entry(body, textvariable=self._tg_shift_y_var, width=10)
+        shift_y_entry = tui.Entry(body, textvariable=self._tg_shift_y_var, width=10)
         shift_y_entry.grid(row=2, column=1, sticky="w", pady=(0, 4))
         shift_y_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("shift_y"))
 
-        ttk.Label(body, text=f"Rotation (-{int(TG_ROTATION_LIMIT)}..{int(TG_ROTATION_LIMIT)})").grid(
+        tui.Label(body, text=f"Rotation (-{int(TG_ROTATION_LIMIT)}..{int(TG_ROTATION_LIMIT)})").grid(
             row=3, column=0, sticky="w", pady=(0, 4)
         )
-        rotation_entry = ttk.Entry(body, textvariable=self._tg_rotation_var, width=10)
+        rotation_entry = tui.Entry(body, textvariable=self._tg_rotation_var, width=10)
         rotation_entry.grid(row=3, column=1, sticky="w", pady=(0, 4))
         rotation_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("rotation"))
 
-        ttk.Label(body, textvariable=self._tg_status_var, style="Panel.TLabel").grid(
+        tui.Label(body, textvariable=self._tg_status_var, style="Panel.TLabel").grid(
             row=4, column=0, columnspan=2, sticky="w", pady=(8, 8)
         )
 
-        button_row = ttk.Frame(body)
+        button_row = tui.Frame(body)
         button_row.grid(row=5, column=0, columnspan=2, sticky="ew")
-        ttk.Button(button_row, text="Schliessen", command=self._close_tablegroup_overlay).pack(side="right")
-        ttk.Button(button_row, text="Uebernehmen", command=self._apply_tablegroup_overlay_values).pack(
+        tui.Button(button_row, text="Schliessen", command=self._close_tablegroup_overlay).pack(side="right")
+        tui.Button(button_row, text="Uebernehmen", command=self._apply_tablegroup_overlay_values).pack(
             side="right", padx=(0, 8)
         )
 
@@ -2167,13 +2166,13 @@ class KartographMainWindow(tk.Tk):
             except Exception as exc:
                 self.status_var.set(f"Konnte keinen Startplan erstellen: {exc}")
 
-        self.plan_listbox.delete(0, tk.END)
+        self.plan_listbox.delete(0, ui.END)
         for path, plan in self._plan_index:
             student_count = sum(
                 1 for desk in plan.desks if desk.desk_type == "student" and desk.student_name.strip()
             )
             label = f"{plan.name}  |  {student_count} Schülertische"
-            self.plan_listbox.insert(tk.END, label)
+            self.plan_listbox.insert(ui.END, label)
 
         self._ensure_list_selection(preferred_path=preferred_path)
         LOGGER.info("refresh_plan_list finished in %.3fs with %d plans", time.perf_counter() - started, len(self._plan_index))
@@ -2192,7 +2191,7 @@ class KartographMainWindow(tk.Tk):
             desired_index = int(self.plan_listbox.curselection()[0])
 
         desired_index = max(0, min(desired_index, len(self._plan_index) - 1))
-        self.plan_listbox.selection_clear(0, tk.END)
+        self.plan_listbox.selection_clear(0, ui.END)
         self.plan_listbox.selection_set(desired_index)
         self.plan_listbox.activate(desired_index)
         self.plan_listbox.see(desired_index)
@@ -2295,16 +2294,16 @@ class KartographMainWindow(tk.Tk):
     def open_grid_symbol_filter_dialog(self) -> None:
         dialog = self._create_overlay_dialog("Sichtbare Symbole", "420x480")
 
-        container = ttk.Frame(dialog)
+        container = tui.Frame(dialog)
         container.pack(fill="both", expand=True, padx=12, pady=12)
 
-        ttk.Label(container, text="Welche Symbole sollen im Sitzraster angezeigt werden?").pack(anchor="w", pady=(0, 8))
+        tui.Label(container, text="Welche Symbole sollen im Sitzraster angezeigt werden?").pack(anchor="w", pady=(0, 8))
 
-        vars_by_symbol: dict[str, tk.BooleanVar] = {}
+        vars_by_symbol: dict[str, ui.BooleanVar] = {}
         for symbol in self.symbol_catalog:
-            var = tk.BooleanVar(value=symbol in self._grid_visible_symbols)
+            var = ui.BooleanVar(value=symbol in self._grid_visible_symbols)
             vars_by_symbol[symbol] = var
-            ttk.Checkbutton(container, text=symbol, variable=var).pack(anchor="w", pady=(0, 2))
+            tui.Checkbutton(container, text=symbol, variable=var).pack(anchor="w", pady=(0, 2))
 
         def apply_filter() -> None:
             selected = [symbol for symbol, var in vars_by_symbol.items() if var.get()]
@@ -2317,10 +2316,10 @@ class KartographMainWindow(tk.Tk):
             self.redraw_grid()
             self._refresh_details_panel()
 
-        button_row = ttk.Frame(container)
+        button_row = tui.Frame(container)
         button_row.pack(fill="x", pady=(10, 0))
-        ttk.Button(button_row, text="Alle", command=lambda: [var.set(True) for var in vars_by_symbol.values()]).pack(side="left")
-        ttk.Button(button_row, text="Speichern", command=apply_filter).pack(side="right")
+        tui.Button(button_row, text="Alle", command=lambda: [var.set(True) for var in vars_by_symbol.values()]).pack(side="left")
+        tui.Button(button_row, text="Speichern", command=apply_filter).pack(side="right")
 
     def _latest_grade_value_for_column(self, x: int, y: int, column_id: str) -> str:
         if not self.current_plan:
@@ -2410,7 +2409,7 @@ class KartographMainWindow(tk.Tk):
         cell_bg = theme.get("accent_soft", "#fffde7")
         cell_fg = theme.get("fg_primary", "#000000")
 
-        label = tk.Label(
+        label = ui.Label(
             tree,
             text=cell_text,
             background=cell_bg,
@@ -2543,11 +2542,11 @@ class KartographMainWindow(tk.Tk):
                 if value is not None:
                     current_text = f"{float(value):.2f}".rstrip("0").rstrip(".")
 
-        editor = ttk.Entry(self.docs_right_tree)
+        editor = tui.Entry(self.docs_right_tree)
         editor.insert(0, current_text)
         editor.place(x=x, y=y, width=width, height=height)
         editor.focus_set()
-        editor.selection_range(0, tk.END)
+        editor.selection_range(0, ui.END)
         editor.bind("<Return>", self._on_docs_inline_editor_return)
         editor.bind("<KP_Enter>", self._on_docs_inline_editor_return)
         editor.bind("<Escape>", self._on_docs_inline_editor_escape)
@@ -2936,11 +2935,11 @@ class KartographMainWindow(tk.Tk):
                     preferred_symbol = non_zero_symbols[0]
 
         dialog = self._create_overlay_dialog("Symbol setzen", "360x420")
-        frame = ttk.Frame(dialog)
+        frame = tui.Frame(dialog)
         frame.pack(fill="both", expand=True, padx=12, pady=12)
 
-        ttk.Label(frame, text="Symbol auswählen").pack(anchor="w", pady=(0, 6))
-        ttk.Label(
+        tui.Label(frame, text="Symbol auswählen").pack(anchor="w", pady=(0, 6))
+        tui.Label(
             frame,
             text="Tastaturhilfe im Hover",
             foreground="#666666",
@@ -2948,7 +2947,7 @@ class KartographMainWindow(tk.Tk):
             anchor="w", pady=(0, 6)
         )
 
-        symbol_listbox = tk.Listbox(frame, selectmode="browse", exportselection=False, font=("Segoe UI", 11))
+        symbol_listbox = ui.Listbox(frame, selectmode="browse", exportselection=False, font=("Segoe UI", 11))
         symbol_listbox.pack(fill="both", expand=True)
         self._attach_hover_help(
             symbol_listbox,
@@ -2959,7 +2958,7 @@ class KartographMainWindow(tk.Tk):
         for symbol in self.symbol_catalog:
             shortcut = self._symbol_by_meaning.get(symbol).shortcut if self._symbol_by_meaning.get(symbol) else None
             shortcut_suffix = f" [{shortcut.upper()}]" if shortcut else ""
-            symbol_listbox.insert(tk.END, f"{self._symbol_glyph(symbol)} {symbol}{shortcut_suffix}")
+            symbol_listbox.insert(ui.END, f"{self._symbol_glyph(symbol)} {symbol}{shortcut_suffix}")
 
         if self.symbol_catalog:
             selected_index = max(0, min(self._docs_symbol_dialog_last_index, len(self.symbol_catalog) - 1))
@@ -3006,7 +3005,7 @@ class KartographMainWindow(tk.Tk):
         def select_by_digit(index: int) -> None:
             if index < 0 or index >= len(self.symbol_catalog):
                 return
-            symbol_listbox.selection_clear(0, tk.END)
+            symbol_listbox.selection_clear(0, ui.END)
             symbol_listbox.selection_set(index)
             symbol_listbox.activate(index)
             symbol_listbox.see(index)
@@ -3016,11 +3015,11 @@ class KartographMainWindow(tk.Tk):
             dialog.bind(f"<{digit}>", lambda _event, i=select_index: select_by_digit(i))
             dialog.bind(f"<KP_{digit}>", lambda _event, i=select_index: select_by_digit(i))
 
-        button_row = ttk.Frame(frame)
+        button_row = tui.Frame(frame)
         button_row.pack(fill="x", pady=(8, 0))
-        ttk.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
-        ttk.Button(button_row, text="Übernehmen", command=apply_symbol).pack(side="right", padx=(0, 8))
-        ttk.Button(button_row, text="Loeschen", command=clear_symbol).pack(side="left")
+        tui.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
+        tui.Button(button_row, text="Übernehmen", command=apply_symbol).pack(side="right", padx=(0, 8))
+        tui.Button(button_row, text="Loeschen", command=clear_symbol).pack(side="left")
 
     def configure_grade_weighting_dialog(self) -> None:
         if not self.current_plan:
@@ -3433,16 +3432,16 @@ class KartographMainWindow(tk.Tk):
     def open_settings_dialog(self) -> None:
         dialog = self._create_overlay_dialog("Einstellungen", "700x320")
 
-        frame = ttk.Frame(dialog)
+        frame = tui.Frame(dialog)
         frame.pack(fill="both", expand=True, padx=12, pady=12)
 
-        path_var = tk.StringVar(value=str(self.plans_dir))
-        ttk.Label(frame, text="Sitzplan-Ordner").pack(anchor="w")
+        path_var = ui.StringVar(value=str(self.plans_dir))
+        tui.Label(frame, text="Sitzplan-Ordner").pack(anchor="w")
 
-        row = ttk.Frame(frame)
+        row = tui.Frame(frame)
         row.pack(fill="x", pady=(6, 12))
 
-        entry = ttk.Entry(row, textvariable=path_var)
+        entry = tui.Entry(row, textvariable=path_var)
         entry.pack(side="left", fill="x", expand=True)
         self._focus_overlay_widget(dialog, entry)
 
@@ -3451,13 +3450,13 @@ class KartographMainWindow(tk.Tk):
             if selected:
                 path_var.set(selected)
 
-        ttk.Button(row, text="Durchsuchen", command=browse).pack(side="left", padx=(8, 0))
+        tui.Button(row, text="Durchsuchen", command=browse).pack(side="left", padx=(8, 0))
 
-        canvas_row = ttk.Frame(frame)
+        canvas_row = tui.Frame(frame)
         canvas_row.pack(fill="x", pady=(0, 12))
-        ttk.Label(canvas_row, text="Canvas-Halbbreite (1-50)").pack(side="left")
-        radius_var = tk.StringVar(value=str(self.canvas_radius))
-        radius_spin = ttk.Spinbox(
+        tui.Label(canvas_row, text="Canvas-Halbbreite (1-50)").pack(side="left")
+        radius_var = ui.StringVar(value=str(self.canvas_radius))
+        radius_spin = tui.Spinbox(
             canvas_row,
             from_=MIN_CANVAS_RADIUS,
             to=MAX_CANVAS_RADIUS,
@@ -3465,15 +3464,15 @@ class KartographMainWindow(tk.Tk):
             width=8,
         )
         radius_spin.pack(side="left", padx=(10, 0))
-        ttk.Label(canvas_row, text="entspricht (0,0) + Radius in jede Richtung").pack(side="left", padx=(10, 0))
+        tui.Label(canvas_row, text="entspricht (0,0) + Radius in jede Richtung").pack(side="left", padx=(10, 0))
 
-        symbol_row = ttk.Frame(frame)
+        symbol_row = tui.Frame(frame)
         symbol_row.pack(fill="x", pady=(0, 12))
-        ttk.Label(symbol_row, text="Symbolstaerke").pack(side="left")
+        tui.Label(symbol_row, text="Symbolstaerke").pack(side="left")
         symbol_strength_labels = {0: "Normal", 1: "Fett", 2: "Extra"}
         symbol_strength_values = {"Normal": 0, "Fett": 1, "Extra": 2}
-        symbol_strength_var = tk.StringVar(value=symbol_strength_labels.get(self.symbol_strength, "Fett"))
-        symbol_strength_combo = ttk.Combobox(
+        symbol_strength_var = ui.StringVar(value=symbol_strength_labels.get(self.symbol_strength, "Fett"))
+        symbol_strength_combo = tui.Combobox(
             symbol_row,
             textvariable=symbol_strength_var,
             values=["Normal", "Fett", "Extra"],
@@ -3482,11 +3481,11 @@ class KartographMainWindow(tk.Tk):
         )
         symbol_strength_combo.pack(side="left", padx=(10, 0))
 
-        follow_row = ttk.Frame(frame)
+        follow_row = tui.Frame(frame)
         follow_row.pack(fill="x", pady=(0, 12))
-        ttk.Label(follow_row, text="Sichtfenster-Puffer (0-5)").pack(side="left")
-        follow_buffer_var = tk.StringVar(value=str(self.viewport_follow_buffer))
-        follow_spin = ttk.Spinbox(
+        tui.Label(follow_row, text="Sichtfenster-Puffer (0-5)").pack(side="left")
+        follow_buffer_var = ui.StringVar(value=str(self.viewport_follow_buffer))
+        follow_spin = tui.Spinbox(
             follow_row,
             from_=0,
             to=5,
@@ -3494,7 +3493,7 @@ class KartographMainWindow(tk.Tk):
             width=8,
         )
         follow_spin.pack(side="left", padx=(10, 0))
-        ttk.Label(follow_row, text="0 = immer zentrieren, 1 = 3x3-Zentrum").pack(side="left", padx=(10, 0))
+        tui.Label(follow_row, text="0 = immer zentrieren, 1 = 3x3-Zentrum").pack(side="left", padx=(10, 0))
 
         def save() -> None:
             selected_path = Path(path_var.get().strip() or str(self.default_plans_dir))
@@ -3528,9 +3527,9 @@ class KartographMainWindow(tk.Tk):
             self.refresh_plan_list()
             dialog.destroy()
 
-        button_row = ttk.Frame(frame)
+        button_row = tui.Frame(frame)
         button_row.pack(fill="x")
-        ttk.Button(button_row, text="Speichern", command=save).pack(side="right")
+        tui.Button(button_row, text="Speichern", command=save).pack(side="right")
 
     def _xview(self, *args) -> None:
         self.canvas.xview(*args)
@@ -3932,7 +3931,7 @@ class KartographMainWindow(tk.Tk):
 
         size = base_size
         while size > min_size:
-            font = tkfont.Font(family="Segoe UI", size=size, weight="bold")
+            font = fonts.Font(family="Segoe UI", size=size, weight="bold")
             if all(font.measure(label) <= max_text_width for label in labels):
                 return size
             size -= 1
@@ -4109,7 +4108,7 @@ class KartographMainWindow(tk.Tk):
             if active_popup is not None:
                 popup_id = active_popup.popup_id
                 for child in self.winfo_children():
-                    if not isinstance(child, tk.Toplevel):
+                    if not isinstance(child, ui.Toplevel):
                         continue
                     if str(child) != popup_id:
                         continue
@@ -4165,7 +4164,7 @@ class KartographMainWindow(tk.Tk):
             self.interaction_mode = NAME_EDITING
             self.name_entry.focus_set()
             self.name_entry.selection_clear()
-            self.name_entry.icursor(tk.END)
+            self.name_entry.icursor(ui.END)
 
     def exit_name_edit_mode(self) -> None:
         if self.editor_view.winfo_ismapped():
@@ -4276,7 +4275,7 @@ class KartographMainWindow(tk.Tk):
         self._name_var.set(desk.student_name)
         self.name_entry.configure(state="normal")
 
-        ttk.Label(self.symbols_frame, text="Symbole").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
+        tui.Label(self.symbols_frame, text="Symbole").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
         symbol_cols = self._details_button_columns()
         for symbol in self.diagnostic_symbol_catalog:
             count = int(desk.symbols.get(symbol, 0))
@@ -4286,7 +4285,7 @@ class KartographMainWindow(tk.Tk):
             idx = self.diagnostic_symbol_catalog.index(symbol)
             row = 1 + (idx // symbol_cols)
             col = idx % symbol_cols
-            button = ttk.Button(
+            button = tui.Button(
                 self.symbols_frame,
                 text=caption,
                 command=lambda s=symbol: self._toggle_selected_symbol(s),
@@ -4304,9 +4303,9 @@ class KartographMainWindow(tk.Tk):
         active_lines = self._symbol_legend_lines(desk.symbols)
         if active_lines:
             for line in active_lines:
-                ttk.Label(self.symbol_legend_frame, text=line, wraplength=self._details_legend_wraplength(), justify="left").pack(anchor="w")
+                tui.Label(self.symbol_legend_frame, text=line, wraplength=self._details_legend_wraplength(), justify="left").pack(anchor="w")
 
-        ttk.Label(self.colors_frame, text="Farbpunkte").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
+        tui.Label(self.colors_frame, text="Farbpunkte").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
         color_cols = self._details_button_columns()
         for key, color_key, label, hex_color in self.color_palette:
             active = color_key in desk.color_markers
@@ -4314,7 +4313,7 @@ class KartographMainWindow(tk.Tk):
             idx = int(key) - 1
             row = 1 + (idx // color_cols)
             col = idx % color_cols
-            button = tk.Button(
+            button = ui.Button(
                 self.colors_frame,
                 text=caption,
                 command=lambda ck=color_key: self._toggle_selected_color(ck),
@@ -4333,7 +4332,7 @@ class KartographMainWindow(tk.Tk):
         self._apply_color_button_theme()
 
         for line in self._color_legend_lines(self.current_plan, desk.color_markers):
-            ttk.Label(self.color_legend_frame, text=line, wraplength=self._details_legend_wraplength(), justify="left").pack(anchor="w")
+            tui.Label(self.color_legend_frame, text=line, wraplength=self._details_legend_wraplength(), justify="left").pack(anchor="w")
 
         self._refresh_tablegroup_overlay()
 
@@ -4426,12 +4425,12 @@ class KartographMainWindow(tk.Tk):
 
         dialog = self._create_overlay_dialog("Symbol hinzufügen", "350x360")
 
-        ttk.Label(dialog, text="Symbol auswählen").pack(anchor="w", padx=12, pady=(12, 6))
+        tui.Label(dialog, text="Symbol auswählen").pack(anchor="w", padx=12, pady=(12, 6))
 
-        listbox = tk.Listbox(dialog, selectmode="browse", exportselection=False, font=("Segoe UI", 11))
+        listbox = ui.Listbox(dialog, selectmode="browse", exportselection=False, font=("Segoe UI", 11))
         listbox.pack(fill="both", expand=True, padx=12, pady=(0, 10))
         for symbol in self.diagnostic_symbol_catalog:
-            listbox.insert(tk.END, symbol)
+            listbox.insert(ui.END, symbol)
         if self.diagnostic_symbol_catalog:
             listbox.selection_set(0)
         self._focus_overlay_widget(dialog, listbox)
@@ -4444,9 +4443,9 @@ class KartographMainWindow(tk.Tk):
             self._toggle_selected_symbol(symbol)
             dialog.destroy()
 
-        button_row = ttk.Frame(dialog)
+        button_row = tui.Frame(dialog)
         button_row.pack(fill="x", padx=12, pady=(0, 12))
-        ttk.Button(button_row, text="Übernehmen", command=apply_choice).pack(side="right")
+        tui.Button(button_row, text="Übernehmen", command=apply_choice).pack(side="right")
 
     def undo_last_change(self) -> None:
         if self.interaction_mode == LIST_ACTIVE and self._undo_plan_list_action():
@@ -4547,16 +4546,16 @@ class KartographMainWindow(tk.Tk):
 
         dialog = self._create_overlay_dialog("PDF exportieren", "420x190")
 
-        mode_var = tk.StringVar(value="teacher_bottom")
-        ttk.Label(dialog, text="Ansicht wählen").pack(anchor="w", padx=12, pady=(12, 6))
-        first_mode_button = ttk.Radiobutton(
+        mode_var = ui.StringVar(value="teacher_bottom")
+        tui.Label(dialog, text="Ansicht wählen").pack(anchor="w", padx=12, pady=(12, 6))
+        first_mode_button = tui.Radiobutton(
             dialog,
             text="Lehrertisch unten (Standard)",
             value="teacher_bottom",
             variable=mode_var,
         )
         first_mode_button.pack(anchor="w", padx=12)
-        ttk.Radiobutton(
+        tui.Radiobutton(
             dialog,
             text="Lehrertisch oben (180° Perspektive)",
             value="teacher_top",
@@ -4581,13 +4580,13 @@ class KartographMainWindow(tk.Tk):
             except Exception as exc:
                 messagebox.showerror("PDF-Export fehlgeschlagen", str(exc), parent=dialog)
 
-        button_row = ttk.Frame(dialog)
+        button_row = tui.Frame(dialog)
         button_row.pack(fill="x", padx=12, pady=(12, 12))
-        ttk.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
-        ttk.Button(button_row, text="Exportieren", command=do_export).pack(side="right", padx=(0, 8))
+        tui.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
+        tui.Button(button_row, text="Exportieren", command=do_export).pack(side="right", padx=(0, 8))
 
-    def _create_overlay_dialog(self, title: str, geometry: str) -> tk.Toplevel:
-        dialog = tk.Toplevel(self)
+    def _create_overlay_dialog(self, title: str, geometry: str) -> ui.Toplevel:
+        dialog = ui.Toplevel(self)
         dialog.title(title)
         dialog.geometry(geometry)
         dialog.transient(self)
@@ -4598,13 +4597,13 @@ class KartographMainWindow(tk.Tk):
         self._focus_overlay_widget(dialog, dialog)
         return dialog
 
-    def _destroy_tracked_dialog(self, dialog: tk.Toplevel) -> None:
+    def _destroy_tracked_dialog(self, dialog: ui.Toplevel) -> None:
         popup_id = str(dialog)
         self._popup_registry.close_popup(popup_id)
         self._tracked_popup_ids.discard(popup_id)
         dialog.destroy()
 
-    def _focus_overlay_widget(self, dialog: tk.Toplevel, widget: tk.Widget) -> None:
+    def _focus_overlay_widget(self, dialog: ui.Toplevel, widget: ui.Widget) -> None:
         def _apply_focus() -> None:
             if not dialog.winfo_exists() or not widget.winfo_exists():
                 return
@@ -4632,4 +4631,5 @@ class KartographMainWindow(tk.Tk):
         finally:
             if self.winfo_exists():
                 self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
+
 

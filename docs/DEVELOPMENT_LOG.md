@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Tk/ttk-Runtime-Pilotmigration gestartet: `app/adapters/gui/main_window.py` nutzt jetzt zentrale Runtime-Aliases aus `bw_gui.runtime` (`ui`/`widgets`/`fonts`) statt direkter `tkinter`-/`ttk`-/`tkinter.font`-Imports.
 - Shared-Dialogmigration gehaertet: `app/adapters/gui/dialog_services.py` als feste Bridge eingefuehrt und die alte tkinter-Fallback-Factory in `main_window.py` entfernt; Dialog-/Dateidialoge laufen jetzt ohne lokale tkinter-Dialogimporte ueber `bw_gui.dialogs`.
 - Dialog- und Dateidialog-Routing auf die neuen Shared-Services aus `bw_gui.dialogs` vorbereitet (`MessageDialogService`, `TextPromptDialogService`, `FileDialogService`); die bisherige lokale Proxy-Implementierung in `app/adapters/gui/main_window.py` wurde in eine Kompatibilitaets-Factory ueberfuehrt.
 - Strikte GUI-Harmonisierung gestartet: `bw-gui` als Submodule eingebunden, native `tk.Menu`-Leiste durch die gemeinsame `bw_gui.menu.CustomMenuBar` ersetzt und die Menülogik auf provider-basierte Shared-Definitions umgestellt.
