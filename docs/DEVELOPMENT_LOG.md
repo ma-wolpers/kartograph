@@ -17,6 +17,9 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Strikte GUI-Harmonisierung gestartet: `bw-gui` als Submodule eingebunden, native `tk.Menu`-Leiste durch die gemeinsame `bw_gui.menu.CustomMenuBar` ersetzt und die Menülogik auf provider-basierte Shared-Definitions umgestellt.
+- Dialogpfad zentralisiert: direkte `messagebox`/`simpledialog`-Aufrufe laufen jetzt ueber ein zentrales Dialog-Gateway mit PopupPolicy-Tracking, damit Runtime-Shortcut-Dialogkontext konsistent bleibt.
+- Popup-Lifecycle-Sync unterscheidet jetzt explizit zwischen mode-blockierenden Modaldialogen und non-blocking Shared-Menue-Popups.
 - G5 abgeschlossen: AppIdentity-Manifest `app/app_info.py` eingefuehrt; Startup-Metadaten und AppData-Backup-Pfad (`json_plan_repository.py`) nutzen jetzt diese zentrale Identitaetsquelle.
 - G3/G4 gestartet: GUI-Startup wurde in einen expliziten Composition-Root (`app/adapters/bootstrap/wiring.py` mit `build_gui_dependencies()`/`AppDependencies`) ueberfuehrt; das Hauptfenster nutzt jetzt die Shared-Shell-Basis `bw_libs/app_shell.py`.
 - G2.2 erweitert: `app/infrastructure/repositories/json_plan_repository.py` und `app/infrastructure/symbol_config_loader.py` nutzen jetzt zentrale Atomic-JSON-Writes ueber `bw_libs/app_paths.py`.

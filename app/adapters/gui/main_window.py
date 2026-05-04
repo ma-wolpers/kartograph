@@ -7,12 +7,13 @@ import time
 from copy import deepcopy
 from datetime import date
 from pathlib import Path
-from tkinter import filedialog, messagebox, simpledialog, ttk
+from tkinter import filedialog, messagebox as tk_messagebox, simpledialog as tk_simpledialog, ttk
 from tkinter import font as tkfont
 
 from app.app_info import APP_INFO
 from app.adapters.gui.ui_intent_controller import MainWindowUiIntentController
 from app.adapters.gui.ui_intents import UiIntent
+from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 from bw_libs.app_shell import AppShellConfig, TkinterAppShell
 from bw_libs.ui_contract.hsm import (
     ESCAPE_CLOSE_POPUP,
@@ -73,6 +74,16 @@ from app.core.usecases.plan_usecases import (
 from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
 from app.infrastructure.symbol_config_loader import SymbolDefinition, load_symbol_definitions
 
+ensure_bw_gui_on_path()
+try:
+    from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar
+    from bw_gui.menu import MenuDefinition as SharedMenuDefinition
+    from bw_gui.menu import MenuItem as SharedMenuItem
+except ModuleNotFoundError:
+    SharedCustomMenuBar = None
+    SharedMenuDefinition = None
+    SharedMenuItem = None
+
 MAX_CANVAS_RADIUS = 50
 MIN_CANVAS_RADIUS = 1
 DEFAULT_CANVAS_RADIUS = 50
@@ -126,6 +137,55 @@ DOCS_ONLY_INTENTS = {
     UiIntent.RENAME_DOCUMENTATION_DATE,
     UiIntent.ADD_GRADE_COLUMN,
 }
+
+
+def _invoke_modal_dialog(parent, title: str, callback):
+    """Run native dialogs through popup policy tracking when available."""
+
+    resolved_parent = parent
+    if resolved_parent is None:
+        resolved_parent = tk._default_root
+
+    if resolved_parent is not None and hasattr(resolved_parent, "_run_modal_dialog_call"):
+        return resolved_parent._run_modal_dialog_call(title, callback)
+
+    return callback()
+
+
+class _MessageBoxProxy:
+    """Central proxy for native message dialogs with popup tracking."""
+
+    def showerror(self, title: str, message: str, **kwargs):
+        parent = kwargs.get("parent")
+        return _invoke_modal_dialog(parent, title, lambda: tk_messagebox.showerror(title, message, **kwargs))
+
+    def showwarning(self, title: str, message: str, **kwargs):
+        parent = kwargs.get("parent")
+        return _invoke_modal_dialog(parent, title, lambda: tk_messagebox.showwarning(title, message, **kwargs))
+
+    def showinfo(self, title: str, message: str, **kwargs):
+        parent = kwargs.get("parent")
+        return _invoke_modal_dialog(parent, title, lambda: tk_messagebox.showinfo(title, message, **kwargs))
+
+    def askyesno(self, title: str, message: str, **kwargs):
+        parent = kwargs.get("parent")
+        return _invoke_modal_dialog(parent, title, lambda: tk_messagebox.askyesno(title, message, **kwargs))
+
+    def askyesnocancel(self, title: str, message: str, **kwargs):
+        parent = kwargs.get("parent")
+        return _invoke_modal_dialog(parent, title, lambda: tk_messagebox.askyesnocancel(title, message, **kwargs))
+
+
+class _SimpleDialogProxy:
+    """Central proxy for native text prompts with popup tracking."""
+
+    def askstring(self, title: str, prompt: str, **kwargs):
+        parent = kwargs.get("parent")
+        return _invoke_modal_dialog(parent, title, lambda: tk_simpledialog.askstring(title, prompt, **kwargs))
+
+
+messagebox = _MessageBoxProxy()
+simpledialog = _SimpleDialogProxy()
 
 
 def _known_ui_intents() -> tuple[str, ...]:
@@ -235,6 +295,7 @@ class KartographMainWindow(tk.Tk):
             )
         )
         self._tracked_popup_ids: set[str] = set()
+        self._shared_menu_bar = None
         self._shortcut_runtime_offline = False
         self._shortcut_runtime_debug_window: tk.Toplevel | None = None
         self._shortcut_runtime_debug_table: ttk.Treeview | None = None
@@ -377,104 +438,188 @@ class KartographMainWindow(tk.Tk):
         self.after(DEFAULT_UI_WATCHDOG_INTERVAL_MS, self._ui_watchdog_tick)
 
     def _build_menu_bar(self) -> None:
-        menubar = tk.Menu(self)
-
-        file_menu = tk.Menu(menubar, tearoff=False)
-        file_menu.add_command(label="Neu (Strg+N)", command=lambda: self._handle_intent(UiIntent.NEW_PLAN))
-        file_menu.add_command(
-            label="Plan umbenennen (F2)",
-            command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN),
-        )
-        file_menu.add_command(
-            label="Plan loeschen (Entf in Liste)",
-            command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN),
-        )
-        file_menu.add_command(
-            label="Plan duplizieren (Strg+D)",
-            command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN),
-        )
-        file_menu.add_separator()
-        file_menu.add_command(label="Export PDF (Strg+E)", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF))
-        file_menu.add_command(label="Einstellungen (Strg+,)", command=lambda: self._handle_intent(UiIntent.OPEN_SETTINGS))
-        file_menu.add_separator()
-        file_menu.add_command(label="Zur Planliste", command=lambda: self._handle_intent(UiIntent.GO_TO_LIST))
-        file_menu.add_separator()
-        file_menu.add_command(label="Beenden", command=self.destroy)
-        menubar.add_cascade(label="Datei", menu=file_menu)
-
-        edit_menu = tk.Menu(menubar, tearoff=False)
-        edit_menu.add_command(label="Rueckgaengig (Strg+Z)", command=lambda: self._handle_intent(UiIntent.UNDO))
-        edit_menu.add_command(label="Wiederholen (Strg+Y)", command=lambda: self._handle_intent(UiIntent.REDO))
-        edit_menu.add_command(label="Letzte 5 rueckgaengig", command=lambda: self._handle_intent(UiIntent.UNDO_LAST_FIVE))
-        edit_menu.add_separator()
-        edit_menu.add_command(label="Ausschneiden (Strg+X)", command=lambda: self._handle_intent(UiIntent.CUT))
-        edit_menu.add_command(label="Kopieren (Strg+C)", command=lambda: self._handle_intent(UiIntent.COPY))
-        edit_menu.add_command(label="Einfuegen (Strg+V)", command=lambda: self._handle_intent(UiIntent.PASTE))
-        menubar.add_cascade(label="Bearbeiten", menu=edit_menu)
-
-        view_menu = tk.Menu(menubar, tearoff=False)
         self.theme_var = tk.StringVar(value=self.theme_key)
-        for key in theme_names():
-            label = THEMES[key].get("label", key)
-            view_menu.add_radiobutton(label=label, value=key, variable=self.theme_var, command=self._on_theme_changed)
-        view_menu.add_separator()
-        view_menu.add_command(
-            label="Dokumentationssicht umschalten (Strg+Shift+D)",
-            command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION),
-        )
-        view_menu.add_command(
-            label="Shortcut-Runtime-Debug anzeigen (Strg+Shift+R)",
-            command=lambda: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG),
-        )
-        view_menu.add_command(
-            label="Offline-Simulation umschalten (Strg+Shift+O)",
-            command=lambda: self._handle_intent(UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE),
-        )
-        view_menu.add_separator()
-        view_menu.add_command(label="Tisch-Overlay (S:S)", state="disabled")
         self.details_overlay_position_var = tk.StringVar(value=self.details_overlay_position)
-        view_menu.add_radiobutton(
-            label="Links",
-            value="left",
-            variable=self.details_overlay_position_var,
-            command=self._on_details_overlay_position_changed,
-        )
-        view_menu.add_radiobutton(
-            label="Rechts",
-            value="right",
-            variable=self.details_overlay_position_var,
-            command=self._on_details_overlay_position_changed,
-        )
-        view_menu.add_radiobutton(
-            label="Unten",
-            value="bottom",
-            variable=self.details_overlay_position_var,
-            command=self._on_details_overlay_position_changed,
-        )
-        view_menu.add_separator()
-        view_menu.add_command(label="Tischgruppen-Overlay", state="disabled")
         self.tablegroup_overlay_position_var = tk.StringVar(value=self.tablegroup_overlay_position)
-        view_menu.add_radiobutton(
-            label="Links (Tischgruppen)",
-            value="left",
-            variable=self.tablegroup_overlay_position_var,
-            command=self._on_tablegroup_overlay_position_changed,
-        )
-        view_menu.add_radiobutton(
-            label="Rechts (Tischgruppen)",
-            value="right",
-            variable=self.tablegroup_overlay_position_var,
-            command=self._on_tablegroup_overlay_position_changed,
-        )
-        view_menu.add_radiobutton(
-            label="Unten (Tischgruppen)",
-            value="bottom",
-            variable=self.tablegroup_overlay_position_var,
-            command=self._on_tablegroup_overlay_position_changed,
-        )
-        menubar.add_cascade(label="Ansicht", menu=view_menu)
 
-        self.config(menu=menubar)
+        if SharedCustomMenuBar is None or SharedMenuDefinition is None or SharedMenuItem is None:
+            self.config(menu="")
+            return
+
+        if self._shared_menu_bar is not None:
+            self._shared_menu_bar.destroy()
+
+        definitions = (
+            SharedMenuDefinition(
+                key="file",
+                label="Datei",
+                alt="d",
+                items_provider=self._menu_items_file,
+            ),
+            SharedMenuDefinition(
+                key="edit",
+                label="Bearbeiten",
+                alt="b",
+                items_provider=self._menu_items_edit,
+            ),
+            SharedMenuDefinition(
+                key="view",
+                label="Ansicht",
+                alt="a",
+                items_provider=self._menu_items_view,
+            ),
+        )
+
+        self._shared_menu_bar = SharedCustomMenuBar(
+            self,
+            definitions,
+            theme_key=self._shared_menu_theme_key(),
+        )
+        self._shared_menu_bar.build()
+        self.config(menu="")
+
+    def _shared_menu_theme_key(self) -> str:
+        if self.theme_key in {"mono_day", "porcelain", "mono_night", "charcoal"}:
+            return self.theme_key
+        if self.theme_key in {"graphite_core", "blackforge"}:
+            return "charcoal"
+        return "mono_day"
+
+    def _set_theme_from_menu(self, key: str) -> None:
+        self.theme_var.set(key)
+        self._on_theme_changed()
+
+    def _set_details_overlay_position(self, value: str) -> None:
+        self.details_overlay_position_var.set(value)
+        self._on_details_overlay_position_changed()
+
+    def _set_tablegroup_overlay_position(self, value: str) -> None:
+        self.tablegroup_overlay_position_var.set(value)
+        self._on_tablegroup_overlay_position_changed()
+
+    def _menu_items_file(self):
+        return (
+            SharedMenuItem(type="command", label="Neu (Strg+N)", command=lambda: self._handle_intent(UiIntent.NEW_PLAN)),
+            SharedMenuItem(
+                type="command",
+                label="Plan umbenennen (F2)",
+                command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN),
+            ),
+            SharedMenuItem(
+                type="command",
+                label="Plan loeschen (Entf in Liste)",
+                command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN),
+            ),
+            SharedMenuItem(
+                type="command",
+                label="Plan duplizieren (Strg+D)",
+                command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN),
+            ),
+            SharedMenuItem(type="separator"),
+            SharedMenuItem(
+                type="command",
+                label="Export PDF (Strg+E)",
+                command=lambda: self._handle_intent(UiIntent.EXPORT_PDF),
+            ),
+            SharedMenuItem(
+                type="command",
+                label="Einstellungen (Strg+,)",
+                command=lambda: self._handle_intent(UiIntent.OPEN_SETTINGS),
+            ),
+            SharedMenuItem(type="separator"),
+            SharedMenuItem(type="command", label="Zur Planliste", command=lambda: self._handle_intent(UiIntent.GO_TO_LIST)),
+            SharedMenuItem(type="separator"),
+            SharedMenuItem(type="command", label="Beenden", command=self.destroy),
+        )
+
+    def _menu_items_edit(self):
+        return (
+            SharedMenuItem(type="command", label="Rueckgaengig (Strg+Z)", command=lambda: self._handle_intent(UiIntent.UNDO)),
+            SharedMenuItem(type="command", label="Wiederholen (Strg+Y)", command=lambda: self._handle_intent(UiIntent.REDO)),
+            SharedMenuItem(
+                type="command",
+                label="Letzte 5 rueckgaengig",
+                command=lambda: self._handle_intent(UiIntent.UNDO_LAST_FIVE),
+            ),
+            SharedMenuItem(type="separator"),
+            SharedMenuItem(type="command", label="Ausschneiden (Strg+X)", command=lambda: self._handle_intent(UiIntent.CUT)),
+            SharedMenuItem(type="command", label="Kopieren (Strg+C)", command=lambda: self._handle_intent(UiIntent.COPY)),
+            SharedMenuItem(type="command", label="Einfuegen (Strg+V)", command=lambda: self._handle_intent(UiIntent.PASTE)),
+        )
+
+    def _menu_items_view(self):
+        theme_items = [
+            SharedMenuItem(
+                type="radio",
+                label=THEMES[key].get("label", key),
+                checked=(self.theme_var.get() == key),
+                command=lambda theme_key=key: self._set_theme_from_menu(theme_key),
+            )
+            for key in theme_names()
+        ]
+        details_position = self.details_overlay_position_var.get()
+        tablegroup_position = self.tablegroup_overlay_position_var.get()
+
+        static_items = [
+            SharedMenuItem(type="separator"),
+            SharedMenuItem(
+                type="command",
+                label="Dokumentationssicht umschalten (Strg+Shift+D)",
+                command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION),
+            ),
+            SharedMenuItem(
+                type="command",
+                label="Shortcut-Runtime-Debug anzeigen (Strg+Shift+R)",
+                command=lambda: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG),
+            ),
+            SharedMenuItem(
+                type="command",
+                label="Offline-Simulation umschalten (Strg+Shift+O)",
+                command=lambda: self._handle_intent(UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE),
+            ),
+            SharedMenuItem(type="separator"),
+            SharedMenuItem(type="disabled", label="Tisch-Overlay (S:S)"),
+            SharedMenuItem(
+                type="radio",
+                label="Links",
+                checked=(details_position == "left"),
+                command=lambda: self._set_details_overlay_position("left"),
+            ),
+            SharedMenuItem(
+                type="radio",
+                label="Rechts",
+                checked=(details_position == "right"),
+                command=lambda: self._set_details_overlay_position("right"),
+            ),
+            SharedMenuItem(
+                type="radio",
+                label="Unten",
+                checked=(details_position == "bottom"),
+                command=lambda: self._set_details_overlay_position("bottom"),
+            ),
+            SharedMenuItem(type="separator"),
+            SharedMenuItem(type="disabled", label="Tischgruppen-Overlay"),
+            SharedMenuItem(
+                type="radio",
+                label="Links (Tischgruppen)",
+                checked=(tablegroup_position == "left"),
+                command=lambda: self._set_tablegroup_overlay_position("left"),
+            ),
+            SharedMenuItem(
+                type="radio",
+                label="Rechts (Tischgruppen)",
+                checked=(tablegroup_position == "right"),
+                command=lambda: self._set_tablegroup_overlay_position("right"),
+            ),
+            SharedMenuItem(
+                type="radio",
+                label="Unten (Tischgruppen)",
+                checked=(tablegroup_position == "bottom"),
+                command=lambda: self._set_tablegroup_overlay_position("bottom"),
+            ),
+        ]
+
+        return tuple(theme_items + static_items)
 
     def _build_layout(self) -> None:
         self.style = ttk.Style(self)
@@ -881,6 +1026,18 @@ class KartographMainWindow(tk.Tk):
         self._popup_registry.open_popup(popup_id=popup_id, title=str(window.title() or ""), policy_id=policy_id)
         self._tracked_popup_ids.add(popup_id)
 
+    def _run_modal_dialog_call(self, title: str, callback):
+        """Execute native dialogs via popup registry to keep dialog-mode tracking consistent."""
+
+        popup_id = f"dialog.native::{title}::{time.perf_counter_ns()}"
+        self._popup_registry.open_popup(popup_id=popup_id, title=title, policy_id="dialog.modal")
+        self._tracked_popup_ids.add(popup_id)
+        try:
+            return callback()
+        finally:
+            self._popup_registry.close_popup(popup_id)
+            self._tracked_popup_ids.discard(popup_id)
+
     def _sync_popup_sessions_from_windows(self) -> None:
         visible_popup_ids: set[str] = set()
         for child in self.winfo_children():
@@ -898,7 +1055,8 @@ class KartographMainWindow(tk.Tk):
             visible_popup_ids.add(popup_id)
             if popup_id in self._tracked_popup_ids:
                 continue
-            self._popup_registry.open_popup(popup_id=popup_id, title=str(child.title() or ""), policy_id="dialog.modal")
+            policy_id = "dialog.non_blocking" if bool(getattr(child, "_bw_menu_popup", False)) else "dialog.modal"
+            self._popup_registry.open_popup(popup_id=popup_id, title=str(child.title() or ""), policy_id=policy_id)
             self._tracked_popup_ids.add(popup_id)
 
         stale_ids = self._tracked_popup_ids - visible_popup_ids
@@ -1914,6 +2072,9 @@ class KartographMainWindow(tk.Tk):
             foreground=theme["fg_main"],
         )
         self.style.map("Treeview", background=[("selected", theme["accent"])], foreground=[("selected", "#FFFFFF")])
+
+        if self._shared_menu_bar is not None:
+            self._shared_menu_bar.refresh_theme(self._shared_menu_theme_key())
 
         self._apply_color_button_theme()
 
