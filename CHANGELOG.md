@@ -9,6 +9,7 @@ The format is based on Keep a Changelog.
 ### Changed
 - Kartograph now uses the shared custom menu bar (from `bw-gui`) instead of the native OS menu bar, with unified styling and shared mnemonic behavior.
 - Dialog handling is now routed through a centralized popup-tracked gateway, so message and input dialogs participate consistently in runtime dialog-mode handling.
+- List and editor toolbars now use icon-first action buttons with shortcut badges, plus hover overlays that explain each action and its shortcut.
 
 ## [0.2.1] - 2026-05-04
 

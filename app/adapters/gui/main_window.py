@@ -79,10 +79,12 @@ try:
     from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar
     from bw_gui.menu import MenuDefinition as SharedMenuDefinition
     from bw_gui.menu import MenuItem as SharedMenuItem
+    from bw_gui.widgets import HoverTooltip as SharedHoverTooltip
 except ModuleNotFoundError:
     SharedCustomMenuBar = None
     SharedMenuDefinition = None
     SharedMenuItem = None
+    SharedHoverTooltip = None
 
 MAX_CANVAS_RADIUS = 50
 MIN_CANVAS_RADIUS = 1
@@ -296,6 +298,7 @@ class KartographMainWindow(tk.Tk):
         )
         self._tracked_popup_ids: set[str] = set()
         self._shared_menu_bar = None
+        self._hover_tooltips: list[object] = []
         self._shortcut_runtime_offline = False
         self._shortcut_runtime_debug_window: tk.Toplevel | None = None
         self._shortcut_runtime_debug_table: ttk.Treeview | None = None
@@ -634,35 +637,83 @@ class KartographMainWindow(tk.Tk):
         self._build_list_view()
         self._build_editor_view()
 
+    def _attach_hover_help(self, widget: tk.Widget, *, label: str, shortcut: str | None = None) -> None:
+        """Attach shared hover overlay with readable action text and shortcut hint."""
+
+        if SharedHoverTooltip is None:
+            return
+
+        shortcut_text = (shortcut or "").strip()
+        if shortcut_text:
+            text = f"{label}\nShortcut: {shortcut_text}"
+        else:
+            text = label
+
+        tooltip = SharedHoverTooltip(widget, text, theme_key=self._shared_menu_theme_key())
+        self._hover_tooltips.append(tooltip)
+
+    def _create_toolbar_shortcut_button(
+        self,
+        parent: tk.Widget,
+        *,
+        icon: str,
+        shortcut: str,
+        label: str,
+        command,
+        side: str = "left",
+        padx=(0, 8),
+        bind_editor_return: bool = False,
+    ) -> ttk.Button:
+        """Create compact icon-first toolbar button with shortcut badge and hover help."""
+
+        caption = f"{icon} {shortcut}" if shortcut else icon
+        button = ttk.Button(parent, text=caption, command=command)
+        button.pack(side=side, padx=padx)
+        if bind_editor_return:
+            self._bind_editor_return_override(button)
+        self._attach_hover_help(button, label=label, shortcut=shortcut)
+        return button
+
     def _build_list_view(self) -> None:
         self.list_toolbar = ttk.Frame(self.list_view)
         self.list_toolbar.pack(fill="x", padx=14, pady=(14, 8))
 
-        ttk.Button(
+        self._create_toolbar_shortcut_button(
             self.list_toolbar,
-            text="Neuer Sitzplan (Strg+N)",
+            icon="＋",
+            shortcut="Ctrl+N",
+            label="Neuen Sitzplan erstellen",
             command=lambda: self._handle_intent(UiIntent.NEW_PLAN),
-        ).pack(side="left", padx=(0, 8))
-        ttk.Button(
+        )
+        self._create_toolbar_shortcut_button(
             self.list_toolbar,
-            text="Öffnen (Enter)",
+            icon="↩",
+            shortcut="Enter",
+            label="Ausgewaehlten Sitzplan oeffnen",
             command=lambda: self._handle_intent(UiIntent.LIST_OPEN_SELECTED),
-        ).pack(side="left", padx=(0, 8))
-        ttk.Button(
+        )
+        self._create_toolbar_shortcut_button(
             self.list_toolbar,
-            text="Umbenennen (F2)",
+            icon="✎",
+            shortcut="F2",
+            label="Ausgewaehlten Sitzplan umbenennen",
             command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN),
-        ).pack(side="left", padx=(0, 8))
-        ttk.Button(
+        )
+        self._create_toolbar_shortcut_button(
             self.list_toolbar,
-            text="Löschen (Entf)",
+            icon="⌫",
+            shortcut="Entf",
+            label="Ausgewaehlten Sitzplan loeschen",
             command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN),
-        ).pack(side="left", padx=(0, 8))
-        ttk.Button(
+        )
+        self._create_toolbar_shortcut_button(
             self.list_toolbar,
-            text="Duplizieren (Strg+D)",
+            icon="⧉",
+            shortcut="Ctrl+D",
+            label="Ausgewaehlten Sitzplan duplizieren",
             command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN),
-        ).pack(side="left")
+            padx=(0, 0),
+        )
 
         self.list_body = ttk.Frame(self.list_view)
         self.list_body.pack(fill="both", expand=True, padx=14, pady=(0, 14))
@@ -688,85 +739,99 @@ class KartographMainWindow(tk.Tk):
         self.editor_topbar = ttk.Frame(self.editor_view)
         self.editor_topbar.pack(fill="x", padx=12, pady=(12, 8))
 
-        go_to_list_button = ttk.Button(
+        self._create_toolbar_shortcut_button(
             self.editor_topbar,
-            text="Zur Liste",
+            icon="≡",
+            shortcut="Esc",
+            label="Zur Planliste wechseln",
             command=lambda: self._handle_intent(UiIntent.GO_TO_LIST),
+            bind_editor_return=True,
+            padx=(0, 0),
         )
-        go_to_list_button.pack(side="left")
-        self._bind_editor_return_override(go_to_list_button)
-
-        delete_button = ttk.Button(
+        self._create_toolbar_shortcut_button(
             self.editor_topbar,
-            text="Platz löschen (Entf)",
+            icon="⌫",
+            shortcut="Entf",
+            label="Ausgewaehlten Platz loeschen",
             command=lambda: self._handle_intent(UiIntent.DELETE_DESK),
+            bind_editor_return=True,
+            padx=(8, 0),
         )
-        delete_button.pack(side="left", padx=(8, 0))
-        self._bind_editor_return_override(delete_button)
-
-        add_symbol_button = ttk.Button(
+        self._create_toolbar_shortcut_button(
             self.editor_topbar,
-            text="Symbol hinzufügen",
+            icon="★",
+            shortcut="S",
+            label="Symbol zum markierten Platz hinzufuegen",
             command=lambda: self._handle_intent(UiIntent.ADD_SYMBOL),
+            bind_editor_return=True,
+            padx=(8, 0),
         )
-        add_symbol_button.pack(side="left", padx=(8, 0))
-        self._bind_editor_return_override(add_symbol_button)
-
-        tablegroup_button = ttk.Button(
+        self._create_toolbar_shortcut_button(
             self.editor_topbar,
-            text="Tischeinstellungen (Strg+T)",
+            icon="▦",
+            shortcut="Ctrl+T",
+            label="Tischgruppen-Einstellungen oeffnen",
             command=lambda: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS),
+            bind_editor_return=True,
+            padx=(8, 0),
         )
-        tablegroup_button.pack(side="left", padx=(8, 0))
-        self._bind_editor_return_override(tablegroup_button)
-
-        export_pdf_button = ttk.Button(
+        self._create_toolbar_shortcut_button(
             self.editor_topbar,
-            text="PDF exportieren",
+            icon="⤓",
+            shortcut="Ctrl+E",
+            label="Plan als PDF exportieren",
             command=lambda: self._handle_intent(UiIntent.EXPORT_PDF),
+            bind_editor_return=True,
+            padx=(8, 0),
         )
-        export_pdf_button.pack(side="left", padx=(8, 0))
-        self._bind_editor_return_override(export_pdf_button)
-
-        set_teacher_button = ttk.Button(
+        self._create_toolbar_shortcut_button(
             self.editor_topbar,
-            text="Als Lehrertisch setzen (Strg+Enter)",
+            icon="♛",
+            shortcut="Ctrl+Enter",
+            label="Ausgewaehlten Platz als Lehrertisch setzen",
             command=lambda: self._handle_intent(UiIntent.SET_TEACHER_DESK),
+            bind_editor_return=True,
+            padx=(8, 0),
         )
-        set_teacher_button.pack(side="left", padx=(8, 0))
-        self._bind_editor_return_override(set_teacher_button)
-
-        docs_toggle_button = ttk.Button(
+        self._create_toolbar_shortcut_button(
             self.editor_topbar,
-            text="Dokuansicht (Strg+Shift+D)",
+            icon="⌗",
+            shortcut="Ctrl+Shift+D",
+            label="Dokumentationsansicht ein- oder ausblenden",
             command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION),
+            bind_editor_return=True,
+            padx=(8, 0),
         )
-        docs_toggle_button.pack(side="left", padx=(8, 0))
-        self._bind_editor_return_override(docs_toggle_button)
-
-        grid_filter_button = ttk.Button(
+        self._create_toolbar_shortcut_button(
             self.editor_topbar,
-            text="Symbole filtern",
+            icon="⚲",
+            shortcut="Ctrl+Alt+S",
+            label="Sichtbare Symbole im Grid filtern",
             command=self.open_grid_symbol_filter_dialog,
+            bind_editor_return=True,
+            padx=(8, 0),
         )
-        grid_filter_button.pack(side="left", padx=(8, 0))
-        self._bind_editor_return_override(grid_filter_button)
 
-        zoom_in_button = ttk.Button(
+        self._create_toolbar_shortcut_button(
             self.editor_topbar,
-            text="Zoom + (Strg++)",
-            command=lambda: self._handle_intent(UiIntent.ZOOM_IN),
-        )
-        zoom_in_button.pack(side="right")
-        self._bind_editor_return_override(zoom_in_button)
-
-        zoom_out_button = ttk.Button(
-            self.editor_topbar,
-            text="Zoom - (Strg+-)",
+            icon="−",
+            shortcut="Ctrl+-",
+            label="Ansicht herauszoomen",
             command=lambda: self._handle_intent(UiIntent.ZOOM_OUT),
+            side="right",
+            bind_editor_return=True,
+            padx=(0, 8),
         )
-        zoom_out_button.pack(side="right", padx=(0, 8))
-        self._bind_editor_return_override(zoom_out_button)
+        self._create_toolbar_shortcut_button(
+            self.editor_topbar,
+            icon="+",
+            shortcut="Ctrl++",
+            label="Ansicht hineinzoomen",
+            command=lambda: self._handle_intent(UiIntent.ZOOM_IN),
+            side="right",
+            bind_editor_return=True,
+            padx=(0, 0),
+        )
 
         self.plan_name_var = tk.StringVar(value="")
         ttk.Label(self.editor_topbar, textvariable=self.plan_name_var).pack(side="right", padx=(0, 14))
@@ -2075,6 +2140,11 @@ class KartographMainWindow(tk.Tk):
 
         if self._shared_menu_bar is not None:
             self._shared_menu_bar.refresh_theme(self._shared_menu_theme_key())
+
+        shared_theme_key = self._shared_menu_theme_key()
+        for tooltip in self._hover_tooltips:
+            if hasattr(tooltip, "theme_key"):
+                setattr(tooltip, "theme_key", shared_theme_key)
 
         self._apply_color_button_theme()
 
