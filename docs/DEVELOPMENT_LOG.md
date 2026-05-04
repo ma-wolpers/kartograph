@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Dialog- und Dateidialog-Routing auf die neuen Shared-Services aus `bw_gui.dialogs` vorbereitet (`MessageDialogService`, `TextPromptDialogService`, `FileDialogService`); die bisherige lokale Proxy-Implementierung in `app/adapters/gui/main_window.py` wurde in eine Kompatibilitaets-Factory ueberfuehrt.
 - Strikte GUI-Harmonisierung gestartet: `bw-gui` als Submodule eingebunden, native `tk.Menu`-Leiste durch die gemeinsame `bw_gui.menu.CustomMenuBar` ersetzt und die Menülogik auf provider-basierte Shared-Definitions umgestellt.
 - Dialogpfad zentralisiert: direkte `messagebox`/`simpledialog`-Aufrufe laufen jetzt ueber ein zentrales Dialog-Gateway mit PopupPolicy-Tracking, damit Runtime-Shortcut-Dialogkontext konsistent bleibt.
 - Popup-Lifecycle-Sync unterscheidet jetzt explizit zwischen mode-blockierenden Modaldialogen und non-blocking Shared-Menue-Popups.
