@@ -9,6 +9,7 @@ The format is based on Keep a Changelog.
 ### Changed
 - Kartograph now uses the shared custom menu bar (from `bw-gui`) instead of the native OS menu bar, with unified styling and shared mnemonic behavior.
 - Dialog and file chooser calls now use shared `bw_gui.dialogs` services, so popup tracking and modal handling are centralized and reusable across apps.
+- Dialog routing no longer uses a local tkinter fallback path in the main window; dialog and file chooser handling is now hard-wired through the shared dialog bridge.
 - Dialog handling is now routed through a centralized popup-tracked gateway, so message and input dialogs participate consistently in runtime dialog-mode handling.
 - List and editor toolbars now use icon-first action buttons with shortcut badges, plus hover overlays that explain each action and its shortcut.
 - Shortcut text was removed from button labels across the UI; shortcut hints are now provided via hover overlays instead.

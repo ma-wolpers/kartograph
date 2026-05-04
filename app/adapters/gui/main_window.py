@@ -11,6 +11,7 @@ from tkinter import ttk
 from tkinter import font as tkfont
 
 from app.app_info import APP_INFO
+from app.adapters.gui.dialog_services import filedialog, messagebox, simpledialog
 from app.adapters.gui.ui_intent_controller import MainWindowUiIntentController
 from app.adapters.gui.ui_intents import UiIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -76,17 +77,11 @@ from app.infrastructure.symbol_config_loader import SymbolDefinition, load_symbo
 
 ensure_bw_gui_on_path()
 try:
-    from bw_gui.dialogs import FileDialogService as SharedFileDialogService
-    from bw_gui.dialogs import MessageDialogService as SharedMessageDialogService
-    from bw_gui.dialogs import TextPromptDialogService as SharedTextPromptDialogService
     from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar
     from bw_gui.menu import MenuDefinition as SharedMenuDefinition
     from bw_gui.menu import MenuItem as SharedMenuItem
     from bw_gui.widgets import HoverTooltip as SharedHoverTooltip
 except ModuleNotFoundError:
-    SharedFileDialogService = None
-    SharedMessageDialogService = None
-    SharedTextPromptDialogService = None
     SharedCustomMenuBar = None
     SharedMenuDefinition = None
     SharedMenuItem = None
@@ -145,79 +140,6 @@ DOCS_ONLY_INTENTS = {
     UiIntent.RENAME_DOCUMENTATION_DATE,
     UiIntent.ADD_GRADE_COLUMN,
 }
-
-
-def _build_dialog_services():
-    """Build shared dialog services with local fallback for older bw-gui versions."""
-
-    if (
-        SharedMessageDialogService is not None
-        and SharedTextPromptDialogService is not None
-        and SharedFileDialogService is not None
-    ):
-        return SharedMessageDialogService(), SharedTextPromptDialogService(), SharedFileDialogService()
-
-    from tkinter import filedialog as tk_filedialog
-    from tkinter import messagebox as tk_messagebox
-    from tkinter import simpledialog as tk_simpledialog
-
-    def _invoke_modal_dialog(parent, title: str, callback):
-        resolved_parent = parent if parent is not None else tk._default_root
-        if resolved_parent is not None and hasattr(resolved_parent, "_run_modal_dialog_call"):
-            return resolved_parent._run_modal_dialog_call(title, callback)
-        return callback()
-
-    class _FallbackMessageDialogService:
-        def showerror(self, title: str, message: str, **kwargs):
-            parent = kwargs.get("parent")
-            return _invoke_modal_dialog(parent, title, lambda: tk_messagebox.showerror(title, message, **kwargs))
-
-        def showwarning(self, title: str, message: str, **kwargs):
-            parent = kwargs.get("parent")
-            return _invoke_modal_dialog(parent, title, lambda: tk_messagebox.showwarning(title, message, **kwargs))
-
-        def showinfo(self, title: str, message: str, **kwargs):
-            parent = kwargs.get("parent")
-            return _invoke_modal_dialog(parent, title, lambda: tk_messagebox.showinfo(title, message, **kwargs))
-
-        def askyesno(self, title: str, message: str, **kwargs):
-            parent = kwargs.get("parent")
-            return _invoke_modal_dialog(parent, title, lambda: tk_messagebox.askyesno(title, message, **kwargs))
-
-        def askyesnocancel(self, title: str, message: str, **kwargs):
-            parent = kwargs.get("parent")
-            return _invoke_modal_dialog(parent, title, lambda: tk_messagebox.askyesnocancel(title, message, **kwargs))
-
-    class _FallbackTextPromptDialogService:
-        def askstring(self, title: str, prompt: str, **kwargs):
-            parent = kwargs.get("parent")
-            return _invoke_modal_dialog(parent, title, lambda: tk_simpledialog.askstring(title, prompt, **kwargs))
-
-    class _FallbackFileDialogService:
-        def askdirectory(self, **kwargs):
-            parent = kwargs.get("parent")
-            title = str(kwargs.get("title") or "Dateidialog")
-            return _invoke_modal_dialog(parent, title, lambda: tk_filedialog.askdirectory(**kwargs))
-
-        def askopenfilename(self, **kwargs):
-            parent = kwargs.get("parent")
-            title = str(kwargs.get("title") or "Dateidialog")
-            return _invoke_modal_dialog(parent, title, lambda: tk_filedialog.askopenfilename(**kwargs))
-
-        def askopenfilenames(self, **kwargs):
-            parent = kwargs.get("parent")
-            title = str(kwargs.get("title") or "Dateidialog")
-            return _invoke_modal_dialog(parent, title, lambda: tk_filedialog.askopenfilenames(**kwargs))
-
-        def asksaveasfilename(self, **kwargs):
-            parent = kwargs.get("parent")
-            title = str(kwargs.get("title") or "Dateidialog")
-            return _invoke_modal_dialog(parent, title, lambda: tk_filedialog.asksaveasfilename(**kwargs))
-
-    return _FallbackMessageDialogService(), _FallbackTextPromptDialogService(), _FallbackFileDialogService()
-
-
-messagebox, simpledialog, filedialog = _build_dialog_services()
 
 
 def _known_ui_intents() -> tuple[str, ...]:
