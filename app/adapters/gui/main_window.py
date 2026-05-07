@@ -965,6 +965,7 @@ class KartographMainWindow(ui.Tk):
         self.docs_tree.bind("<Down>", lambda _event: self._on_docs_vertical_nav(1, source="main"))
         self.docs_tree.bind("<Left>", lambda _event: self._on_docs_horizontal_nav(-1))
         self.docs_tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
+        self.docs_tree.bind("<KeyPress>", self._on_docs_tree_keypress, add="+")
         self.docs_tree.bind("<MouseWheel>", lambda _event: self.after_idle(self._update_docs_cell_highlight))
         self.docs_right_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_right_tree_select())
         self.docs_right_tree.bind("<Button-1>", self._on_docs_right_tree_click)
@@ -973,6 +974,7 @@ class KartographMainWindow(ui.Tk):
         self.docs_right_tree.bind("<Down>", lambda _event: self._on_docs_vertical_nav(1, source="right"))
         self.docs_right_tree.bind("<Left>", lambda _event: self._on_docs_horizontal_nav(-1))
         self.docs_right_tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
+        self.docs_right_tree.bind("<KeyPress>", self._on_docs_right_tree_keypress, add="+")
         self.docs_right_tree.bind("<MouseWheel>", lambda _event: self.after_idle(self._update_docs_cell_highlight))
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
@@ -1580,9 +1582,13 @@ class KartographMainWindow(ui.Tk):
             return "break"
         if self.editor_view.winfo_ismapped():
             if self._editor_surface == "docs":
+                fixed_column_id = self._doc_selected_fixed_column_id
+                date_index = self._doc_selected_date_index
                 if self._doc_selected_fixed_column_id and self._doc_selected_fixed_column_id.startswith("grade_"):
                     self._open_selected_docs_grade_cell_editor()
+                    self.after_idle(lambda: self._restore_docs_column_selection(fixed_column_id, date_index))
                     return "break"
+                self.after_idle(lambda: self._restore_docs_column_selection(fixed_column_id, date_index))
                 return "break"
             if not self.selection.is_single():
                 self._collapse_selection_to_anchor()
@@ -2701,8 +2707,52 @@ class KartographMainWindow(ui.Tk):
             return
         row_id = selected[0]
         self._set_docs_row_selection(row_id, source="main")
-        self._doc_selected_fixed_column_id = None
+        if self.focus_get() == self.docs_tree:
+            self._doc_selected_fixed_column_id = None
         self._refresh_doc_selection_status()
+
+    def _first_selectable_doc_fixed_column(self) -> str | None:
+        for column_id in self._doc_fixed_column_ids:
+            if column_id != "summary":
+                return column_id
+        return None
+
+    def _adjacent_selectable_doc_fixed_column(self, current_column_id: str, *, step: int) -> str | None:
+        if step not in {-1, 1}:
+            return None
+        if current_column_id not in self._doc_fixed_column_ids:
+            return None
+        index = self._doc_fixed_column_ids.index(current_column_id) + step
+        while 0 <= index < len(self._doc_fixed_column_ids):
+            candidate = self._doc_fixed_column_ids[index]
+            if candidate != "summary":
+                return candidate
+            index += step
+        return None
+
+    def _restore_docs_column_selection(self, fixed_column_id: str | None, date_index: int) -> None:
+        if fixed_column_id is not None and fixed_column_id in self._doc_fixed_column_ids and fixed_column_id != "summary":
+            self._doc_selected_fixed_column_id = fixed_column_id
+        else:
+            self._doc_selected_fixed_column_id = None
+            if self._doc_dates:
+                self._doc_selected_date_index = max(0, min(date_index, len(self._doc_dates) - 1))
+        self._apply_doc_column_heading_highlight()
+
+    def _preserve_docs_column_selection_after_keypress(self) -> None:
+        fixed_column_id = self._doc_selected_fixed_column_id
+        date_index = self._doc_selected_date_index
+        self.after_idle(lambda: self._restore_docs_column_selection(fixed_column_id, date_index))
+
+    def _on_docs_tree_keypress(self, event) -> None:
+        if event.keysym in {"Left", "Right", "Up", "Down"}:
+            return
+        self._preserve_docs_column_selection_after_keypress()
+
+    def _on_docs_right_tree_keypress(self, event) -> None:
+        if event.keysym in {"Left", "Right", "Up", "Down"}:
+            return
+        self._preserve_docs_column_selection_after_keypress()
 
     def _on_docs_right_tree_click(self, event) -> None:
         row_id = self.docs_right_tree.identify_row(event.y)
@@ -2715,7 +2765,11 @@ class KartographMainWindow(ui.Tk):
             except ValueError:
                 col_index = -1
             if 0 <= col_index < len(self._doc_fixed_column_ids):
-                self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[col_index]
+                selected_column_id = self._doc_fixed_column_ids[col_index]
+                if selected_column_id == "summary":
+                    self._doc_selected_fixed_column_id = self._first_selectable_doc_fixed_column()
+                else:
+                    self._doc_selected_fixed_column_id = selected_column_id
                 self._apply_doc_column_heading_highlight()
 
     def _on_docs_right_tree_double_click(self, event) -> None:
@@ -2733,6 +2787,8 @@ class KartographMainWindow(ui.Tk):
         if not (0 <= col_index < len(self._doc_fixed_column_ids)):
             return
         fixed_column_id = self._doc_fixed_column_ids[col_index]
+        if fixed_column_id == "summary":
+            return
         self._doc_selected_fixed_column_id = fixed_column_id
         self._apply_doc_column_heading_highlight()
         if fixed_column_id.startswith("grade_"):
@@ -2746,12 +2802,13 @@ class KartographMainWindow(ui.Tk):
             return
         row_id = selected[0]
         self._set_docs_row_selection(row_id, source="right")
-        if self._doc_selected_fixed_column_id not in set(self._doc_fixed_column_ids):
+        if self.focus_get() != self.docs_right_tree:
+            self._refresh_doc_selection_status()
+            return
+        if self._doc_selected_fixed_column_id not in set(self._doc_fixed_column_ids) or self._doc_selected_fixed_column_id == "summary":
             self._doc_selected_fixed_column_id = None
         if self._doc_selected_fixed_column_id is None:
-            grade_columns = [item for item in self._doc_fixed_column_ids if item.startswith("grade_")]
-            if grade_columns:
-                self._doc_selected_fixed_column_id = grade_columns[0]
+            self._doc_selected_fixed_column_id = self._first_selectable_doc_fixed_column()
         self._apply_doc_column_heading_highlight()
 
     def _set_docs_row_selection(self, row_id: str, source: str | None = None) -> None:
@@ -2791,6 +2848,9 @@ class KartographMainWindow(ui.Tk):
         if not self._doc_student_coords:
             return "break"
 
+        fixed_column_id = self._doc_selected_fixed_column_id
+        date_index = self._doc_selected_date_index
+
         max_index = len(self._doc_student_coords) - 1
         current_index = max(0, min(self._doc_selected_student_index, max_index))
         next_index = max(0, min(current_index + delta, max_index))
@@ -2804,6 +2864,7 @@ class KartographMainWindow(ui.Tk):
         else:
             self.docs_tree.focus_set()
         self._refresh_doc_selection_status()
+        self.after_idle(lambda: self._restore_docs_column_selection(fixed_column_id, date_index))
         self.after_idle(self._update_docs_cell_highlight)
         return "break"
 
@@ -2832,16 +2893,16 @@ class KartographMainWindow(ui.Tk):
                 if self._doc_dates and self._doc_selected_date_index < len(self._doc_dates) - 1:
                     self._doc_selected_date_index += 1
                 elif self._doc_fixed_column_ids:
-                    self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[0]
+                    self._doc_selected_fixed_column_id = self._first_selectable_doc_fixed_column()
                 self._apply_doc_column_heading_highlight()
                 return "break"
-            if self._doc_selected_fixed_column_id not in self._doc_fixed_column_ids:
-                self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[0] if self._doc_fixed_column_ids else None
+            if self._doc_selected_fixed_column_id not in self._doc_fixed_column_ids or self._doc_selected_fixed_column_id == "summary":
+                self._doc_selected_fixed_column_id = self._first_selectable_doc_fixed_column()
                 self._apply_doc_column_heading_highlight()
                 return "break"
-            idx = self._doc_fixed_column_ids.index(self._doc_selected_fixed_column_id)
-            if idx < len(self._doc_fixed_column_ids) - 1:
-                self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[idx + 1]
+            next_column_id = self._adjacent_selectable_doc_fixed_column(self._doc_selected_fixed_column_id, step=1)
+            if next_column_id is not None:
+                self._doc_selected_fixed_column_id = next_column_id
             self._apply_doc_column_heading_highlight()
             return "break"
 
@@ -2851,13 +2912,13 @@ class KartographMainWindow(ui.Tk):
                 self._apply_doc_column_heading_highlight()
             return "break"
 
-        if self._doc_selected_fixed_column_id not in self._doc_fixed_column_ids:
+        if self._doc_selected_fixed_column_id not in self._doc_fixed_column_ids or self._doc_selected_fixed_column_id == "summary":
             self._doc_selected_fixed_column_id = None
             self._apply_doc_column_heading_highlight()
             return "break"
-        idx = self._doc_fixed_column_ids.index(self._doc_selected_fixed_column_id)
-        if idx > 0:
-            self._doc_selected_fixed_column_id = self._doc_fixed_column_ids[idx - 1]
+        previous_column_id = self._adjacent_selectable_doc_fixed_column(self._doc_selected_fixed_column_id, step=-1)
+        if previous_column_id is not None:
+            self._doc_selected_fixed_column_id = previous_column_id
         else:
             self._doc_selected_fixed_column_id = None
         self._apply_doc_column_heading_highlight()

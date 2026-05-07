@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Dokumentationsnavigation erweitert: In der Doku-Tabelle behalten Enter und alle Nicht-Links/Rechts-Tasten jetzt die aktive Spalte stabil; die fixe Zusammenfassungsspalte ist als aktive Auswahl gesperrt.
 - Tk/ttk-Runtime-Pilotmigration gestartet: `app/adapters/gui/main_window.py` nutzt jetzt zentrale Runtime-Aliases aus `bw_gui.runtime` (`ui`/`widgets`/`fonts`) statt direkter `tkinter`-/`ttk`-/`tkinter.font`-Imports.
 - Shared shell runtime imports now use `bw_gui.runtime.ui` in `bw_libs/app_shell.py` instead of direct `tkinter` imports.
 - Shared-Dialogmigration gehaertet: `app/adapters/gui/dialog_services.py` als feste Bridge eingefuehrt und die alte tkinter-Fallback-Factory in `main_window.py` entfernt; Dialog-/Dateidialoge laufen jetzt ohne lokale tkinter-Dialogimporte ueber `bw_gui.dialogs`.
