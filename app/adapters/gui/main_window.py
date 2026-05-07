@@ -73,7 +73,7 @@ from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
 from app.infrastructure.symbol_config_loader import SymbolDefinition, load_symbol_definitions
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import fonts, ui, widgets
+from bw_gui.runtime import fonts, ui, widgets as tui
 
 try:
     from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar
