@@ -8,7 +8,7 @@ The format is based on Keep a Changelog.
 
 ### Changed
 - Main window runtime imports now use shared `bw_gui.runtime` aliases (`ui`, `widgets`, `fonts`) instead of direct `tkinter` / `ttk` / `tkinter.font` imports in `app/adapters/gui/main_window.py`.
-- In documentation view, Up/Down row navigation now keeps the active documentation column stable so moving between students no longer jumps to another column.
+- Shared shell setup now uses `bw_gui.runtime.ui` in `bw_libs/app_shell.py` instead of direct `tkinter` imports.
 - Kartograph now uses the shared custom menu bar (from `bw-gui`) instead of the native OS menu bar, with unified styling and shared mnemonic behavior.
 - Dialog and file chooser calls now use shared `bw_gui.dialogs` services, so popup tracking and modal handling are centralized and reusable across apps.
 - Dialog routing no longer uses a local tkinter fallback path in the main window; dialog and file chooser handling is now hard-wired through the shared dialog bridge.
