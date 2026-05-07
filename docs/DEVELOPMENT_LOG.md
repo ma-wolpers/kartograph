@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Dokumentationsnavigation erweitert: `Pfeil hoch/runter` bewegt in der Doku-Tabelle jetzt zeilenweise, behaelt aber die aktive Spalte stabil (kein ungewollter Spaltenwechsel beim Wechsel zwischen Schueler:innen).
 - Tk/ttk-Runtime-Pilotmigration gestartet: `app/adapters/gui/main_window.py` nutzt jetzt zentrale Runtime-Aliases aus `bw_gui.runtime` (`ui`/`widgets`/`fonts`) statt direkter `tkinter`-/`ttk`-/`tkinter.font`-Imports.
 - Shared-Dialogmigration gehaertet: `app/adapters/gui/dialog_services.py` als feste Bridge eingefuehrt und die alte tkinter-Fallback-Factory in `main_window.py` entfernt; Dialog-/Dateidialoge laufen jetzt ohne lokale tkinter-Dialogimporte ueber `bw_gui.dialogs`.
 - Dialog- und Dateidialog-Routing auf die neuen Shared-Services aus `bw_gui.dialogs` vorbereitet (`MessageDialogService`, `TextPromptDialogService`, `FileDialogService`); die bisherige lokale Proxy-Implementierung in `app/adapters/gui/main_window.py` wurde in eine Kompatibilitaets-Factory ueberfuehrt.

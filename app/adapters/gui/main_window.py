@@ -961,12 +961,16 @@ class KartographMainWindow(ui.Tk):
 
         self.docs_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_tree_select())
         self.docs_tree.bind("<Button-1>", self._on_docs_tree_click)
+        self.docs_tree.bind("<Up>", lambda _event: self._on_docs_vertical_nav(-1, source="main"))
+        self.docs_tree.bind("<Down>", lambda _event: self._on_docs_vertical_nav(1, source="main"))
         self.docs_tree.bind("<Left>", lambda _event: self._on_docs_horizontal_nav(-1))
         self.docs_tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
         self.docs_tree.bind("<MouseWheel>", lambda _event: self.after_idle(self._update_docs_cell_highlight))
         self.docs_right_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_right_tree_select())
         self.docs_right_tree.bind("<Button-1>", self._on_docs_right_tree_click)
         self.docs_right_tree.bind("<Double-Button-1>", self._on_docs_right_tree_double_click)
+        self.docs_right_tree.bind("<Up>", lambda _event: self._on_docs_vertical_nav(-1, source="right"))
+        self.docs_right_tree.bind("<Down>", lambda _event: self._on_docs_vertical_nav(1, source="right"))
         self.docs_right_tree.bind("<Left>", lambda _event: self._on_docs_horizontal_nav(-1))
         self.docs_right_tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
         self.docs_right_tree.bind("<MouseWheel>", lambda _event: self.after_idle(self._update_docs_cell_highlight))
@@ -2780,6 +2784,28 @@ class KartographMainWindow(ui.Tk):
         student_idx = self._doc_student_index_by_iid.get(row_id)
         if student_idx is not None:
             self._doc_selected_student_index = student_idx
+
+    def _on_docs_vertical_nav(self, delta: int, *, source: str) -> str:
+        if not self._shortcut_scope_allows("docs"):
+            return "break"
+        if not self._doc_student_coords:
+            return "break"
+
+        max_index = len(self._doc_student_coords) - 1
+        current_index = max(0, min(self._doc_selected_student_index, max_index))
+        next_index = max(0, min(current_index + delta, max_index))
+        row_id = self._doc_tree_iid_by_student_index.get(next_index)
+        if not row_id:
+            return "break"
+
+        self._set_docs_row_selection(row_id)
+        if source == "right":
+            self.docs_right_tree.focus_set()
+        else:
+            self.docs_tree.focus_set()
+        self._refresh_doc_selection_status()
+        self.after_idle(self._update_docs_cell_highlight)
+        return "break"
 
     def _doc_fixed_column_label(self, column_id: str) -> str:
         if column_id == "summary":
