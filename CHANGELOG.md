@@ -6,6 +6,9 @@ The format is based on Keep a Changelog.
 
 ## [Unreleased]
 
+### Fixed
+- PDF export popup no longer opens as an empty window: overlay dialogs now resolve the main-window parent to a valid Tk path when running through `TkRootHost`, so export controls render and respond again.
+
 ### Changed
 - AI guardrails now also block local redefinitions of reserved shared primitives (`TkRootHost`, `ScrollablePopupWindow`, `WrappedTextField`) so these runtime/dialog/widget foundations must be consumed from `bw-gui` instead of being rebuilt in-repo.
 - Main-window hosting now uses the shared `bw_gui.runtime.TkRootHost` primitive instead of a repo-local root delegation helper.
