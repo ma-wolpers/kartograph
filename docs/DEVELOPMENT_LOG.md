@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Future-App-Guardrails erweitert: `tools/ci/check_ai_guardrails.py` prueft jetzt zusaetzlich neue GUI-Entrypoint-Dateien auf verpflichtenden Shared-GUI-Bootstrap (`ensure_bw_gui_on_path`, `bw_gui.runtime`, Shared-Menu/Dialog/Shortcut/Hover) und blockiert direkte `tkinter`-Imports.
 - Guardrails gehaertet: `tools/ci/check_ai_guardrails.py` erzwingt jetzt in `app/adapters/gui/main_window.py` verpflichtende Shared-UI-Contracts (Shared-Menue/Shared-Settings-Dialog/Shared-Hover) und blockiert Legacy-Fallbackzweige.
 - Nicht-Theme-Sonderpfade entfernt: `app/adapters/gui/main_window.py` importiert Shared-Menue, Shared-Hover-Formatter und Shared-Settings-Dialog jetzt verpflichtend; optionale `ModuleNotFoundError`-/None-Fallback-Zweige wurden entfernt.
 - Theme-Sonderpfade entfernt: `app/adapters/gui/ui_theme.py` importiert die Shared-Theme-Registry jetzt verpflichtend und ohne optionalen `ModuleNotFoundError`-/callable-Fallback.

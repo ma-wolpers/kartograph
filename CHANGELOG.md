@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- AI guardrails now also enforce shared-GUI bootstrap requirements for any newly added GUI entrypoint files and reject direct tkinter imports in those entrypoints.
 - AI guardrails were hardened to enforce mandatory shared UI contracts in `app/adapters/gui/main_window.py` and fail fast on legacy fallback branches.
 - Shared UI fallback branches were removed from `app/adapters/gui/main_window.py`: shared menu bar, hover tooltip formatting, and shared tabbed settings are now mandatory runtime paths.
 - Theme special paths were removed from `app/adapters/gui/ui_theme.py`: Kartograph now requires the shared `bw_gui.theming` registry directly and no longer keeps optional fallback branches for missing shared themes.
