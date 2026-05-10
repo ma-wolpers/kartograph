@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Theme-Sonderpfade entfernt: `app/adapters/gui/ui_theme.py` importiert die Shared-Theme-Registry jetzt verpflichtend und ohne optionalen `ModuleNotFoundError`-/callable-Fallback.
 - Welle-13-Theme-Pilot erweitert: `app/adapters/gui/ui_theme.py` merged die zentrale `bw_gui.theming`-Registry (`THEME_ORDER` + `get_theme`) in die lokale RAW-Theme-Basis, damit zentrale Theme-Keys automatisch verfuegbar bleiben.
 - Hover-Paritaet in Dialogen vervollstaendigt: auch `add_symbol_to_selected_desk_dialog` und `export_plan_pdf_dialog` binden jetzt ihre Abschlussaktionen an `SharedHoverTooltip`.
 - Hover-Paritaet nachgezogen: verbleibende Overlay-/Dialog-Aktionen in `app/adapters/gui/main_window.py` nutzen jetzt ebenfalls `SharedHoverTooltip` (Runtime-Debug-Toolbar, Tischgruppen-Overlay, Sichtbare-Symbole-Dialog, Symbolauswahl-Dialog).

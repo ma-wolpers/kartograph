@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- Theme special paths were removed from `app/adapters/gui/ui_theme.py`: Kartograph now requires the shared `bw_gui.theming` registry directly and no longer keeps optional fallback branches for missing shared themes.
 - Theme availability in Kartograph now merges with the shared `bw_gui.theming` registry, so new central themes can be used without local duplication.
 - Remaining symbol/add and PDF-export dialog actions now also expose shared hover help overlays, completing action guidance consistency across core dialog flows.
 - Additional debug/overlay/filter dialog actions now also use shared hover help overlays (runtime debug refresh/offline toggle, tablegroup overlay actions, symbol filter/save actions) for consistent action and shortcut guidance.

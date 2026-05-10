@@ -4,13 +4,8 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 
 ensure_bw_gui_on_path()
-
-try:
-    from bw_gui.theming import THEME_ORDER as BASE_THEME_ORDER
-    from bw_gui.theming import get_theme as get_base_theme
-except ModuleNotFoundError:
-    BASE_THEME_ORDER = ()
-    get_base_theme = None
+from bw_gui.theming import THEME_ORDER as BASE_THEME_ORDER
+from bw_gui.theming import get_theme as get_base_theme
 
 RAW_THEMES: dict[str, dict[str, str]] = {
     "mono_day": {
@@ -152,16 +147,10 @@ RAW_THEMES: dict[str, dict[str, str]] = {
 
 
 def _merge_base_theme_registry() -> None:
-    """Merge shared theme registry keys into local raw themes when available."""
-
-    if not BASE_THEME_ORDER or not callable(get_base_theme):
-        return
+    """Merge shared theme registry keys into local raw themes."""
 
     for theme_key in BASE_THEME_ORDER:
-        try:
-            base = get_base_theme(theme_key)
-        except Exception:
-            continue
+        base = get_base_theme(theme_key)
 
         RAW_THEMES.setdefault(
             theme_key,
