@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Step-6-Guardrail-Hardening umgesetzt: `tools/ci/check_ai_guardrails.py` blockiert jetzt zusaetzlich repo-weit lokale Neudefinitionen der reservierten Shared-Primitives `TkRootHost`, `ScrollablePopupWindow` und `WrappedTextField`, damit zentrale bw-gui-Bausteine nicht mehr als lokale Klassen nachgebaut werden.
 - Step-5-Rollout gestartet: `app/adapters/gui/main_window.py` nutzt jetzt den zentralen Runtime-Host `bw_gui.runtime.TkRootHost` statt einer lokalen Root-Host-Delegation.
 - Step-2-Guardrail-Scope abgeschlossen: die repo-weite GUI-Vertragspruefung in `tools/ci/check_ai_guardrails.py` umfasst jetzt zusaetzlich `bw_libs/`, sodass direkte `tkinter`/`ttk`-Imports und neue lokale `ui`/`widgets`/`tui`-Basisklassen auch in Shared-Library-Pfaden blockiert werden.
 - Step-3-Exemption-Abbau abgeschlossen: verbleibende Klassen-Exemption fuer `app/adapters/gui/main_window.py:KartographMainWindow` durch Kompositionsmigration auf shared runtime-root entfernt; der Exemption-Backlog ist nun leer.
