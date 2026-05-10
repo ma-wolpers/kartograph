@@ -16,6 +16,7 @@ GUARDRAIL_RELEVANT_PATHS = {
     ".github/workflows/release-from-changelog.yml",
     "docs/ARCHITEKTUR.md",
     "docs/DEVELOPMENT_LOG.md",
+    "docs/GUI_MIGRATION_BACKLOG.md",
     "CHANGELOG.md",
     "tools/ci/check_ai_guardrails.py",
     "app/adapters/gui/main_window.py",
@@ -33,6 +34,7 @@ CHANGELOG_CODEV_RELEVANT_PATHS = {
     ".github/copilot-instructions.md",
     ".github/pull_request_template.md",
     "tools/ci/check_ai_guardrails.py",
+    "docs/GUI_MIGRATION_BACKLOG.md",
     "bw_libs/ui_contract/keybinding.py",
     "bw_libs/ui_contract/popup.py",
     "bw_libs/ui_contract/hsm.py",
@@ -64,6 +66,7 @@ UI_BASECLASS_MODULE_ALIASES = {"ui", "widgets", "tui"}
 LEGACY_UI_BASECLASS_ALLOWLIST = {
     "app/adapters/gui/main_window.py:KartographMainWindow",
 }
+GUI_MIGRATION_BACKLOG_PATH = "docs/GUI_MIGRATION_BACKLOG.md"
 
 
 def _repo_root() -> Path:
@@ -412,6 +415,20 @@ def _check_repo_wide_gui_contracts(errors: list[str]) -> None:
             )
 
 
+def _check_gui_migration_backlog(errors: list[str]) -> None:
+    """Require explicit backlog tracking for all active GUI exemption baselines/allowlists."""
+
+    backlog = _read(GUI_MIGRATION_BACKLOG_PATH)
+    _require_substring(backlog, "## Active Exemptions", GUI_MIGRATION_BACKLOG_PATH, errors)
+    _require_substring(backlog, "remove_by:", GUI_MIGRATION_BACKLOG_PATH, errors)
+
+    for rel_path in sorted(FUTURE_GUI_ENTRY_BASELINES):
+        _require_substring(backlog, f"- {rel_path}", GUI_MIGRATION_BACKLOG_PATH, errors)
+
+    for marker in sorted(LEGACY_UI_BASECLASS_ALLOWLIST):
+        _require_substring(backlog, f"- {marker}", GUI_MIGRATION_BACKLOG_PATH, errors)
+
+
 def main() -> int:
     """Execute kartograph guardrail checks and return CI-compatible status code."""
     repo_root = _repo_root()
@@ -450,6 +467,7 @@ def main() -> int:
     _check_shared_ui_contracts(errors)
     _check_future_gui_entry_contracts(errors)
     _check_repo_wide_gui_contracts(errors)
+    _check_gui_migration_backlog(errors)
     warnings = _collect_process_guidance_warnings()
 
     if errors:
