@@ -79,11 +79,13 @@ try:
     from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar
     from bw_gui.menu import MenuDefinition as SharedMenuDefinition
     from bw_gui.menu import MenuItem as SharedMenuItem
+    from bw_gui.shortcuts import compose_hover_text as compose_shared_hover_text
     from bw_gui.widgets import HoverTooltip as SharedHoverTooltip
 except ModuleNotFoundError:
     SharedCustomMenuBar = None
     SharedMenuDefinition = None
     SharedMenuItem = None
+    compose_shared_hover_text = None
     SharedHoverTooltip = None
 
 MAX_CANVAS_RADIUS = 50
@@ -595,7 +597,9 @@ class KartographMainWindow(ui.Tk):
             return
 
         shortcut_text = (shortcut or "").strip()
-        if shortcut_text:
+        if compose_shared_hover_text is not None:
+            text = compose_shared_hover_text(label, shortcut_text)
+        elif shortcut_text:
             text = f"{label}\nShortcut: {shortcut_text}"
         else:
             text = label
