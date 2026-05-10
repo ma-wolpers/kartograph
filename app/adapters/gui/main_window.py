@@ -74,27 +74,15 @@ from app.infrastructure.symbol_config_loader import SymbolDefinition, load_symbo
 
 ensure_bw_gui_on_path()
 from bw_gui.runtime import fonts, ui, widgets as tui
-
-try:
-    from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar
-    from bw_gui.menu import MenuDefinition as SharedMenuDefinition
-    from bw_gui.menu import MenuItem as SharedMenuItem
-    from bw_gui.dialogs import SettingsDialogSpec as SharedSettingsDialogSpec
-    from bw_gui.dialogs import SettingsFieldSpec as SharedSettingsFieldSpec
-    from bw_gui.dialogs import SettingsSectionSpec as SharedSettingsSectionSpec
-    from bw_gui.dialogs import open_tabbed_settings_dialog as open_shared_tabbed_settings_dialog
-    from bw_gui.shortcuts import compose_hover_text as compose_shared_hover_text
-    from bw_gui.widgets import HoverTooltip as SharedHoverTooltip
-except ModuleNotFoundError:
-    SharedCustomMenuBar = None
-    SharedMenuDefinition = None
-    SharedMenuItem = None
-    SharedSettingsDialogSpec = None
-    SharedSettingsFieldSpec = None
-    SharedSettingsSectionSpec = None
-    open_shared_tabbed_settings_dialog = None
-    compose_shared_hover_text = None
-    SharedHoverTooltip = None
+from bw_gui.dialogs import SettingsDialogSpec as SharedSettingsDialogSpec
+from bw_gui.dialogs import SettingsFieldSpec as SharedSettingsFieldSpec
+from bw_gui.dialogs import SettingsSectionSpec as SharedSettingsSectionSpec
+from bw_gui.dialogs import open_tabbed_settings_dialog as open_shared_tabbed_settings_dialog
+from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar
+from bw_gui.menu import MenuDefinition as SharedMenuDefinition
+from bw_gui.menu import MenuItem as SharedMenuItem
+from bw_gui.shortcuts import compose_hover_text as compose_shared_hover_text
+from bw_gui.widgets import HoverTooltip as SharedHoverTooltip
 
 MAX_CANVAS_RADIUS = 50
 MIN_CANVAS_RADIUS = 1
@@ -406,10 +394,6 @@ class KartographMainWindow(ui.Tk):
         self.details_overlay_position_var = ui.StringVar(value=self.details_overlay_position)
         self.tablegroup_overlay_position_var = ui.StringVar(value=self.tablegroup_overlay_position)
 
-        if SharedCustomMenuBar is None or SharedMenuDefinition is None or SharedMenuItem is None:
-            self.config(menu="")
-            return
-
         if self._shared_menu_bar is not None:
             self._shared_menu_bar.destroy()
 
@@ -601,16 +585,8 @@ class KartographMainWindow(ui.Tk):
     def _attach_hover_help(self, widget: ui.Widget, *, label: str, shortcut: str | None = None) -> None:
         """Attach shared hover overlay with readable action text and shortcut hint."""
 
-        if SharedHoverTooltip is None:
-            return
-
         shortcut_text = (shortcut or "").strip()
-        if compose_shared_hover_text is not None:
-            text = compose_shared_hover_text(label, shortcut_text)
-        elif shortcut_text:
-            text = f"{label}\nShortcut: {shortcut_text}"
-        else:
-            text = label
+        text = compose_shared_hover_text(label, shortcut_text)
 
         existing = getattr(widget, "_bw_hover_tooltip", None)
         if existing is not None:
@@ -3550,9 +3526,6 @@ class KartographMainWindow(ui.Tk):
     def _build_settings_dialog_spec(self):
         """Build shared settings schema for Kartograph core editor settings."""
 
-        if SharedSettingsDialogSpec is None or SharedSettingsSectionSpec is None or SharedSettingsFieldSpec is None:
-            return None
-
         symbol_strength_labels = ("Normal", "Fett", "Extra")
         return SharedSettingsDialogSpec(
             sections=(
@@ -3668,17 +3641,7 @@ class KartographMainWindow(ui.Tk):
         return True
 
     def open_settings_dialog(self) -> None:
-        if open_shared_tabbed_settings_dialog is None:
-            messagebox.showinfo(
-                "Einstellungen",
-                "Shared-Settings-Dialog ist in dieser Umgebung nicht verfuegbar.",
-                parent=self,
-            )
-            return
-
         spec = self._build_settings_dialog_spec()
-        if spec is None:
-            return
 
         payload = open_shared_tabbed_settings_dialog(
             self,
