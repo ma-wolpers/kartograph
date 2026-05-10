@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- Remaining symbol/add and PDF-export dialog actions now also expose shared hover help overlays, completing action guidance consistency across core dialog flows.
 - Additional debug/overlay/filter dialog actions now also use shared hover help overlays (runtime debug refresh/offline toggle, tablegroup overlay actions, symbol filter/save actions) for consistent action and shortcut guidance.
 - The settings flow now uses the shared tab-based settings dialog (`bw_gui.dialogs.open_tabbed_settings_dialog`) for storage/editor options (plans folder, canvas radius, symbol strength, viewport follow buffer).
 - Hover tooltips now appear with smoother delayed behavior, pick up the active app theme automatically, and stay fully visible on-screen.

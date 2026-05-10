@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Hover-Paritaet in Dialogen vervollstaendigt: auch `add_symbol_to_selected_desk_dialog` und `export_plan_pdf_dialog` binden jetzt ihre Abschlussaktionen an `SharedHoverTooltip`.
 - Hover-Paritaet nachgezogen: verbleibende Overlay-/Dialog-Aktionen in `app/adapters/gui/main_window.py` nutzen jetzt ebenfalls `SharedHoverTooltip` (Runtime-Debug-Toolbar, Tischgruppen-Overlay, Sichtbare-Symbole-Dialog, Symbolauswahl-Dialog).
 - Shared-Settings-Migration umgesetzt: `open_settings_dialog` in `app/adapters/gui/main_window.py` nutzt jetzt den tab-basierten Renderer `bw_gui.dialogs.open_tabbed_settings_dialog` statt eines lokalen Overlay-Dialogs.
 - Settings-Schema fuer Speicher/Editor zentralisiert: Plans-Ordner, Canvas-Radius, Symbolstaerke und Viewport-Puffer werden als Shared-Dialog-Spec definiert und ueber einen validierten Payload-Apply-Pfad persistiert.

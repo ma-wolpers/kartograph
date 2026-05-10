@@ -4607,7 +4607,9 @@ class KartographMainWindow(ui.Tk):
 
         button_row = tui.Frame(dialog)
         button_row.pack(fill="x", padx=12, pady=(0, 12))
-        tui.Button(button_row, text="Übernehmen", command=apply_choice).pack(side="right")
+        apply_button = tui.Button(button_row, text="Übernehmen", command=apply_choice)
+        apply_button.pack(side="right")
+        self._attach_hover_help(apply_button, label="Ausgewaehltes Symbol uebernehmen", shortcut="Enter")
 
     def undo_last_change(self) -> None:
         if self.interaction_mode == LIST_ACTIVE and self._undo_plan_list_action():
@@ -4744,8 +4746,13 @@ class KartographMainWindow(ui.Tk):
 
         button_row = tui.Frame(dialog)
         button_row.pack(fill="x", padx=12, pady=(12, 12))
-        tui.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
-        tui.Button(button_row, text="Exportieren", command=do_export).pack(side="right", padx=(0, 8))
+        cancel_button = tui.Button(button_row, text="Abbrechen", command=dialog.destroy)
+        cancel_button.pack(side="right")
+        self._attach_hover_help(cancel_button, label="Exportdialog ohne Datei schliessen", shortcut="Esc")
+
+        export_button = tui.Button(button_row, text="Exportieren", command=do_export)
+        export_button.pack(side="right", padx=(0, 8))
+        self._attach_hover_help(export_button, label="Sitzplan als PDF exportieren", shortcut="Enter")
 
     def _create_overlay_dialog(self, title: str, geometry: str) -> ui.Toplevel:
         dialog = ui.Toplevel(self)
