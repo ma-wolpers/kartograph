@@ -30,6 +30,10 @@ Verbindliche Regeln:
 - Pop-up-Verhalten wird zentral in `bw_libs/ui_contract/popup.py` verwaltet.
 - Neue Shortcuts und neue Pop-ups werden zuerst in diesen Zentralmodulen definiert und danach in Views angebunden.
 
-6. Feature-Commit und Push-Disziplin
+6. Strict bw-gui-only-Policy
+- Keine lokale tkinter/ttk-Widgetimplementierung in Repos.
+- Neue wiederverwendbare GUI-Bausteine zuerst in bw-gui implementieren und erst danach in Repos anbinden.
+
+7. Feature-Commit und Push-Disziplin
 - Feature-Aenderungen werden in eigenstaendigen Commits gebuendelt.
 - Push erfolgt manuell durch den Nutzer; kein Auto-Push.

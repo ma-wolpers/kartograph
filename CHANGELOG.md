@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- Governance policy now explicitly requires strict bw-gui-only usage: no local tkinter/ttk widget implementations in repo modules, and reusable GUI building blocks must be implemented in bw-gui first.
 - AI guardrails now enforce repo-wide strict bw-gui usage in GUI modules: direct `tkinter`/`ttk` imports and new local `ui`/`widgets`/`tui` baseclass patterns are rejected via AST-based checks (with a legacy allowlist for existing classes).
 - AI guardrails now also enforce shared-GUI bootstrap requirements for any newly added GUI entrypoint files and reject direct tkinter imports in those entrypoints.
 - AI guardrails were hardened to enforce mandatory shared UI contracts in `app/adapters/gui/main_window.py` and fail fast on legacy fallback branches.

@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Governance-Policy geschaerft: `AGENTS.md` und `.github/copilot-instructions.md` enthalten jetzt explizit die Strict-bw-gui-only-Regel (keine lokale tkinter/ttk-Widgetimplementierung in Repos; wiederverwendbare GUI-Bausteine zuerst in bw-gui).
 - Repo-weite Strict-bw-gui-Guardrails eingefuehrt: `tools/ci/check_ai_guardrails.py` scannt jetzt alle GUI-Pythondateien unter `app/adapters/gui/` (und ggf. `app/ui/`) per AST, blockiert direkte `tkinter`/`ttk`-Imports und verhindert neue lokale Basisklassen auf `ui`/`widgets`/`tui` (mit expliziter Legacy-Allowlist fuer bestehende Klassen).
 - Future-App-Guardrails erweitert: `tools/ci/check_ai_guardrails.py` prueft jetzt zusaetzlich neue GUI-Entrypoint-Dateien auf verpflichtenden Shared-GUI-Bootstrap (`ensure_bw_gui_on_path`, `bw_gui.runtime`, Shared-Menu/Dialog/Shortcut/Hover) und blockiert direkte `tkinter`-Imports.
 - Guardrails gehaertet: `tools/ci/check_ai_guardrails.py` erzwingt jetzt in `app/adapters/gui/main_window.py` verpflichtende Shared-UI-Contracts (Shared-Menue/Shared-Settings-Dialog/Shared-Hover) und blockiert Legacy-Fallbackzweige.
