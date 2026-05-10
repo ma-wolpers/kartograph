@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- Main-window hosting now uses the shared `bw_gui.runtime.TkRootHost` primitive instead of a repo-local root delegation helper.
 - AI guardrails now include `bw_libs/` in the repo-wide GUI contract scan scope, so direct `tkinter`/`ttk` imports and new local `ui`/`widgets`/`tui` baseclass patterns are also blocked in shared-library paths.
 - AI guardrails no longer keep a legacy class allowlist exemption for `app/adapters/gui/main_window.py`; `KartographMainWindow` now uses a composed shared runtime root instead of local `ui.Tk` inheritance.
 - AI guardrails no longer keep a future-entrypoint baseline exemption for `app/adapters/gui/main_window.py`; Kartograph now runs this entrypoint under the strict shared-GUI contract checks.
