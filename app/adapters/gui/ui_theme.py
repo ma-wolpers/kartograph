@@ -1,5 +1,17 @@
 from __future__ import annotations
 
+from bw_libs.shared_gui_core import ensure_bw_gui_on_path
+
+
+ensure_bw_gui_on_path()
+
+try:
+    from bw_gui.theming import THEME_ORDER as BASE_THEME_ORDER
+    from bw_gui.theming import get_theme as get_base_theme
+except ModuleNotFoundError:
+    BASE_THEME_ORDER = ()
+    get_base_theme = None
+
 RAW_THEMES: dict[str, dict[str, str]] = {
     "mono_day": {
         "label": "Mono Day",
@@ -137,6 +149,41 @@ RAW_THEMES: dict[str, dict[str, str]] = {
         "danger": "#F43F5E",
     },
 }
+
+
+def _merge_base_theme_registry() -> None:
+    """Merge shared theme registry keys into local raw themes when available."""
+
+    if not BASE_THEME_ORDER or not callable(get_base_theme):
+        return
+
+    for theme_key in BASE_THEME_ORDER:
+        try:
+            base = get_base_theme(theme_key)
+        except Exception:
+            continue
+
+        RAW_THEMES.setdefault(
+            theme_key,
+            {
+                "label": str(base.get("label", theme_key)),
+                "bg_main": str(base["bg_main"]),
+                "bg_panel": str(base["bg_panel"]),
+                "bg_surface": str(base["bg_surface"]),
+                "panel_strong": str(base["panel_strong"]),
+                "fg_primary": str(base["fg_primary"]),
+                "fg_muted": str(base["fg_muted"]),
+                "accent": str(base["accent"]),
+                "accent_soft": str(base["accent_soft"]),
+                "focus_ring": str(base["focus_ring"]),
+                "border": str(base["border"]),
+                "warning": str(base.get("warning", "#D97706")),
+                "danger": str(base.get("danger", "#C83A45")),
+            },
+        )
+
+
+_merge_base_theme_registry()
 
 DEFAULT_THEME = "mono_day"
 
