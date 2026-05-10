@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Step-3-Exemption-Abbau abgeschlossen: verbleibende Klassen-Exemption fuer `app/adapters/gui/main_window.py:KartographMainWindow` durch Kompositionsmigration auf shared runtime-root entfernt; der Exemption-Backlog ist nun leer.
 - Step-3-Exemption-Abbau fortgesetzt: Future-Entrypoint-Baseline fuer `app/adapters/gui/main_window.py` entfernt; aktiver Exemption-Backlog enthaelt nur noch die verbleibende Klassenmigration `KartographMainWindow`.
 - Step-3-Exemption-Governance aktiviert: `docs/GUI_MIGRATION_BACKLOG.md` ist jetzt verbindliche Referenz fuer aktive GUI-Baselines/Exemptions inkl. `remove_by`-Datum; Guardrails validieren die Backlog-Referenzen explizit.
 - Governance-Policy geschaerft: `AGENTS.md` und `.github/copilot-instructions.md` enthalten jetzt explizit die Strict-bw-gui-only-Regel (keine lokale tkinter/ttk-Widgetimplementierung in Repos; wiederverwendbare GUI-Bausteine zuerst in bw-gui).

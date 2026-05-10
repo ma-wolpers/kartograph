@@ -171,7 +171,16 @@ def apply_window_icon(window: ui.Tk) -> None:
         return
 
 
-class KartographMainWindow(ui.Tk):
+class KartographMainWindow:
+    @property
+    def tk_root(self) -> ui.Tk:
+        """Expose the composed Tk root for low-level integrations."""
+        return self._tk_root
+
+    def __getattr__(self, name: str):
+        """Delegate unknown UI attributes to the composed Tk root window."""
+        return getattr(self._tk_root, name)
+
     def __init__(
         self,
         settings_repository,
@@ -181,7 +190,7 @@ class KartographMainWindow(ui.Tk):
         shell_config: AppShellConfig | None = None,
     ):
         startup_started = time.perf_counter()
-        super().__init__()
+        self._tk_root = ui.Tk()
         LOGGER.info("Main window __init__ start")
         configure_windows_process_identity()
         resolved_shell_config = shell_config or AppShellConfig(
@@ -190,9 +199,9 @@ class KartographMainWindow(ui.Tk):
             min_width=1000,
             min_height=680,
         )
-        self.app_shell = TkinterAppShell(self, resolved_shell_config, on_close=self._on_shell_close)
-        apply_window_icon(self)
-        self.report_callback_exception = self._report_tk_callback_exception
+        self.app_shell = TkinterAppShell(self._tk_root, resolved_shell_config, on_close=self._on_shell_close)
+        apply_window_icon(self._tk_root)
+        self._tk_root.report_callback_exception = self._report_tk_callback_exception
 
         self.settings_repository = settings_repository
         self.plan_repository = plan_repository
@@ -1631,7 +1640,7 @@ class KartographMainWindow(ui.Tk):
             return True
 
         focused_toplevel = focused_widget.winfo_toplevel()
-        if isinstance(focused_toplevel, ui.Toplevel) and focused_toplevel is not self:
+        if isinstance(focused_toplevel, ui.Toplevel) and focused_toplevel is not self._tk_root:
             return True
 
         return False

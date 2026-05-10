@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- AI guardrails no longer keep a legacy class allowlist exemption for `app/adapters/gui/main_window.py`; `KartographMainWindow` now uses a composed shared runtime root instead of local `ui.Tk` inheritance.
 - AI guardrails no longer keep a future-entrypoint baseline exemption for `app/adapters/gui/main_window.py`; Kartograph now runs this entrypoint under the strict shared-GUI contract checks.
 - AI guardrails now require an explicit GUI migration backlog (`docs/GUI_MIGRATION_BACKLOG.md`) for active GUI baselines/exemptions, including time-bound `remove_by` tracking.
 - Governance policy now explicitly requires strict bw-gui-only usage: no local tkinter/ttk widget implementations in repo modules, and reusable GUI building blocks must be implemented in bw-gui first.
