@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- The settings flow now uses the shared tab-based settings dialog (`bw_gui.dialogs.open_tabbed_settings_dialog`) for storage/editor options (plans folder, canvas radius, symbol strength, viewport follow buffer).
 - Hover tooltips now appear with smoother delayed behavior, pick up the active app theme automatically, and stay fully visible on-screen.
 - Shared settings/sidebar and scrollbar theming received a visual polish via the updated `bw-gui` baseline styles.
 - Toolbar and context hover overlays now use the shared shortcut formatter for consistent wording and shortcut rendering.

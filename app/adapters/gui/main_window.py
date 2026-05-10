@@ -79,12 +79,20 @@ try:
     from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar
     from bw_gui.menu import MenuDefinition as SharedMenuDefinition
     from bw_gui.menu import MenuItem as SharedMenuItem
+    from bw_gui.dialogs import SettingsDialogSpec as SharedSettingsDialogSpec
+    from bw_gui.dialogs import SettingsFieldSpec as SharedSettingsFieldSpec
+    from bw_gui.dialogs import SettingsSectionSpec as SharedSettingsSectionSpec
+    from bw_gui.dialogs import open_tabbed_settings_dialog as open_shared_tabbed_settings_dialog
     from bw_gui.shortcuts import compose_hover_text as compose_shared_hover_text
     from bw_gui.widgets import HoverTooltip as SharedHoverTooltip
 except ModuleNotFoundError:
     SharedCustomMenuBar = None
     SharedMenuDefinition = None
     SharedMenuItem = None
+    SharedSettingsDialogSpec = None
+    SharedSettingsFieldSpec = None
+    SharedSettingsSectionSpec = None
+    open_shared_tabbed_settings_dialog = None
     compose_shared_hover_text = None
     SharedHoverTooltip = None
 
@@ -3520,107 +3528,151 @@ class KartographMainWindow(ui.Tk):
         self.status_var.set("Wiederholt")
         return True
 
-    def open_settings_dialog(self) -> None:
-        dialog = self._create_overlay_dialog("Einstellungen", "700x320")
+    def _build_settings_dialog_spec(self):
+        """Build shared settings schema for Kartograph core editor settings."""
 
-        frame = tui.Frame(dialog)
-        frame.pack(fill="both", expand=True, padx=12, pady=12)
+        if SharedSettingsDialogSpec is None or SharedSettingsSectionSpec is None or SharedSettingsFieldSpec is None:
+            return None
 
-        path_var = ui.StringVar(value=str(self.plans_dir))
-        tui.Label(frame, text="Sitzplan-Ordner").pack(anchor="w")
-
-        row = tui.Frame(frame)
-        row.pack(fill="x", pady=(6, 12))
-
-        entry = tui.Entry(row, textvariable=path_var)
-        entry.pack(side="left", fill="x", expand=True)
-        self._focus_overlay_widget(dialog, entry)
-
-        def browse() -> None:
-            selected = filedialog.askdirectory(initialdir=str(self.plans_dir), parent=dialog)
-            if selected:
-                path_var.set(selected)
-
-        tui.Button(row, text="Durchsuchen", command=browse).pack(side="left", padx=(8, 0))
-
-        canvas_row = tui.Frame(frame)
-        canvas_row.pack(fill="x", pady=(0, 12))
-        tui.Label(canvas_row, text="Canvas-Halbbreite (1-50)").pack(side="left")
-        radius_var = ui.StringVar(value=str(self.canvas_radius))
-        radius_spin = tui.Spinbox(
-            canvas_row,
-            from_=MIN_CANVAS_RADIUS,
-            to=MAX_CANVAS_RADIUS,
-            textvariable=radius_var,
-            width=8,
+        symbol_strength_labels = ("Normal", "Fett", "Extra")
+        return SharedSettingsDialogSpec(
+            sections=(
+                SharedSettingsSectionSpec(
+                    key="storage",
+                    label="Speicher",
+                    fields=(
+                        SharedSettingsFieldSpec(
+                            key="plans_dir",
+                            label="Sitzplan-Ordner",
+                            field_type="string",
+                            default=str(self.plans_dir),
+                            hint=f"leer => {self.default_plans_dir}",
+                        ),
+                    ),
+                ),
+                SharedSettingsSectionSpec(
+                    key="editor",
+                    label="Editor",
+                    fields=(
+                        SharedSettingsFieldSpec(
+                            key="canvas_radius",
+                            label="Canvas-Halbbreite",
+                            field_type="int",
+                            default=self.canvas_radius,
+                            min_value=MIN_CANVAS_RADIUS,
+                            max_value=MAX_CANVAS_RADIUS,
+                            hint="entspricht (0,0) + Radius in jede Richtung",
+                        ),
+                        SharedSettingsFieldSpec(
+                            key="symbol_strength",
+                            label="Symbolstaerke",
+                            field_type="enum",
+                            enum_values=symbol_strength_labels,
+                            default=symbol_strength_labels[min(max(self.symbol_strength, 0), 2)],
+                        ),
+                        SharedSettingsFieldSpec(
+                            key="viewport_follow_buffer",
+                            label="Sichtfenster-Puffer",
+                            field_type="int",
+                            default=self.viewport_follow_buffer,
+                            min_value=0,
+                            max_value=5,
+                            hint="0 = immer zentrieren, 1 = 3x3-Zentrum",
+                        ),
+                    ),
+                ),
+            )
         )
-        radius_spin.pack(side="left", padx=(10, 0))
-        tui.Label(canvas_row, text="entspricht (0,0) + Radius in jede Richtung").pack(side="left", padx=(10, 0))
 
-        symbol_row = tui.Frame(frame)
-        symbol_row.pack(fill="x", pady=(0, 12))
-        tui.Label(symbol_row, text="Symbolstaerke").pack(side="left")
+    def _settings_dialog_values(self) -> dict[str, object]:
+        """Collect current settings values for shared dialog initialization."""
+
         symbol_strength_labels = {0: "Normal", 1: "Fett", 2: "Extra"}
-        symbol_strength_values = {"Normal": 0, "Fett": 1, "Extra": 2}
-        symbol_strength_var = ui.StringVar(value=symbol_strength_labels.get(self.symbol_strength, "Fett"))
-        symbol_strength_combo = tui.Combobox(
-            symbol_row,
-            textvariable=symbol_strength_var,
-            values=["Normal", "Fett", "Extra"],
-            state="readonly",
-            width=12,
-        )
-        symbol_strength_combo.pack(side="left", padx=(10, 0))
+        return {
+            "plans_dir": str(self.plans_dir),
+            "canvas_radius": self.canvas_radius,
+            "symbol_strength": symbol_strength_labels.get(self.symbol_strength, "Fett"),
+            "viewport_follow_buffer": self.viewport_follow_buffer,
+        }
 
-        follow_row = tui.Frame(frame)
-        follow_row.pack(fill="x", pady=(0, 12))
-        tui.Label(follow_row, text="Sichtfenster-Puffer (0-5)").pack(side="left")
-        follow_buffer_var = ui.StringVar(value=str(self.viewport_follow_buffer))
-        follow_spin = tui.Spinbox(
-            follow_row,
-            from_=0,
-            to=5,
-            textvariable=follow_buffer_var,
-            width=8,
-        )
-        follow_spin.pack(side="left", padx=(10, 0))
-        tui.Label(follow_row, text="0 = immer zentrieren, 1 = 3x3-Zentrum").pack(side="left", padx=(10, 0))
+    def _apply_settings_dialog_payload(self, payload: dict[str, object], *, parent=None) -> bool:
+        """Validate and persist shared settings payload."""
 
-        def save() -> None:
-            selected_path = Path(path_var.get().strip() or str(self.default_plans_dir))
+        if not isinstance(payload, dict):
+            return False
+
+        selected_text = str(payload.get("plans_dir") or "").strip()
+        selected_path = Path(selected_text or str(self.default_plans_dir))
+        try:
             selected_path.mkdir(parents=True, exist_ok=True)
-            new_radius = self._normalize_canvas_radius(radius_var.get())
+        except Exception as exc:
+            messagebox.showerror(
+                "Einstellungen",
+                f"Sitzplan-Ordner konnte nicht angelegt werden: {exc}",
+                parent=parent or self,
+            )
+            return False
 
-            if self.current_plan and new_radius < self.canvas_radius:
-                out_of_bounds = self._count_out_of_bounds_desks(self.current_plan, radius=new_radius)
-                if out_of_bounds > 0:
-                    proceed = messagebox.askyesno(
-                        "Warnung",
-                        f"Bei Canvas-Radius {new_radius} waeren {out_of_bounds} Schuelertische nicht mehr sichtbar. Trotzdem speichern?",
-                        parent=dialog,
-                    )
-                    if not proceed:
-                        return
+        new_radius = self._normalize_canvas_radius(payload.get("canvas_radius"))
+        if self.current_plan and new_radius < self.canvas_radius:
+            out_of_bounds = self._count_out_of_bounds_desks(self.current_plan, radius=new_radius)
+            if out_of_bounds > 0:
+                proceed = messagebox.askyesno(
+                    "Warnung",
+                    f"Bei Canvas-Radius {new_radius} waeren {out_of_bounds} Schuelertische nicht mehr sichtbar. Trotzdem speichern?",
+                    parent=parent or self,
+                )
+                if not proceed:
+                    self.status_var.set("Einstellungen unveraendert")
+                    return False
 
-            self.plans_dir = selected_path
-            self._settings["plans_dir"] = str(selected_path)
-            self.canvas_radius = new_radius
-            self._settings["canvas_radius"] = new_radius
-            self.symbol_strength = symbol_strength_values.get(symbol_strength_var.get(), DEFAULT_SYMBOL_STRENGTH)
-            self._settings["symbol_strength"] = self.symbol_strength
-            self.viewport_follow_buffer = self._normalize_viewport_follow_buffer(follow_buffer_var.get())
-            self._settings["viewport_follow_buffer"] = self.viewport_follow_buffer
-            self.settings_repository.save_settings(self._settings)
-            self._update_scroll_region()
-            self._set_selection_single(*self.selection.active_cell())
-            self.redraw_grid()
-            self._refresh_details_panel()
-            self.refresh_plan_list()
-            dialog.destroy()
+        symbol_strength_values = {"Normal": 0, "Fett": 1, "Extra": 2}
+        symbol_strength_key = str(payload.get("symbol_strength") or "Fett").strip()
+        next_symbol_strength = symbol_strength_values.get(symbol_strength_key, DEFAULT_SYMBOL_STRENGTH)
 
-        button_row = tui.Frame(frame)
-        button_row.pack(fill="x")
-        tui.Button(button_row, text="Speichern", command=save).pack(side="right")
+        self.plans_dir = selected_path
+        self._settings["plans_dir"] = str(selected_path)
+        self.canvas_radius = new_radius
+        self._settings["canvas_radius"] = new_radius
+        self.symbol_strength = next_symbol_strength
+        self._settings["symbol_strength"] = self.symbol_strength
+        self.viewport_follow_buffer = self._normalize_viewport_follow_buffer(payload.get("viewport_follow_buffer"))
+        self._settings["viewport_follow_buffer"] = self.viewport_follow_buffer
+        self.settings_repository.save_settings(self._settings)
+
+        self._update_scroll_region()
+        self._set_selection_single(*self.selection.active_cell())
+        self.redraw_grid()
+        self._refresh_details_panel()
+        self.refresh_plan_list()
+        self.status_var.set("Einstellungen aktualisiert")
+        return True
+
+    def open_settings_dialog(self) -> None:
+        if open_shared_tabbed_settings_dialog is None:
+            messagebox.showinfo(
+                "Einstellungen",
+                "Shared-Settings-Dialog ist in dieser Umgebung nicht verfuegbar.",
+                parent=self,
+            )
+            return
+
+        spec = self._build_settings_dialog_spec()
+        if spec is None:
+            return
+
+        payload = open_shared_tabbed_settings_dialog(
+            self,
+            title="Einstellungen",
+            theme_key=self._shared_menu_theme_key(),
+            spec=spec,
+            initial_values=self._settings_dialog_values(),
+            initial_section="editor",
+        )
+        if payload is None:
+            return
+
+        self._apply_settings_dialog_payload(payload, parent=self)
 
     def _xview(self, *args) -> None:
         self.canvas.xview(*args)
