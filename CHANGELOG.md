@@ -7,6 +7,8 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Changed
+- Hover tooltips now appear with smoother delayed behavior, pick up the active app theme automatically, and stay fully visible on-screen.
+- Shared settings/sidebar and scrollbar theming received a visual polish via the updated `bw-gui` baseline styles.
 - Main window runtime imports now use shared `bw_gui.runtime` aliases (`ui`, `widgets`, `fonts`) instead of direct `tkinter` / `ttk` / `tkinter.font` imports in `app/adapters/gui/main_window.py`.
 - Shared shell setup now uses `bw_gui.runtime.ui` in `bw_libs/app_shell.py` instead of direct `tkinter` imports.
 - In documentation view, non-horizontal key presses now preserve the active column selection; only Left/Right can change the selected column.

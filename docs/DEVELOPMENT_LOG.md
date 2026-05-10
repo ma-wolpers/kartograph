@@ -17,6 +17,8 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Shared-Tooltip-Polish uebernommen: `bw_gui.widgets.HoverTooltip` nutzt jetzt verzoegertes Anzeigen, Theme-Ableitung aus dem aktiven Fensterkontext und Bildschirm-Clamping fuer stabile Hover-Overlays.
+- Shared-Theme-Feinschliff uebernommen: gemeinsame Settings-/Sidebar-Stile sowie verfeinerte Scrollbar-Kontraste kommen jetzt aus dem aktualisierten `bw-gui`-Submodule-Stand.
 - Dokumentationsnavigation erweitert: In der Doku-Tabelle behalten Enter und alle Nicht-Links/Rechts-Tasten jetzt die aktive Spalte stabil; die fixe Zusammenfassungsspalte ist als aktive Auswahl gesperrt.
 - Tk/ttk-Runtime-Pilotmigration gestartet: `app/adapters/gui/main_window.py` nutzt jetzt zentrale Runtime-Aliases aus `bw_gui.runtime` (`ui`/`widgets`/`fonts`) statt direkter `tkinter`-/`ttk`-/`tkinter.font`-Imports.
 - Shared shell runtime imports now use `bw_gui.runtime.ui` in `bw_libs/app_shell.py` instead of direct `tkinter` imports.
