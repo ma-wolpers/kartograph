@@ -1207,15 +1207,18 @@ class KartographMainWindow(ui.Tk):
         tui.Label(toolbar, textvariable=self._shortcut_runtime_debug_context_var, style="Muted.TLabel").pack(
             side="left", fill="x", expand=True
         )
-        tui.Checkbutton(
+        offline_check = tui.Checkbutton(
             toolbar,
             text="Offline simulieren",
             variable=self._shortcut_runtime_debug_offline_var,
             command=self._on_shortcut_runtime_offline_var_changed,
-        ).pack(side="left", padx=(12, 0))
-        tui.Button(toolbar, text="Aktualisieren", command=self._refresh_shortcut_runtime_debug_dialog).pack(
-            side="left", padx=(8, 0)
         )
+        offline_check.pack(side="left", padx=(12, 0))
+        self._attach_hover_help(offline_check, label="Offline-Modus fuer Runtime-Resolver umschalten", shortcut="Ctrl+Shift+O")
+
+        refresh_button = tui.Button(toolbar, text="Aktualisieren", command=self._refresh_shortcut_runtime_debug_dialog)
+        refresh_button.pack(side="left", padx=(8, 0))
+        self._attach_hover_help(refresh_button, label="Runtime-Debug-Ansicht aktualisieren", shortcut=None)
 
         body = tui.Frame(window, padding=(10, 0, 10, 8))
         body.pack(fill="both", expand=True)
@@ -1733,10 +1736,13 @@ class KartographMainWindow(ui.Tk):
 
         button_row = tui.Frame(body)
         button_row.grid(row=5, column=0, columnspan=2, sticky="ew")
-        tui.Button(button_row, text="Schliessen", command=self._close_tablegroup_overlay).pack(side="right")
-        tui.Button(button_row, text="Uebernehmen", command=self._apply_tablegroup_overlay_values).pack(
-            side="right", padx=(0, 8)
-        )
+        close_button = tui.Button(button_row, text="Schliessen", command=self._close_tablegroup_overlay)
+        close_button.pack(side="right")
+        self._attach_hover_help(close_button, label="Tischgruppen-Overlay schliessen", shortcut="Esc")
+
+        apply_button = tui.Button(button_row, text="Uebernehmen", command=self._apply_tablegroup_overlay_values)
+        apply_button.pack(side="right", padx=(0, 8))
+        self._attach_hover_help(apply_button, label="Tischgruppenwerte speichern", shortcut="Enter")
 
         overlay.bind("<Return>", lambda _event: self._apply_tablegroup_overlay_values())
         self._focus_overlay_widget(overlay, number_entry)
@@ -2340,8 +2346,13 @@ class KartographMainWindow(ui.Tk):
 
         button_row = tui.Frame(container)
         button_row.pack(fill="x", pady=(10, 0))
-        tui.Button(button_row, text="Alle", command=lambda: [var.set(True) for var in vars_by_symbol.values()]).pack(side="left")
-        tui.Button(button_row, text="Speichern", command=apply_filter).pack(side="right")
+        all_button = tui.Button(button_row, text="Alle", command=lambda: [var.set(True) for var in vars_by_symbol.values()])
+        all_button.pack(side="left")
+        self._attach_hover_help(all_button, label="Alle Symbole sichtbar markieren", shortcut=None)
+
+        save_button = tui.Button(button_row, text="Speichern", command=apply_filter)
+        save_button.pack(side="right")
+        self._attach_hover_help(save_button, label="Sichtbarkeitsauswahl speichern", shortcut="Enter")
 
     def _latest_grade_value_for_column(self, x: int, y: int, column_id: str) -> str:
         if not self.current_plan:
@@ -3116,9 +3127,17 @@ class KartographMainWindow(ui.Tk):
 
         button_row = tui.Frame(frame)
         button_row.pack(fill="x", pady=(8, 0))
-        tui.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right")
-        tui.Button(button_row, text="Übernehmen", command=apply_symbol).pack(side="right", padx=(0, 8))
-        tui.Button(button_row, text="Loeschen", command=clear_symbol).pack(side="left")
+        cancel_button = tui.Button(button_row, text="Abbrechen", command=dialog.destroy)
+        cancel_button.pack(side="right")
+        self._attach_hover_help(cancel_button, label="Dialog ohne Aenderung schliessen", shortcut="Esc")
+
+        apply_button = tui.Button(button_row, text="Übernehmen", command=apply_symbol)
+        apply_button.pack(side="right", padx=(0, 8))
+        self._attach_hover_help(apply_button, label="Ausgewaehltes Symbol uebernehmen", shortcut="Enter")
+
+        clear_button = tui.Button(button_row, text="Loeschen", command=clear_symbol)
+        clear_button.pack(side="left")
+        self._attach_hover_help(clear_button, label="Ausgewaehltes Symbol entfernen", shortcut="Entf oder Backspace")
 
     def configure_grade_weighting_dialog(self) -> None:
         if not self.current_plan:
