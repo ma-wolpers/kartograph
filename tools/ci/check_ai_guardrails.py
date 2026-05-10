@@ -17,6 +17,7 @@ GUARDRAIL_RELEVANT_PATHS = {
     "docs/DEVELOPMENT_LOG.md",
     "CHANGELOG.md",
     "tools/ci/check_ai_guardrails.py",
+    "app/adapters/gui/main_window.py",
     "bw_libs/ui_contract/keybinding.py",
     "bw_libs/ui_contract/popup.py",
     "bw_libs/ui_contract/hsm.py",
@@ -84,6 +85,12 @@ def _require_substring(text: str, needle: str, source: str, errors: list[str]) -
     """Append guardrail error when required text fragment is missing."""
     if needle not in text:
         errors.append(f"{source}: missing required text -> {needle}")
+
+
+def _forbid_substring(text: str, needle: str, source: str, errors: list[str]) -> None:
+    """Append guardrail error when deprecated fallback text is still present."""
+    if needle in text:
+        errors.append(f"{source}: forbidden fallback text present -> {needle}")
 
 
 def _has_relevant_staged_changes(staged: set[str], repo_root: Path) -> bool:
@@ -227,6 +234,34 @@ def _check_runtime_shortcut_integration(errors: list[str]) -> None:
     )
 
 
+def _check_shared_ui_contracts(errors: list[str]) -> None:
+    """Require shared menu/dialog/tooltip contracts in main window."""
+
+    main_window = _read("app/adapters/gui/main_window.py")
+
+    required_snippets = (
+        "from bw_gui.dialogs import open_tabbed_settings_dialog as open_shared_tabbed_settings_dialog",
+        "from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar",
+        "from bw_gui.shortcuts import compose_hover_text as compose_shared_hover_text",
+        "from bw_gui.widgets import HoverTooltip as SharedHoverTooltip",
+        "self._shared_menu_bar = SharedCustomMenuBar(",
+        "tooltip = SharedHoverTooltip(widget, text, theme_key=self._shared_menu_theme_key())",
+        "payload = open_shared_tabbed_settings_dialog(",
+    )
+    forbidden_snippets = (
+        "except ModuleNotFoundError",
+        "if SharedCustomMenuBar is None",
+        "if SharedHoverTooltip is None",
+        "if compose_shared_hover_text is None",
+        "if open_shared_tabbed_settings_dialog is None",
+    )
+
+    for snippet in required_snippets:
+        _require_substring(main_window, snippet, "app/adapters/gui/main_window.py", errors)
+    for snippet in forbidden_snippets:
+        _forbid_substring(main_window, snippet, "app/adapters/gui/main_window.py", errors)
+
+
 def main() -> int:
     """Execute kartograph guardrail checks and return CI-compatible status code."""
     repo_root = _repo_root()
@@ -262,6 +297,7 @@ def main() -> int:
     _check_development_log_updated(staged, errors)
     _check_changelog_updated(staged, errors)
     _check_runtime_shortcut_integration(errors)
+    _check_shared_ui_contracts(errors)
     warnings = _collect_process_guidance_warnings()
 
     if errors:

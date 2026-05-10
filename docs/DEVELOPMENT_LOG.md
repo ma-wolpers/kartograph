@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Guardrails gehaertet: `tools/ci/check_ai_guardrails.py` erzwingt jetzt in `app/adapters/gui/main_window.py` verpflichtende Shared-UI-Contracts (Shared-Menue/Shared-Settings-Dialog/Shared-Hover) und blockiert Legacy-Fallbackzweige.
 - Nicht-Theme-Sonderpfade entfernt: `app/adapters/gui/main_window.py` importiert Shared-Menue, Shared-Hover-Formatter und Shared-Settings-Dialog jetzt verpflichtend; optionale `ModuleNotFoundError`-/None-Fallback-Zweige wurden entfernt.
 - Theme-Sonderpfade entfernt: `app/adapters/gui/ui_theme.py` importiert die Shared-Theme-Registry jetzt verpflichtend und ohne optionalen `ModuleNotFoundError`-/callable-Fallback.
 - Welle-13-Theme-Pilot erweitert: `app/adapters/gui/ui_theme.py` merged die zentrale `bw_gui.theming`-Registry (`THEME_ORDER` + `get_theme`) in die lokale RAW-Theme-Basis, damit zentrale Theme-Keys automatisch verfuegbar bleiben.
