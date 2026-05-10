@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import ast
 import os
 import subprocess
 from pathlib import Path
@@ -58,6 +59,11 @@ FUTURE_GUI_REQUIRED_SHARED_SNIPPETS = (
     "compose_hover_text",
     "HoverTooltip",
 )
+GUI_CONTRACT_SCAN_ROOTS = FUTURE_GUI_SEARCH_ROOTS
+UI_BASECLASS_MODULE_ALIASES = {"ui", "widgets", "tui"}
+LEGACY_UI_BASECLASS_ALLOWLIST = {
+    "app/adapters/gui/main_window.py:KartographMainWindow",
+}
 
 
 def _repo_root() -> Path:
@@ -137,6 +143,55 @@ def _iter_future_gui_entry_candidates() -> list[str]:
     return sorted(candidates)
 
 
+def _is_repo_gui_python_path(rel_path: str) -> bool:
+    """Return whether a path belongs to repo-wide GUI python scan roots."""
+    normalized = rel_path.replace("\\", "/")
+    if not normalized.endswith(".py"):
+        return False
+    return any(normalized.startswith(f"{root}/") for root in GUI_CONTRACT_SCAN_ROOTS)
+
+
+def _iter_repo_gui_python_files() -> list[str]:
+    """Collect all GUI-related Python files under configured scan roots."""
+    files: set[str] = set()
+    for rel_root in GUI_CONTRACT_SCAN_ROOTS:
+        root_path = ROOT / rel_root
+        if not root_path.exists():
+            continue
+        for file_path in root_path.rglob("*.py"):
+            files.add(file_path.relative_to(ROOT).as_posix())
+    return sorted(files)
+
+
+def _contains_direct_tkinter_import(module: ast.Module) -> bool:
+    """Detect direct tkinter/ttk imports in module-level imports."""
+    for node in module.body:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                name = alias.name
+                if name == "tkinter" or name.startswith("tkinter.") or name == "ttk":
+                    return True
+        if isinstance(node, ast.ImportFrom):
+            module_name = node.module or ""
+            if (
+                module_name == "tkinter"
+                or module_name.startswith("tkinter.")
+                or module_name == "ttk"
+            ):
+                return True
+    return False
+
+
+def _local_ui_bases(class_node: ast.ClassDef) -> list[str]:
+    """Return local UI base expressions like ui.Tk/widgets.Frame/tui.Frame."""
+    bases: list[str] = []
+    for base in class_node.bases:
+        if isinstance(base, ast.Attribute) and isinstance(base.value, ast.Name):
+            if base.value.id in UI_BASECLASS_MODULE_ALIASES:
+                bases.append(ast.unparse(base))
+    return bases
+
+
 def _has_relevant_staged_changes(staged: set[str], repo_root: Path) -> bool:
     """Run guardrails only when staged changes touch relevant policy files."""
     try:
@@ -151,7 +206,12 @@ def _has_relevant_staged_changes(staged: set[str], repo_root: Path) -> bool:
         if root_rel_to_repo not in {"", "."}:
             normalized_relevant.add(f"{root_rel_to_repo}/{rel_norm}")
 
-    return any(path in normalized_relevant or _is_future_gui_entry_path(path) for path in staged)
+    return any(
+        path in normalized_relevant
+        or _is_future_gui_entry_path(path)
+        or _is_repo_gui_python_path(path)
+        for path in staged
+    )
 
 
 def _check_development_log_updated(staged: set[str], errors: list[str]) -> None:
@@ -321,6 +381,37 @@ def _check_future_gui_entry_contracts(errors: list[str]) -> None:
         _forbid_substring(text, "from tkinter import", rel_path, errors)
 
 
+def _check_repo_wide_gui_contracts(errors: list[str]) -> None:
+    """Enforce repo-wide GUI contract: no direct tkinter imports and no new local widget bases."""
+
+    for rel_path in _iter_repo_gui_python_files():
+        try:
+            source = _read(rel_path).lstrip("\ufeff")
+            module = ast.parse(source, filename=rel_path)
+        except Exception as exc:
+            errors.append(f"{rel_path}: failed to parse Python AST -> {exc}")
+            continue
+
+        if _contains_direct_tkinter_import(module):
+            errors.append(
+                f"{rel_path}: direct tkinter/ttk import is forbidden; use bw_gui.runtime and shared bw_gui modules"
+            )
+
+        for node in ast.walk(module):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            bases = _local_ui_bases(node)
+            if not bases:
+                continue
+            marker = f"{rel_path}:{node.name}"
+            if marker in LEGACY_UI_BASECLASS_ALLOWLIST:
+                continue
+            errors.append(
+                f"{rel_path}:{node.lineno} class '{node.name}' uses local UI base {bases}; "
+                "move reusable widget implementation to bw-gui"
+            )
+
+
 def main() -> int:
     """Execute kartograph guardrail checks and return CI-compatible status code."""
     repo_root = _repo_root()
@@ -358,6 +449,7 @@ def main() -> int:
     _check_runtime_shortcut_integration(errors)
     _check_shared_ui_contracts(errors)
     _check_future_gui_entry_contracts(errors)
+    _check_repo_wide_gui_contracts(errors)
     warnings = _collect_process_guidance_warnings()
 
     if errors:
