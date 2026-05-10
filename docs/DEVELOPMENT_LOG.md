@@ -17,6 +17,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Step-2-Guardrail-Scope abgeschlossen: die repo-weite GUI-Vertragspruefung in `tools/ci/check_ai_guardrails.py` umfasst jetzt zusaetzlich `bw_libs/`, sodass direkte `tkinter`/`ttk`-Imports und neue lokale `ui`/`widgets`/`tui`-Basisklassen auch in Shared-Library-Pfaden blockiert werden.
 - Step-3-Exemption-Abbau abgeschlossen: verbleibende Klassen-Exemption fuer `app/adapters/gui/main_window.py:KartographMainWindow` durch Kompositionsmigration auf shared runtime-root entfernt; der Exemption-Backlog ist nun leer.
 - Step-3-Exemption-Abbau fortgesetzt: Future-Entrypoint-Baseline fuer `app/adapters/gui/main_window.py` entfernt; aktiver Exemption-Backlog enthaelt nur noch die verbleibende Klassenmigration `KartographMainWindow`.
 - Step-3-Exemption-Governance aktiviert: `docs/GUI_MIGRATION_BACKLOG.md` ist jetzt verbindliche Referenz fuer aktive GUI-Baselines/Exemptions inkl. `remove_by`-Datum; Guardrails validieren die Backlog-Referenzen explizit.
