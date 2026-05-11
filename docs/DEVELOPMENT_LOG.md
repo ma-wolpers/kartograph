@@ -19,6 +19,8 @@ Regel:
 
 ### Changed
 - Bugfix: `KartographMainWindow` liefert jetzt den echten Tk-Window-Pfad ueber `__str__`, damit Overlay-/Export-Popups (insb. PDF-Export) mit gueltigem Parent erstellt werden und nicht leer bleiben.
+- Wave-3-Sunset abgeschlossen: lokaler `ModuleNotFoundError`-Fallback-Zweig wurde aus der zentralen LaufKern-Bridge (`bw_libs/ui_contract/laufkern.py`) entfernt; Shared-Import ist jetzt verpflichtend.
+- Guardrail-Sunset auf Wave-3 umgestellt: `tools/ci/check_ai_guardrails.py` blockiert `except ModuleNotFoundError` jetzt repo-weit in den Scan-Scopes (`app`, `bw_libs`) ohne Bridge-Allowlist.
 - Wave-2-Sunset-Gate aktiviert: `tools/ci/check_ai_guardrails.py` erlaubt `except ModuleNotFoundError` nur noch in den zentralen UI-Contract-Bridges (`bw_libs/ui_contract/keybinding.py`, `bw_libs/ui_contract/popup.py`, `bw_libs/ui_contract/hsm.py`, `bw_libs/ui_contract/laufkern.py`) und blockiert neue lokale Fallback-Zweige ausserhalb dieser Baseline.
 - LaufKern-Tracking an produktiven Intent-Dispatch angebunden: `app/adapters/gui/main_window.py` protokolliert verarbeitete UI-Intents jetzt als LaufKern-Tracking-Artefakte (done/failed), und das Runtime-Debug zeigt den Completion-Status aus der Artefaktaggregation.
 - LaufKern-Runtime-Auswertung in den produktiven Shortcut-Debug-Flow integriert: `app/adapters/gui/main_window.py` baut jetzt ein Manifest aus der Runtime-Shortcut-Registry, validiert es zentral und zeigt die aktuelle Intent-Reachability im Debug-Summary.

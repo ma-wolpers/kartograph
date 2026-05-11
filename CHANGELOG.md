@@ -10,6 +10,7 @@ The format is based on Keep a Changelog.
 - PDF export popup no longer opens as an empty window: overlay dialogs now resolve the main-window parent to a valid Tk path when running through `TkRootHost`, so export controls render and respond again.
 
 ### Changed
+- AI guardrails now enforce LaufKern fallback sunset Wave-3: the local `ModuleNotFoundError` fallback branch was removed from `bw_libs/ui_contract/laufkern.py`, and fallback handlers are now forbidden repo-wide in guardrail scan scopes.
 - Kartograph bindet jetzt eine zentrale LaufKern-Bridge (`bw_libs.ui_contract.laufkern`) fuer Manifest-, Reachability- und Tracking-Vertraege ein und bereitet damit die Trennung "Programm = Was" und "LaufKern = Wie" technisch vor.
 - Die Shortcut-Runtime-Debug-Ansicht zeigt jetzt zusaetzlich eine LaufKern-Zusammenfassung zur aktuellen Intent-Erreichbarkeit (erreichbare Intents pro Runtime-Kontext und Manifest-Validierungsstatus).
 - Der LaufKern-Manifestaufbau wurde in einen dedizierten Provider (`app/adapters/gui/laufkern_manifest_provider.py`) ausgelagert, damit Runtime-Integration (Wie) und app-spezifische Deklaration (Was) klar getrennt bleiben.
