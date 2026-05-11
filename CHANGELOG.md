@@ -10,7 +10,7 @@ The format is based on Keep a Changelog.
 - PDF export popup no longer opens as an empty window: overlay dialogs now resolve the main-window parent to a valid Tk path when running through `TkRootHost`, so export controls render and respond again.
 
 ### Changed
-- AI guardrails now emit a non-blocking local warning when the settings intent is present but no `Ctrl+,` shortcut binding marker is found in the configured main-window shortcut bindings.
+- AI guardrails now emit non-blocking local warnings when configured core keyboard intents (for example new/rename/duplicate/undo/redo/copy/cut/paste/escape/settings/debug) are present but matching shortcut binding markers are missing in the configured main-window shortcut bindings.
 - UI contract bridges are now fully decommissioned to thin shared re-export shims (`bw_libs/ui_contract/keybinding.py`, `bw_libs/ui_contract/popup.py`, `bw_libs/ui_contract/hsm.py`, `bw_libs/ui_contract/laufkern.py`); dead local duplicate implementations were removed.
 - AI guardrails now enforce a Phase-I decommission gate for UI contract bridges: each bridge must keep `ensure_bw_gui_on_path` plus shared `bw_gui` imports and may not reintroduce local contract class/function implementations.
 - AI guardrails now enforce LaufKern fallback sunset Wave-3: the local `ModuleNotFoundError` fallback branch was removed from `bw_libs/ui_contract/laufkern.py`, and fallback handlers are now forbidden repo-wide in guardrail scan scopes.

@@ -30,7 +30,7 @@ PROCESS_GUIDANCE_RULES = {
     "feature_commit": "Feature-Aenderungen werden in eigenstaendigen Commits",
     "manual_push": "Push erfolgt manuell",
 }
-SETTINGS_SHORTCUT_SOFT_CHECKS = (
+SHORTCUT_COVERAGE_SOFT_CHECKS = (
     {
         "label": "open-settings",
         "intent_paths": (
@@ -50,6 +50,83 @@ SETTINGS_SHORTCUT_SOFT_CHECKS = (
             "<Control-,>",
             "Strg+,",
         ),
+    },
+    {
+        "label": "new-plan",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("NEW_PLAN", "plan.new"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.NEW_PLAN",),
+    },
+    {
+        "label": "rename-selected-plan",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("RENAME_SELECTED_PLAN", "plan.rename_selected"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.RENAME_SELECTED_PLAN",),
+    },
+    {
+        "label": "duplicate-selected-plan",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("DUPLICATE_SELECTED_PLAN", "plan.duplicate_selected"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.DUPLICATE_SELECTED_PLAN",),
+    },
+    {
+        "label": "undo",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("UNDO", "edit.undo"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.UNDO",),
+    },
+    {
+        "label": "redo",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("REDO", "edit.redo"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.REDO",),
+    },
+    {
+        "label": "copy",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("COPY", "edit.copy"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.COPY",),
+    },
+    {
+        "label": "cut",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("CUT", "edit.cut"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.CUT",),
+    },
+    {
+        "label": "paste",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("PASTE", "edit.paste"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.PASTE",),
+    },
+    {
+        "label": "escape",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("ESCAPE", "selection.clear"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.ESCAPE",),
+    },
+    {
+        "label": "debug-runtime-overlay",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("OPEN_SHORTCUT_RUNTIME_DEBUG", "debug.shortcut.runtime.open"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG",),
+    },
+    {
+        "label": "debug-runtime-offline",
+        "intent_paths": ("app/adapters/gui/ui_intents.py",),
+        "intent_markers": ("TOGGLE_SHORTCUT_RUNTIME_OFFLINE", "debug.shortcut.runtime.offline.toggle"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py",),
+        "shortcut_markers": ("intent=UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE",),
     },
 )
 CHANGELOG_CODEV_RELEVANT_PATHS = {
@@ -328,11 +405,11 @@ def _has_any_marker(rel_paths: tuple[str, ...], markers: tuple[str, ...]) -> boo
     return False
 
 
-def _collect_settings_shortcut_warnings() -> list[str]:
-    """Collect non-blocking warnings when settings intents miss Ctrl+, shortcuts."""
+def _collect_shortcut_coverage_warnings() -> list[str]:
+    """Collect non-blocking warnings when key intents miss keyboard shortcut markers."""
 
     warnings: list[str] = []
-    for check in SETTINGS_SHORTCUT_SOFT_CHECKS:
+    for check in SHORTCUT_COVERAGE_SOFT_CHECKS:
         intent_paths = tuple(check["intent_paths"])
         intent_markers = tuple(check["intent_markers"])
         shortcut_paths = tuple(check["shortcut_paths"])
@@ -342,7 +419,7 @@ def _collect_settings_shortcut_warnings() -> list[str]:
         if _has_any_marker(shortcut_paths, shortcut_markers):
             continue
         warnings.append(
-            f"shortcut-coverage ({check['label']}): settings intent found without Ctrl+, binding marker"
+            f"shortcut-coverage ({check['label']}): intent marker found without configured keyboard binding marker"
         )
     return warnings
 
@@ -584,7 +661,7 @@ def main() -> int:
     _check_repo_wide_gui_contracts(errors)
     _check_gui_migration_backlog(errors)
     warnings = _collect_process_guidance_warnings()
-    warnings.extend(_collect_settings_shortcut_warnings())
+    warnings.extend(_collect_shortcut_coverage_warnings())
 
     if errors:
         print("AI guardrail check failed:")
