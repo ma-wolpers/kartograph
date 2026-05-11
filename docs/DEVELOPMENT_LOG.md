@@ -18,6 +18,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Soft-Guardrail fuer Settings-Shortcut-Abdeckung ergaenzt: `tools/ci/check_ai_guardrails.py` meldet lokal (non-blocking) eine Warnung, wenn `OPEN_SETTINGS` gefunden wird, aber kein Strg+,-Binding (`<Control-comma>`/`<Control-,>`) in den Main-Window-Shortcutbindungen vorhanden ist.
 - Bugfix: `KartographMainWindow` liefert jetzt den echten Tk-Window-Pfad ueber `__str__`, damit Overlay-/Export-Popups (insb. PDF-Export) mit gueltigem Parent erstellt werden und nicht leer bleiben.
 - Phase-I-Decommission abgeschlossen: die zentralen UI-Contract-Bridges (`bw_libs/ui_contract/keybinding.py`, `bw_libs/ui_contract/popup.py`, `bw_libs/ui_contract/hsm.py`, `bw_libs/ui_contract/laufkern.py`) wurden auf schlanke Shared-Re-Exports reduziert; tote lokale Duplikat-Implementierungen sind entfernt.
 - Guardrail-Decommission-Gate aktiviert: `tools/ci/check_ai_guardrails.py` erzwingt jetzt in allen vier Bridge-Modulen `ensure_bw_gui_on_path` + Shared-Import und blockiert lokale Re-Implementierungsmarker der Contract-Klassen/Funktionen.
