@@ -30,7 +30,7 @@ from bw_libs.ui_contract.keybinding import (
     KeybindingRuntimeContext,
 )
 from bw_libs.ui_contract.popup import POPUP_KIND_MODAL, POPUP_KIND_NON_MODAL, PopupPolicy, PopupPolicyRegistry
-from bw_libs.ui_contract.laufkern import verify_manifest, verify_reachability
+from bw_libs.ui_contract.laufkern import aggregate_completion, emit_tracking_artifact, verify_manifest, verify_reachability
 from app.adapters.gui.ui_theme import THEMES, normalize_theme_key, theme_names
 from app.adapters.gui.laufkern_manifest_provider import build_runtime_shortcut_manifest
 from app.core.domain.desk_clipboard import DeskClipboard
@@ -256,6 +256,10 @@ class KartographMainWindow(TkRootHost):
         self._shortcut_runtime_debug_context_var = ui.StringVar(value="")
         self._shortcut_runtime_debug_summary_var = ui.StringVar(value="")
         self._shortcut_runtime_debug_offline_var = ui.BooleanVar(value=False)
+        self._laufkern_tracking_run_id = "runtime-intents"
+        self._laufkern_tracking_sequence = 0
+        self._laufkern_tracking_step_ids: dict[str, str] = {}
+        self._laufkern_tracking_artifacts = []
         self._tablegroup_overlay: ui.Toplevel | None = None
         self._tg_number_var: ui.StringVar | None = None
         self._tg_shift_x_var: ui.StringVar | None = None
@@ -1174,6 +1178,47 @@ class KartographMainWindow(TkRootHost):
         reachable = sum(1 for result in results if result.reachable)
         return f"LaufKern intents {reachable}/{len(results)} erreichbar"
 
+    def _laufkern_step_id_for_intent(self, intent: str) -> str:
+        """Return stable runtime-tracking step id for one intent during this session."""
+
+        existing = self._laufkern_tracking_step_ids.get(intent)
+        if existing is not None:
+            return existing
+
+        next_index = len(self._laufkern_tracking_step_ids) + 1
+        step_id = f"LK-D-RTC-{next_index:03d}"
+        self._laufkern_tracking_step_ids[intent] = step_id
+        return step_id
+
+    def _record_laufkern_intent_dispatch(self, intent: str, *, success: bool) -> None:
+        """Record runtime intent dispatch result as LaufKern tracking artifact."""
+
+        self._laufkern_tracking_sequence += 1
+        artifact = emit_tracking_artifact(
+            run_id=self._laufkern_tracking_run_id,
+            repo_name="kartograph",
+            step_id=self._laufkern_step_id_for_intent(intent),
+            phase="D",
+            state="done" if success else "failed",
+            sequence=self._laufkern_tracking_sequence,
+            mandatory=True,
+            producer="laufkern-runtime",
+            evidence_ref=intent,
+        )
+        self._laufkern_tracking_artifacts.append(artifact)
+
+    def _summarize_laufkern_completion(self) -> str:
+        """Return compact completion status summary from tracked runtime artifacts."""
+
+        if not self._laufkern_tracking_artifacts:
+            return "LK completion n/a"
+
+        summary = aggregate_completion(
+            self._laufkern_tracking_artifacts,
+            trusted_producers={"laufkern-runtime"},
+        )
+        return f"LK completion {summary.status} {summary.completed_steps}/{summary.mandatory_steps}"
+
     def toggle_shortcut_runtime_offline(self) -> None:
         self._shortcut_runtime_offline = not bool(self._shortcut_runtime_offline)
         self._shortcut_runtime_debug_offline_var.set(bool(self._shortcut_runtime_offline))
@@ -1295,6 +1340,7 @@ class KartographMainWindow(TkRootHost):
                     f"{active_count} active",
                     f"{disabled_count} disabled",
                     self._summarize_laufkern_reachability(context=context),
+                    self._summarize_laufkern_completion(),
                 ]
             )
         )
@@ -1353,13 +1399,24 @@ class KartographMainWindow(TkRootHost):
         intent_ok, intent_reason = self._hsm_contract.validate_intent(intent)
         if not intent_ok:
             self.status_var.set(f"Unbekannter Intent blockiert: {intent_reason}")
+            self._record_laufkern_intent_dispatch(intent, success=False)
             return None
 
         if intent in GRID_ONLY_INTENTS and not self._shortcut_scope_allows("grid"):
+            self._record_laufkern_intent_dispatch(intent, success=False)
             return None
         if intent in DOCS_ONLY_INTENTS and not self._shortcut_scope_allows("docs"):
+            self._record_laufkern_intent_dispatch(intent, success=False)
             return None
-        return self.ui_intent_controller.handle_intent(intent)
+
+        try:
+            result = self.ui_intent_controller.handle_intent(intent)
+        except Exception:
+            self._record_laufkern_intent_dispatch(intent, success=False)
+            raise
+
+        self._record_laufkern_intent_dispatch(intent, success=True)
+        return result
 
     def _shortcut_scope_allows(self, scope: str) -> bool:
         if scope == "global":

@@ -19,6 +19,7 @@ Regel:
 
 ### Changed
 - Bugfix: `KartographMainWindow` liefert jetzt den echten Tk-Window-Pfad ueber `__str__`, damit Overlay-/Export-Popups (insb. PDF-Export) mit gueltigem Parent erstellt werden und nicht leer bleiben.
+- LaufKern-Tracking an produktiven Intent-Dispatch angebunden: `app/adapters/gui/main_window.py` protokolliert verarbeitete UI-Intents jetzt als LaufKern-Tracking-Artefakte (done/failed), und das Runtime-Debug zeigt den Completion-Status aus der Artefaktaggregation.
 - LaufKern-Runtime-Auswertung in den produktiven Shortcut-Debug-Flow integriert: `app/adapters/gui/main_window.py` baut jetzt ein Manifest aus der Runtime-Shortcut-Registry, validiert es zentral und zeigt die aktuelle Intent-Reachability im Debug-Summary.
 - LaufKern-Manifestaufbau aus dem Main-Window in einen dedizierten Provider ausgelagert: `app/adapters/gui/laufkern_manifest_provider.py` erzeugt jetzt den deklarativen Runtime-Manifestzustand aus der Shortcut-Registry.
 - Step-6-Guardrail-Hardening umgesetzt: `tools/ci/check_ai_guardrails.py` blockiert jetzt zusaetzlich repo-weit lokale Neudefinitionen der reservierten Shared-Primitives `TkRootHost`, `ScrollablePopupWindow` und `WrappedTextField`, damit zentrale bw-gui-Bausteine nicht mehr als lokale Klassen nachgebaut werden.

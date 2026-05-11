@@ -13,6 +13,7 @@ The format is based on Keep a Changelog.
 - Kartograph bindet jetzt eine zentrale LaufKern-Bridge (`bw_libs.ui_contract.laufkern`) fuer Manifest-, Reachability- und Tracking-Vertraege ein und bereitet damit die Trennung "Programm = Was" und "LaufKern = Wie" technisch vor.
 - Die Shortcut-Runtime-Debug-Ansicht zeigt jetzt zusaetzlich eine LaufKern-Zusammenfassung zur aktuellen Intent-Erreichbarkeit (erreichbare Intents pro Runtime-Kontext und Manifest-Validierungsstatus).
 - Der LaufKern-Manifestaufbau wurde in einen dedizierten Provider (`app/adapters/gui/laufkern_manifest_provider.py`) ausgelagert, damit Runtime-Integration (Wie) und app-spezifische Deklaration (Was) klar getrennt bleiben.
+- Der produktive UI-Intent-Dispatch protokolliert jetzt LaufKern-Tracking-Artefakte; das Runtime-Debug zeigt dazu einen Completion-Status aus der Artefaktaggregation.
 - AI guardrails now also block local redefinitions of reserved shared primitives (`TkRootHost`, `ScrollablePopupWindow`, `WrappedTextField`) so these runtime/dialog/widget foundations must be consumed from `bw-gui` instead of being rebuilt in-repo.
 - Main-window hosting now uses the shared `bw_gui.runtime.TkRootHost` primitive instead of a repo-local root delegation helper.
 - AI guardrails now include `bw_libs/` in the repo-wide GUI contract scan scope, so direct `tkinter`/`ttk` imports and new local `ui`/`widgets`/`tui` baseclass patterns are also blocked in shared-library paths.
