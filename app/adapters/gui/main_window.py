@@ -312,10 +312,6 @@ class KartographMainWindow(TkRootHost):
         self.after_idle(self._initialize_startup_view)
         LOGGER.info("Main window __init__ finished in %.3fs", time.perf_counter() - startup_started)
 
-    def __str__(self) -> str:
-        """Expose Tk widget path for APIs that stringify the parent window."""
-        return str(self.tk_root)
-
     def _on_shell_close(self) -> bool:
         """Close tracked overlays before the shell destroys the root window."""
 
