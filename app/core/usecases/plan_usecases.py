@@ -228,7 +228,12 @@ def summarize_latest_symbols_for_student(plan: SeatingPlan, x: int, y: int) -> d
     return summary
 
 
-def compute_grade_display_for_student(plan: SeatingPlan, x: int, y: int) -> str:
+def compute_grade_display_for_student(
+    plan: SeatingPlan,
+    x: int,
+    y: int,
+    allow_provisional: bool = True,
+) -> str:
     desk = plan.desk_at(x, y)
     if not desk or not desk.is_named_student():
         return ""
@@ -263,6 +268,9 @@ def compute_grade_display_for_student(plan: SeatingPlan, x: int, y: int) -> str:
             + sonstige_rounded * int(plan.sonstige_weight_percent)
         ) / total_weight
         return f"{_round_half_up_to_two_decimals(overall):.2f}"
+
+    if not allow_provisional:
+        return ""
 
     partial_value = written_avg if written_avg is not None else sonstige_avg
     assert partial_value is not None

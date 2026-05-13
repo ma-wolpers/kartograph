@@ -10,6 +10,7 @@ The format is based on Keep a Changelog.
 - PDF export popup no longer opens as an empty window: overlay dialogs now resolve the main-window parent to a valid Tk path when running through `TkRootHost`, so export controls render and respond again.
 
 ### Changed
+- PDF-Export fuer Sitzplaene wurde erweitert: Exportdialog bietet jetzt Notenmodus (keine, nur fertige Gesamtnote, inklusive Klammernoten), Symbolauswahl nur aus im Plan vorhandenen Symbolen (default: alle), optionale Farbpunkte (default: aus) und optional eine zweite Legenden-Seite mit nur tatsaechlich exportierten Symbolen/Farbpunkten.
 - UI contract bridges are now fully decommissioned to thin shared re-export shims (`bw_libs/ui_contract/keybinding.py`, `bw_libs/ui_contract/popup.py`, `bw_libs/ui_contract/hsm.py`, `bw_libs/ui_contract/laufkern.py`); dead local duplicate implementations were removed.
 - AI guardrails now enforce a Phase-I decommission gate for UI contract bridges: each bridge must keep `ensure_bw_gui_on_path` plus shared `bw_gui` imports and may not reintroduce local contract class/function implementations.
 - AI guardrails now enforce LaufKern fallback sunset Wave-3: the local `ModuleNotFoundError` fallback branch was removed from `bw_libs/ui_contract/laufkern.py`, and fallback handlers are now forbidden repo-wide in guardrail scan scopes.

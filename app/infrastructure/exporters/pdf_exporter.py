@@ -2,18 +2,31 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+from typing import Literal
 
 from app.core.domain.models import SeatingPlan
 from app.core.domain.table_groups import build_desk_geometries, normalize_tablegroups_in_place
+from app.core.usecases.plan_usecases import compute_grade_display_for_student, summarize_latest_symbols_for_student
 from app.infrastructure.symbol_config_loader import SymbolDefinition
+
+GradeDisplayMode = Literal["none", "final_only", "include_provisional"]
 
 
 class PdfSeatingPlanExporter:
-    def __init__(self, symbol_definitions: list[SymbolDefinition]):
+    def __init__(
+        self,
+        symbol_definitions: list[SymbolDefinition],
+        color_palette: list[tuple[str, str, str, str]] | None = None,
+    ):
         self._symbol_definitions = symbol_definitions
         self._symbols_by_meaning = {item.meaning: item for item in symbol_definitions}
         self._symbol_font_name = "Helvetica"
         self._symbol_font_uses_fallback = True
+        self._color_order = [color_key for _key, color_key, _label, _hex_color in (color_palette or [])]
+        self._color_by_key = {
+            color_key: (label, hex_color)
+            for _key, color_key, label, hex_color in (color_palette or [])
+        }
 
     def _ensure_symbol_font(self, pdfmetrics, ttfonts) -> None:
         if self._symbol_font_name != "Helvetica":
@@ -36,10 +49,16 @@ class PdfSeatingPlanExporter:
             except Exception:
                 continue
 
-    def _iter_symbol_counts(self, symbols: dict[str, int]) -> list[tuple[str, int]]:
+    def _iter_symbol_counts(
+        self,
+        symbols: dict[str, int],
+        visible_symbols: set[str] | None = None,
+    ) -> list[tuple[str, int]]:
         entries: list[tuple[str, int]] = []
 
         for symbol in self._symbol_definitions:
+            if visible_symbols is not None and symbol.meaning not in visible_symbols:
+                continue
             count = int(symbols.get(symbol.meaning, 0))
             if count < 1:
                 continue
@@ -47,6 +66,8 @@ class PdfSeatingPlanExporter:
 
         for meaning, raw_count in sorted(symbols.items(), key=lambda item: item[0].lower()):
             if meaning in self._symbols_by_meaning:
+                continue
+            if visible_symbols is not None and meaning not in visible_symbols:
                 continue
             count = int(raw_count)
             if count < 1:
@@ -110,7 +131,149 @@ class PdfSeatingPlanExporter:
         fallback_height = max(6.0, min_size * 1.1)
         return min_size, fallback_height
 
-    def export_plan(self, plan: SeatingPlan, output_path: Path, orientation_mode: str) -> None:
+    def _ordered_color_keys(self, color_markers: list[str]) -> list[str]:
+        ordered: list[str] = []
+        seen: set[str] = set()
+
+        for color_key in self._color_order:
+            if color_key in color_markers and color_key not in seen:
+                ordered.append(color_key)
+                seen.add(color_key)
+
+        for color_key in color_markers:
+            if color_key in seen:
+                continue
+            ordered.append(color_key)
+            seen.add(color_key)
+
+        return ordered
+
+    def _legend_symbol_keys(self, used_symbol_levels: dict[str, set[int]]) -> list[str]:
+        keys: list[str] = []
+        for symbol in self._symbol_definitions:
+            if symbol.meaning in used_symbol_levels:
+                keys.append(symbol.meaning)
+
+        for meaning in sorted(used_symbol_levels.keys(), key=lambda item: item.lower()):
+            if meaning in self._symbols_by_meaning:
+                continue
+            keys.append(meaning)
+
+        return keys
+
+    def _draw_legend_page(
+        self,
+        c,
+        colors,
+        page_w: float,
+        page_h: float,
+        plan: SeatingPlan,
+        used_symbol_levels: dict[str, set[int]],
+        used_colors: set[str],
+        include_color_markers: bool,
+    ) -> None:
+        c.showPage()
+
+        margin = 36.0
+        y = page_h - margin
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Bold", 13)
+        c.drawString(margin, y, f"Legende: {plan.name}")
+        y -= 24.0
+
+        has_any_content = False
+
+        symbol_keys = self._legend_symbol_keys(used_symbol_levels)
+        if symbol_keys:
+            has_any_content = True
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(margin, y, "Symbole")
+            y -= 18.0
+
+            for meaning in symbol_keys:
+                counts = sorted(used_symbol_levels.get(meaning, set()))
+                definition = self._symbols_by_meaning.get(meaning)
+                for count in counts:
+                    if y <= margin + 14:
+                        c.showPage()
+                        y = page_h - margin
+                        c.setFillColor(colors.black)
+                        c.setFont("Helvetica-Bold", 11)
+                        c.drawString(margin, y, "Symbole (Fortsetzung)")
+                        y -= 18.0
+
+                    token = self._symbol_token(meaning, count)
+                    if definition is None:
+                        legend_text = meaning
+                    else:
+                        legend_text = definition.legend_for_count(count)
+
+                    c.setFillColor(colors.black)
+                    c.setFont(self._symbol_font_name, 10)
+                    c.drawString(margin + 12, y, f"{token} {legend_text}".strip())
+                    y -= 14.0
+
+            y -= 8.0
+
+        if include_color_markers and used_colors:
+            color_keys = self._ordered_color_keys(list(used_colors))
+            color_lines: list[tuple[str, str, str]] = []
+            for color_key in color_keys:
+                meaning = str(plan.color_meanings.get(color_key) or "").strip()
+                if not meaning:
+                    continue
+                label, hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+                color_lines.append((label, hex_color, meaning))
+
+            if color_lines:
+                has_any_content = True
+                if y <= margin + 20:
+                    c.showPage()
+                    y = page_h - margin
+                    c.setFillColor(colors.black)
+
+                c.setFont("Helvetica-Bold", 11)
+                c.drawString(margin, y, "Farbpunkte")
+                y -= 18.0
+
+                for label, hex_color, meaning in color_lines:
+                    if y <= margin + 14:
+                        c.showPage()
+                        y = page_h - margin
+                        c.setFillColor(colors.black)
+                        c.setFont("Helvetica-Bold", 11)
+                        c.drawString(margin, y, "Farbpunkte (Fortsetzung)")
+                        y -= 18.0
+
+                    try:
+                        fill_color = colors.HexColor(hex_color)
+                    except Exception:
+                        fill_color = colors.HexColor("#999999")
+                    c.setFillColor(fill_color)
+                    c.setStrokeColor(colors.black)
+                    c.circle(margin + 5, y + 3, 3.2, stroke=1, fill=1)
+
+                    c.setFillColor(colors.black)
+                    c.setFont("Helvetica", 10)
+                    c.drawString(margin + 14, y, f"{label}: {meaning}")
+                    y -= 14.0
+
+        if not has_any_content:
+            c.setFillColor(colors.black)
+            c.setFont("Helvetica", 10)
+            c.drawString(margin, y, "Keine Legendeninhalte fuer die gewaehlte Exportauswahl vorhanden.")
+
+    def export_plan(
+        self,
+        plan: SeatingPlan,
+        output_path: Path,
+        orientation_mode: str,
+        *,
+        grade_mode: GradeDisplayMode = "none",
+        visible_symbols: set[str] | None = None,
+        include_color_markers: bool = False,
+        include_legend_page: bool = False,
+    ) -> None:
         try:
             from reportlab.lib import colors
             from reportlab.lib.pagesizes import A4, landscape
@@ -123,6 +286,8 @@ class PdfSeatingPlanExporter:
 
         if orientation_mode not in {"teacher_bottom", "teacher_top"}:
             raise ValueError("Unbekannter Exportmodus")
+        if grade_mode not in {"none", "final_only", "include_provisional"}:
+            raise ValueError("Unbekannter Notenmodus")
 
         export_plan = deepcopy(plan)
         normalize_tablegroups_in_place(export_plan)
@@ -171,6 +336,8 @@ class PdfSeatingPlanExporter:
         c.drawString(margin, page_h - margin + 2, f"Sitzplan: {export_plan.name}")
 
         top_y = page_h - margin - title_h
+        used_symbol_levels: dict[str, set[int]] = {}
+        used_colors: set[str] = set()
 
         for polygon, center, desk in render_items:
             pixel_points: list[float] = []
@@ -213,10 +380,46 @@ class PdfSeatingPlanExporter:
             c.setFillColor(colors.black)
             student_name = (desk.student_name or "").strip()
 
+            if grade_mode == "include_provisional":
+                overall_grade = compute_grade_display_for_student(export_plan, desk.x, desk.y, allow_provisional=True)
+            elif grade_mode == "final_only":
+                overall_grade = compute_grade_display_for_student(export_plan, desk.x, desk.y, allow_provisional=False)
+            else:
+                overall_grade = ""
+
+            if overall_grade:
+                c.setFont("Helvetica-Bold", max(6, int(min(box_width, box_height) * 0.12)))
+                c.drawString(box_left + box_width * 0.08, box_top + box_height * 0.16, overall_grade)
+
+            desk_color_markers = self._ordered_color_keys(list(desk.color_markers))
+            if include_color_markers and desk_color_markers:
+                radius = max(3.0, min(box_width, box_height) * 0.035)
+                spacing = radius * 2.0 + 3.0
+                start_dot_x = center_x + box_width * 0.18
+                dots_y = box_top + box_height * 0.18
+                for idx, color_key in enumerate(desk_color_markers[:9]):
+                    _label, hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+                    try:
+                        fill_color = colors.HexColor(hex_color)
+                    except Exception:
+                        fill_color = colors.HexColor("#999999")
+
+                    cx = start_dot_x + idx * spacing
+                    c.setFillColor(fill_color)
+                    c.setStrokeColor(colors.black)
+                    c.circle(cx, dots_y, radius, stroke=1, fill=1)
+                    used_colors.add(color_key)
+                c.setFillColor(colors.black)
+                c.setStrokeColor(colors.black)
+
+            effective_symbols = summarize_latest_symbols_for_student(export_plan, desk.x, desk.y)
+            source_symbols = effective_symbols if effective_symbols else desk.symbols
+
             lines: list[str] = []
             line_tokens: list[str] = []
             used_slots = 0
-            for meaning, count in self._iter_symbol_counts(desk.symbols):
+            for meaning, count in self._iter_symbol_counts(source_symbols, visible_symbols):
+                used_symbol_levels.setdefault(meaning, set()).add(count)
                 token = self._symbol_token(meaning, count)
                 token_slots = len(token)
                 if line_tokens and used_slots + token_slots > 6:
@@ -278,6 +481,18 @@ class PdfSeatingPlanExporter:
             start_y = symbol_top - line_font
             for idx, line in enumerate(lines):
                 c.drawCentredString(center_x, start_y - idx * line_height, line)
+
+        if include_legend_page:
+            self._draw_legend_page(
+                c,
+                colors,
+                page_w,
+                page_h,
+                export_plan,
+                used_symbol_levels,
+                used_colors,
+                include_color_markers,
+            )
 
         c.showPage()
         c.save()
