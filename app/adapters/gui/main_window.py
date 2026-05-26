@@ -954,21 +954,31 @@ class KartographMainWindow(TkRootHost):
         self.docs_splitter.add(self.docs_fixed_pane, minsize=240)
 
         self.docs_tree = tui.Treeview(self.docs_main_pane, show="tree headings")
-        self.docs_tree.pack(side="left", fill="both", expand=True)
+        self.docs_tree.pack(side="top", fill="both", expand=True)
+        self.docs_main_x_scroll = tui.Scrollbar(
+            self.docs_main_pane,
+            orient="horizontal",
+            command=self._docs_main_xview,
+        )
+        self.docs_main_x_scroll.pack(side="bottom", fill="x")
         self.docs_tree.column("#0", width=220, anchor="w", stretch=False)
         self.docs_tree.heading("#0", text="Schüler:in")
 
         self.docs_right_tree = tui.Treeview(self.docs_fixed_pane, show="headings")
-        self.docs_right_tree.pack(fill="both", expand=True)
+        self.docs_right_tree.pack(side="top", fill="both", expand=True)
+        self.docs_right_x_scroll = tui.Scrollbar(
+            self.docs_fixed_pane,
+            orient="horizontal",
+            command=self._docs_right_xview,
+        )
+        self.docs_right_x_scroll.pack(side="bottom", fill="x")
 
         self.docs_y_scroll = tui.Scrollbar(self.docs_table_container, orient="vertical", command=self._docs_yview)
         self.docs_y_scroll.pack(side="right", fill="y")
-        self.docs_x_scroll = tui.Scrollbar(self.docs_container, orient="horizontal", command=self._docs_xview)
-        self.docs_x_scroll.pack(fill="x", padx=12, pady=(0, 12))
         self._syncing_docs_scroll = False
         self._syncing_docs_selection = False
-        self.docs_tree.configure(yscrollcommand=self._on_docs_main_yscroll, xscrollcommand=self.docs_x_scroll.set)
-        self.docs_right_tree.configure(yscrollcommand=self._on_docs_right_yscroll, xscrollcommand=self.docs_x_scroll.set)
+        self.docs_tree.configure(yscrollcommand=self._on_docs_main_yscroll, xscrollcommand=self.docs_main_x_scroll.set)
+        self.docs_right_tree.configure(yscrollcommand=self._on_docs_right_yscroll, xscrollcommand=self.docs_right_x_scroll.set)
 
         self.docs_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_tree_select())
         self.docs_tree.bind("<Button-1>", self._on_docs_tree_click)
@@ -979,7 +989,6 @@ class KartographMainWindow(TkRootHost):
         self.docs_tree.bind("<KeyPress>", self._on_docs_tree_keypress, add="+")
         self.docs_tree.bind("<MouseWheel>", lambda _event: self.after_idle(self._update_docs_cell_highlight))
         self.docs_tree.bind("<Shift-MouseWheel>", self._on_docs_shift_mouse_wheel)
-        self.docs_tree.bind("<FocusIn>", lambda _event: self._sync_docs_x_scrollbar(self.docs_tree), add="+")
         self.docs_right_tree.bind("<<TreeviewSelect>>", lambda _event: self._on_docs_right_tree_select())
         self.docs_right_tree.bind("<Button-1>", self._on_docs_right_tree_click)
         self.docs_right_tree.bind("<Double-Button-1>", self._on_docs_right_tree_double_click)
@@ -990,7 +999,6 @@ class KartographMainWindow(TkRootHost):
         self.docs_right_tree.bind("<KeyPress>", self._on_docs_right_tree_keypress, add="+")
         self.docs_right_tree.bind("<MouseWheel>", lambda _event: self.after_idle(self._update_docs_cell_highlight))
         self.docs_right_tree.bind("<Shift-MouseWheel>", self._on_docs_shift_mouse_wheel)
-        self.docs_right_tree.bind("<FocusIn>", lambda _event: self._sync_docs_x_scrollbar(self.docs_right_tree), add="+")
         self.docs_splitter.bind("<Configure>", lambda _event: self._position_docs_splitter_initial(), add="+")
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
@@ -2807,7 +2815,6 @@ class KartographMainWindow(TkRootHost):
 
         self._apply_doc_column_heading_highlight()
         self._refresh_doc_selection_status()
-        self.after_idle(self._sync_docs_x_scrollbar)
         elapsed = time.perf_counter() - started
         if elapsed >= 0.2:
             LOGGER.info(
@@ -2822,7 +2829,6 @@ class KartographMainWindow(TkRootHost):
         if row_id:
             self._set_docs_row_selection(row_id, source="main")
         self._doc_selected_fixed_column_id = None
-        self._sync_docs_x_scrollbar(self.docs_tree)
         col_id = self.docs_tree.identify_column(event.x)
         if col_id.startswith("#"):
             try:
@@ -2892,7 +2898,6 @@ class KartographMainWindow(TkRootHost):
         row_id = self.docs_right_tree.identify_row(event.y)
         if row_id:
             self._set_docs_row_selection(row_id, source="right")
-        self._sync_docs_x_scrollbar(self.docs_right_tree)
         col_id = self.docs_right_tree.identify_column(event.x)
         if col_id.startswith("#"):
             try:
@@ -3821,30 +3826,28 @@ class KartographMainWindow(TkRootHost):
             return
         self._docs_splitter_positioned = True
 
-    def _docs_horizontal_scroll_target(self) -> tui.Treeview:
-        if self.focus_get() == self.docs_right_tree:
-            return self.docs_right_tree
-        if self._doc_selected_fixed_column_id is not None:
-            return self.docs_right_tree
-        return self.docs_tree
-
-    def _sync_docs_x_scrollbar(self, tree: tui.Treeview | None = None) -> None:
-        target = tree or self._docs_horizontal_scroll_target()
-        first, last = target.xview()
-        self.docs_x_scroll.set(first, last)
-
-    def _docs_xview(self, *args) -> None:
-        target = self._docs_horizontal_scroll_target()
+    def _docs_main_xview(self, *args) -> None:
         if len(args) >= 3 and args[0] == "scroll" and str(args[2]) == "units":
             try:
                 amount = int(float(args[1]))
             except (TypeError, ValueError):
-                target.xview(*args)
+                self.docs_tree.xview(*args)
             else:
-                target.xview_scroll(amount * DOCS_HORIZONTAL_SCROLLBAR_UNITS, "units")
+                self.docs_tree.xview_scroll(amount * DOCS_HORIZONTAL_SCROLLBAR_UNITS, "units")
         else:
-            target.xview(*args)
-        self._sync_docs_x_scrollbar(target)
+            self.docs_tree.xview(*args)
+        self.after_idle(self._update_docs_cell_highlight)
+
+    def _docs_right_xview(self, *args) -> None:
+        if len(args) >= 3 and args[0] == "scroll" and str(args[2]) == "units":
+            try:
+                amount = int(float(args[1]))
+            except (TypeError, ValueError):
+                self.docs_right_tree.xview(*args)
+            else:
+                self.docs_right_tree.xview_scroll(amount * DOCS_HORIZONTAL_SCROLLBAR_UNITS, "units")
+        else:
+            self.docs_right_tree.xview(*args)
         self.after_idle(self._update_docs_cell_highlight)
 
     def _docs_horizontal_wheel_units(self, delta: int) -> int:
@@ -3855,7 +3858,6 @@ class KartographMainWindow(TkRootHost):
     def _on_docs_shift_mouse_wheel(self, event) -> str:
         target = self.docs_right_tree if event.widget == self.docs_right_tree else self.docs_tree
         target.xview_scroll(self._docs_horizontal_wheel_units(getattr(event, "delta", 0)), "units")
-        self._sync_docs_x_scrollbar(target)
         self.after_idle(self._update_docs_cell_highlight)
         return "break"
 
