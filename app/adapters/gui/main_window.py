@@ -944,7 +944,6 @@ class KartographMainWindow(TkRootHost):
             sashwidth=10,
             sashrelief="raised",
             bd=0,
-            highlightthickness=0,
         )
         self.docs_splitter.pack(side="left", fill="both", expand=True)
 
