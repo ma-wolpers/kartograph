@@ -12,10 +12,10 @@ if not exist "%ENTRY%" (
 	exit /b 1
 )
 
-if exist "%ROOT_VENV_PYW%" (
-	start "" "%ROOT_VENV_PYW%" "%ENTRY%"
-) else if exist "%LOCAL_VENV_PYW%" (
+if exist "%LOCAL_VENV_PYW%" (
 	start "" "%LOCAL_VENV_PYW%" "%ENTRY%"
+) else if exist "%ROOT_VENV_PYW%" (
+	start "" "%ROOT_VENV_PYW%" "%ENTRY%"
 ) else (
 	start "" pyw -3 "%ENTRY%"
 )
