@@ -9,6 +9,7 @@ The format is based on Keep a Changelog.
 ### Fixed
 - PDF export popup no longer opens as an empty window: overlay dialogs now resolve the main-window parent to a valid Tk path when running through `TkRootHost`, so export controls render and respond again.
 - `start-kartograph.bat` bevorzugt jetzt die lokale Projektumgebung (`kartograph/.venv`) vor der uebergeordneten `tools4school/.venv`, damit Kartograph konsistent mit den erwarteten Abhaengigkeiten startet.
+- `start-kartograph.bat` beendet vor dem Start alte haengende `pythonw`-Kartograph-Prozesse, damit keine unsichtbaren Altinstanzen den naechsten Start blockieren oder nur kurze Schattenfenster erscheinen.
 
 ### Changed
 - Die Dokumentationsansicht ist jetzt in kleinen Fenstern deutlich besser bedienbar: der Mitteltrenner zwischen Datumstabelle und Notentabelle ist per Drag&Drop verschiebbar, und horizontales Scrollen per Shift+Mausrad reagiert mit groesserer Schrittweite.
