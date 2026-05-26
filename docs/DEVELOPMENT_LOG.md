@@ -18,6 +18,7 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- Dokumentationssicht UX verbessert: die Doku-Tabelle nutzt jetzt einen horizontalen, per Drag&Drop verschiebbaren Splitter zwischen Datumsbereich und Notenbereich; zusaetzlich scrollt horizontales Shift-Mausrad in beiden Bereichen deutlich schneller, damit Notenspalten auch in kleinen Fenstern schnell erreichbar sind.
 - PDF-Exportfunktion erweitert: `app/adapters/gui/main_window.py` bietet jetzt Exportoptionen fuer Notenmodus (`none`/`final_only`/`include_provisional`), Symbolfilter auf im Plan vorhandene Symbole (default alle), optionale Farbpunkte und optionale Legenden-Seite.
 - `app/infrastructure/exporters/pdf_exporter.py` rendert Exportoptionen jetzt explizit: Noten je nach Modus, Symbolauswahl mit Filter, optionale Farbpunkte sowie optionale zweite Legenden-Seite (Symbole/Farbpunkte nur fuer tatsaechlich exportierte Inhalte).
 - Notenanzeige-Usecase erweitert: `compute_grade_display_for_student(..., allow_provisional=...)` erlaubt jetzt das Unterdruecken von Klammernoten fuer den Exportfall; Tests wurden in `tests/test_documentation_usecases.py` um die neuen Modusfaelle ergaenzt.
