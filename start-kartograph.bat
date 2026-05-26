@@ -12,10 +12,6 @@ if not exist "%ENTRY%" (
 	exit /b 1
 )
 
-for /f "usebackq delims=" %%P in (`powershell -NoProfile -Command "$entry=[IO.Path]::GetFullPath('%ENTRY%'); Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'pythonw.exe' -and $_.CommandLine -like ('*' + $entry + '*') } | Select-Object -ExpandProperty ProcessId"`) do (
-	taskkill /PID %%P /F >nul 2>nul
-)
-
 if exist "%LOCAL_VENV_PYW%" (
 	start "" "%LOCAL_VENV_PYW%" "%ENTRY%"
 ) else if exist "%ROOT_VENV_PYW%" (
