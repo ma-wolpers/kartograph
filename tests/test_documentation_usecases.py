@@ -70,6 +70,28 @@ def test_grade_display_partial_data_in_parentheses() -> None:
     assert display == "(2)"
 
 
+def test_grade_display_partial_data_hidden_when_provisional_disabled() -> None:
+    plan = _base_plan()
+    plan, written_col = add_grade_column(plan, "schriftlich", "KA 1")
+    plan = set_documentation_grade(plan, 1, 1, written_col, 2.4, "2026-05-01")
+
+    display = compute_grade_display_for_student(plan, 1, 1, allow_provisional=False)
+
+    assert display == ""
+
+
+def test_grade_display_complete_data_still_visible_when_provisional_disabled() -> None:
+    plan = _base_plan()
+    plan, written_col = add_grade_column(plan, "schriftlich", "KA 1")
+    plan, oral_col = add_grade_column(plan, "sonstig", "Mitarbeit")
+    plan = set_documentation_grade(plan, 1, 1, written_col, 2.4, "2026-05-01")
+    plan = set_documentation_grade(plan, 1, 1, oral_col, 3.6, "2026-05-01")
+
+    display = compute_grade_display_for_student(plan, 1, 1, allow_provisional=False)
+
+    assert display == "3.00"
+
+
 def test_documentation_symbols_ignore_unnamed_student_desks() -> None:
     plan = SeatingPlan(
         version=3,

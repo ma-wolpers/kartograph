@@ -18,6 +18,9 @@ Regel:
 - Neue Tests `tests/test_hsm_contract.py` fuer Intent-Contract, Transition-Gates und Escape-Prioritaetskette.
 
 ### Changed
+- PDF-Exportfunktion erweitert: `app/adapters/gui/main_window.py` bietet jetzt Exportoptionen fuer Notenmodus (`none`/`final_only`/`include_provisional`), Symbolfilter auf im Plan vorhandene Symbole (default alle), optionale Farbpunkte und optionale Legenden-Seite.
+- `app/infrastructure/exporters/pdf_exporter.py` rendert Exportoptionen jetzt explizit: Noten je nach Modus, Symbolauswahl mit Filter, optionale Farbpunkte sowie optionale zweite Legenden-Seite (Symbole/Farbpunkte nur fuer tatsaechlich exportierte Inhalte).
+- Notenanzeige-Usecase erweitert: `compute_grade_display_for_student(..., allow_provisional=...)` erlaubt jetzt das Unterdruecken von Klammernoten fuer den Exportfall; Tests wurden in `tests/test_documentation_usecases.py` um die neuen Modusfaelle ergaenzt.
 - Allgemeiner Soft-Guardrail fuer Shortcut-Abdeckung ergaenzt: `tools/ci/check_ai_guardrails.py` meldet lokal (non-blocking) Warnungen, wenn konfigurierte Kern-Intents (u. a. New/Rename/Duplicate/Undo/Redo/Copy/Cut/Paste/Escape/Settings/Debug) ohne passenden Keyboard-Binding-Marker in den Main-Window-Shortcutbindungen gefunden werden.
 - Bugfix: `KartographMainWindow` liefert jetzt den echten Tk-Window-Pfad ueber `__str__`, damit Overlay-/Export-Popups (insb. PDF-Export) mit gueltigem Parent erstellt werden und nicht leer bleiben.
 - Phase-I-Decommission abgeschlossen: die zentralen UI-Contract-Bridges (`bw_libs/ui_contract/keybinding.py`, `bw_libs/ui_contract/popup.py`, `bw_libs/ui_contract/hsm.py`, `bw_libs/ui_contract/laufkern.py`) wurden auf schlanke Shared-Re-Exports reduziert; tote lokale Duplikat-Implementierungen sind entfernt.

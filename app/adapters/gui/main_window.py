@@ -303,7 +303,7 @@ class KartographMainWindow(TkRootHost):
             self._settings.get("grid_visible_symbols"),
             self.symbol_catalog,
         )
-        self.pdf_exporter = PdfSeatingPlanExporter(self.symbol_definitions)
+        self.pdf_exporter = PdfSeatingPlanExporter(self.symbol_definitions, color_palette=self.color_palette)
         if warning:
             self.status_var.set(warning)
 
@@ -2412,6 +2412,34 @@ class KartographMainWindow(TkRootHost):
         save_button = tui.Button(button_row, text="Speichern", command=apply_filter)
         save_button.pack(side="right")
         self._attach_hover_help(save_button, label="Sichtbarkeitsauswahl speichern", shortcut="Enter")
+
+    def _collect_export_symbols(self, plan: SeatingPlan) -> list[str]:
+        seen: set[str] = set()
+
+        for desk in plan.desks:
+            if desk.desk_type != "student":
+                continue
+
+            summary = summarize_latest_symbols_for_student(plan, desk.x, desk.y)
+            source = summary if summary else desk.symbols
+            for symbol_name, raw_count in source.items():
+                try:
+                    count = int(raw_count)
+                except (TypeError, ValueError):
+                    continue
+                if count > 0:
+                    seen.add(str(symbol_name))
+
+        ordered: list[str] = []
+        for symbol_name in self.symbol_catalog:
+            if symbol_name in seen:
+                ordered.append(symbol_name)
+
+        for symbol_name in sorted(seen, key=lambda item: item.lower()):
+            if symbol_name not in ordered:
+                ordered.append(symbol_name)
+
+        return ordered
 
     def _latest_grade_value_for_column(self, x: int, y: int, column_id: str) -> str:
         if not self.current_plan:
@@ -4754,26 +4782,103 @@ class KartographMainWindow(TkRootHost):
             self.status_var.set("Kein Plan geöffnet")
             return
 
-        dialog = self._create_overlay_dialog("PDF exportieren", "420x190")
+        dialog = self._create_overlay_dialog("PDF exportieren", "520x680")
+
+        container = tui.Frame(dialog)
+        container.pack(fill="both", expand=True, padx=12, pady=12)
 
         mode_var = ui.StringVar(value="teacher_bottom")
-        tui.Label(dialog, text="Ansicht wählen").pack(anchor="w", padx=12, pady=(12, 6))
+        grade_mode_var = ui.StringVar(value="none")
+        include_color_markers_var = ui.BooleanVar(value=False)
+        include_legend_var = ui.BooleanVar(value=False)
+        available_symbols = self._collect_export_symbols(self.current_plan)
+        symbol_vars: dict[str, ui.BooleanVar] = {}
+
+        tui.Label(container, text="Ansicht wählen").pack(anchor="w", pady=(0, 6))
         first_mode_button = tui.Radiobutton(
-            dialog,
+            container,
             text="Lehrertisch unten (Standard)",
             value="teacher_bottom",
             variable=mode_var,
         )
-        first_mode_button.pack(anchor="w", padx=12)
+        first_mode_button.pack(anchor="w")
         tui.Radiobutton(
-            dialog,
+            container,
             text="Lehrertisch oben (180° Perspektive)",
             value="teacher_top",
             variable=mode_var,
-        ).pack(anchor="w", padx=12, pady=(4, 0))
+        ).pack(anchor="w", pady=(4, 10))
+
+        tui.Label(container, text="Noten").pack(anchor="w", pady=(0, 6))
+        tui.Radiobutton(
+            container,
+            text="Keine Noten (Standard)",
+            value="none",
+            variable=grade_mode_var,
+        ).pack(anchor="w")
+        tui.Radiobutton(
+            container,
+            text="Nur fertige Gesamtnote",
+            value="final_only",
+            variable=grade_mode_var,
+        ).pack(anchor="w", pady=(4, 0))
+        tui.Radiobutton(
+            container,
+            text="Gesamtnote inkl. Klammernoten",
+            value="include_provisional",
+            variable=grade_mode_var,
+        ).pack(anchor="w", pady=(4, 10))
+
+        tui.Label(container, text="Symbole (nur im Plan vorhandene)").pack(anchor="w", pady=(0, 6))
+        symbols_frame = tui.Frame(container)
+        symbols_frame.pack(fill="x")
+        if available_symbols:
+            for symbol_name in available_symbols:
+                var = ui.BooleanVar(value=True)
+                symbol_vars[symbol_name] = var
+                tui.Checkbutton(symbols_frame, text=symbol_name, variable=var).pack(anchor="w", pady=(0, 2))
+
+            symbol_button_row = tui.Frame(container)
+            symbol_button_row.pack(fill="x", pady=(4, 8))
+
+            all_symbols_button = tui.Button(
+                symbol_button_row,
+                text="Alle Symbole",
+                command=lambda: [var.set(True) for var in symbol_vars.values()],
+            )
+            all_symbols_button.pack(side="left")
+            self._attach_hover_help(all_symbols_button, label="Alle verfuegbaren Symbole fuer Export aktivieren", shortcut=None)
+
+            no_symbols_button = tui.Button(
+                symbol_button_row,
+                text="Keine Symbole",
+                command=lambda: [var.set(False) for var in symbol_vars.values()],
+            )
+            no_symbols_button.pack(side="left", padx=(6, 0))
+            self._attach_hover_help(no_symbols_button, label="Alle Symbolauswahlen deaktivieren", shortcut=None)
+        else:
+            tui.Label(symbols_frame, text="Im Plan sind aktuell keine Symbole vorhanden.").pack(anchor="w", pady=(0, 8))
+
+        tui.Checkbutton(
+            container,
+            text="Farbige Punkte mit exportieren",
+            variable=include_color_markers_var,
+        ).pack(anchor="w", pady=(0, 6))
+        tui.Checkbutton(
+            container,
+            text="Legende auf weiterer Seite exportieren",
+            variable=include_legend_var,
+        ).pack(anchor="w", pady=(0, 6))
+
         self._focus_overlay_widget(dialog, first_mode_button)
 
         def do_export() -> None:
+            selected_symbols = {
+                symbol_name
+                for symbol_name, var in symbol_vars.items()
+                if var.get()
+            }
+
             output = filedialog.asksaveasfilename(
                 parent=dialog,
                 defaultextension=".pdf",
@@ -4784,14 +4889,22 @@ class KartographMainWindow(TkRootHost):
                 return
 
             try:
-                self.pdf_exporter.export_plan(self.current_plan, Path(output), mode_var.get())
+                self.pdf_exporter.export_plan(
+                    self.current_plan,
+                    Path(output),
+                    mode_var.get(),
+                    grade_mode=grade_mode_var.get(),
+                    visible_symbols=selected_symbols,
+                    include_color_markers=include_color_markers_var.get(),
+                    include_legend_page=include_legend_var.get(),
+                )
                 self.status_var.set(f"PDF exportiert: {Path(output).name}")
                 dialog.destroy()
             except Exception as exc:
                 messagebox.showerror("PDF-Export fehlgeschlagen", str(exc), parent=dialog)
 
-        button_row = tui.Frame(dialog)
-        button_row.pack(fill="x", padx=12, pady=(12, 12))
+        button_row = tui.Frame(container)
+        button_row.pack(fill="x", pady=(12, 0))
         cancel_button = tui.Button(button_row, text="Abbrechen", command=dialog.destroy)
         cancel_button.pack(side="right")
         self._attach_hover_help(cancel_button, label="Exportdialog ohne Datei schliessen", shortcut="Esc")
