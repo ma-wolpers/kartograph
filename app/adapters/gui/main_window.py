@@ -280,6 +280,7 @@ class KartographMainWindow(TkRootHost):
         self._doc_date_column_ids: list[str] = []
         self._doc_fixed_column_ids: list[str] = []
         self._doc_selected_fixed_column_id: str | None = None
+        self._docs_splitter_positioned: bool = False
         self._docs_inline_editor: tui.Entry | None = None
         self._docs_inline_editor_tree: tui.Treeview | None = None
         self._docs_inline_editor_row_id: str | None = None
@@ -990,7 +991,7 @@ class KartographMainWindow(TkRootHost):
         self.docs_right_tree.bind("<MouseWheel>", lambda _event: self.after_idle(self._update_docs_cell_highlight))
         self.docs_right_tree.bind("<Shift-MouseWheel>", self._on_docs_shift_mouse_wheel)
         self.docs_right_tree.bind("<FocusIn>", lambda _event: self._sync_docs_x_scrollbar(self.docs_right_tree), add="+")
-        self.after_idle(self._position_docs_splitter_initial)
+        self.docs_splitter.bind("<Configure>", lambda _event: self._position_docs_splitter_initial(), add="+")
 
         self.canvas.bind("<Button-1>", self._on_canvas_click)
         self.canvas.bind("<B1-Motion>", self._on_canvas_drag)
@@ -3804,19 +3805,21 @@ class KartographMainWindow(TkRootHost):
         self.docs_right_tree.yview(*args)
 
     def _position_docs_splitter_initial(self) -> None:
+        if self._docs_splitter_positioned:
+            return
         if not hasattr(self, "docs_splitter"):
             return
         if not self.docs_splitter.winfo_exists():
             return
         total_width = self.docs_splitter.winfo_width()
         if total_width <= 1:
-            self.after_idle(self._position_docs_splitter_initial)
             return
         left_width = max(320, min(total_width - 240, int(total_width * 0.68)))
         try:
             self.docs_splitter.sash_place(0, left_width, 0)
         except Exception:
             return
+        self._docs_splitter_positioned = True
 
     def _docs_horizontal_scroll_target(self) -> tui.Treeview:
         if self.focus_get() == self.docs_right_tree:
