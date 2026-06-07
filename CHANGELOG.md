@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Fixed
+- Die Legenden-Seite im PDF-Export nutzt jetzt pro Kompetenzblock getrennte Tabellen mit eigener Header-Zeile, automatischem Zeilenumbruch und kompakterer Tabellenbreite, statt einer flachen Einzeilenliste ohne sauberes Wrapping.
 - PDF export popup no longer opens as an empty window: overlay dialogs now resolve the main-window parent to a valid Tk path when running through `TkRootHost`, so export controls render and respond again.
 - `start-kartograph.bat` bevorzugt jetzt die lokale Projektumgebung (`kartograph/.venv`) vor der uebergeordneten `tools4school/.venv`, damit Kartograph konsistent mit den erwarteten Abhaengigkeiten startet.
 - Beim Start ohne sichtbares Fenster blockiert Kartograph nicht mehr im Hintergrund: die initiale Splitter-Positionierung der Doku-Ansicht wurde auf eine einmalige Configure-Initialisierung umgestellt und erzeugt keine Idle-Endlosschleife mehr.

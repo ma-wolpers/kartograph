@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from pathlib import Path
 from typing import Literal
+from xml.sax.saxutils import escape as xml_escape
 
 from app.core.domain.models import SeatingPlan
 from app.core.domain.table_groups import build_desk_geometries, normalize_tablegroups_in_place
@@ -161,6 +162,135 @@ class PdfSeatingPlanExporter:
 
         return keys
 
+    def _legend_symbol_tables(self, used_symbol_levels: dict[str, set[int]]) -> list[tuple[str, list[tuple[str, str]]]]:
+        tables: list[tuple[str, list[tuple[str, str]]]] = []
+
+        for meaning in self._legend_symbol_keys(used_symbol_levels):
+            counts = sorted(used_symbol_levels.get(meaning, set()), reverse=True)
+            if not counts:
+                continue
+
+            definition = self._symbols_by_meaning.get(meaning)
+            rows: list[tuple[str, str]] = []
+            for count in counts:
+                token = self._symbol_token(meaning, count)
+                if definition is None:
+                    legend_text = meaning
+                else:
+                    legend_text = definition.legend_for_count(count)
+                rows.append((token, legend_text))
+
+            tables.append((meaning, rows))
+
+        return tables
+
+    def _legend_color_rows(self, plan: SeatingPlan, used_colors: set[str]) -> list[tuple[str, str, str]]:
+        rows: list[tuple[str, str, str]] = []
+        for color_key in self._ordered_color_keys(list(used_colors)):
+            meaning = str(plan.color_meanings.get(color_key) or "").strip()
+            if not meaning:
+                continue
+            label, hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+            rows.append((label, hex_color, meaning))
+        return rows
+
+    def _draw_wrapped_legend_table(
+        self,
+        c,
+        colors,
+        page_w: float,
+        page_h: float,
+        y_start: float,
+        title: str,
+        rows: list[tuple[str, str]],
+        *,
+        token_is_markup: bool = False,
+    ) -> float:
+        from reportlab.lib.enums import TA_LEFT
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import Paragraph, Table, TableStyle
+
+        margin = 36.0
+        available_w = min(page_w - 2 * margin, page_w * 0.78)
+        token_col_w = min(92.0, max(74.0, available_w * 0.16))
+        text_col_w = available_w - token_col_w
+
+        header_style = ParagraphStyle(
+            "LegendHeader",
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            leading=12,
+            alignment=TA_LEFT,
+            wordWrap="CJK",
+        )
+        token_font_name = "Helvetica" if token_is_markup else self._symbol_font_name
+        token_style = ParagraphStyle(
+            "LegendToken",
+            fontName=token_font_name,
+            fontSize=10,
+            leading=12,
+            alignment=TA_LEFT,
+            wordWrap="CJK",
+        )
+        text_style = ParagraphStyle(
+            "LegendText",
+            fontName="Helvetica",
+            fontSize=9,
+            leading=12,
+            alignment=TA_LEFT,
+            wordWrap="CJK",
+        )
+
+        data = [[Paragraph("", header_style), Paragraph(xml_escape(title), header_style)]]
+        for token, text in rows:
+            token_cell = token if token_is_markup else xml_escape(token)
+            data.append(
+                [
+                    Paragraph(token_cell, token_style),
+                    Paragraph(xml_escape(text), text_style),
+                ]
+            )
+
+        table = Table(data, colWidths=[token_col_w, text_col_w], repeatRows=1, hAlign="LEFT")
+        table.setStyle(
+            TableStyle(
+                [
+                    ("GRID", (0, 0), (-1, -1), 0.75, colors.black),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F2F2F2")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ]
+            )
+        )
+
+        y = y_start
+        pieces = table.split(available_w, max(10.0, y - margin))
+        if not pieces:
+            c.showPage()
+            y = page_h - margin
+            pieces = table.split(available_w, max(10.0, y - margin))
+            if not pieces:
+                return y
+
+        for index, piece in enumerate(pieces):
+            piece_width, piece_height = piece.wrap(available_w, max(10.0, y - margin))
+            if piece_height > y - margin:
+                c.showPage()
+                y = page_h - margin
+                piece_width, piece_height = piece.wrap(available_w, max(10.0, y - margin))
+            piece.drawOn(c, margin, y - piece_height)
+            y -= piece_height
+
+            if index < len(pieces) - 1:
+                c.showPage()
+                y = page_h - margin
+
+        return y - 12.0
+
     def _draw_legend_page(
         self,
         c,
@@ -176,89 +306,39 @@ class PdfSeatingPlanExporter:
 
         margin = 36.0
         y = page_h - margin
-        c.setFillColor(colors.black)
-        c.setFont("Helvetica-Bold", 13)
-        c.drawString(margin, y, f"Legende: {plan.name}")
-        y -= 24.0
+        has_content = False
 
-        has_any_content = False
-
-        symbol_keys = self._legend_symbol_keys(used_symbol_levels)
-        if symbol_keys:
-            has_any_content = True
-            c.setFont("Helvetica-Bold", 11)
-            c.drawString(margin, y, "Symbole")
-            y -= 18.0
-
-            for meaning in symbol_keys:
-                counts = sorted(used_symbol_levels.get(meaning, set()))
-                definition = self._symbols_by_meaning.get(meaning)
-                for count in counts:
-                    if y <= margin + 14:
-                        c.showPage()
-                        y = page_h - margin
-                        c.setFillColor(colors.black)
-                        c.setFont("Helvetica-Bold", 11)
-                        c.drawString(margin, y, "Symbole (Fortsetzung)")
-                        y -= 18.0
-
-                    token = self._symbol_token(meaning, count)
-                    if definition is None:
-                        legend_text = meaning
-                    else:
-                        legend_text = definition.legend_for_count(count)
-
-                    c.setFillColor(colors.black)
-                    c.setFont(self._symbol_font_name, 10)
-                    c.drawString(margin + 12, y, f"{token} {legend_text}".strip())
-                    y -= 14.0
-
-            y -= 8.0
+        symbol_tables = self._legend_symbol_tables(used_symbol_levels)
+        for title, rows in symbol_tables:
+            y = self._draw_wrapped_legend_table(c, colors, page_w, page_h, y, title, rows)
+            has_content = True
 
         if include_color_markers and used_colors:
-            color_keys = self._ordered_color_keys(list(used_colors))
-            color_lines: list[tuple[str, str, str]] = []
-            for color_key in color_keys:
-                meaning = str(plan.color_meanings.get(color_key) or "").strip()
-                if not meaning:
-                    continue
-                label, hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
-                color_lines.append((label, hex_color, meaning))
-
-            if color_lines:
-                has_any_content = True
-                if y <= margin + 20:
-                    c.showPage()
-                    y = page_h - margin
-                    c.setFillColor(colors.black)
-
-                c.setFont("Helvetica-Bold", 11)
-                c.drawString(margin, y, "Farbpunkte")
-                y -= 18.0
-
-                for label, hex_color, meaning in color_lines:
-                    if y <= margin + 14:
-                        c.showPage()
-                        y = page_h - margin
-                        c.setFillColor(colors.black)
-                        c.setFont("Helvetica-Bold", 11)
-                        c.drawString(margin, y, "Farbpunkte (Fortsetzung)")
-                        y -= 18.0
-
+            color_rows = self._legend_color_rows(plan, used_colors)
+            if color_rows:
+                table_rows: list[tuple[str, str]] = []
+                for label, hex_color, meaning in color_rows:
                     try:
-                        fill_color = colors.HexColor(hex_color)
+                        colors.HexColor(hex_color)
+                        safe_hex = hex_color
                     except Exception:
-                        fill_color = colors.HexColor("#999999")
-                    c.setFillColor(fill_color)
-                    c.setStrokeColor(colors.black)
-                    c.circle(margin + 5, y + 3, 3.2, stroke=1, fill=1)
+                        safe_hex = "#999999"
+                    token_markup = f"<font color='{safe_hex}'>&#9679;</font> {xml_escape(label)}"
+                    table_rows.append((token_markup, meaning))
 
-                    c.setFillColor(colors.black)
-                    c.setFont("Helvetica", 10)
-                    c.drawString(margin + 14, y, f"{label}: {meaning}")
-                    y -= 14.0
+                y = self._draw_wrapped_legend_table(
+                    c,
+                    colors,
+                    page_w,
+                    page_h,
+                    y,
+                    "Farbpunkte",
+                    table_rows,
+                    token_is_markup=True,
+                )
+                has_content = True
 
-        if not has_any_content:
+        if not has_content:
             c.setFillColor(colors.black)
             c.setFont("Helvetica", 10)
             c.drawString(margin, y, "Keine Legendeninhalte fuer die gewaehlte Exportauswahl vorhanden.")
