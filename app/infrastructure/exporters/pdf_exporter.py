@@ -210,7 +210,7 @@ class PdfSeatingPlanExporter:
         from reportlab.lib.styles import ParagraphStyle
         from reportlab.platypus import Paragraph, Table, TableStyle
 
-        margin = 36.0
+        margin = 50.0
         available_w = min(page_w - 2 * margin, page_w * 0.78)
         token_col_w = min(92.0, max(74.0, available_w * 0.16))
         text_col_w = available_w - token_col_w
