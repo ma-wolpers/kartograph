@@ -72,12 +72,12 @@
     },
     {
       "codepoint": "002B",
-      "meaning": "Fachkompetenz",
+      "meaning": "Mathem. Fachkompetenz",
       "shortcut": "f",
       "legend": {
-        "three": "erfüllt die fachlichen Anforderungen (Kompetenzen, Fertigkeiten, Wortschatz, Fachsprache o.ä.)",
-        "two": "hat einige Defizite/Lücken (Wortschatz, Fachsprache, Kenntnisse, Fertigkeiten, Kompetenzen)",
-        "one": "hat auffällige Defizite und Schwächen (Kompetenzen, Fertigkeiten, Wortschatz, Kenntnisse o.ä.) "
+        "three": "erfüllt die fachlichen Anforderungen sicher und selbstständig. Rechenwege werden korrekt, strukturiert und nachvollziehbar dargestellt. Fachbegriffe und mathematische Darstellungen werden passend und präzise eingesetzt, auch bei komplexeren Aufgaben.",
+        "two": "erfüllt die fachlichen Anforderungen größtenteils. Rechenwege sind überwiegend korrekt und nachvollziehbar, teils mit Unterstützung (z. B. durch Hinweise, Beispiele oder Strukturierungshilfen). Fachbegriffe und Darstellungen werden im Wesentlichen passend verwendet.",
+        "one": "erfüllt die fachlichen Anforderungen in Ansätzen. Mit gezielter Unterstützung (z. B. durch Schritt-für-Schritt-Anleitungen, Beispiele oder gemeinsame Strukturierung) können grundlegende Rechenwege korrekt umgesetzt werden. Fachbegriffe und Darstellungen werden teilweise passend eingesetzt."
       }
     },
     {
