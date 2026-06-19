@@ -69,6 +69,7 @@ from app.core.usecases.plan_usecases import (
     summarize_latest_symbols_for_student,
     toggle_color_marker,
     toggle_symbol,
+    update_student_last_name,
     update_student_name,
 )
 from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
@@ -235,6 +236,7 @@ class KartographMainWindow(TkRootHost):
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
 
         self._name_var = ui.StringVar(value="")
+        self._last_name_var = ui.StringVar(value="")
         self._selected_marker_var = ui.StringVar(value="")
         self._doc_selection_status_var = ui.StringVar(value="Doku-Zelle: -")
         self.status_var = ui.StringVar(value="Bereit")
@@ -280,6 +282,8 @@ class KartographMainWindow(TkRootHost):
         self._doc_date_column_ids: list[str] = []
         self._doc_fixed_column_ids: list[str] = []
         self._doc_selected_fixed_column_id: str | None = None
+        self._doc_sort_column: str | None = None
+        self._doc_sort_ascending: bool = True
         self._docs_splitter_positioned: bool = False
         self._docs_inline_editor: tui.Entry | None = None
         self._docs_inline_editor_tree: tui.Treeview | None = None
@@ -832,20 +836,33 @@ class KartographMainWindow(TkRootHost):
         tui.Label(self.details_header, textvariable=self.status_var, style="Panel.TLabel").pack(side="left")
         tui.Label(self.details_header, textvariable=self._selected_marker_var, style="Panel.TLabel").pack(side="right")
 
+        self._symbol_shortcuts_bar = tui.Frame(self.details_container, style="Panel.TFrame")
+        self._symbol_shortcuts_bar.pack(fill="x", padx=12, pady=(3, 2))
+        self._build_symbol_shortcuts_bar()
+
         self.details_frame = tui.Frame(self.details_container)
         self.details_frame.pack(fill="x", padx=12, pady=(4, 12))
 
         self.details_form = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.details_form.pack(fill="x", pady=(4, 0))
 
-        tui.Label(self.details_form, text="Name", style="Panel.TLabel").pack(side="left")
-        self.name_entry = tui.Entry(self.details_form, textvariable=self._name_var, width=40)
+        tui.Label(self.details_form, text="Vorname", style="Panel.TLabel").pack(side="left")
+        self.name_entry = tui.Entry(self.details_form, textvariable=self._name_var, width=20)
         self.name_entry.pack(side="left", padx=(8, 16))
         self.name_entry.bind("<KeyRelease>", lambda _event: self._on_name_changed())
         self.name_entry.bind("<Escape>", self._on_name_entry_escape)
         self.name_entry.bind("<Return>", self._on_name_entry_return)
         self.name_entry.bind("<FocusIn>", self._on_name_entry_focus_in)
         self.name_entry.bind("<FocusOut>", self._on_name_entry_focus_out)
+
+        tui.Label(self.details_form, text="Nachname", style="Panel.TLabel").pack(side="left")
+        self.last_name_entry = tui.Entry(self.details_form, textvariable=self._last_name_var, width=20)
+        self.last_name_entry.pack(side="left", padx=(8, 0))
+        self.last_name_entry.bind("<KeyRelease>", lambda _event: self._on_last_name_changed())
+        self.last_name_entry.bind("<Escape>", self._on_name_entry_escape)
+        self.last_name_entry.bind("<Return>", self._on_name_entry_return)
+        self.last_name_entry.bind("<FocusIn>", self._on_name_entry_focus_in)
+        self.last_name_entry.bind("<FocusOut>", self._on_name_entry_focus_out)
 
         self.symbols_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.symbols_frame.pack(fill="x", pady=(6, 0))
@@ -1729,7 +1746,8 @@ class KartographMainWindow(TkRootHost):
             self.interaction_mode = GRID_SELECTED
 
     def _is_name_entry_focused(self) -> bool:
-        return self.focus_get() == self.name_entry
+        focus = self.focus_get()
+        return focus == self.name_entry or focus == self.last_name_entry
 
     def _is_text_input_focused(self) -> bool:
         focused_widget = self.focus_get()
@@ -2491,11 +2509,20 @@ class KartographMainWindow(TkRootHost):
     def _apply_doc_column_heading_highlight(self) -> None:
         if not hasattr(self, "docs_tree"):
             return
+        sort_arrow = "▲ " if self._doc_sort_ascending else "▼ "
+
+        name_title = "Schüler:in"
+        if self._doc_sort_column == "name":
+            name_title = f"{sort_arrow}{name_title}"
+        self.docs_tree.heading("#0", text=name_title)
+
         for idx, date_key in enumerate(self._doc_dates):
             col_id = self._doc_date_column_ids[idx]
             title = date_key
             if idx == self._doc_selected_date_index and not self._doc_selected_fixed_column_id:
-                title = f"> {date_key}"
+                title = f"> {title}"
+            if self._doc_sort_column == col_id:
+                title = f"{sort_arrow}{title}"
             self.docs_tree.heading(col_id, text=title)
         if hasattr(self, "docs_right_tree") and hasattr(self, "_doc_fixed_column_ids"):
             for idx, fixed_col_id in enumerate(self._doc_fixed_column_ids):
@@ -2505,8 +2532,71 @@ class KartographMainWindow(TkRootHost):
                     label = f"> {base_label}"
                 else:
                     label = base_label
+                if self._doc_sort_column == col_id:
+                    label = f"{sort_arrow}{label}"
                 self.docs_right_tree.heading(col_id, text=label)
         self._refresh_doc_selection_status()
+
+    def _sort_docs_table_by_column(self, col_id: str, *, source: str) -> None:
+        """Toggle sort direction for the clicked column and re-sort both trees."""
+        if source == "main":
+            if col_id == "#0":
+                sort_key = "name"
+            else:
+                try:
+                    col_index = int(col_id[1:]) - 1
+                except (ValueError, TypeError):
+                    return
+                if not (0 <= col_index < len(self._doc_date_column_ids)):
+                    return
+                sort_key = self._doc_date_column_ids[col_index]
+        else:
+            try:
+                col_index = int(col_id[1:]) - 1
+            except (ValueError, TypeError):
+                return
+            if not (0 <= col_index < len(self._doc_fixed_column_ids)):
+                return
+            sort_key = self._doc_fixed_column_ids[col_index]
+
+        if self._doc_sort_column == sort_key:
+            self._doc_sort_ascending = not self._doc_sort_ascending
+        else:
+            self._doc_sort_column = sort_key
+            self._doc_sort_ascending = True
+
+        self._apply_doc_sort_order()
+        self._apply_doc_column_heading_highlight()
+
+    def _apply_doc_sort_order(self) -> None:
+        """Re-order both treeview rows according to the current sort state."""
+        if self._doc_sort_column is None:
+            return
+        sort_key = self._doc_sort_column
+        iids = list(self.docs_tree.get_children(""))
+
+        def get_sort_value(iid: str):
+            if sort_key == "name":
+                return (self.docs_tree.item(iid, "text").lower(),)
+            if sort_key in self._doc_date_column_ids:
+                idx = self._doc_date_column_ids.index(sort_key)
+                values = self.docs_tree.item(iid, "values")
+                raw = str(values[idx]) if values and idx < len(values) else ""
+                return (raw,)
+            if sort_key in self._doc_fixed_column_ids:
+                idx = self._doc_fixed_column_ids.index(sort_key)
+                values = self.docs_right_tree.item(iid, "values")
+                raw = str(values[idx]) if values and idx < len(values) else ""
+                try:
+                    return (0, float(raw))
+                except (ValueError, TypeError):
+                    return (1, raw.lower())
+            return ("",)
+
+        sorted_iids = sorted(iids, key=get_sort_value, reverse=not self._doc_sort_ascending)
+        for i, iid in enumerate(sorted_iids):
+            self.docs_tree.move(iid, "", i)
+            self.docs_right_tree.move(iid, "", i)
 
     def _update_docs_cell_highlight(self) -> None:
         """Place a visible overlay label on the currently active docs cell."""
@@ -2583,7 +2673,9 @@ class KartographMainWindow(TkRootHost):
         desk = self.current_plan.desk_at(x, y)
         name = ""
         if desk is not None and desk.is_named_student():
-            name = desk.student_name.strip()
+            first = desk.student_name.strip()
+            last = (desk.student_last_name or "").strip()
+            name = f"{last}, {first}" if last else first
         display_name = name or f"({x},{y})"
         if self._doc_selected_fixed_column_id:
             label = self._doc_fixed_column_label(self._doc_selected_fixed_column_id)
@@ -2795,7 +2887,10 @@ class KartographMainWindow(TkRootHost):
             fixed_values.append(compute_grade_display_for_student(self.current_plan, x, y))
 
             iid = f"student_{student_idx}"
-            self.docs_tree.insert("", "end", iid=iid, text=desk.student_name or f"({x},{y})", values=date_values)
+            _first_n = desk.student_name.strip()
+            _last_n = (desk.student_last_name or "").strip()
+            _doc_label = f"{_last_n}, {_first_n}" if _last_n else (_first_n or f"({x},{y})")
+            self.docs_tree.insert("", "end", iid=iid, text=_doc_label, values=date_values)
             self.docs_right_tree.insert("", "end", iid=iid, values=fixed_values)
             self._doc_tree_iid_by_student_index[student_idx] = iid
             self._doc_student_index_by_iid[iid] = student_idx
@@ -2814,6 +2909,7 @@ class KartographMainWindow(TkRootHost):
             self._doc_selected_fixed_column_id = None
 
         self._apply_doc_column_heading_highlight()
+        self._apply_doc_sort_order()
         self._refresh_doc_selection_status()
         elapsed = time.perf_counter() - started
         if elapsed >= 0.2:
@@ -2825,6 +2921,9 @@ class KartographMainWindow(TkRootHost):
             )
 
     def _on_docs_tree_click(self, event) -> None:
+        if self.docs_tree.identify_region(event.x, event.y) == "heading":
+            self._sort_docs_table_by_column(self.docs_tree.identify_column(event.x), source="main")
+            return
         row_id = self.docs_tree.identify_row(event.y)
         if row_id:
             self._set_docs_row_selection(row_id, source="main")
@@ -2895,6 +2994,9 @@ class KartographMainWindow(TkRootHost):
         self._preserve_docs_column_selection_after_keypress()
 
     def _on_docs_right_tree_click(self, event) -> None:
+        if self.docs_right_tree.identify_region(event.x, event.y) == "heading":
+            self._sort_docs_table_by_column(self.docs_right_tree.identify_column(event.x), source="right")
+            return
         row_id = self.docs_right_tree.identify_row(event.y)
         if row_id:
             self._set_docs_row_selection(row_id, source="right")
@@ -2991,12 +3093,21 @@ class KartographMainWindow(TkRootHost):
         fixed_column_id = self._doc_selected_fixed_column_id
         date_index = self._doc_selected_date_index
 
-        max_index = len(self._doc_student_coords) - 1
-        current_index = max(0, min(self._doc_selected_student_index, max_index))
-        next_index = max(0, min(current_index + delta, max_index))
-        row_id = self._doc_tree_iid_by_student_index.get(next_index)
-        if not row_id:
+        # Navigate by visual order so sorting is respected.
+        all_iids = list(self.docs_tree.get_children(""))
+        if not all_iids:
             return "break"
+
+        current_iid = self._doc_tree_iid_by_student_index.get(
+            max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+        )
+        try:
+            visual_pos = all_iids.index(current_iid) if current_iid in all_iids else 0
+        except ValueError:
+            visual_pos = 0
+
+        next_pos = max(0, min(visual_pos + delta, len(all_iids) - 1))
+        row_id = all_iids[next_pos]
 
         self._set_docs_row_selection(row_id)
         if source == "right":
@@ -3896,7 +4007,7 @@ class KartographMainWindow(TkRootHost):
         self.interaction_mode = GRID_SELECTED
         self.canvas.focus_set()
         self.redraw_grid()
-        self._refresh_details_panel()
+        self._update_selection_no_open()
 
     def _on_canvas_drag(self, event) -> None:
         if not self._drag_active:
@@ -3904,7 +4015,7 @@ class KartographMainWindow(TkRootHost):
         x, y = self._event_to_cell(event)
         self._set_selection_focus(x, y)
         self.redraw_grid()
-        self._refresh_details_panel()
+        self._update_selection_no_open()
 
     def _on_canvas_release(self, event) -> None:
         if not self._drag_active:
@@ -3913,7 +4024,58 @@ class KartographMainWindow(TkRootHost):
         x, y = self._event_to_cell(event)
         self._set_selection_focus(x, y)
         self.redraw_grid()
-        self._refresh_details_panel()
+        self._update_selection_no_open()
+
+    def _update_selection_no_open(self) -> None:
+        """Update selection marker without opening the details panel.
+
+        - Empty cell or multi-selection → auto-close details.
+        - Desk cell with details already open → refresh content.
+        - Desk cell with details closed → leave closed.
+        """
+        if not self.current_plan:
+            self._set_details_panel_visible(False)
+            self._selected_marker_var.set("")
+            self._name_var.set("")
+            self._last_name_var.set("")
+            self.name_entry.configure(state="disabled")
+            self.last_name_entry.configure(state="disabled")
+            self._refresh_tablegroup_overlay()
+            return
+
+        x, y = self.selection.active_cell()
+        min_x, min_y, max_x, max_y = self.selection.bounds()
+
+        if not self.selection.is_single():
+            count = (max_x - min_x + 1) * (max_y - min_y + 1)
+            self._selected_marker_var.set(f"Bereich: ({min_x}, {min_y}) bis ({max_x}, {max_y}) | {count} Zellen")
+            self._set_details_panel_visible(False)
+            self._name_var.set("")
+            self._last_name_var.set("")
+            self.name_entry.configure(state="disabled")
+            self.last_name_entry.configure(state="disabled")
+            if self.interaction_mode == NAME_EDITING:
+                self.interaction_mode = GRID_SELECTED
+                self.canvas.focus_set()
+            self._refresh_tablegroup_overlay()
+            return
+
+        self._selected_marker_var.set(f"Markierung: ({x}, {y})")
+        desk = self.current_plan.desk_at(x, y)
+
+        if not desk:
+            self._set_details_panel_visible(False)
+            self._name_var.set("")
+            self._last_name_var.set("")
+            self.name_entry.configure(state="disabled")
+            self.last_name_entry.configure(state="disabled")
+            if self.interaction_mode == NAME_EDITING:
+                self.interaction_mode = GRID_SELECTED
+                self.canvas.focus_set()
+        elif self._details_panel_visible:
+            self._refresh_details_panel()
+
+        self._refresh_tablegroup_overlay()
 
     def _on_canvas_double_click(self, event) -> None:
         x, y = self._event_to_cell(event)
@@ -4106,7 +4268,9 @@ class KartographMainWindow(TkRootHost):
                 tags=("grid",),
             )
 
-            main_text = (desk.student_name or "").strip()
+            _first = (desk.student_name or "").strip()
+            _last = (desk.student_last_name or "").strip()
+            main_text = f"{_first} {_last}".strip() if (_first and _last) else (_first or _last)
             effective_symbols = self._effective_grid_symbols(desk.x, desk.y, desk.symbols)
             symbol_lines = self._symbol_grid_lines(effective_symbols)
             desk_color_markers = self._ordered_color_markers(desk.color_markers)
@@ -4239,10 +4403,15 @@ class KartographMainWindow(TkRootHost):
         min_size = 5
         max_text_width = int(self.cell_size * 0.88)
 
+        def _grid_label(desk) -> str:
+            first = (desk.student_name or "").strip()
+            last = (desk.student_last_name or "").strip()
+            return f"{first} {last}".strip() if (first and last) else (first or last)
+
         labels = [
-            (desk.student_name or "").strip()
+            _grid_label(desk)
             for desk in self.current_plan.desks
-            if desk.desk_type == "student" and (desk.student_name or "").strip()
+            if desk.desk_type == "student" and _grid_label(desk)
         ]
         if not labels:
             return base_size
@@ -4478,6 +4647,7 @@ class KartographMainWindow(TkRootHost):
 
         self._refresh_details_panel()
         self.name_entry.state(["!disabled"])
+        self.last_name_entry.state(["!disabled"])
         if self.name_entry.instate(["!disabled"]):
             self.interaction_mode = NAME_EDITING
             self.name_entry.focus_set()
@@ -4565,7 +4735,9 @@ class KartographMainWindow(TkRootHost):
             self._set_details_panel_visible(False)
             self._selected_marker_var.set("")
             self._name_var.set("")
+            self._last_name_var.set("")
             self.name_entry.configure(state="disabled")
+            self.last_name_entry.configure(state="disabled")
             self._refresh_tablegroup_overlay()
             return
 
@@ -4583,7 +4755,9 @@ class KartographMainWindow(TkRootHost):
 
         if not is_student_single_selection:
             self._name_var.set("")
+            self._last_name_var.set("")
             self.name_entry.configure(state="disabled")
+            self.last_name_entry.configure(state="disabled")
             if self.interaction_mode == NAME_EDITING:
                 self.interaction_mode = GRID_SELECTED
                 self.canvas.focus_set()
@@ -4591,7 +4765,9 @@ class KartographMainWindow(TkRootHost):
             return
 
         self._name_var.set(desk.student_name)
+        self._last_name_var.set(desk.student_last_name)
         self.name_entry.configure(state="normal")
+        self.last_name_entry.configure(state="normal")
 
         tui.Label(self.symbols_frame, text="Symbole").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
         symbol_cols = self._details_button_columns()
@@ -4654,6 +4830,54 @@ class KartographMainWindow(TkRootHost):
 
         self._refresh_tablegroup_overlay()
 
+    def _build_symbol_shortcuts_bar(self) -> None:
+        """Populate the always-visible symbol shortcuts overview in the details panel."""
+        for child in self._symbol_shortcuts_bar.winfo_children():
+            child.destroy()
+
+        symbols_with_shortcuts = [item for item in self.symbol_definitions if item.shortcut is not None]
+        if not symbols_with_shortcuts:
+            return
+
+        tui.Label(
+            self._symbol_shortcuts_bar,
+            text="Symbole:",
+            style="Panel.TLabel",
+        ).pack(side="left", padx=(0, 8))
+
+        diagnostic = [s for s in symbols_with_shortcuts if s.role == "diagnostic"]
+        doc_only = [s for s in symbols_with_shortcuts if s.role != "diagnostic"]
+
+        for item in diagnostic:
+            key = item.shortcut.upper()
+            badge = tui.Label(
+                self._symbol_shortcuts_bar,
+                text=f"{item.glyph} {key}",
+                style="Panel.TLabel",
+            )
+            badge.pack(side="left", padx=(0, 10))
+            self._attach_hover_help(badge, label=f"{item.meaning} – {item.legend_one}", shortcut=key)
+
+        if doc_only:
+            tui.Label(
+                self._symbol_shortcuts_bar,
+                text=" |",
+                style="Panel.TLabel",
+            ).pack(side="left", padx=(0, 8))
+            for item in doc_only:
+                key = item.shortcut.upper()
+                badge = tui.Label(
+                    self._symbol_shortcuts_bar,
+                    text=f"{item.glyph} {key}°",
+                    style="Panel.TLabel",
+                )
+                badge.pack(side="left", padx=(0, 10))
+                self._attach_hover_help(
+                    badge,
+                    label=f"{item.meaning} (nur Doku) – {item.legend_one}",
+                    shortcut=key,
+                )
+
     def _set_details_panel_visible(self, visible: bool) -> None:
         fill_mode = "both" if self.details_overlay_position in {"left", "right"} else "x"
         if visible and not self._details_panel_visible:
@@ -4678,6 +4902,22 @@ class KartographMainWindow(TkRootHost):
 
         next_plan = update_student_name(self.current_plan, x, y, self._name_var.get())
         self._record_and_save(next_plan, "name.edit", "Name geaendert")
+        self.redraw_grid()
+
+    def _on_last_name_changed(self) -> None:
+        if not self.current_plan or not self.current_plan_path:
+            return
+
+        if not self.selection.is_single():
+            return
+
+        x, y = self.selected_cell
+        desk = self.current_plan.desk_at(x, y)
+        if not desk or desk.desk_type != "student":
+            return
+
+        next_plan = update_student_last_name(self.current_plan, x, y, self._last_name_var.get())
+        self._record_and_save(next_plan, "name.edit", "Nachname geaendert")
         self.redraw_grid()
 
     def _toggle_selected_symbol(self, symbol: str) -> None:

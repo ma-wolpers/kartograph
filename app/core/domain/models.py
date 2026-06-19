@@ -30,6 +30,7 @@ class Desk:
     y: int
     desk_type: DeskType
     student_name: str = ""
+    student_last_name: str = ""
     symbols: dict[str, int] = field(default_factory=dict)
     color_markers: list[str] = field(default_factory=list)
     tablegroup_number: int = 0

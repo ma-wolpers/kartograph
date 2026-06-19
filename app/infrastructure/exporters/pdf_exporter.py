@@ -458,7 +458,9 @@ class PdfSeatingPlanExporter:
                 continue
 
             c.setFillColor(colors.black)
-            student_name = (desk.student_name or "").strip()
+            first_name = (desk.student_name or "").strip()
+            last_name = (desk.student_last_name or "").strip()
+            student_name = f"{first_name} {last_name}".strip() if (first_name and last_name) else (first_name or last_name)
 
             if grade_mode == "include_provisional":
                 overall_grade = compute_grade_display_for_student(export_plan, desk.x, desk.y, allow_provisional=True)

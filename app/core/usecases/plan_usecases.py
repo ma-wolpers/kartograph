@@ -60,6 +60,15 @@ def update_student_name(plan: SeatingPlan, x: int, y: int, name: str) -> Seating
     return next_plan
 
 
+def update_student_last_name(plan: SeatingPlan, x: int, y: int, last_name: str) -> SeatingPlan:
+    next_plan = deepcopy(plan)
+    desk = next_plan.desk_at(x, y)
+    if not desk or desk.desk_type != "student":
+        return next_plan
+    desk.student_last_name = last_name.strip()
+    return next_plan
+
+
 def toggle_symbol(plan: SeatingPlan, x: int, y: int, symbol: str) -> SeatingPlan:
     next_plan = deepcopy(plan)
     desk = next_plan.desk_at(x, y)
@@ -370,6 +379,7 @@ def set_teacher_desk(plan: SeatingPlan, new_teacher_x: int, new_teacher_y: int) 
             y=ny,
             desk_type="student",
             student_name=desk.student_name,
+            student_last_name=desk.student_last_name,
             symbols=dict(desk.symbols),
             color_markers=list(desk.color_markers),
             tablegroup_number=desk.tablegroup_number,
