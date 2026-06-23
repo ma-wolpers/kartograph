@@ -100,6 +100,8 @@ DOCS_HORIZONTAL_WHEEL_UNITS = 8
 DOCS_HORIZONTAL_SCROLLBAR_UNITS = 4
 DEFAULT_DETAILS_OVERLAY_POSITION = "bottom"
 DEFAULT_TABLEGROUP_OVERLAY_POSITION = "right"
+GRID_NAME_FORMAT_OPTIONS = ("Vorname", "Vorname N", "Vorname Nachname", "V. Nachname", "Nachname")
+DEFAULT_GRID_NAME_FORMAT = "Vorname Nachname"
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
@@ -231,6 +233,7 @@ class KartographMainWindow(TkRootHost):
         self.tablegroup_overlay_position = self._normalize_tablegroup_overlay_position(
             self._settings.get("tablegroup_overlay_position")
         )
+        self.grid_name_format = self._normalize_grid_name_format(self._settings.get("grid_name_format"))
 
         self.ui_intent_controller = MainWindowUiIntentController(self)
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
@@ -978,8 +981,8 @@ class KartographMainWindow(TkRootHost):
             command=self._docs_main_xview,
         )
         self.docs_main_x_scroll.pack(side="bottom", fill="x")
-        self.docs_tree.column("#0", width=220, anchor="w", stretch=False)
-        self.docs_tree.heading("#0", text="Schüler:in")
+        self.docs_tree.column("#0", width=150, anchor="w", stretch=False)
+        self.docs_tree.heading("#0", text="Nachname")
 
         self.docs_right_tree = tui.Treeview(self.docs_fixed_pane, show="headings")
         self.docs_right_tree.pack(side="top", fill="both", expand=True)
@@ -1599,6 +1602,10 @@ class KartographMainWindow(TkRootHost):
         except (TypeError, ValueError):
             parsed = DEFAULT_VIEWPORT_FOLLOW_BUFFER
         return max(0, min(5, parsed))
+
+    def _normalize_grid_name_format(self, value: object) -> str:
+        raw = str(value or "").strip()
+        return raw if raw in GRID_NAME_FORMAT_OPTIONS else DEFAULT_GRID_NAME_FORMAT
 
     def _normalize_grid_visible_symbols(self, raw_value: object, symbol_catalog: list[str]) -> set[str]:
         configured: set[str] = set()
@@ -2511,10 +2518,15 @@ class KartographMainWindow(TkRootHost):
             return
         sort_arrow = "▲ " if self._doc_sort_ascending else "▼ "
 
-        name_title = "Schüler:in"
-        if self._doc_sort_column == "name":
-            name_title = f"{sort_arrow}{name_title}"
-        self.docs_tree.heading("#0", text=name_title)
+        nachname_title = "Nachname"
+        if self._doc_sort_column == "nachname":
+            nachname_title = f"{sort_arrow}{nachname_title}"
+        self.docs_tree.heading("#0", text=nachname_title)
+
+        vorname_title = "Vorname"
+        if self._doc_sort_column == "vorname":
+            vorname_title = f"{sort_arrow}{vorname_title}"
+        self.docs_tree.heading("vorname", text=vorname_title)
 
         for idx, date_key in enumerate(self._doc_dates):
             col_id = self._doc_date_column_ids[idx]
@@ -2541,15 +2553,18 @@ class KartographMainWindow(TkRootHost):
         """Toggle sort direction for the clicked column and re-sort both trees."""
         if source == "main":
             if col_id == "#0":
-                sort_key = "name"
+                sort_key = "nachname"
+            elif col_id == "#1":
+                sort_key = "vorname"
             else:
                 try:
-                    col_index = int(col_id[1:]) - 1
+                    # #2 → date_0, #3 → date_1, etc. (vorname occupies slot #1)
+                    date_index = int(col_id[1:]) - 2
                 except (ValueError, TypeError):
                     return
-                if not (0 <= col_index < len(self._doc_date_column_ids)):
+                if not (0 <= date_index < len(self._doc_date_column_ids)):
                     return
-                sort_key = self._doc_date_column_ids[col_index]
+                sort_key = self._doc_date_column_ids[date_index]
         else:
             try:
                 col_index = int(col_id[1:]) - 1
@@ -2576,12 +2591,16 @@ class KartographMainWindow(TkRootHost):
         iids = list(self.docs_tree.get_children(""))
 
         def get_sort_value(iid: str):
-            if sort_key == "name":
+            if sort_key == "nachname":
                 return (self.docs_tree.item(iid, "text").lower(),)
+            if sort_key == "vorname":
+                values = self.docs_tree.item(iid, "values")
+                return (str(values[0]).lower() if values else "",)
             if sort_key in self._doc_date_column_ids:
+                # values[0] is vorname; dates start at values[1]
                 idx = self._doc_date_column_ids.index(sort_key)
                 values = self.docs_tree.item(iid, "values")
-                raw = str(values[idx]) if values and idx < len(values) else ""
+                raw = str(values[idx + 1]) if values and idx + 1 < len(values) else ""
                 return (raw,)
             if sort_key in self._doc_fixed_column_ids:
                 idx = self._doc_fixed_column_ids.index(sort_key)
@@ -2638,7 +2657,7 @@ class KartographMainWindow(TkRootHost):
             if row_iid not in tree.get_children():
                 return
             values = tree.item(row_iid, "values")
-            cell_text = str(values[date_index]) if values and date_index < len(values) else ""
+            cell_text = str(values[date_index + 1]) if values and date_index + 1 < len(values) else ""
 
         bbox = tree.bbox(row_iid, tree_col)
         if not bbox:
@@ -2835,8 +2854,11 @@ class KartographMainWindow(TkRootHost):
             fixed_columns.append("sonstige_total")
         fixed_columns.append("overall")
         self._doc_fixed_column_ids = list(fixed_columns)
-        self.docs_tree.configure(columns=self._doc_date_column_ids)
+        self.docs_tree.configure(columns=["vorname"] + self._doc_date_column_ids)
         self.docs_right_tree.configure(columns=fixed_columns)
+
+        self.docs_tree.column("vorname", width=120, anchor="w", stretch=False)
+        self.docs_tree.heading("vorname", text="Vorname")
 
         for idx, date_key in enumerate(all_dates):
             self.docs_tree.column(self._doc_date_column_ids[idx], width=120, anchor="center", stretch=False)
@@ -2889,8 +2911,7 @@ class KartographMainWindow(TkRootHost):
             iid = f"student_{student_idx}"
             _first_n = desk.student_name.strip()
             _last_n = (desk.student_last_name or "").strip()
-            _doc_label = f"{_last_n}, {_first_n}" if _last_n else (_first_n or f"({x},{y})")
-            self.docs_tree.insert("", "end", iid=iid, text=_doc_label, values=date_values)
+            self.docs_tree.insert("", "end", iid=iid, text=_last_n or f"({x},{y})", values=[_first_n] + date_values)
             self.docs_right_tree.insert("", "end", iid=iid, values=fixed_values)
             self._doc_tree_iid_by_student_index[student_idx] = iid
             self._doc_student_index_by_iid[iid] = student_idx
@@ -3823,6 +3844,13 @@ class KartographMainWindow(TkRootHost):
                             max_value=5,
                             hint="0 = immer zentrieren, 1 = 3x3-Zentrum",
                         ),
+                        SharedSettingsFieldSpec(
+                            key="grid_name_format",
+                            label="Name in Gridansicht",
+                            field_type="enum",
+                            enum_values=GRID_NAME_FORMAT_OPTIONS,
+                            default=self.grid_name_format,
+                        ),
                     ),
                 ),
             )
@@ -3837,6 +3865,7 @@ class KartographMainWindow(TkRootHost):
             "canvas_radius": self.canvas_radius,
             "symbol_strength": symbol_strength_labels.get(self.symbol_strength, "Fett"),
             "viewport_follow_buffer": self.viewport_follow_buffer,
+            "grid_name_format": self.grid_name_format,
         }
 
     def _apply_settings_dialog_payload(self, payload: dict[str, object], *, parent=None) -> bool:
@@ -3882,6 +3911,8 @@ class KartographMainWindow(TkRootHost):
         self._settings["symbol_strength"] = self.symbol_strength
         self.viewport_follow_buffer = self._normalize_viewport_follow_buffer(payload.get("viewport_follow_buffer"))
         self._settings["viewport_follow_buffer"] = self.viewport_follow_buffer
+        self.grid_name_format = self._normalize_grid_name_format(payload.get("grid_name_format"))
+        self._settings["grid_name_format"] = self.grid_name_format
         self.settings_repository.save_settings(self._settings)
 
         self._update_scroll_region()
@@ -4268,9 +4299,9 @@ class KartographMainWindow(TkRootHost):
                 tags=("grid",),
             )
 
-            _first = (desk.student_name or "").strip()
-            _last = (desk.student_last_name or "").strip()
-            main_text = f"{_first} {_last}".strip() if (_first and _last) else (_first or _last)
+            main_text = self._format_student_name_for_grid(
+                (desk.student_name or "").strip(), (desk.student_last_name or "").strip()
+            )
             effective_symbols = self._effective_grid_symbols(desk.x, desk.y, desk.symbols)
             symbol_lines = self._symbol_grid_lines(effective_symbols)
             desk_color_markers = self._ordered_color_markers(desk.color_markers)
@@ -4391,6 +4422,20 @@ class KartographMainWindow(TkRootHost):
             tags=("grid",),
         )
 
+    def _format_student_name_for_grid(self, first: str, last: str) -> str:
+        fmt = self.grid_name_format
+        if not first and not last:
+            return ""
+        if fmt == "Vorname N":
+            return f"{first} {last[0]}".strip() if (first and last) else (first or last)
+        if fmt == "Vorname Nachname":
+            return f"{first} {last}".strip() if (first and last) else (first or last)
+        if fmt == "V. Nachname":
+            return f"{first[0]}. {last}".strip() if (first and last) else (first or last)
+        if fmt == "Nachname":
+            return last or first
+        return first or last  # "Vorname" (default)
+
     def _symbol_font_style(self, base_size: int) -> tuple[int, str]:
         if self.symbol_strength <= 0:
             return base_size, "normal"
@@ -4403,15 +4448,15 @@ class KartographMainWindow(TkRootHost):
         min_size = 5
         max_text_width = int(self.cell_size * 0.88)
 
-        def _grid_label(desk) -> str:
-            first = (desk.student_name or "").strip()
-            last = (desk.student_last_name or "").strip()
-            return f"{first} {last}".strip() if (first and last) else (first or last)
-
         labels = [
-            _grid_label(desk)
+            self._format_student_name_for_grid(
+                (desk.student_name or "").strip(), (desk.student_last_name or "").strip()
+            )
             for desk in self.current_plan.desks
-            if desk.desk_type == "student" and _grid_label(desk)
+            if desk.desk_type == "student"
+            and self._format_student_name_for_grid(
+                (desk.student_name or "").strip(), (desk.student_last_name or "").strip()
+            )
         ]
         if not labels:
             return base_size
@@ -4538,7 +4583,7 @@ class KartographMainWindow(TkRootHost):
         self.interaction_mode = GRID_SELECTED
         self._follow_selection_viewport(*self.selection.active_cell())
         self.redraw_grid()
-        self._refresh_details_panel()
+        self._update_selection_no_open()
 
     def expand_selection(self, dx: int, dy: int) -> None:
         if not self.editor_view.winfo_ismapped():
@@ -4549,7 +4594,7 @@ class KartographMainWindow(TkRootHost):
         self.interaction_mode = GRID_SELECTED
         self._follow_selection_viewport(*self.selection.active_cell())
         self.redraw_grid()
-        self._refresh_details_panel()
+        self._update_selection_no_open()
 
     def _follow_selection_viewport(self, x: int, y: int) -> None:
         buffer_cells = self.viewport_follow_buffer
