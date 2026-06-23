@@ -1,3 +1,10 @@
+"""Clipboard-Puffer für Schülertische.
+
+Kapselt das Kopieren, Ausschneiden und Einfügen von Desk-Objekten innerhalb
+eines SeatingPlan. Neue Felder in Desk werden automatisch übertragen, weil
+intern deepcopy verwendet wird – kein manuelles Aufzählen von Attributen.
+"""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -6,15 +13,36 @@ from app.core.domain.models import Desk, SeatingPlan
 
 
 class DeskClipboard:
-    def __init__(self):
+    """Zwischenablage für Schülertisch-Blöcke.
+
+    Speichert eine relative Kopie der markierten Tische (Ursprung = linke
+    obere Ecke der Selektion) und kann sie an einer neuen Position wieder
+    in einen Plan einsetzen.
+    """
+
+    def __init__(self) -> None:
+        """Initialisiert einen leeren Clipboard-Puffer."""
         self._payload: dict[tuple[int, int], Desk] = {}
         self._width = 0
         self._height = 0
 
     def has_content(self) -> bool:
+        """Gibt True zurück, wenn sich Tische im Puffer befinden."""
         return bool(self._payload)
 
     def copy_from_plan(self, plan: SeatingPlan, cells: list[tuple[int, int]]) -> int:
+        """Kopiert alle Schülertische in *cells* in den Puffer.
+
+        Die Positionen werden relativ zur linken oberen Ecke der Selektion
+        gespeichert. Vorhandener Puffer-Inhalt wird ersetzt.
+
+        Args:
+            plan: Quellplan, aus dem gelesen wird.
+            cells: Liste von (x, y)-Koordinaten der Selektion.
+
+        Returns:
+            Anzahl der kopierten Schülertische.
+        """
         if not cells:
             self._payload = {}
             self._width = 0
@@ -35,24 +63,26 @@ class DeskClipboard:
             if not desk or desk.desk_type != "student":
                 continue
             rel = (x - min_x, y - min_y)
-            self._payload[rel] = Desk(
-                x=rel[0],
-                y=rel[1],
-                desk_type="student",
-                student_name=desk.student_name,
-                student_last_name=desk.student_last_name,
-                symbols=dict(desk.symbols),
-                color_markers=list(desk.color_markers),
-                tablegroup_number=desk.tablegroup_number,
-                tablegroup_shift_x=desk.tablegroup_shift_x,
-                tablegroup_shift_y=desk.tablegroup_shift_y,
-                tablegroup_rotation=desk.tablegroup_rotation,
-                documentation_entries=deepcopy(desk.documentation_entries),
-            )
+            # deepcopy statt manueller Konstruktion: neue Felder in Desk
+            # werden automatisch übertragen, ohne hier Änderungen vornehmen
+            # zu müssen.
+            copied = deepcopy(desk)
+            copied.x = rel[0]
+            copied.y = rel[1]
+            self._payload[rel] = copied
 
         return len(self._payload)
 
     def cut_from_plan(self, plan: SeatingPlan, cells: list[tuple[int, int]]) -> tuple[SeatingPlan, int, int]:
+        """Kopiert Schülertische in den Puffer und entfernt sie aus dem Plan.
+
+        Args:
+            plan: Quellplan.
+            cells: Liste von (x, y)-Koordinaten der Selektion.
+
+        Returns:
+            Tupel aus (aktualisierter Plan, Anzahl kopierter, Anzahl entfernter Tische).
+        """
         copied = self.copy_from_plan(plan, cells)
         next_plan = deepcopy(plan)
         removed = 0
@@ -72,6 +102,23 @@ class DeskClipboard:
         min_bound: int,
         max_bound: int,
     ) -> tuple[SeatingPlan, int, bool]:
+        """Fügt den Puffer-Inhalt ab Position (*target_x*, *target_y*) ein.
+
+        Bestehende Schülertische an Zielzellen werden überschrieben.
+        Tische, die außerhalb von *min_bound*/*max_bound* fallen würden,
+        werden übersprungen. Der Lehrertisch kann nie überschrieben werden.
+
+        Args:
+            plan: Zielplan.
+            target_x: X-Koordinate der oberen linken Einfügeposition.
+            target_y: Y-Koordinate der oberen linken Einfügeposition.
+            min_bound: Minimale gültige Koordinate (x und y).
+            max_bound: Maximale gültige Koordinate (x und y).
+
+        Returns:
+            Tupel aus (aktualisierter Plan, Anzahl eingefügter Tische,
+            ob ein Lehrertisch-Konflikt aufgetreten ist).
+        """
         next_plan = deepcopy(plan)
         if not self._payload:
             return next_plan, 0, False
@@ -92,22 +139,11 @@ class DeskClipboard:
             if existing and existing.desk_type == "student":
                 next_plan.without_desk_at(x, y)
 
-            next_plan.desks.append(
-                Desk(
-                    x=x,
-                    y=y,
-                    desk_type="student",
-                    student_name=source.student_name,
-                    student_last_name=source.student_last_name,
-                    symbols=dict(source.symbols),
-                    color_markers=list(source.color_markers),
-                    tablegroup_number=source.tablegroup_number,
-                    tablegroup_shift_x=source.tablegroup_shift_x,
-                    tablegroup_shift_y=source.tablegroup_shift_y,
-                    tablegroup_rotation=source.tablegroup_rotation,
-                    documentation_entries=deepcopy(source.documentation_entries),
-                )
-            )
+            # deepcopy statt manueller Konstruktion; nur Koordinaten anpassen.
+            pasted = deepcopy(source)
+            pasted.x = x
+            pasted.y = y
+            next_plan.desks.append(pasted)
             pasted_count += 1
 
         return next_plan, pasted_count, teacher_conflict

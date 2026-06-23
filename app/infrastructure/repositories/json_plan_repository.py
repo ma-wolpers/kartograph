@@ -1,34 +1,48 @@
+"""JSON-basiertes Repository für Sitzplandateien.
+
+Koordiniert Lade-, Speicher-, Backup- und Verwaltungsoperationen auf
+Sitzplänen im Dateisystem. Die eigentliche Serialisierung und das Backup-
+Schreiben werden an spezialisierte Module delegiert.
+"""
+
 from __future__ import annotations
 
-import json
-import os
 import uuid
 from copy import deepcopy
-from datetime import datetime, timezone
 from pathlib import Path
 
-from app.app_info import APP_INFO
 from bw_libs.app_paths import atomic_write_json
-from app.core.domain.models import DocumentationEntry, GradeColumnDefinition, SeatingPlan, Desk
-from app.core.domain.table_groups import normalize_tablegroups_in_place
+
+from app.core.domain.models import Desk, SeatingPlan
+from app.infrastructure.repositories.json_desk_deserializer import deserialize_plan
+from app.infrastructure.repositories.json_desk_serializer import serialize_plan
+from app.infrastructure.repositories.plan_backup import PlanBackupWriter
+
+import json
 
 
 class JsonSeatingPlanRepository:
-    _BACKUP_LIMIT_PER_PLAN = 20
+    """Liest und schreibt Sitzpläne als JSON-Dateien auf der Festplatte.
 
-    def _coerce_int(self, raw_value: object, default: int) -> int:
-        try:
-            return int(raw_value)
-        except (TypeError, ValueError):
-            return default
+    Jede Plandatei entspricht einem ``SeatingPlan``-Objekt. Beim Speichern
+    wird automatisch ein Backup-Snapshot angelegt.
+    """
 
-    def _coerce_float(self, raw_value: object, default: float) -> float:
-        try:
-            return float(raw_value)
-        except (TypeError, ValueError):
-            return default
+    def __init__(self) -> None:
+        """Initialisiert das Repository mit einem frischen Backup-Schreiber."""
+        self._backup = PlanBackupWriter()
 
     def list_plans(self, plans_dir: Path) -> list[tuple[Path, SeatingPlan]]:
+        """Gibt alle gültigen Pläne im Verzeichnis *plans_dir* zurück.
+
+        Dateien, die nicht geladen werden können, werden still übersprungen.
+
+        Args:
+            plans_dir: Verzeichnis mit ``*.json``-Plandateien.
+
+        Returns:
+            Liste von (Pfad, Plan)-Tupeln, alphabetisch nach Dateiname sortiert.
+        """
         plans_dir.mkdir(parents=True, exist_ok=True)
         plans: list[tuple[Path, SeatingPlan]] = []
         for path in sorted(plans_dir.glob("*.json")):
@@ -39,60 +53,93 @@ class JsonSeatingPlanRepository:
         return plans
 
     def load_plan(self, plan_path: Path) -> SeatingPlan:
+        """Lädt und deserialisiert einen Plan aus *plan_path*.
+
+        Args:
+            plan_path: Pfad zur JSON-Plandatei.
+
+        Returns:
+            Deserialisierter ``SeatingPlan``.
+
+        Raises:
+            ValueError: Bei strukturellen Fehlern in der Datei.
+            json.JSONDecodeError: Wenn die Datei kein gültiges JSON enthält.
+        """
         payload = json.loads(plan_path.read_text(encoding="utf-8"))
-        return self._deserialize(payload)
+        return deserialize_plan(payload)
 
     def save_plan(self, plan: SeatingPlan, plan_path: Path) -> None:
-        payload = self._serialize(plan)
+        """Serialisiert *plan* und schreibt ihn atomar nach *plan_path*.
+
+        Erstellt danach automatisch einen Backup-Snapshot.
+
+        Args:
+            plan: Zu speichernder Sitzplan.
+            plan_path: Zieldatei.
+        """
+        payload = serialize_plan(plan)
         atomic_write_json(plan_path, payload)
-        self._write_backup(plan_path, payload)
+        self._backup.write_backup(plan_path, payload)
 
     def backup_plan_snapshot(self, plan: SeatingPlan, plan_path: Path) -> None:
-        payload = self._serialize(plan)
-        self._write_backup(plan_path, payload)
+        """Erstellt einen Backup-Snapshot von *plan*, ohne die Hauptdatei zu ändern.
 
-    def _backup_root_dir(self) -> Path:
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / APP_INFO.appdata_folder / "backups"
-        return Path.home() / f".{APP_INFO.appdata_folder.lower()}" / "backups"
+        Args:
+            plan: Plan, der gesichert werden soll.
+            plan_path: Referenz-Pfad der Plandatei (bestimmt den Backup-Ordner).
+        """
+        payload = serialize_plan(plan)
+        self._backup.write_backup(plan_path, payload)
 
-    def _write_backup(self, plan_path: Path, payload: dict) -> None:
-        try:
-            backup_dir = self._backup_root_dir() / plan_path.stem
-            backup_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-            backup_path = backup_dir / f"{timestamp}.json"
-            atomic_write_json(backup_path, payload)
+    def create_new_plan(
+        self, plans_dir: Path, plan_name: str, overwrite: bool = False
+    ) -> tuple[Path, SeatingPlan]:
+        """Legt einen neuen leeren Sitzplan an.
 
-            backups = sorted(backup_dir.glob("*.json"), key=lambda item: item.name, reverse=True)
-            for stale in backups[self._BACKUP_LIMIT_PER_PLAN :]:
-                stale.unlink(missing_ok=True)
-        except Exception:
-            # Backup writing must never block normal save behavior.
-            return
+        Args:
+            plans_dir: Zielverzeichnis.
+            plan_name: Anzeigename des Plans; leer ergibt ``"Neuer Sitzplan"``.
+            overwrite: Überschreibt eine bestehende Datei, wenn True.
 
-    def create_new_plan(self, plans_dir: Path, plan_name: str, overwrite: bool = False) -> tuple[Path, SeatingPlan]:
+        Returns:
+            Tupel aus (Pfad zur neuen Datei, erstellter Plan).
+
+        Raises:
+            FileExistsError: Wenn die Datei bereits existiert und *overwrite* False ist.
+        """
         plans_dir.mkdir(parents=True, exist_ok=True)
-        base_name = self._slugify(plan_name or "Neuer Sitzplan")
-        file_name = f"{base_name}.json"
+        clean_name = plan_name.strip() or "Neuer Sitzplan"
+        plan_path = plans_dir / f"{self._slugify(clean_name)}.json"
+        if plan_path.exists() and not overwrite:
+            raise FileExistsError(f"Plandatei existiert bereits: {plan_path.name}")
         plan = SeatingPlan(
             version=3,
             plan_id=uuid.uuid4().hex,
-            name=plan_name.strip() or "Neuer Sitzplan",
+            name=clean_name,
             desks=[Desk(x=0, y=0, desk_type="teacher")],
         )
-        plan_path = plans_dir / file_name
-        if plan_path.exists() and not overwrite:
-            raise FileExistsError(f"Plandatei existiert bereits: {plan_path.name}")
         self.save_plan(plan, plan_path)
         return plan_path, plan
 
-    def rename_plan(self, source_path: Path, new_name: str, overwrite: bool = False) -> tuple[Path, SeatingPlan]:
+    def rename_plan(
+        self, source_path: Path, new_name: str, overwrite: bool = False
+    ) -> tuple[Path, SeatingPlan]:
+        """Benennt einen Plan um und verschiebt ggf. die Datei.
+
+        Args:
+            source_path: Aktuelle Plandatei.
+            new_name: Neuer Anzeigename; leer behält den bisherigen Namen.
+            overwrite: Überschreibt eine Zieldatei, wenn True.
+
+        Returns:
+            Tupel aus (neuem Pfad, umbenanntem Plan).
+
+        Raises:
+            FileExistsError: Wenn die Zieldatei existiert und *overwrite* False ist.
+        """
         source_plan = self.load_plan(source_path)
         target_name = new_name.strip() or source_plan.name
         target_path = source_path.with_name(f"{self._slugify(target_name)}.json")
-
         source_plan.name = target_name
 
         if target_path != source_path and target_path.exists() and not overwrite:
@@ -107,11 +154,36 @@ class JsonSeatingPlanRepository:
         return target_path, source_plan
 
     def delete_plan(self, plan_path: Path) -> None:
+        """Löscht die Plandatei unwiderruflich.
+
+        Args:
+            plan_path: Zu löschende Datei.
+
+        Raises:
+            FileNotFoundError: Wenn die Datei nicht existiert.
+        """
         if not plan_path.exists():
             raise FileNotFoundError(f"Plandatei nicht gefunden: {plan_path.name}")
         plan_path.unlink()
 
-    def duplicate_plan(self, source_path: Path, target_name: str, overwrite: bool = False) -> tuple[Path, SeatingPlan]:
+    def duplicate_plan(
+        self, source_path: Path, target_name: str, overwrite: bool = False
+    ) -> tuple[Path, SeatingPlan]:
+        """Dupliziert einen Plan unter einem neuen Namen.
+
+        Der Klon erhält eine neue ``plan_id``; alle Inhalte werden übernommen.
+
+        Args:
+            source_path: Quelldatei.
+            target_name: Anzeigename des Duplikats; leer übernimmt den Quellnamen.
+            overwrite: Überschreibt eine bestehende Zieldatei, wenn True.
+
+        Returns:
+            Tupel aus (Pfad der neuen Datei, duplizierter Plan).
+
+        Raises:
+            FileExistsError: Wenn die Zieldatei existiert und *overwrite* False ist.
+        """
         source_plan = self.load_plan(source_path)
         duplicated = SeatingPlan(
             version=source_plan.version,
@@ -130,302 +202,15 @@ class JsonSeatingPlanRepository:
         self.save_plan(duplicated, target_path)
         return target_path, duplicated
 
-    def _serialize(self, plan: SeatingPlan) -> dict:
-        dates_in_use: set[str] = set()
-        serialized_desks = []
-
-        for desk in plan.desks:
-            raw_entries = desk.documentation_entries or {}
-            serialized_entries: dict[str, dict] = {}
-            for raw_date, raw_entry in raw_entries.items():
-                date_key = str(raw_date).strip()
-                if not date_key:
-                    continue
-                entry = raw_entry
-                if not isinstance(entry, DocumentationEntry):
-                    continue
-                symbols: dict[str, int] = {}
-                for raw_symbol, raw_value in entry.symbols.items():
-                    symbol = str(raw_symbol).strip()
-                    if not symbol:
-                        continue
-                    try:
-                        parsed_value = int(raw_value)
-                    except (TypeError, ValueError):
-                        continue
-                    if 1 <= parsed_value <= 3:
-                        symbols[symbol] = parsed_value
-
-                grades: dict[str, float] = {}
-                for raw_column_id, raw_grade in entry.grades.items():
-                    column_id = str(raw_column_id).strip()
-                    if not column_id:
-                        continue
-                    try:
-                        parsed_grade = float(raw_grade)
-                    except (TypeError, ValueError):
-                        continue
-                    grades[column_id] = parsed_grade
-                note = entry.note.strip()
-                if not symbols and not grades and not note:
-                    continue
-                serialized_entries[date_key] = {
-                    "symbols": symbols,
-                    "grades": grades,
-                    "note": note,
-                }
-                dates_in_use.add(date_key)
-
-            serialized_desks.append(
-                {
-                    "x": desk.x,
-                    "y": desk.y,
-                    "type": desk.desk_type,
-                    "name": desk.student_name,
-                    "last_name": desk.student_last_name,
-                    "symbols": dict(desk.symbols),
-                    "color_markers": list(desk.color_markers),
-                    "tablegroup_number": int(desk.tablegroup_number),
-                    "tablegroup_shift_x": float(desk.tablegroup_shift_x),
-                    "tablegroup_shift_y": float(desk.tablegroup_shift_y),
-                    "tablegroup_rotation": float(desk.tablegroup_rotation),
-                    "documentation_entries": serialized_entries,
-                }
-            )
-
-        effective_dates = sorted(dates_in_use)
-
-        serialized_grade_columns = []
-        seen_column_ids: set[str] = set()
-        for column in plan.grade_columns:
-            column_id = str(column.column_id).strip()
-            title = str(column.title).strip()
-            category = str(column.category).strip().lower()
-            if not column_id or column_id in seen_column_ids:
-                continue
-            if category not in {"schriftlich", "sonstig"}:
-                continue
-            serialized_grade_columns.append(
-                {
-                    "id": column_id,
-                    "category": category,
-                    "title": title or column_id,
-                }
-            )
-            seen_column_ids.add(column_id)
-
-        written_weight = self._coerce_int(plan.written_weight_percent, 50)
-        sonstige_weight = self._coerce_int(plan.sonstige_weight_percent, 50)
-        total = written_weight + sonstige_weight
-        if total <= 0:
-            written_weight, sonstige_weight = 50, 50
-
-        return {
-            "version": max(int(plan.version), 3),
-            "plan_id": plan.plan_id,
-            "name": plan.name,
-            "color_meanings": dict(plan.color_meanings),
-            "documentation": {
-                "dates": effective_dates,
-                "grade_columns": serialized_grade_columns,
-                "grade_weighting": {
-                    "written_percent": written_weight,
-                    "sonstige_percent": sonstige_weight,
-                },
-            },
-            "desks": serialized_desks,
-        }
-
-    def _deserialize(self, payload: dict) -> SeatingPlan:
-        version = int(payload.get("version", 1))
-        plan_id = str(payload.get("plan_id") or uuid.uuid4().hex)
-        name = str(payload.get("name") or "Unbenannter Sitzplan")
-
-        documentation_payload = payload.get("documentation") if isinstance(payload.get("documentation"), dict) else {}
-        dates_raw = documentation_payload.get("dates") if isinstance(documentation_payload, dict) else []
-        documentation_dates: list[str] = []
-        if isinstance(dates_raw, list):
-            for raw_date in dates_raw:
-                date_key = str(raw_date).strip()
-                if date_key and date_key not in documentation_dates:
-                    documentation_dates.append(date_key)
-
-        grade_columns_raw = documentation_payload.get("grade_columns") if isinstance(documentation_payload, dict) else []
-        grade_columns: list[GradeColumnDefinition] = []
-        if isinstance(grade_columns_raw, list):
-            for raw_column in grade_columns_raw:
-                if not isinstance(raw_column, dict):
-                    continue
-                column_id = str(raw_column.get("id") or "").strip()
-                category = str(raw_column.get("category") or "").strip().lower()
-                title = str(raw_column.get("title") or "").strip()
-                if not column_id or category not in {"schriftlich", "sonstig"}:
-                    continue
-                if any(existing.column_id == column_id for existing in grade_columns):
-                    continue
-                grade_columns.append(
-                    GradeColumnDefinition(
-                        column_id=column_id,
-                        category=category,
-                        title=title or column_id,
-                    )
-                )
-
-        grade_weighting = documentation_payload.get("grade_weighting") if isinstance(documentation_payload, dict) else {}
-        if not isinstance(grade_weighting, dict):
-            grade_weighting = {}
-        written_weight = self._coerce_int(grade_weighting.get("written_percent", 50), 50)
-        sonstige_weight = self._coerce_int(grade_weighting.get("sonstige_percent", 50), 50)
-        if written_weight + sonstige_weight <= 0:
-            written_weight = 50
-            sonstige_weight = 50
-
-        color_meanings_raw = payload.get("color_meanings") or {}
-        color_meanings: dict[str, str] = {}
-        if isinstance(color_meanings_raw, dict):
-            for raw_key, raw_meaning in color_meanings_raw.items():
-                key = str(raw_key).strip()
-                meaning = str(raw_meaning).strip()
-                if key and meaning:
-                    color_meanings[key] = meaning
-        raw_desks = payload.get("desks")
-        if not isinstance(raw_desks, list):
-            raise ValueError("desks must be a list")
-
-        desks: list[Desk] = []
-        for item in raw_desks:
-            if not isinstance(item, dict):
-                raise ValueError("desk entry must be an object")
-            x = int(item.get("x"))
-            y = int(item.get("y"))
-            desk_type = str(item.get("type"))
-            if desk_type not in {"teacher", "student"}:
-                raise ValueError("desk type must be teacher or student")
-            symbols_raw = item.get("symbols") or {}
-            symbols: dict[str, int] = {}
-
-            if isinstance(symbols_raw, list):
-                # Legacy format migration: ["Laptop", "Tablet"] -> {"Laptop": 1, "Tablet": 1}
-                for raw_symbol in symbols_raw:
-                    symbol_name = str(raw_symbol).strip()
-                    if symbol_name:
-                        symbols[symbol_name] = 1
-            elif isinstance(symbols_raw, dict):
-                for raw_symbol, raw_count in symbols_raw.items():
-                    symbol_name = str(raw_symbol).strip()
-                    if not symbol_name:
-                        continue
-                    try:
-                        parsed = int(raw_count)
-                    except (TypeError, ValueError):
-                        continue
-                    if 1 <= parsed <= 3:
-                        symbols[symbol_name] = parsed
-            else:
-                raise ValueError("symbols must be a list or object")
-
-            color_markers_raw = item.get("color_markers") or []
-            color_markers: list[str] = []
-            if isinstance(color_markers_raw, list):
-                for raw_color in color_markers_raw:
-                    color_key = str(raw_color).strip()
-                    if color_key and color_key not in color_markers:
-                        color_markers.append(color_key)
-            elif isinstance(color_markers_raw, str):
-                color_key = color_markers_raw.strip()
-                if color_key:
-                    color_markers.append(color_key)
-            else:
-                raise ValueError("color_markers must be a list or string")
-
-            documentation_entries_raw = item.get("documentation_entries")
-            documentation_entries: dict[str, DocumentationEntry] = {}
-            if isinstance(documentation_entries_raw, dict):
-                for raw_date, raw_entry in documentation_entries_raw.items():
-                    date_key = str(raw_date).strip()
-                    if not date_key or not isinstance(raw_entry, dict):
-                        continue
-
-                    symbols: dict[str, int] = {}
-                    symbols_raw = raw_entry.get("symbols")
-                    if isinstance(symbols_raw, dict):
-                        for raw_symbol, raw_count in symbols_raw.items():
-                            symbol_name = str(raw_symbol).strip()
-                            if not symbol_name:
-                                continue
-                            try:
-                                parsed_count = int(raw_count)
-                            except (TypeError, ValueError):
-                                continue
-                            if 1 <= parsed_count <= 3:
-                                symbols[symbol_name] = parsed_count
-
-                    grades: dict[str, float] = {}
-                    grades_raw = raw_entry.get("grades")
-                    if isinstance(grades_raw, dict):
-                        for raw_column_id, raw_grade in grades_raw.items():
-                            column_id = str(raw_column_id).strip()
-                            if not column_id:
-                                continue
-                            try:
-                                parsed_grade = float(raw_grade)
-                            except (TypeError, ValueError):
-                                continue
-                            grades[column_id] = parsed_grade
-
-                    note = str(raw_entry.get("note") or "").strip()
-                    entry = DocumentationEntry(symbols=symbols, grades=grades, note=note)
-                    if entry.has_content():
-                        documentation_entries[date_key] = entry
-                        if date_key not in documentation_dates:
-                            documentation_dates.append(date_key)
-
-            desks.append(
-                Desk(
-                    x=x,
-                    y=y,
-                    desk_type=desk_type,
-                    student_name=str(item.get("name") or "").strip(),
-                    student_last_name=str(item.get("last_name") or "").strip(),
-                    symbols=symbols,
-                    color_markers=color_markers,
-                    tablegroup_number=self._coerce_int(item.get("tablegroup_number", 0), 0),
-                    tablegroup_shift_x=self._coerce_float(item.get("tablegroup_shift_x", 0.0), 0.0),
-                    tablegroup_shift_y=self._coerce_float(item.get("tablegroup_shift_y", 0.0), 0.0),
-                    tablegroup_rotation=self._coerce_float(item.get("tablegroup_rotation", 0.0), 0.0),
-                    documentation_entries=documentation_entries,
-                )
-            )
-
-        teacher_count = sum(1 for desk in desks if desk.desk_type == "teacher")
-        if teacher_count != 1:
-            raise ValueError("plan must contain exactly one teacher desk")
-        if not any(desk.x == 0 and desk.y == 0 and desk.desk_type == "teacher" for desk in desks):
-            raise ValueError("teacher desk must be at (0, 0)")
-
-        used_colors = {
-            color_key
-            for desk in desks
-            if desk.desk_type == "student"
-            for color_key in desk.color_markers
-        }
-        normalized_color_meanings = {key: value for key, value in color_meanings.items() if key in used_colors}
-
-        plan = SeatingPlan(
-            version=max(version, 3),
-            plan_id=plan_id,
-            name=name,
-            desks=desks,
-            color_meanings=normalized_color_meanings,
-            documentation_dates=sorted(set(documentation_dates)),
-            grade_columns=grade_columns,
-            written_weight_percent=written_weight,
-            sonstige_weight_percent=sonstige_weight,
-        )
-        normalize_tablegroups_in_place(plan)
-        return plan
-
     def _slugify(self, text: str) -> str:
+        """Wandelt *text* in einen dateinamensicheren Kleinbuchstaben-Slug um.
+
+        Args:
+            text: Beliebiger Anzeigename.
+
+        Returns:
+            Slug aus Kleinbuchstaben, Ziffern und Bindestrichen; mindestens ``"sitzplan"``.
+        """
         clean = "".join(char.lower() if char.isalnum() else "-" for char in text.strip())
         clean = "-".join(chunk for chunk in clean.split("-") if chunk)
         return clean or "sitzplan"
