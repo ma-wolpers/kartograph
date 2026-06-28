@@ -1,0 +1,108 @@
+"""Typisierte Kartograph-Einstellungen (ersetzt das freie Settings-Dict).
+
+Lebt in ``app/core/domain/``, nicht in ``app/adapters/gui/``: Core- und
+Application-Schicht dürfen nicht von der GUI abhängen. Default-Werte sind
+deshalb als Literale dupliziert statt aus ``main_window_constants.py`` importiert.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+DEFAULT_CANVAS_RADIUS = 50
+MIN_CANVAS_RADIUS = 1
+MAX_CANVAS_RADIUS = 50
+DEFAULT_SYMBOL_STRENGTH = 1
+DEFAULT_VIEWPORT_FOLLOW_BUFFER = 0
+DEFAULT_GRID_NAME_FORMAT = "Vorname Nachname"
+GRID_NAME_FORMAT_OPTIONS = ("Vorname", "Vorname N", "Vorname Nachname", "V. Nachname", "Nachname")
+DEFAULT_DETAILS_OVERLAY_POSITION = "bottom"
+DEFAULT_TABLEGROUP_OVERLAY_POSITION = "right"
+DEFAULT_THEME_KEY = "mono_day"
+
+
+@dataclass(frozen=True)
+class KartographSettings:
+    """Typisierte, persistente Kartograph-Einstellungen.
+
+    Ersetzt das vormals freie Dict aus ``JsonSettingsRepository.load_settings()``.
+    """
+
+    plans_dir: str = ""
+    theme: str = DEFAULT_THEME_KEY
+    canvas_radius: int = DEFAULT_CANVAS_RADIUS
+    symbol_strength: int = DEFAULT_SYMBOL_STRENGTH
+    viewport_follow_buffer: int = DEFAULT_VIEWPORT_FOLLOW_BUFFER
+    grid_name_format: str = DEFAULT_GRID_NAME_FORMAT
+    grid_visible_symbols: tuple[str, ...] = field(default_factory=tuple)
+    details_overlay_position: str = DEFAULT_DETAILS_OVERLAY_POSITION
+    tablegroup_overlay_position: str = DEFAULT_TABLEGROUP_OVERLAY_POSITION
+
+    @classmethod
+    def from_dict(cls, payload: dict) -> "KartographSettings":
+        """Erstellt ``KartographSettings`` aus einem rohen Settings-Dict.
+
+        Ungültige oder fehlende Werte werden defensiv durch Standardwerte
+        ersetzt; das Theme wird nicht gegen die GUI-Theme-Registry validiert
+        (das bleibt Aufgabe der GUI), nur grob in einen String normalisiert.
+
+        Args:
+            payload: Rohes Dict, z. B. aus ``SettingsRepository.load_settings()``.
+
+        Returns:
+            Validiertes ``KartographSettings``-Objekt.
+        """
+        if not isinstance(payload, dict):
+            payload = {}
+
+        def _int(value: object, default: int, *, minimum: int, maximum: int) -> int:
+            try:
+                parsed = int(value)  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                parsed = default
+            return max(minimum, min(maximum, parsed))
+
+        def _str(value: object, default: str, *, options: tuple[str, ...] | None = None) -> str:
+            text = str(value or "").strip()
+            if not text:
+                return default
+            if options is not None and text not in options:
+                return default
+            return text
+
+        grid_visible_raw = payload.get("grid_visible_symbols")
+        grid_visible_symbols = (
+            tuple(str(item).strip() for item in grid_visible_raw if str(item).strip())
+            if isinstance(grid_visible_raw, list)
+            else ()
+        )
+
+        return cls(
+            plans_dir=str(payload.get("plans_dir") or ""),
+            theme=_str(payload.get("theme"), DEFAULT_THEME_KEY),
+            canvas_radius=_int(payload.get("canvas_radius"), DEFAULT_CANVAS_RADIUS, minimum=MIN_CANVAS_RADIUS, maximum=MAX_CANVAS_RADIUS),
+            symbol_strength=_int(payload.get("symbol_strength"), DEFAULT_SYMBOL_STRENGTH, minimum=0, maximum=2),
+            viewport_follow_buffer=_int(payload.get("viewport_follow_buffer"), DEFAULT_VIEWPORT_FOLLOW_BUFFER, minimum=0, maximum=5),
+            grid_name_format=_str(payload.get("grid_name_format"), DEFAULT_GRID_NAME_FORMAT, options=GRID_NAME_FORMAT_OPTIONS),
+            grid_visible_symbols=grid_visible_symbols,
+            details_overlay_position=_str(payload.get("details_overlay_position"), DEFAULT_DETAILS_OVERLAY_POSITION, options=("left", "right", "bottom")),
+            tablegroup_overlay_position=_str(payload.get("tablegroup_overlay_position"), DEFAULT_TABLEGROUP_OVERLAY_POSITION, options=("left", "right", "bottom")),
+        )
+
+    def to_dict(self) -> dict:
+        """Wandelt die Einstellungen in ein JSON-kompatibles Dict um.
+
+        Returns:
+            Dict, das via ``SettingsRepository.save_settings()`` persistiert werden kann.
+        """
+        return {
+            "plans_dir": self.plans_dir,
+            "theme": self.theme,
+            "canvas_radius": self.canvas_radius,
+            "symbol_strength": self.symbol_strength,
+            "viewport_follow_buffer": self.viewport_follow_buffer,
+            "grid_name_format": self.grid_name_format,
+            "grid_visible_symbols": list(self.grid_visible_symbols),
+            "details_overlay_position": self.details_overlay_position,
+            "tablegroup_overlay_position": self.tablegroup_overlay_position,
+        }

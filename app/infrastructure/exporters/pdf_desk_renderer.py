@@ -1,4 +1,4 @@
-"""Renderer für einzelne Schülertische im PDF-Export.
+"""Renderer für einzelne Schülertische im PDF-Export (v4-Modell).
 
 Zeichnet Polygon, Farbpunkte, Noten, Namen und Symbole für jeden Tisch
 auf ein ReportLab-Canvas. Symbolzeichensatz und Fallback-Modus werden nach
@@ -7,8 +7,10 @@ der Fontregistrierung über ``set_symbol_font`` gesetzt.
 
 from __future__ import annotations
 
-from app.core.domain.models import Desk, SeatingPlan
-from app.core.usecases.plan_usecases import compute_grade_display_for_student, summarize_latest_symbols_for_student
+from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.table_groups import SeatGeometryV4
+from app.core.usecases.v4.grade_usecases import compute_grade_display
+from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
 from app.infrastructure.exporters.pdf_font_utils import (
     build_symbol_token,
     fit_multi_line_font,
@@ -64,7 +66,7 @@ class PdfDeskRenderer:
         c,
         colors,
         pdfmetrics,
-        desk: Desk,
+        seat: SeatGeometryV4,
         polygon: tuple[tuple[float, float], ...],
         center: tuple[float, float],
         cell_size: float,
@@ -87,7 +89,7 @@ class PdfDeskRenderer:
             c: ReportLab-Canvas.
             colors: ReportLab ``colors``-Modul.
             pdfmetrics: ReportLab ``pdfmetrics``-Modul.
-            desk: Zu zeichnender Tisch.
+            seat: Geometrie samt Schüler (oder ``None`` bei Lehrertisch).
             polygon: Eckpunkte in PDF-Koordinaten.
             center: Mittelpunkt in PDF-Koordinaten.
             cell_size: Zellenbreite in Punkten (beeinflusst Schriftgröße).
@@ -116,7 +118,7 @@ class PdfDeskRenderer:
 
         c.setFillColor(colors.white)
         c.setStrokeColor(colors.black)
-        c.setLineWidth(1.8 if desk.desk_type == "teacher" else 1.3)
+        c.setLineWidth(1.8 if seat.is_teacher else 1.3)
         path = c.beginPath()
         path.moveTo(pixel_points[0], pixel_points[1])
         for idx in range(2, len(pixel_points), 2):
@@ -124,23 +126,24 @@ class PdfDeskRenderer:
         path.close()
         c.drawPath(path, fill=1, stroke=1)
 
-        if desk.desk_type == "teacher":
+        if seat.is_teacher:
             c.setFillColor(colors.black)
             c.setFont("Helvetica-Bold", max(8, int(min(box_width, box_height) * 0.16)))
             c.drawCentredString(center_x, center_y + min(box_width, box_height) * 0.05, "Lehrertisch")
             return
 
+        student = seat.student
         c.setFillColor(colors.black)
-        first_name = (desk.student_name or "").strip()
-        last_name = (desk.student_last_name or "").strip()
+        first_name = (student.first_name or "").strip()
+        last_name = (student.last_name or "").strip()
         student_name = (
             f"{first_name} {last_name}".strip() if (first_name and last_name) else (first_name or last_name)
         )
 
         if grade_mode == "include_provisional":
-            overall_grade = compute_grade_display_for_student(export_plan, desk.x, desk.y, allow_provisional=True)
+            overall_grade = compute_grade_display(export_plan, student.student_id, allow_provisional=True)
         elif grade_mode == "final_only":
-            overall_grade = compute_grade_display_for_student(export_plan, desk.x, desk.y, allow_provisional=False)
+            overall_grade = compute_grade_display(export_plan, student.student_id, allow_provisional=False)
         else:
             overall_grade = ""
 
@@ -148,8 +151,8 @@ class PdfDeskRenderer:
             c.setFont("Helvetica-Bold", max(6, int(min(box_width, box_height) * 0.12)))
             c.drawString(box_left + box_width * 0.08, box_top + box_height * 0.16, overall_grade)
 
-        if include_color_markers and desk.color_markers:
-            desk_color_markers = order_color_keys(list(desk.color_markers), self._color_order)
+        if include_color_markers and student.diagnostic.color_tags:
+            desk_color_markers = order_color_keys(list(student.diagnostic.color_tags), self._color_order)
             radius = max(3.0, min(box_width, box_height) * 0.035)
             spacing = radius * 2.0 + 3.0
             start_dot_x = center_x + box_width * 0.18
@@ -167,8 +170,8 @@ class PdfDeskRenderer:
             c.setFillColor(colors.black)
             c.setStrokeColor(colors.black)
 
-        effective_symbols = summarize_latest_symbols_for_student(export_plan, desk.x, desk.y)
-        source_symbols = effective_symbols if effective_symbols else desk.symbols
+        effective_symbols = summarize_latest_symbols(export_plan, student.student_id)
+        source_symbols = effective_symbols if effective_symbols else student.diagnostic.symbols
         symbol_entries = iter_symbol_counts(
             self._symbol_definitions, self._symbols_by_meaning, source_symbols, visible_symbols
         )

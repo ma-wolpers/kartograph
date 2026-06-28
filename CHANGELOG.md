@@ -6,7 +6,16 @@ The format is based on Keep a Changelog.
 
 ## [Unreleased]
 
+### Added
+- Details-Panel: neues Feld "Nachteilsausgleiche" pro Schüler (Freitext-Liste, eine Zeile pro Eintrag, z. B. "Zeitzuschlag 25 %"), editierbar analog zu Name/Farbpunkten und im Sitzplan persistiert.
+- Einstellungen werden jetzt typisiert im zentralen App-Zustand gehalten (`AppState.settings`) statt als freies Dict, inklusive eigenem Lese-/Schreib-Intent fuer den Einstellungsdialog.
+
+### Changed
+- Der Symbol-Katalog wird beim Start einmalig zentral geladen (`AppState.symbol_catalog`) statt von der GUI separat aus der Konfigurationsdatei.
+- Tastenkuerzel-Dispatch nutzt jetzt eine echte Zuordnungstabelle statt einer if/elif-Kette zur Aufloesung von UI-Aktionen.
+
 ### Fixed
+- Der Toolbar-Button "★ S" (Symbol zum markierten Platz hinzufügen) funktioniert wieder: der Dialog war beim Mixin-Split/v4-Umzug verloren gegangen und ist jetzt als `add_symbol_to_selected_desk_dialog()` in `_mixin_edit.py` wiederhergestellt.
 - Die Legenden-Seite im PDF-Export nutzt jetzt pro Kompetenzblock getrennte Tabellen mit eigener Header-Zeile, automatischem Zeilenumbruch und kompakterer Tabellenbreite, statt einer flachen Einzeilenliste ohne sauberes Wrapping.
 - PDF export popup no longer opens as an empty window: overlay dialogs now resolve the main-window parent to a valid Tk path when running through `TkRootHost`, so export controls render and respond again.
 - `start-kartograph.bat` bevorzugt jetzt die lokale Projektumgebung (`kartograph/.venv`) vor der uebergeordneten `tools4school/.venv`, damit Kartograph konsistent mit den erwarteten Abhaengigkeiten startet.

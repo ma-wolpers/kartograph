@@ -7,7 +7,11 @@ import sys
 
 
 def _has_laufkern(candidate: Path) -> bool:
-    """Return whether the candidate bw_gui package exposes laufkern."""
+    """Return whether the candidate bw_gui package exposes laufkern.
+
+    Args:
+        candidate: Directory to check for a ``bw_gui`` package containing laufkern.
+    """
 
     package_root = candidate / "bw_gui"
     return (package_root / "laufkern").exists() or (package_root / "laufkern.py").exists()

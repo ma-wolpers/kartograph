@@ -20,16 +20,27 @@ def _normalize_doc_date(value: str | None) -> str:
 
     Gibt *value* getrimmt zurück, oder das heutige Datum wenn *value*
     leer oder None ist.
+
+    Args:
+        value: Roher Datumsstring, oder None.
     """
     clean = str(value or "").strip()
     return clean or _today_iso()
 
 
 def _round_half_up_to_int(value: float) -> int:
-    """Rundet *value* kaufmännisch auf eine ganze Zahl."""
+    """Rundet *value* kaufmännisch auf eine ganze Zahl.
+
+    Args:
+        value: Zu rundender Wert.
+    """
     return int(Decimal(str(value)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
 def _round_half_up_to_two_decimals(value: float) -> float:
-    """Rundet *value* kaufmännisch auf zwei Nachkommastellen."""
+    """Rundet *value* kaufmännisch auf zwei Nachkommastellen.
+
+    Args:
+        value: Zu rundender Wert.
+    """
     return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))

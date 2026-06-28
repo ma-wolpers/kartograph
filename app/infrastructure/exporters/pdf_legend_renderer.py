@@ -1,4 +1,4 @@
-"""Renderer für die Legendenseite im PDF-Export.
+"""Renderer für die Legendenseite im PDF-Export (v4-Modell).
 
 Erzeugt Symboltabellen und Farbmarkierungslegende als ReportLab-Platypus-
 Elemente und verteilt sie über eine oder mehrere PDF-Seiten.
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from xml.sax.saxutils import escape as xml_escape
 
-from app.core.domain.models import SeatingPlan
+from app.core.domain.models_v4 import SeatingPlan
 from app.infrastructure.exporters.pdf_font_utils import build_symbol_token, order_color_keys
 from app.infrastructure.symbol_config_loader import SymbolDefinition
 
@@ -213,7 +213,8 @@ class PdfLegendRenderer:
         if include_color_markers and used_colors:
             color_rows: list[tuple[str, str]] = []
             for color_key in order_color_keys(list(used_colors), self._color_order):
-                meaning = str(plan.color_meanings.get(color_key) or "").strip()
+                palette_entry = plan.color_palette.get(color_key)
+                meaning = str(palette_entry.meaning if palette_entry else "").strip()
                 if not meaning:
                     continue
                 label, hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))

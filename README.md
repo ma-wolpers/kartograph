@@ -39,3 +39,13 @@ or
 ```powershell
 python kartograph.py
 ```
+
+## Architektur
+
+Interaktive Architekturkarte: `docs/architecture-map.html` (einfach im Browser
+öffnen, kein Server nötig). Nach Strukturänderungen (neue Intents, Handler,
+Mixins, Domänenklassen) neu generieren:
+
+```powershell
+python tools/docs/generate_architecture_map.py
+```

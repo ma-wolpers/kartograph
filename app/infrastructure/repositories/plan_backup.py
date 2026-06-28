@@ -39,7 +39,7 @@ class PlanBackupWriter:
             return Path(appdata) / APP_INFO.appdata_folder / "backups"
         return Path.home() / f".{APP_INFO.appdata_folder.lower()}" / "backups"
 
-    def write_backup(self, plan_path: Path, payload: dict) -> None:
+    def write_backup(self, plan_path: Path, payload: dict, root_dir: Path | None = None) -> None:
         """Schreibt einen Snapshot von *payload* als Backup-Datei.
 
         Der Snapshot wird im Unterverzeichnis ``<backup_root>/<plan_stem>/``
@@ -49,9 +49,10 @@ class PlanBackupWriter:
         Args:
             plan_path: Pfad der Plandatei (Dateiname dient als Backup-Ordnername).
             payload: Serialisiertes Plan-Dict (bereits JSON-kompatibel).
+            root_dir: Überschreibt das Backup-Wurzelverzeichnis (für Tests/Repository-Hooks).
         """
         try:
-            backup_dir = self.backup_root_dir() / plan_path.stem
+            backup_dir = (root_dir if root_dir is not None else self.backup_root_dir()) / plan_path.stem
             backup_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
             backup_path = backup_dir / f"{timestamp}.json"

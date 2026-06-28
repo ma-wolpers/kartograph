@@ -14,7 +14,12 @@ from app.core.domain.table_groups import normalize_tablegroups_in_place
 
 
 def _coerce_int(raw_value: object, default: int) -> int:
-    """Konvertiert *raw_value* sicher in int; bei Fehler wird *default* zurückgegeben."""
+    """Konvertiert *raw_value* sicher in int; bei Fehler wird *default* zurückgegeben.
+
+    Args:
+        raw_value: Roher, beliebig typisierter Eingabewert.
+        default: Rückgabewert, falls die Konvertierung fehlschlägt.
+    """
     try:
         return int(raw_value)
     except (TypeError, ValueError):
@@ -22,7 +27,12 @@ def _coerce_int(raw_value: object, default: int) -> int:
 
 
 def _coerce_float(raw_value: object, default: float) -> float:
-    """Konvertiert *raw_value* sicher in float; bei Fehler wird *default* zurückgegeben."""
+    """Konvertiert *raw_value* sicher in float; bei Fehler wird *default* zurückgegeben.
+
+    Args:
+        raw_value: Roher, beliebig typisierter Eingabewert.
+        default: Rückgabewert, falls die Konvertierung fehlschlägt.
+    """
     try:
         return float(raw_value)
     except (TypeError, ValueError):

@@ -13,6 +13,14 @@ SymbolRole = Literal["diagnostic", "documentation_only"]
 
 @dataclass(frozen=True)
 class SymbolDefinition:
+    """Ein konfiguriertes Symbol aus ``config/symbols.json``: Glyph, Shortcut, Legenden-Stufentexte.
+
+    ``role`` unterscheidet frei vergebbare diagnostische Symbole
+    ("diagnostic") von Symbolen, die nur in der Dokumentation, nicht aber im
+    Diagnoseprofil eines Schülers gesetzt werden können ("documentation_only",
+    z. B. "Abwesend").
+    """
+
     meaning: str
     glyph: str
     shortcut: str | None
@@ -22,6 +30,11 @@ class SymbolDefinition:
     role: SymbolRole = "diagnostic"
 
     def legend_for_count(self, count: int) -> str:
+        """Gibt den Legendentext für die Stärke *count* zurück (gestuft: 1, 2, 3+).
+
+        Args:
+            count: Symbolstärke, für die der passende Legendentext gesucht wird.
+        """
         if count >= 3:
             return self.legend_three
         if count == 2:
@@ -88,10 +101,22 @@ _DEFAULT_SYMBOLS_PAYLOAD = {
 
 
 def _write_default_payload(path: Path) -> None:
+    """Schreibt das eingebaute Standard-Symbolset nach *path* (atomar).
+
+    Args:
+        path: Zielpfad der ``symbols.json``.
+    """
     atomic_write_json(path, _DEFAULT_SYMBOLS_PAYLOAD)
 
 
 def _parse_codepoint(raw_value: object) -> str | None:
+    """Wandelt einen Codepoint-String (z. B. "1F4BB" oder "U+1F4BB") in das tatsächliche Unicode-Zeichen um.
+
+    Gibt ``None`` zurück, wenn *raw_value* leer oder kein gültiger Hex-Codepoint ist.
+
+    Args:
+        raw_value: Roher Codepoint-Wert aus der Konfigurationsdatei.
+    """
     text = str(raw_value or "").strip().upper()
     if text.startswith("U+"):
         text = text[2:]
@@ -104,6 +129,11 @@ def _parse_codepoint(raw_value: object) -> str | None:
 
 
 def _parse_shortcut(raw_value: object) -> str | None:
+    """Validiert *raw_value* als Ein-Zeichen-Tastaturkürzel; ``None`` bei leerem oder mehrstelligem Wert.
+
+    Args:
+        raw_value: Roher Shortcut-Wert aus der Konfigurationsdatei.
+    """
     text = str(raw_value or "").strip().lower()
     if not text:
         return None
@@ -113,6 +143,11 @@ def _parse_shortcut(raw_value: object) -> str | None:
 
 
 def _parse_role(raw_value: object) -> SymbolRole:
+    """Normalisiert *raw_value* auf eine gültige ``SymbolRole``; alles außer "documentation_only" wird "diagnostic".
+
+    Args:
+        raw_value: Roher Rollen-Wert aus der Konfigurationsdatei.
+    """
     text = str(raw_value or "").strip().lower()
     if text == "documentation_only":
         return "documentation_only"
@@ -120,6 +155,22 @@ def _parse_role(raw_value: object) -> SymbolRole:
 
 
 def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | None]:
+    """Lädt die Symbol-Konfiguration aus *path*, repariert sie defensiv bei Problemen.
+
+    Fehlt die Datei, ist ihr JSON ungültig, fehlt das ``symbols``-Array oder
+    enthält es nach dem Parsen keinen einzigen vollständigen Eintrag (Pflicht-
+    felder: ``meaning``, ein gültiger Codepoint, alle drei Legendenstufen),
+    wird jeweils das eingebaute Standardset nach *path* zurückgeschrieben und
+    von dort neu geladen — die Anwendung soll mit einer kaputten
+    Konfigurationsdatei nie ganz ohne Symbole starten.
+
+    Args:
+        path: Pfad zur ``symbols.json``.
+
+    Returns:
+        Tupel aus (geladene Symbol-Definitionen, optionale Warnmeldung für
+        den Fall, dass auf das Standardset zurückgefallen wurde).
+    """
     if not path.exists():
         _write_default_payload(path)
 

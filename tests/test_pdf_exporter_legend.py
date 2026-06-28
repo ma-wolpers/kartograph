@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from app.core.domain.models import SeatingPlan
+from app.core.domain.models_v4 import PaletteEntry
 from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
 from app.infrastructure.symbol_config_loader import SymbolDefinition
+from tests.conftest import make_plan
 
 
 class _FakeCanvas:
@@ -33,7 +34,7 @@ class _FakeColors:
 def _symbol_definition() -> SymbolDefinition:
     return SymbolDefinition(
         meaning="Beteiligung",
-        glyph="\u261D",
+        glyph="☝",
         shortcut="b",
         legend_one="selten",
         legend_two="gelegentlich",
@@ -44,7 +45,7 @@ def _symbol_definition() -> SymbolDefinition:
 def test_legend_symbol_tables_create_separate_rows_per_level() -> None:
     exporter = PdfSeatingPlanExporter([_symbol_definition()])
 
-    tables = exporter._legend_symbol_tables({"Beteiligung": {1, 2, 3}})
+    tables = exporter._legend_renderer._legend_symbol_tables({"Beteiligung": {1, 2, 3}})
 
     assert tables == [
         (
@@ -62,10 +63,10 @@ def test_legend_page_does_not_draw_global_heading_when_tables_exist(monkeypatch)
     exporter = PdfSeatingPlanExporter([_symbol_definition()])
     canvas = _FakeCanvas()
 
-    monkeypatch.setattr(exporter, "_draw_wrapped_legend_table", lambda *args, **kwargs: 420.0)
+    monkeypatch.setattr(exporter._legend_renderer, "_draw_wrapped_legend_table", lambda *args, **kwargs: 420.0)
 
-    plan = SeatingPlan(version=2, plan_id="id", name="Plan", desks=[])
-    exporter._draw_legend_page(
+    plan = make_plan()
+    exporter._legend_renderer.render_legend_page(
         canvas,
         _FakeColors(),
         page_w=842.0,
@@ -83,14 +84,12 @@ def test_legend_page_shows_empty_hint_when_used_colors_have_no_meanings() -> Non
     exporter = PdfSeatingPlanExporter([])
     canvas = _FakeCanvas()
 
-    plan = SeatingPlan(
-        version=2,
-        plan_id="id",
-        name="Plan",
-        desks=[],
-        color_meanings={"rot": "", "blau": "   "},
-    )
-    exporter._draw_legend_page(
+    plan = make_plan()
+    plan.color_palette = {
+        "rot": PaletteEntry(label="Rot", hex="#f95738", meaning=""),
+        "blau": PaletteEntry(label="Blau", hex="#1d3557", meaning="   "),
+    }
+    exporter._legend_renderer.render_legend_page(
         canvas,
         _FakeColors(),
         page_w=842.0,

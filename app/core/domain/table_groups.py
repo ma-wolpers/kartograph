@@ -3,8 +3,12 @@ from __future__ import annotations
 from collections import Counter, deque
 from dataclasses import dataclass
 from math import cos, radians, sin
+from typing import TYPE_CHECKING
 
 from app.core.domain.models import Desk, SeatingPlan
+
+if TYPE_CHECKING:
+    from app.core.domain.models_v4 import SeatingPlan as SeatingPlanV4, Student
 
 TG_SHIFT_LIMIT = 0.49
 TG_ROTATION_LIMIT = 45.0
@@ -12,6 +16,8 @@ TG_ROTATION_LIMIT = 45.0
 
 @dataclass(frozen=True)
 class TableGroupSettings:
+    """Geometrie-Einstellungen einer Tischgruppe: Nummer, Versatz und Rotation."""
+
     number: int
     shift_x: float
     shift_y: float
@@ -20,6 +26,8 @@ class TableGroupSettings:
 
 @dataclass(frozen=True)
 class DeskGeometry:
+    """Berechnete Geometrie eines einzelnen Tisches: Mittelpunkt und Eckpunkte."""
+
     desk: Desk
     center_x: float
     center_y: float
@@ -27,6 +35,11 @@ class DeskGeometry:
 
 
 def _sanitize_shift(value: float) -> float:
+    """Begrenzt einen Versatzwert auf ±TG_SHIFT_LIMIT; ungültige Werte werden zu 0.0.
+
+    Args:
+        value: Roher Versatzwert (X- oder Y-Richtung), z. B. aus gespeicherten Daten.
+    """
     try:
         parsed = float(value)
     except (TypeError, ValueError):
@@ -35,6 +48,11 @@ def _sanitize_shift(value: float) -> float:
 
 
 def _sanitize_rotation(value: float) -> float:
+    """Begrenzt einen Rotationswert auf ±TG_ROTATION_LIMIT; ungültige Werte werden zu 0.0.
+
+    Args:
+        value: Roher Rotationswert in Grad, z. B. aus gespeicherten Daten.
+    """
     try:
         parsed = float(value)
     except (TypeError, ValueError):
@@ -43,16 +61,39 @@ def _sanitize_rotation(value: float) -> float:
 
 
 def _component_sort_key(component: list[Desk]) -> tuple[int, int]:
+    """Sortierschlüssel (min_y, min_x) für Komponenten — oben-links zuerst.
+
+    Args:
+        component: Liste der Tische einer zusammenhängenden Komponente.
+    """
     min_x = min(desk.x for desk in component)
     min_y = min(desk.y for desk in component)
     return min_y, min_x
 
 
 def _is_named_student_desk(desk: Desk) -> bool:
+    """Prüft, ob *desk* ein Schülertisch mit eingetragenem Namen ist.
+
+    Args:
+        desk: Zu prüfender Tisch.
+    """
     return desk.desk_type == "student" and bool(desk.student_name.strip())
 
 
 def build_student_components(plan: SeatingPlan) -> list[list[Desk]]:
+    """Gruppiert orthogonal benachbarte Schülertische zu zusammenhängenden Komponenten.
+
+    Zwei Tische gehören zur selben Komponente, wenn sie über eine Kette
+    von direkt benachbarten (oben/unten/links/rechts) Schülertischen
+    verbunden sind — unabhängig vom bisherigen ``tablegroup_number``.
+    Die Komponenten werden danach oben-links-zuerst sortiert.
+
+    Args:
+        plan: Sitzplan, dessen Tische gruppiert werden sollen.
+
+    Returns:
+        Liste der gefundenen Komponenten, jede als Liste ihrer Tische.
+    """
     students = [desk for desk in plan.desks if desk.desk_type == "student"]
     if not students:
         return []
@@ -92,6 +133,18 @@ def build_student_components(plan: SeatingPlan) -> list[list[Desk]]:
 
 
 def _pick_component_number(component: list[Desk]) -> int | None:
+    """Ermittelt die mehrheitlich vorkommende Tischgruppen-Nummer in *component*.
+
+    Bei Gleichstand gewinnt die kleinere Nummer. Tische ohne Nummer
+    (``tablegroup_number`` <= 0) werden ignoriert.
+
+    Args:
+        component: Liste der Tische einer zusammenhängenden Komponente.
+
+    Returns:
+        Die mehrheitliche Nummer, oder None, wenn keiner der Tische
+        bereits einer Gruppe zugeordnet war.
+    """
     numbers = [int(desk.tablegroup_number) for desk in component if int(desk.tablegroup_number) > 0]
     if not numbers:
         return None
@@ -101,6 +154,11 @@ def _pick_component_number(component: list[Desk]) -> int | None:
 
 
 def _pick_component_shift_x(component: list[Desk]) -> float:
+    """Übernimmt den X-Versatz vom benannten Schülertisch der Komponente, sonst vom ersten Tisch.
+
+    Args:
+        component: Liste der Tische einer zusammenhängenden Komponente.
+    """
     if not component:
         return 0.0
     reference = next((desk for desk in component if _is_named_student_desk(desk)), component[0])
@@ -108,6 +166,11 @@ def _pick_component_shift_x(component: list[Desk]) -> float:
 
 
 def _pick_component_shift_y(component: list[Desk]) -> float:
+    """Übernimmt den Y-Versatz vom benannten Schülertisch der Komponente, sonst vom ersten Tisch.
+
+    Args:
+        component: Liste der Tische einer zusammenhängenden Komponente.
+    """
     if not component:
         return 0.0
     reference = next((desk for desk in component if _is_named_student_desk(desk)), component[0])
@@ -115,6 +178,11 @@ def _pick_component_shift_y(component: list[Desk]) -> float:
 
 
 def _pick_component_rotation(component: list[Desk]) -> float:
+    """Übernimmt die Rotation vom benannten Schülertisch der Komponente, sonst vom ersten Tisch.
+
+    Args:
+        component: Liste der Tische einer zusammenhängenden Komponente.
+    """
     if not component:
         return 0.0
     reference = next((desk for desk in component if _is_named_student_desk(desk)), component[0])
@@ -122,6 +190,20 @@ def _pick_component_rotation(component: list[Desk]) -> float:
 
 
 def normalize_tablegroups_in_place(plan: SeatingPlan) -> None:
+    """Berechnet Tischgruppen-Zugehörigkeit und -Geometrie für den gesamten Plan neu.
+
+    Tischgruppen werden anhand der räumlich zusammenhängenden
+    Schülertische neu ermittelt: Komponenten ohne benannten Schüler
+    dürfen keine eigene Gruppe bilden und werden auf neutrale Werte
+    zurückgesetzt. Gültige Komponenten behalten ihre bisherige Nummer,
+    sofern diese nicht bereits durch eine andere Komponente belegt ist;
+    andernfalls erhalten sie fortlaufend eine neue Nummer ab
+    ``max(vorhandene Nummern) + 1``. Lehrertische werden stets auf
+    Nummer 0 mit neutraler Geometrie gesetzt.
+
+    Args:
+        plan: Sitzplan, dessen Tischgruppen neu berechnet werden.
+    """
     components = build_student_components(plan)
 
     for desk in plan.desks:
@@ -183,6 +265,16 @@ def normalize_tablegroups_in_place(plan: SeatingPlan) -> None:
 
 
 def tablegroup_number_at(plan: SeatingPlan, x: int, y: int) -> int | None:
+    """Gibt die Tischgruppen-Nummer am Schülertisch (x, y) zurück, oder None.
+
+    None bedeutet: keine Zelle an dieser Koordinate, kein Schülertisch,
+    oder der Tisch gehört zu keiner Gruppe.
+
+    Args:
+        plan: Sitzplan, in dem die Koordinate gesucht wird.
+        x: X-Rasterkoordinate des Tisches.
+        y: Y-Rasterkoordinate des Tisches.
+    """
     desk = plan.desk_at(x, y)
     if desk is None or desk.desk_type != "student":
         return None
@@ -191,6 +283,16 @@ def tablegroup_number_at(plan: SeatingPlan, x: int, y: int) -> int | None:
 
 
 def get_tablegroup_settings(plan: SeatingPlan, number: int) -> TableGroupSettings | None:
+    """Sucht die Geometrie-Einstellungen der Tischgruppe *number*.
+
+    Args:
+        plan: Sitzplan, in dem die Tischgruppe gesucht wird.
+        number: Nummer der gesuchten Tischgruppe.
+
+    Returns:
+        Einstellungen des ersten gefundenen Schülertisches dieser Gruppe,
+        oder None, wenn *number* ungültig ist oder keine Gruppe existiert.
+    """
     if number <= 0:
         return None
     for desk in plan.desks:
@@ -208,6 +310,18 @@ def get_tablegroup_settings(plan: SeatingPlan, number: int) -> TableGroupSetting
 
 
 def set_tablegroup_number_with_cascade_in_place(plan: SeatingPlan, source_number: int, target_number: int) -> None:
+    """Verschiebt die Gruppe *source_number* auf *target_number* und schiebt Kollisionen weiter.
+
+    Ist *target_number* bereits belegt, wird diese Gruppe (und ggf.
+    weitere kollidierende Gruppen kaskadenartig) auf die jeweils nächste
+    freie Nummer verschoben, damit nie zwei Gruppen dieselbe Nummer
+    tragen.
+
+    Args:
+        plan: Sitzplan, dessen Tischgruppen-Nummern angepasst werden.
+        source_number: Aktuelle Nummer der zu verschiebenden Gruppe.
+        target_number: Gewünschte neue Nummer der Gruppe.
+    """
     if source_number <= 0 or target_number <= 0 or source_number == target_number:
         return
 
@@ -235,6 +349,11 @@ def set_tablegroup_number_with_cascade_in_place(plan: SeatingPlan, source_number
         occupied.pop(old_number, None)
 
     def push_up(number: int) -> None:
+        """Verschiebt die Gruppe an *number* rekursiv auf *number* + 1, falls belegt.
+
+        Args:
+            number: Tischgruppen-Nummer, die ggf. frei geräumt werden soll.
+        """
         if number not in occupied:
             return
         push_up(number + 1)
@@ -256,6 +375,15 @@ def set_tablegroup_transforms_in_place(
     shift_y: float | None = None,
     rotation: float | None = None,
 ) -> None:
+    """Setzt Versatz und/oder Rotation aller Tische der Gruppe *number*.
+
+    Args:
+        plan: Sitzplan, dessen Tischgruppe verändert wird.
+        number: Nummer der zu verändernden Tischgruppe.
+        shift_x: Neuer X-Versatz; bleibt unverändert, wenn None.
+        shift_y: Neuer Y-Versatz; bleibt unverändert, wenn None.
+        rotation: Neue Rotation; bleibt unverändert, wenn None.
+    """
     if number <= 0:
         return
 
@@ -273,6 +401,13 @@ def set_tablegroup_transforms_in_place(
 
 
 def _desk_polygon(center_x: float, center_y: float, angle_degrees: float) -> tuple[tuple[float, float], ...]:
+    """Berechnet die vier Eckpunkte eines 1x1-Tisches, rotiert um *angle_degrees* um seinen Mittelpunkt.
+
+    Args:
+        center_x: X-Koordinate des Tisch-Mittelpunkts.
+        center_y: Y-Koordinate des Tisch-Mittelpunkts.
+        angle_degrees: Rotationswinkel in Grad um den Mittelpunkt.
+    """
     angle = radians(angle_degrees)
     cos_v = cos(angle)
     sin_v = sin(angle)
@@ -288,6 +423,18 @@ def _desk_polygon(center_x: float, center_y: float, angle_degrees: float) -> tup
 
 
 def build_desk_geometries(plan: SeatingPlan) -> list[DeskGeometry]:
+    """Berechnet Mittelpunkt und Eckpunkte aller Tische des Plans.
+
+    Lehrertische erhalten stets eine neutrale, unrotierte Geometrie an
+    ihrer Rasterposition. Schülertische werden zusätzlich um den
+    gespeicherten Tischgruppen-Versatz und die Rotation verschoben.
+
+    Args:
+        plan: Sitzplan, dessen Tischgeometrien berechnet werden.
+
+    Returns:
+        Liste der Geometrien in der Reihenfolge von ``plan.desks``.
+    """
     geometries: list[DeskGeometry] = []
 
     for desk in plan.desks:
@@ -314,11 +461,32 @@ def build_desk_geometries(plan: SeatingPlan) -> list[DeskGeometry]:
 
 
 def _project_polygon(axis_x: float, axis_y: float, polygon: tuple[tuple[float, float], ...]) -> tuple[float, float]:
+    """Projiziert *polygon* auf die Achse (axis_x, axis_y) und gibt (min, max) der Projektion zurück.
+
+    Args:
+        axis_x: X-Komponente der Projektionsachse.
+        axis_y: Y-Komponente der Projektionsachse.
+        polygon: Eckpunkte des zu projizierenden Polygons.
+    """
     values = [point_x * axis_x + point_y * axis_y for point_x, point_y in polygon]
     return min(values), max(values)
 
 
 def _polygons_overlap(poly_a: tuple[tuple[float, float], ...], poly_b: tuple[tuple[float, float], ...], eps: float = 1e-6) -> bool:
+    """Prüft per Separating-Axis-Theorem, ob sich zwei (ggf. rotierte) Tisch-Polygone überschneiden.
+
+    Da Tische durch Tischgruppen-Rotation nicht achsenparallel sein
+    müssen, reicht ein einfacher Bounding-Box-Vergleich nicht aus: Es
+    werden alle Kantennormalen beider Polygone als Testachsen genutzt;
+    existiert eine Achse, auf der sich die Projektionen nicht
+    überlappen, schneiden sich die Polygone nicht. *eps* toleriert
+    Rundungsfehler an exakt aneinanderstoßenden Kanten.
+
+    Args:
+        poly_a: Eckpunkte des ersten Tisch-Polygons.
+        poly_b: Eckpunkte des zweiten Tisch-Polygons.
+        eps: Toleranzschwelle für Rundungsfehler bei der Überlappungsprüfung.
+    """
     axes: list[tuple[float, float]] = []
     for polygon in (poly_a, poly_b):
         for idx in range(len(polygon)):
@@ -343,6 +511,16 @@ def _polygons_overlap(poly_a: tuple[tuple[float, float], ...], poly_b: tuple[tup
 
 
 def detect_overlaps_for_tablegroup(plan: SeatingPlan, number: int) -> tuple[bool, bool]:
+    """Prüft, ob die Tischgruppe *number* andere Tische überlappt (z. B. nach Verschieben/Rotieren).
+
+    Args:
+        plan: Sitzplan mit allen Tischen.
+        number: Nummer der zu prüfenden Tischgruppe.
+
+    Returns:
+        Tupel (überlappt Lehrertisch, überlappt einen Tisch außerhalb
+        der eigenen Gruppe).
+    """
     geometries = build_desk_geometries(plan)
     target_indexes = [
         idx
@@ -378,6 +556,16 @@ def detect_overlaps_for_tablegroup(plan: SeatingPlan, number: int) -> tuple[bool
 
 
 def group_bounds_from_geometries(geometries: list[DeskGeometry], number: int) -> tuple[float, float, float, float] | None:
+    """Berechnet die Bounding-Box der Tischgruppe *number* aus vorberechneten Geometrien.
+
+    Args:
+        geometries: Vorberechnete Tisch-Geometrien des Plans.
+        number: Nummer der Tischgruppe, deren Bounding-Box gesucht wird.
+
+    Returns:
+        (min_x, min_y, max_x, max_y), oder None, wenn die Gruppe keine
+        Schülertische enthält.
+    """
     points: list[tuple[float, float]] = []
     for geometry in geometries:
         if geometry.desk.desk_type != "student":
@@ -400,6 +588,16 @@ def selection_bounds_from_geometries(
     geometries: list[DeskGeometry],
     selected_cells: set[tuple[int, int]],
 ) -> tuple[float, float, float, float] | None:
+    """Berechnet die Bounding-Box der in *selected_cells* markierten Schülertische.
+
+    Args:
+        geometries: Vorberechnete Tisch-Geometrien des Plans.
+        selected_cells: Menge der ausgewählten (x, y)-Rasterkoordinaten.
+
+    Returns:
+        (min_x, min_y, max_x, max_y), oder None, wenn keine der
+        ausgewählten Zellen einen Schülertisch enthält.
+    """
     points: list[tuple[float, float]] = []
     for geometry in geometries:
         if geometry.desk.desk_type != "student":
@@ -419,9 +617,142 @@ def selection_bounds_from_geometries(
 
 
 def list_tablegroup_numbers(plan: SeatingPlan) -> list[int]:
+    """Gibt alle im Plan vorkommenden Tischgruppen-Nummern sortiert zurück.
+
+    Args:
+        plan: Sitzplan, dessen Tischgruppen-Nummern gelistet werden.
+    """
     numbers = {
         int(desk.tablegroup_number)
         for desk in plan.desks
         if desk.desk_type == "student" and int(desk.tablegroup_number) > 0
     }
     return sorted(numbers)
+
+
+# ---------------------------------------------------------------------------
+# v4 Geometry
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class SeatGeometryV4:
+    """Berechnete Geometrie eines Sitzplatzes im v4-Modell."""
+
+    x: int
+    y: int
+    is_teacher: bool
+    group_id: int | None
+    center_x: float
+    center_y: float
+    polygon: tuple[tuple[float, float], ...]
+    student: object | None  # Student | None
+
+
+def build_seat_geometries_v4(plan: SeatingPlanV4) -> list[SeatGeometryV4]:
+    """Berechnet Geometrien für alle Sitzplätze eines v4-Plans.
+
+    Gibt Lehrertisch-Geometrie zuerst zurück, dann alle Schülerplätze.
+
+    Args:
+        plan: v4-Sitzplan, dessen Sitzplatz-Geometrien berechnet werden.
+    """
+    from app.core.domain.models_v4 import SeatingPlan as _SP  # local to avoid circular
+
+    geometries: list[SeatGeometryV4] = []
+
+    ts = plan.classroom.teacher_seat
+    teacher_cx = float(ts.x) + 0.5
+    teacher_cy = float(ts.y) + 0.5
+    geometries.append(
+        SeatGeometryV4(
+            x=ts.x,
+            y=ts.y,
+            is_teacher=True,
+            group_id=None,
+            center_x=teacher_cx,
+            center_y=teacher_cy,
+            polygon=_desk_polygon(teacher_cx, teacher_cy, 0.0),
+            student=None,
+        )
+    )
+
+    # Build (x, y) → GroupSeat lookup from v4 tablegroups
+    seat_to_group: dict[tuple[int, int], tuple[int, float, float, float]] = {}
+    for group in plan.tablegroups:
+        for gs in group.seats:
+            seat_to_group[(gs.x, gs.y)] = (group.group_id, gs.shift_x, gs.shift_y, gs.rotation)
+
+    for student in plan.classroom.students:
+        sx, sy = student.seat.x, student.seat.y
+        group_info = seat_to_group.get((sx, sy))
+        if group_info is not None:
+            group_id, shift_x, shift_y, rotation = group_info
+        else:
+            group_id = None
+            shift_x = shift_y = rotation = 0.0
+
+        center_x = float(sx) + 0.5 + _sanitize_shift(shift_x)
+        center_y = float(sy) + 0.5 - _sanitize_shift(shift_y)
+        polygon = _desk_polygon(center_x, center_y, _sanitize_rotation(rotation))
+        geometries.append(
+            SeatGeometryV4(
+                x=sx,
+                y=sy,
+                is_teacher=False,
+                group_id=group_id,
+                center_x=center_x,
+                center_y=center_y,
+                polygon=polygon,
+                student=student,
+            )
+        )
+
+    return geometries
+
+
+def list_tablegroup_numbers_v4(plan: SeatingPlanV4) -> list[int]:
+    """Gibt alle Tischgruppen-IDs des v4-Plans sortiert zurück.
+
+    Args:
+        plan: v4-Sitzplan, dessen Tischgruppen-IDs gelistet werden.
+    """
+    return sorted(g.group_id for g in plan.tablegroups)
+
+
+def group_bounds_from_geometries_v4(
+    geometries: list[SeatGeometryV4], group_id: int
+) -> tuple[float, float, float, float] | None:
+    """Berechnet die Bounding-Box einer Tischgruppe aus v4-Geometrien.
+
+    Args:
+        geometries: Vorberechnete Sitzplatz-Geometrien des v4-Plans.
+        group_id: ID der Tischgruppe, deren Bounding-Box gesucht wird.
+    """
+    points: list[tuple[float, float]] = []
+    for g in geometries:
+        if g.is_teacher or g.group_id != group_id:
+            continue
+        points.extend(g.polygon)
+    if not points:
+        return None
+    return min(p[0] for p in points), min(p[1] for p in points), max(p[0] for p in points), max(p[1] for p in points)
+
+
+def selection_bounds_from_geometries_v4(
+    geometries: list[SeatGeometryV4],
+    selected_cells: set[tuple[int, int]],
+) -> tuple[float, float, float, float] | None:
+    """Berechnet die Bounding-Box der ausgewählten Zellen aus v4-Geometrien.
+
+    Args:
+        geometries: Vorberechnete Sitzplatz-Geometrien des v4-Plans.
+        selected_cells: Menge der ausgewählten (x, y)-Rasterkoordinaten.
+    """
+    points: list[tuple[float, float]] = []
+    for g in geometries:
+        if g.is_teacher or (g.x, g.y) not in selected_cells:
+            continue
+        points.extend(g.polygon)
+    if not points:
+        return None
+    return min(p[0] for p in points), min(p[1] for p in points), max(p[0] for p in points), max(p[1] for p in points)

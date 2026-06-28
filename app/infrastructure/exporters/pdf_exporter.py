@@ -1,4 +1,4 @@
-"""Orchestriert den PDF-Export eines Sitzplans.
+"""Orchestriert den PDF-Export eines Sitzplans (v4-Modell).
 
 Koordiniert Fontregistrierung, Geometrieberechnung, Tischrendering
 (via PdfDeskRenderer) und Legendenseite (via PdfLegendRenderer).
@@ -6,12 +6,12 @@ Koordiniert Fontregistrierung, Geometrieberechnung, Tischrendering
 
 from __future__ import annotations
 
-from copy import deepcopy
 from pathlib import Path
 from typing import Literal
 
-from app.core.domain.models import SeatingPlan
-from app.core.domain.table_groups import build_desk_geometries, normalize_tablegroups_in_place
+from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.table_groups import build_seat_geometries_v4
+from app.core.usecases.v4.tablegroup_usecases import normalize_tablegroups
 from app.infrastructure.exporters.pdf_desk_renderer import PdfDeskRenderer
 from app.infrastructure.exporters.pdf_legend_renderer import PdfLegendRenderer
 from app.infrastructure.symbol_config_loader import SymbolDefinition
@@ -114,9 +114,8 @@ class PdfSeatingPlanExporter:
         if grade_mode not in {"none", "final_only", "include_provisional"}:
             raise ValueError("Unbekannter Notenmodus")
 
-        export_plan = deepcopy(plan)
-        normalize_tablegroups_in_place(export_plan)
-        geometries = build_desk_geometries(export_plan)
+        export_plan = normalize_tablegroups(plan)
+        geometries = build_seat_geometries_v4(export_plan)
         if not geometries:
             raise ValueError("Plan enthaelt keine Tische")
 
@@ -129,7 +128,7 @@ class PdfSeatingPlanExporter:
                 points = [(-px, -py) for px, py in points]
                 cx, cy = -cx, -cy
             polygon = tuple(points)
-            render_items.append((polygon, (cx, cy), geometry.desk))
+            render_items.append((polygon, (cx, cy), geometry))
             all_points.extend(points)
 
         min_x = min(p[0] for p in all_points)
@@ -150,14 +149,14 @@ class PdfSeatingPlanExporter:
         top_y = page_h - margin - title_h
 
         c = canvas.Canvas(str(output_path), pagesize=(page_w, page_h))
-        c.setTitle(export_plan.name)
+        c.setTitle(export_plan.meta.name)
         c.setFont("Helvetica-Bold", 12)
-        c.drawString(margin, page_h - margin + 2, f"Sitzplan: {export_plan.name}")
+        c.drawString(margin, page_h - margin + 2, f"Sitzplan: {export_plan.meta.name}")
 
         used_symbol_levels: dict[str, set[int]] = {}
         used_colors: set[str] = set()
 
-        for polygon, center, desk in render_items:
+        for polygon, center, geometry in render_items:
             pdf_polygon = tuple(
                 (origin_x + (wx - min_x) * cell_size, top_y - (wy - min_y) * cell_size)
                 for wx, wy in polygon
@@ -167,7 +166,7 @@ class PdfSeatingPlanExporter:
                 top_y - (center[1] - min_y) * cell_size,
             )
             self._desk_renderer.render_desk(
-                c, colors, pdfmetrics, desk, pdf_polygon, pdf_center, cell_size,
+                c, colors, pdfmetrics, geometry, pdf_polygon, pdf_center, cell_size,
                 export_plan, grade_mode, visible_symbols, include_color_markers,
                 used_symbol_levels, used_colors,
             )

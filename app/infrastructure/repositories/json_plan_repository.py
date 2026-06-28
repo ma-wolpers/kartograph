@@ -79,7 +79,7 @@ class JsonSeatingPlanRepository:
         """
         payload = serialize_plan(plan)
         atomic_write_json(plan_path, payload)
-        self._backup.write_backup(plan_path, payload)
+        self._backup.write_backup(plan_path, payload, root_dir=self._backup_root_dir())
 
     def backup_plan_snapshot(self, plan: SeatingPlan, plan_path: Path) -> None:
         """Erstellt einen Backup-Snapshot von *plan*, ohne die Hauptdatei zu ändern.
@@ -89,7 +89,11 @@ class JsonSeatingPlanRepository:
             plan_path: Referenz-Pfad der Plandatei (bestimmt den Backup-Ordner).
         """
         payload = serialize_plan(plan)
-        self._backup.write_backup(plan_path, payload)
+        self._backup.write_backup(plan_path, payload, root_dir=self._backup_root_dir())
+
+    def _backup_root_dir(self) -> Path:
+        """Liefert das Backup-Wurzelverzeichnis; in Tests überschreibbar."""
+        return self._backup.backup_root_dir()
 
     def create_new_plan(
         self, plans_dir: Path, plan_name: str, overwrite: bool = False
