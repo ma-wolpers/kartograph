@@ -13,12 +13,15 @@ from app.adapters.gui.main_window_constants import (
     DEFAULT_CANVAS_RADIUS,
     DEFAULT_DETAILS_OVERLAY_POSITION,
     DEFAULT_GRID_NAME_FORMAT,
+    DEFAULT_SITZPLAN_POPUP_DELAY,
     DEFAULT_SYMBOL_STRENGTH,
     DEFAULT_TABLEGROUP_OVERLAY_POSITION,
     DEFAULT_VIEWPORT_FOLLOW_BUFFER,
     GRID_NAME_FORMAT_OPTIONS,
     MAX_CANVAS_RADIUS,
+    MAX_SITZPLAN_POPUP_DELAY,
     MIN_CANVAS_RADIUS,
+    MIN_SITZPLAN_POPUP_DELAY,
 )
 from app.core.domain.settings import KartographSettings
 from app.core.intents.view_intents import OpenSettingsIntent, UpdateSettingsIntent
@@ -181,6 +184,15 @@ class SettingsMixin:
                             enum_values=GRID_NAME_FORMAT_OPTIONS,
                             default=self.grid_name_format,
                         ),
+                        SharedSettingsFieldSpec(
+                            key="sitzplan_popup_delay",
+                            label="Sitzplan-Vorschau: Verzoegerung (Sek.)",
+                            field_type="int",
+                            default=self.sitzplan_popup_delay,
+                            min_value=MIN_SITZPLAN_POPUP_DELAY,
+                            max_value=MAX_SITZPLAN_POPUP_DELAY,
+                            hint="Sekunden Ruhe bis zur Aktualisierung der Vorschau",
+                        ),
                     ),
                 ),
             )
@@ -195,6 +207,7 @@ class SettingsMixin:
             "symbol_strength": symbol_strength_labels.get(self.symbol_strength, "Fett"),
             "viewport_follow_buffer": self.viewport_follow_buffer,
             "grid_name_format": self.grid_name_format,
+            "sitzplan_popup_delay": self.sitzplan_popup_delay,
         }
 
     def _apply_settings_dialog_payload(self, payload: dict[str, object], *, parent=None) -> bool:
@@ -243,6 +256,11 @@ class SettingsMixin:
         self._settings["viewport_follow_buffer"] = self.viewport_follow_buffer
         self.grid_name_format = self._normalize_grid_name_format(payload.get("grid_name_format"))
         self._settings["grid_name_format"] = self.grid_name_format
+        try:
+            self.sitzplan_popup_delay = max(MIN_SITZPLAN_POPUP_DELAY, min(MAX_SITZPLAN_POPUP_DELAY, int(payload.get("sitzplan_popup_delay", DEFAULT_SITZPLAN_POPUP_DELAY))))
+        except (TypeError, ValueError):
+            self.sitzplan_popup_delay = DEFAULT_SITZPLAN_POPUP_DELAY
+        self._settings["sitzplan_popup_delay"] = self.sitzplan_popup_delay
         self.settings_repository.save_settings(self._settings)
         self._controller.dispatch(UpdateSettingsIntent(settings=KartographSettings.from_dict(self._settings)))
         self._update_scroll_region()

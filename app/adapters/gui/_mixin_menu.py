@@ -128,6 +128,8 @@ class MenuMixin:
 
         static_items = [
             SharedMenuItem(type="separator"),
+            SharedMenuItem(type="command", label="Sitzplan-Vorschau oeffnen", command=self.open_sitzplan_popup),
+            SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Dokumentationssicht umschalten (Strg+Shift+D)", command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION)),
             SharedMenuItem(type="command", label="Shortcut-Runtime-Debug anzeigen (Strg+Shift+R)", command=lambda: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG)),
             SharedMenuItem(type="command", label="Offline-Simulation umschalten (Strg+Shift+O)", command=lambda: self._handle_intent(UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE)),

@@ -19,6 +19,7 @@ GRID_NAME_FORMAT_OPTIONS = ("Vorname", "Vorname N", "Vorname Nachname", "V. Nach
 DEFAULT_DETAILS_OVERLAY_POSITION = "bottom"
 DEFAULT_TABLEGROUP_OVERLAY_POSITION = "right"
 DEFAULT_THEME_KEY = "mono_day"
+DEFAULT_SITZPLAN_POPUP_DELAY = 3
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,7 @@ class KartographSettings:
     grid_visible_symbols: tuple[str, ...] = field(default_factory=tuple)
     details_overlay_position: str = DEFAULT_DETAILS_OVERLAY_POSITION
     tablegroup_overlay_position: str = DEFAULT_TABLEGROUP_OVERLAY_POSITION
+    sitzplan_popup_delay: int = DEFAULT_SITZPLAN_POPUP_DELAY
 
     @classmethod
     def from_dict(cls, payload: dict) -> "KartographSettings":
@@ -87,6 +89,7 @@ class KartographSettings:
             grid_visible_symbols=grid_visible_symbols,
             details_overlay_position=_str(payload.get("details_overlay_position"), DEFAULT_DETAILS_OVERLAY_POSITION, options=("left", "right", "bottom")),
             tablegroup_overlay_position=_str(payload.get("tablegroup_overlay_position"), DEFAULT_TABLEGROUP_OVERLAY_POSITION, options=("left", "right", "bottom")),
+            sitzplan_popup_delay=_int(payload.get("sitzplan_popup_delay"), DEFAULT_SITZPLAN_POPUP_DELAY, minimum=1, maximum=30),
         )
 
     def to_dict(self) -> dict:
@@ -105,4 +108,5 @@ class KartographSettings:
             "grid_visible_symbols": list(self.grid_visible_symbols),
             "details_overlay_position": self.details_overlay_position,
             "tablegroup_overlay_position": self.tablegroup_overlay_position,
+            "sitzplan_popup_delay": self.sitzplan_popup_delay,
         }

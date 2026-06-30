@@ -32,6 +32,7 @@ from app.adapters.gui._mixin_pdf import PdfMixin
 from app.adapters.gui._mixin_plan_crud import PlanCrudMixin
 from app.adapters.gui._mixin_plan_list import PlanListMixin
 from app.adapters.gui._mixin_popup import PopupMixin
+from app.adapters.gui._mixin_sitzplan_popup import SitzplanPopupMixin
 from app.adapters.gui._mixin_selection import SelectionMixin
 from app.adapters.gui._mixin_settings import SettingsMixin
 from app.adapters.gui._mixin_shortcut_handlers import ShortcutHandlersMixin
@@ -97,6 +98,7 @@ class KartographMainWindow(
     ThemeMixin,
     LaufkernMixin,
     PopupMixin,
+    SitzplanPopupMixin,
     ShortcutHandlersMixin,
     ShortcutMixin,
     LayoutDocsMixin,
@@ -167,6 +169,7 @@ class KartographMainWindow(
         self.details_overlay_position = settings.details_overlay_position
         self.tablegroup_overlay_position = settings.tablegroup_overlay_position
         self.grid_name_format = settings.grid_name_format
+        self.sitzplan_popup_delay = settings.sitzplan_popup_delay
 
         self._ui_action_registry = self._build_ui_action_registry()
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
@@ -195,6 +198,7 @@ class KartographMainWindow(
         self._laufkern_tracking_sequence = 0
         self._laufkern_tracking_step_ids: dict[str, str] = {}
         self._laufkern_tracking_artifacts = []
+        self._init_sitzplan_popup_state()
         self._tablegroup_overlay: ui.Toplevel | None = None
         self._tg_number_var: ui.StringVar | None = None
         self._tg_shift_x_var: ui.StringVar | None = None
@@ -263,6 +267,10 @@ class KartographMainWindow(
             pass
         try:
             self._close_tablegroup_overlay()
+        except Exception:
+            pass
+        try:
+            self._close_sitzplan_popup()
         except Exception:
             pass
         return True
@@ -393,6 +401,8 @@ class KartographMainWindow(
                 if state.doc_selected_date is not None and state.doc_selected_date in self._doc_dates:
                     self._doc_selected_date_index = self._doc_dates.index(state.doc_selected_date)
                 self._apply_doc_column_heading_highlight()
+
+        self._notify_sitzplan_popup(state.current_plan, self.theme_key, self.grid_name_format)
 
     def _apply_plan_list(self, plan_list: list[PlanListEntry]) -> None:
         """Aktualisiert die interne Planliste und die Listbox aus einem PlanListEntry-Array.
