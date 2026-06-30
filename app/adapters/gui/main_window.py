@@ -250,6 +250,7 @@ class KartographMainWindow(
 
         self._build_menu_bar()
         self._build_layout()
+        self._register_canvas_event_bindings()
         self._bind_shortcuts()
         self.bind("<Configure>", lambda _event: self._position_tablegroup_overlay(), add="+")
         self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
