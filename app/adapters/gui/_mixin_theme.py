@@ -7,7 +7,7 @@ der Hover-Tooltips und der Farbpunkt-Buttons.
 
 from __future__ import annotations
 
-from app.adapters.gui.ui_theme import THEMES, normalize_theme_key, theme_names
+from app.adapters.gui.ui_theme import kartograph_theme, normalize_theme_key, theme_names
 from app.core.domain.settings import KartographSettings
 from app.core.intents.view_intents import UpdateSettingsIntent
 
@@ -35,9 +35,9 @@ class ThemeMixin:
         self.theme_var.set(next_theme)
         self._on_theme_changed()
 
-    def apply_theme(self) -> None:
+    def _apply_kartograph_theme(self) -> None:
         """Wendet das aktuelle Theme auf alle Widgets und Stile an."""
-        theme = THEMES[self.theme_key]
+        theme = kartograph_theme(self.theme_key)
 
         self.configure(bg=theme["bg_main"])
         self.style.configure("TFrame", background=theme["bg_panel"])
@@ -45,20 +45,20 @@ class ThemeMixin:
         self.style.configure("Panel.TFrame", background=theme["bg_panel"])
         self.style.configure("StrongPanel.TFrame", background=theme["panel_strong"])
 
-        self.style.configure("TLabel", background=theme["bg_panel"], foreground=theme["fg_main"])
-        self.style.configure("Main.TLabel", background=theme["bg_main"], foreground=theme["fg_main"])
-        self.style.configure("Panel.TLabel", background=theme["bg_panel"], foreground=theme["fg_main"])
-        self.style.configure("StrongPanel.TLabel", background=theme["panel_strong"], foreground=theme["fg_main"])
+        self.style.configure("TLabel", background=theme["bg_panel"], foreground=theme["fg_primary"])
+        self.style.configure("Main.TLabel", background=theme["bg_main"], foreground=theme["fg_primary"])
+        self.style.configure("Panel.TLabel", background=theme["bg_panel"], foreground=theme["fg_primary"])
+        self.style.configure("StrongPanel.TLabel", background=theme["panel_strong"], foreground=theme["fg_primary"])
 
-        self.style.configure("TButton", padding=(10, 6), background=theme["bg_panel"], foreground=theme["fg_main"])
-        self.style.map("TButton", background=[("active", theme["bg_selected"])], foreground=[("active", theme["fg_main"])])
+        self.style.configure("TButton", padding=(10, 6), background=theme["bg_panel"], foreground=theme["fg_primary"])
+        self.style.map("TButton", background=[("active", theme["accent_soft"])], foreground=[("active", theme["fg_primary"])])
 
-        self.style.configure("TEntry", fieldbackground=theme["bg_surface"], foreground=theme["fg_main"], insertcolor=theme["fg_main"])
+        self.style.configure("TEntry", fieldbackground=theme["bg_surface"], foreground=theme["fg_primary"], insertcolor=theme["fg_primary"])
 
-        self.style.configure("Horizontal.TScrollbar", troughcolor=theme["scroll_trough"], background=theme["scroll_thumb"], bordercolor=theme["grid_line"], arrowcolor=theme["fg_muted"])
-        self.style.map("Horizontal.TScrollbar", background=[("active", theme["scroll_thumb_active"])])
-        self.style.configure("Vertical.TScrollbar", troughcolor=theme["scroll_trough"], background=theme["scroll_thumb"], bordercolor=theme["grid_line"], arrowcolor=theme["fg_muted"])
-        self.style.map("Vertical.TScrollbar", background=[("active", theme["scroll_thumb_active"])])
+        self.style.configure("Horizontal.TScrollbar", troughcolor=theme["bg_surface"], background=theme["panel_strong"], bordercolor=theme["border"], arrowcolor=theme["fg_muted"])
+        self.style.map("Horizontal.TScrollbar", background=[("active", theme["accent_soft"])])
+        self.style.configure("Vertical.TScrollbar", troughcolor=theme["bg_surface"], background=theme["panel_strong"], bordercolor=theme["border"], arrowcolor=theme["fg_muted"])
+        self.style.map("Vertical.TScrollbar", background=[("active", theme["accent_soft"])])
 
         self.main_frame.configure(style="Main.TFrame")
         self.list_view.configure(style="Panel.TFrame")
@@ -77,11 +77,11 @@ class ThemeMixin:
 
         self.canvas.configure(bg=theme["bg_surface"])
         _scroll_kw = dict(
-            bg=theme["scroll_thumb"],
-            activebackground=theme["scroll_thumb_active"],
-            troughcolor=theme["scroll_trough"],
-            highlightbackground=theme["scroll_trough"],
-            highlightcolor=theme["scroll_trough"],
+            bg=theme["panel_strong"],
+            activebackground=theme["accent_soft"],
+            troughcolor=theme["bg_surface"],
+            highlightbackground=theme["bg_surface"],
+            highlightcolor=theme["bg_surface"],
             relief="flat",
             bd=0,
         )
@@ -90,21 +90,18 @@ class ThemeMixin:
 
         self.plan_listbox.configure(
             bg=theme["bg_panel"],
-            fg=theme["fg_main"],
+            fg=theme["fg_primary"],
             selectbackground=theme["accent"],
             selectforeground="#FFFFFF",
-            highlightbackground=theme["grid_line"],
+            highlightbackground=theme["border"],
             highlightcolor=theme["focus_ring"],
             borderwidth=1,
             relief="solid",
         )
 
-        self.style.configure("Treeview", background=theme["bg_surface"], fieldbackground=theme["bg_surface"], foreground=theme["fg_main"], bordercolor=theme["grid_line"])
-        self.style.configure("Treeview.Heading", background=theme["bg_panel"], foreground=theme["fg_main"])
+        self.style.configure("Treeview", background=theme["bg_surface"], fieldbackground=theme["bg_surface"], foreground=theme["fg_primary"], bordercolor=theme["border"])
+        self.style.configure("Treeview.Heading", background=theme["bg_panel"], foreground=theme["fg_primary"])
         self.style.map("Treeview", background=[("selected", theme["accent"])], foreground=[("selected", "#FFFFFF")])
-
-        if self._shared_menu_bar is not None:
-            self._shared_menu_bar.refresh_theme(self._shared_menu_theme_key())
 
         shared_theme_key = self._shared_menu_theme_key()
         active_tooltips: list[object] = []
@@ -126,12 +123,12 @@ class ThemeMixin:
 
     def _apply_color_button_theme(self) -> None:
         """Passt Hintergrundfarben aller Farbpunkt-Buttons an das aktuelle Theme an."""
-        theme = THEMES[self.theme_key]
+        theme = kartograph_theme(self.theme_key)
         for button in self._color_marker_buttons:
             button.configure(
                 bg=theme["bg_panel"],
-                activebackground=theme["bg_selected"],
-                activeforeground=theme["fg_main"],
-                highlightbackground=theme["grid_line"],
+                activebackground=theme["accent_soft"],
+                activeforeground=theme["fg_primary"],
+                highlightbackground=theme["border"],
                 bd=1,
             )

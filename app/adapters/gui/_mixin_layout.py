@@ -19,12 +19,12 @@ from bw_gui.widgets import HoverTooltip as SharedHoverTooltip
 class LayoutMixin:
     """Mixin: Grundstruktur, Listenansicht und Editor-Aufbau."""
 
-    def _build_layout(self) -> None:
+    def _build_layout(self, frame=None) -> None:
         """Erstellt den Hauptrahmen und delegiert an List- und Editor-Aufbau."""
         self.style = tui.Style(self)
         self.style.theme_use("clam")
 
-        self.main_frame = tui.Frame(self)
+        self.main_frame = tui.Frame(frame if frame is not None else self)
         self.main_frame.pack(fill="both", expand=True)
 
         self.list_view = tui.Frame(self.main_frame)

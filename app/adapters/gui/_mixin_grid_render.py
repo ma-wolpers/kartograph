@@ -7,7 +7,7 @@ Die Inhalts-Zeichnung einzelner Schülertische ist in ``_mixin_grid_helpers.py``
 
 from __future__ import annotations
 
-from app.adapters.gui.ui_theme import THEMES
+from app.adapters.gui.ui_theme import kartograph_theme
 from app.core.domain.table_groups import (
     build_seat_geometries_v4,
     group_bounds_from_geometries_v4,
@@ -25,7 +25,7 @@ class GridRenderMixin:
         if not self.current_plan:
             return
 
-        theme = THEMES[self.theme_key]
+        theme = kartograph_theme(self.theme_key)
 
         left = self.canvas.canvasx(0)
         top = self.canvas.canvasy(0)
@@ -83,7 +83,7 @@ class GridRenderMixin:
                 y1 = cy * self.cell_size
                 self.canvas.create_rectangle(
                     x1, y1, x1 + self.cell_size, y1 + self.cell_size,
-                    fill=theme["empty_fill"], outline=theme["grid_line"], width=1, tags=("grid",),
+                    fill=theme["bg_surface"], outline=theme["border"], width=1, tags=("grid",),
                 )
 
         # Teacher seat
@@ -96,7 +96,7 @@ class GridRenderMixin:
                 or ty2 < top - self.cell_size or ty1 > bottom + self.cell_size):
             self.canvas.create_rectangle(
                 tx1, ty1, tx2, ty2,
-                fill=theme["teacher_fill"], outline=theme["grid_line"], width=1, tags=("grid",),
+                fill=theme["teacher_fill"], outline=theme["border"], width=1, tags=("grid",),
             )
             self.canvas.create_text(
                 tx1 + self.cell_size / 2, ty1 + self.cell_size / 2,
@@ -131,7 +131,7 @@ class GridRenderMixin:
 
             self.canvas.create_polygon(
                 polygon_points,
-                fill=theme["student_fill"], outline=theme["grid_line"], width=1, tags=("grid",),
+                fill=theme["accent_soft"], outline=theme["border"], width=1, tags=("grid",),
             )
             center_px = geometry.center_x * self.cell_size
             self._draw_student_desk_content(student, center_px, min_px, min_py, theme, student_name_font_size)

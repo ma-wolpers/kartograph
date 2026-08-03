@@ -92,5 +92,5 @@ def main() -> None:
         shell_config=dependencies.shell_config,
     )
     logger.info("Entering Tk mainloop")
-    app.mainloop()
+    app.run()
     logger.info("Tk mainloop exited")

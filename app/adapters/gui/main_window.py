@@ -55,6 +55,7 @@ from app.adapters.gui.main_window_constants import (
     apply_window_icon,
     configure_windows_process_identity,
 )
+from app.adapters.gui.ui_intents import UiIntent
 from app.adapters.gui.ui_theme import normalize_theme_key
 from app.application.app_controller import KartographAppController
 from app.application.app_state import AppState, EditorSurface, InteractionMode, PlanListEntry
@@ -62,14 +63,15 @@ from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.plan_selection import RectSelection
 from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
 from app.infrastructure.symbol_config_loader import SymbolDefinition
-from bw_libs.app_shell import AppShellConfig, TkinterAppShell
+from bw_libs.app_shell import AppShellConfig
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 from bw_libs.ui_contract.hsm import build_ui_hsm_contract
 from bw_libs.ui_contract.keybinding import KeybindingRegistry
 from bw_libs.ui_contract.popup import POPUP_KIND_MODAL, POPUP_KIND_NON_MODAL, PopupPolicy, PopupPolicyRegistry
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import TkRootHost, ui, widgets as tui
+from bw_gui.runtime import BwBaseWindow, ui, widgets as tui
+from bw_gui.menu import section_spec
 
 
 class KartographMainWindow(
@@ -104,7 +106,7 @@ class KartographMainWindow(
     LayoutDocsMixin,
     LayoutMixin,
     MenuMixin,
-    TkRootHost,
+    BwBaseWindow,
 ):
     """Haupt-GUI-Klasse für den Kartograph-Sitzplan-Editor.
 
@@ -125,36 +127,17 @@ class KartographMainWindow(
                 ``AppState.symbol_catalog``).
             shell_config: Optionale App-Shell-Konfiguration.
         """
-        startup_started = time.perf_counter()
-        super().__init__()
+        self._init_start_time = time.perf_counter()
         LOGGER.info("Main window __init__ start")
-
         configure_windows_process_identity()
-        resolved_shell_config = shell_config or AppShellConfig(
-            title=APP_INFO.window_title, geometry="1320x860", min_width=1000, min_height=680
-        )
-        self.app_shell = TkinterAppShell(self.tk_root, resolved_shell_config, on_close=self._on_shell_close)
-        apply_window_icon(self.tk_root)
-        self.tk_root.report_callback_exception = self._report_tk_callback_exception
 
         self._controller = controller
-        self._controller._on_state_changed = self.apply_state  # wire callback
+        self._controller._on_state_changed = self.apply_state
         # Expose repos for unmigrated mixins (pdf, export, settings, undo-redo)
         self.settings_repository = controller.settings_repository
         self.plan_repository = controller.plan_repository
         self.plans_dir = controller.plans_dir
         self.default_plans_dir = controller.plans_dir
-
-        self.current_plan_path: Path | None = None
-        self.current_plan: SeatingPlan | None = None
-        self.selected_cell: tuple[int, int] = (0, 0)
-        self.selection = RectSelection(0, 0)
-        self._drag_active = False
-        self.cell_size = DEFAULT_CELL_SIZE
-        self._plan_index: list[PlanListEntry] = []
-        self.interaction_mode = LIST_ACTIVE
-        self._plan_list_undo_actions: list[dict[str, object]] = []
-        self._plan_list_redo_actions: list[dict[str, object]] = []
 
         # AppState.settings ist beim Controller-Start bereits aus dem
         # Settings-Repository geladen und normalisiert (Phase D1) — die GUI
@@ -171,6 +154,42 @@ class KartographMainWindow(
         self.grid_name_format = settings.grid_name_format
         self.sitzplan_popup_delay = settings.sitzplan_popup_delay
 
+        resolved_shell_config = shell_config or AppShellConfig(
+            title=APP_INFO.window_title, geometry="1320x860", min_width=1000, min_height=680
+        )
+        super().__init__(
+            title=resolved_shell_config.title,
+            geometry=resolved_shell_config.geometry,
+            theme_key=self.theme_key,
+            min_width=resolved_shell_config.min_width,
+            min_height=resolved_shell_config.min_height,
+            on_close=self._on_shell_close,
+        )
+
+    def build_menu(self) -> list:
+        """Liefert die Menüstruktur für BwBaseWindow."""
+        return [
+            section_spec("file", label="Datei", alt="d", items_provider=self._menu_items_file),
+            section_spec("edit", label="Bearbeiten", alt="b", items_provider=self._menu_items_edit),
+            section_spec("view", label="Ansicht", alt="a", items_provider=self._menu_items_view),
+        ]
+
+    def build_content(self, frame) -> None:
+        """Erzeugt alle UI-Komponenten nach Fenster-Setup durch BwBaseWindow."""
+        apply_window_icon(self.tk_root)
+        self.tk_root.report_callback_exception = self._report_tk_callback_exception
+
+        self.current_plan_path: Path | None = None
+        self.current_plan: SeatingPlan | None = None
+        self.selected_cell: tuple[int, int] = (0, 0)
+        self.selection = RectSelection(0, 0)
+        self._drag_active = False
+        self.cell_size = DEFAULT_CELL_SIZE
+        self._plan_index: list[PlanListEntry] = []
+        self.interaction_mode = LIST_ACTIVE
+        self._plan_list_undo_actions: list[dict[str, object]] = []
+        self._plan_list_redo_actions: list[dict[str, object]] = []
+
         self._ui_action_registry = self._build_ui_action_registry()
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
 
@@ -186,7 +205,6 @@ class KartographMainWindow(
             PopupPolicy(policy_id="dialog.non_blocking", kind=POPUP_KIND_NON_MODAL, trap_focus=False, affects_mode=False)
         )
         self._tracked_popup_ids: set[str] = set()
-        self._shared_menu_bar = None
         self._hover_tooltips: list[object] = []
         self._shortcut_runtime_offline = False
         self._shortcut_runtime_debug_window: ui.Toplevel | None = None
@@ -248,17 +266,37 @@ class KartographMainWindow(
         if warning:
             self.status_var.set(warning)
 
-        self._build_menu_bar()
-        self._build_layout()
+        self.theme_var = ui.StringVar(value=self.theme_key)
+        self.details_overlay_position_var = ui.StringVar(value=self.details_overlay_position)
+        self.tablegroup_overlay_position_var = ui.StringVar(value=self.tablegroup_overlay_position)
+
+        self._build_layout(frame)
         self._register_canvas_event_bindings()
         self._bind_shortcuts()
         self.bind("<Configure>", lambda _event: self._position_tablegroup_overlay(), add="+")
         self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
         self.after(DEFAULT_UI_WATCHDOG_INTERVAL_MS, self._ui_watchdog_tick)
 
-        self.apply_theme()
+        self._apply_kartograph_theme()
         self.after_idle(self._initialize_startup_view)
-        LOGGER.info("Main window __init__ finished in %.3fs", time.perf_counter() - startup_started)
+        LOGGER.info("Main window __init__ finished in %.3fs", time.perf_counter() - self._init_start_time)
+
+    def open_settings(self) -> None:
+        """Öffnet den Einstellungen-Dialog."""
+        self._handle_intent(UiIntent.OPEN_SETTINGS)
+
+    def apply_theme(self, theme_key: str | None = None) -> None:
+        """Wechselt Theme und synchronisiert alle kartograph-spezifischen Flächen.
+
+        Accepts an optional theme_key for BwBaseWindow compatibility (View menu radio).
+        When called without arguments (e.g. from apply_state), uses self.theme_key.
+        """
+        if theme_key is not None:
+            self.theme_key = normalize_theme_key(theme_key)
+            self.theme_var.set(self.theme_key)
+            self._on_theme_changed()  # persists via UpdateSettingsIntent; won't re-trigger (theme_key already set)
+        BwBaseWindow.apply_theme(self, self.theme_key)
+        self._apply_kartograph_theme()
 
     def _on_shell_close(self) -> bool:
         """Schließt Overlay-Fenster bevor die Shell das Root-Fenster zerstört."""

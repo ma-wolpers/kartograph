@@ -55,7 +55,7 @@ class GridHelpersMixin:
                 cx = start_x_dot + idx * spacing
                 self.canvas.create_oval(
                     cx - radius, circles_y - radius, cx + radius, circles_y + radius,
-                    fill=hex_color, outline=theme["grid_line"], width=1, tags=("grid",),
+                    fill=hex_color, outline=theme["border"], width=1, tags=("grid",),
                 )
 
         overall_grade = compute_grade_display(self.current_plan, student.student_id)
@@ -70,7 +70,7 @@ class GridHelpersMixin:
         if main_text:
             self.canvas.create_text(
                 center_px, min_py + self.cell_size * 0.24,
-                text=main_text, fill=theme["fg_main"],
+                text=main_text, fill=theme["fg_primary"],
                 font=("Segoe UI", student_name_font_size, "bold"), tags=("grid",),
             )
 

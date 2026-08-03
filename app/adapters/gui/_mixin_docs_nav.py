@@ -6,7 +6,7 @@ Schließung und Wert-Anwendung für die Dokumentations-Tabelle bereit.
 
 from __future__ import annotations
 
-from app.adapters.gui.ui_theme import THEMES
+from app.adapters.gui.ui_theme import kartograph_theme
 from app.core.intents.grade_intents import RecordGradeIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -68,9 +68,9 @@ class DocsNavMixin:
             return
         bx, by, bw, bh = bbox
 
-        theme = THEMES.get(self.theme_key, THEMES[list(THEMES.keys())[0]])
-        cell_bg = theme.get("accent_soft", "#fffde7")
-        cell_fg = theme.get("fg_primary", "#000000")
+        theme = kartograph_theme(self.theme_key)
+        cell_bg = theme["accent_soft"]
+        cell_fg = theme["fg_primary"]
         label = ui.Label(tree, text=cell_text, background=cell_bg, foreground=cell_fg, bd=1, relief="solid", anchor="w", padx=4, pady=0)
         label.place(x=bx, y=by, width=bw, height=bh)
         self._docs_cell_overlay = label

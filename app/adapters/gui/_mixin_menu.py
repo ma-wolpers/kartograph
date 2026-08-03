@@ -9,45 +9,14 @@ from __future__ import annotations
 
 from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS
 from app.adapters.gui.ui_intents import UiIntent
-from app.adapters.gui.ui_theme import THEMES, theme_names
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import ui
-from bw_gui.menu import CustomMenuBar as SharedCustomMenuBar
-from bw_gui.menu import MenuDefinition as SharedMenuDefinition
 from bw_gui.menu import MenuItem as SharedMenuItem
 
 
 class MenuMixin:
     """Mixin: Menüleiste und deren Hilfsmethoden."""
-
-    def _build_menu_bar(self) -> None:
-        """Erstellt oder ersetzt die geteilte Menüleiste des Hauptfensters."""
-        self.theme_var = ui.StringVar(value=self.theme_key)
-        self.details_overlay_position_var = ui.StringVar(value=self.details_overlay_position)
-        self.tablegroup_overlay_position_var = ui.StringVar(value=self.tablegroup_overlay_position)
-
-        if self._shared_menu_bar is not None:
-            self._shared_menu_bar.destroy()
-
-        definitions = (
-            SharedMenuDefinition(
-                key="file", label="Datei", alt="d", items_provider=self._menu_items_file,
-            ),
-            SharedMenuDefinition(
-                key="edit", label="Bearbeiten", alt="b", items_provider=self._menu_items_edit,
-            ),
-            SharedMenuDefinition(
-                key="view", label="Ansicht", alt="a", items_provider=self._menu_items_view,
-            ),
-        )
-
-        self._shared_menu_bar = SharedCustomMenuBar(
-            self, definitions, theme_key=self._shared_menu_theme_key(),
-        )
-        self._shared_menu_bar.build()
-        self.config(menu="")
 
     def _shared_menu_theme_key(self) -> str:
         """Gibt den für die bw_gui-Menükomponente passenden Theme-Schlüssel zurück."""
@@ -93,7 +62,6 @@ class MenuMixin:
             SharedMenuItem(type="command", label="Plan duplizieren (Strg+D)", command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN)),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Export PDF (Strg+E)", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF)),
-            SharedMenuItem(type="command", label="Einstellungen (Strg+,)", command=lambda: self._handle_intent(UiIntent.OPEN_SETTINGS)),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Zur Planliste", command=lambda: self._handle_intent(UiIntent.GO_TO_LIST)),
             SharedMenuItem(type="separator"),
@@ -113,21 +81,11 @@ class MenuMixin:
         )
 
     def _menu_items_view(self):
-        """Liefert die Menüeinträge für das Ansicht-Menü (Theme + Overlays)."""
-        theme_items = [
-            SharedMenuItem(
-                type="radio",
-                label=THEMES[key].get("label", key),
-                checked=(self.theme_var.get() == key),
-                command=lambda theme_key=key: self._set_theme_from_menu(theme_key),
-            )
-            for key in theme_names()
-        ]
+        """Liefert die Menüeinträge für das Ansicht-Menü (Overlays, Debug)."""
         details_position = self.details_overlay_position_var.get()
         tablegroup_position = self.tablegroup_overlay_position_var.get()
 
-        static_items = [
-            SharedMenuItem(type="separator"),
+        return [
             SharedMenuItem(type="command", label="Sitzplan-Vorschau oeffnen", command=self.open_sitzplan_popup),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Dokumentationssicht umschalten (Strg+Shift+D)", command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION)),
@@ -144,4 +102,3 @@ class MenuMixin:
             SharedMenuItem(type="radio", label="Rechts (Tischgruppen)", checked=(tablegroup_position == "right"), command=lambda: self._set_tablegroup_overlay_position("right")),
             SharedMenuItem(type="radio", label="Unten (Tischgruppen)", checked=(tablegroup_position == "bottom"), command=lambda: self._set_tablegroup_overlay_position("bottom")),
         ]
-        return theme_items + static_items

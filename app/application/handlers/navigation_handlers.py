@@ -4,6 +4,7 @@ import dataclasses
 
 from app.application.app_state import AppState, InteractionMode
 from app.application.handler_context import HandlerContext
+from app.application.handlers._shared import _refresh_plan_list
 from app.core.domain.plan_selection import RectSelection
 from app.core.intents.navigation_intents import (
     ClearSelectionIntent,
@@ -55,6 +56,7 @@ def handle_clear_selection(intent: ClearSelectionIntent, state: AppState, ctx: H
     Args:
         intent: Trägt keine Felder.
         state: Aktueller AppState.
-        ctx: Handler-Kontext (von diesem Handler nicht benötigt).
+        ctx: Handler-Kontext.
     """
-    return dataclasses.replace(state, interaction_mode=InteractionMode.LIST)
+    plan_list = _refresh_plan_list(ctx)
+    return dataclasses.replace(state, interaction_mode=InteractionMode.LIST, plan_list=plan_list)

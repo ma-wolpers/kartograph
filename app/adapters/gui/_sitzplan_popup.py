@@ -6,7 +6,7 @@ automatisch, wenn der Plan im Hauptfenster geändert wird.
 
 from __future__ import annotations
 
-from app.adapters.gui.ui_theme import THEMES
+from app.adapters.gui.ui_theme import kartograph_theme
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.table_groups import build_seat_geometries_v4
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -29,7 +29,7 @@ class SitzplanPopup:
         self._plan: SeatingPlan | None = None
         self._flipped = False
 
-        theme = THEMES.get(theme_key, THEMES["mono_day"])
+        theme = kartograph_theme(theme_key)
 
         toolbar = ui.Frame(self._window, bg=theme["bg_panel"])
         toolbar.pack(fill="x", side="top")
@@ -58,7 +58,7 @@ class SitzplanPopup:
         self._plan = plan
         self._theme_key = theme_key
         self._name_format = name_format
-        theme = THEMES.get(theme_key, THEMES["mono_day"])
+        theme = kartograph_theme(theme_key)
         self._canvas.configure(bg=theme["bg_main"])
         self._redraw()
 
@@ -71,7 +71,7 @@ class SitzplanPopup:
         if not self._plan:
             return
 
-        theme = THEMES.get(self._theme_key, THEMES["mono_day"])
+        theme = kartograph_theme(self._theme_key)
         classroom = self._plan.classroom
         geometries = build_seat_geometries_v4(self._plan)
 
@@ -120,10 +120,10 @@ class SitzplanPopup:
                 canvas_pts.extend((cpx, cpy))
                 py_vals.append(cpy)
 
-            fill = theme["teacher_fill"] if g.is_teacher else theme["student_fill"]
+            fill = theme["teacher_fill"] if g.is_teacher else theme["accent_soft"]
             self._canvas.create_polygon(
                 canvas_pts,
-                fill=fill, outline=theme["grid_line"], width=1,
+                fill=fill, outline=theme["border"], width=1,
             )
 
             label_cx = origin_x + cx * cell
@@ -141,7 +141,7 @@ class SitzplanPopup:
                 if name:
                     self._canvas.create_text(
                         label_cx, label_cy,
-                        text=name, fill=theme["fg_main"],
+                        text=name, fill=theme["fg_primary"],
                         font=("Segoe UI", name_fs, "bold"),
                     )
 
