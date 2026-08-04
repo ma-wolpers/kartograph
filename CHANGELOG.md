@@ -9,10 +9,13 @@ The format is based on Keep a Changelog.
 ### Added
 - Details-Panel: neues Feld "Nachteilsausgleiche" pro Schüler (Freitext-Liste, eine Zeile pro Eintrag, z. B. "Zeitzuschlag 25 %"), editierbar analog zu Name/Farbpunkten und im Sitzplan persistiert.
 - Einstellungen werden jetzt typisiert im zentralen App-Zustand gehalten (`AppState.settings`) statt als freies Dict, inklusive eigenem Lese-/Schreib-Intent fuer den Einstellungsdialog.
+- Live-Vorschau-Popup beim Hovern ueber Schuelertische zeigt Namen, Symbole und Nachteilsausgleiche kompakt an, ohne in den Bearbeitungsmodus wechseln zu muessen.
+- Schueler-Felder unterstuetzen jetzt einen separaten "Nachname" neben dem Vornamen; PDF-Export, Legenden und Dokumentationsansicht verwenden automatisch beide Felder.
 
 ### Changed
 - Der Symbol-Katalog wird beim Start einmalig zentral geladen (`AppState.symbol_catalog`) statt von der GUI separat aus der Konfigurationsdatei.
 - Tastenkuerzel-Dispatch nutzt jetzt eine echte Zuordnungstabelle statt einer if/elif-Kette zur Aufloesung von UI-Aktionen.
+- Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
 - Der Toolbar-Button "★ S" (Symbol zum markierten Platz hinzufügen) funktioniert wieder: der Dialog war beim Mixin-Split/v4-Umzug verloren gegangen und ist jetzt als `add_symbol_to_selected_desk_dialog()` in `_mixin_edit.py` wiederhergestellt.
@@ -20,6 +23,9 @@ The format is based on Keep a Changelog.
 - PDF export popup no longer opens as an empty window: overlay dialogs now resolve the main-window parent to a valid Tk path when running through `TkRootHost`, so export controls render and respond again.
 - `start-kartograph.bat` bevorzugt jetzt die lokale Projektumgebung (`kartograph/.venv`) vor der uebergeordneten `tools4school/.venv`, damit Kartograph konsistent mit den erwarteten Abhaengigkeiten startet.
 - Beim Start ohne sichtbares Fenster blockiert Kartograph nicht mehr im Hintergrund: die initiale Splitter-Positionierung der Doku-Ansicht wurde auf eine einmalige Configure-Initialisierung umgestellt und erzeugt keine Idle-Endlosschleife mehr.
+- Veraltete Kartograph-Prozesse aus vorherigen Sitzungen werden beim Start automatisch beendet, damit keine Zombie-Prozesse Ports oder Ressourcen blockieren.
+- Maus-Trigger in Canvas-Interaktionen wurden korrigiert: bestimmte Klick-Events wurden nicht zuverlaessig ausgeloest, wenn der Mauszeiger schnell zwischen Kacheln bewegt wurde.
+- Zwischenablage-Operationen (Kopieren/Ausschneiden/Einfuegen) funktionierten nach bestimmten Interaktionssequenzen nicht zuverlaessig; die Clipboard-Verarbeitung wurde robuster gemacht.
 
 ### Changed
 - Die Dokumentationsansicht ist jetzt in kleinen Fenstern deutlich besser bedienbar: der Mitteltrenner zwischen Datumstabelle und Notentabelle ist per Drag&Drop verschiebbar, und horizontales Scrollen per Shift+Mausrad reagiert mit groesserer Schrittweite.
