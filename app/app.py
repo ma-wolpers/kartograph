@@ -88,12 +88,9 @@ def main() -> None:
 
     logger.info("Creating main window")
     app = KartographMainWindow(
-        settings_repository=dependencies.settings_repository,
-        plan_repository=dependencies.plan_repository,
-        default_plans_dir=dependencies.default_plans_dir,
-        symbols_path=dependencies.symbols_path,
+        controller=dependencies.controller,
         shell_config=dependencies.shell_config,
     )
     logger.info("Entering Tk mainloop")
-    app.mainloop()
+    app.run()
     logger.info("Tk mainloop exited")

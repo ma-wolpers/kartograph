@@ -7,7 +7,11 @@ from bw_libs.ui_contract.laufkern import LaufKernRoute, build_manifest
 
 
 def build_runtime_shortcut_manifest(registry: KeybindingRegistry):
-    """Build one declarative manifest from current runtime shortcut registrations."""
+    """Build one declarative manifest from current runtime shortcut registrations.
+
+    Args:
+        registry: Keybinding registry holding the current runtime shortcut definitions.
+    """
 
     definitions = registry.all()
     intents = tuple(sorted({definition.intent for definition in definitions}))

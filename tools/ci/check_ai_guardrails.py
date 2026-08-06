@@ -186,7 +186,11 @@ def _repo_root() -> Path:
 
 
 def _staged_files(repo_root: Path) -> set[str]:
-    """Return normalized staged paths relative to repository root."""
+    """Return normalized staged paths relative to repository root.
+
+    Args:
+        repo_root: Root directory of the git repository to query.
+    """
     try:
         result = subprocess.run(
             ["git", "diff", "--cached", "--name-only"],
@@ -205,27 +209,71 @@ def _staged_files(repo_root: Path) -> set[str]:
 
 
 def _read(rel_path: str) -> str:
-    """Read UTF-8 file from repo root and fail if required file is missing."""
+    """Read UTF-8 file from repo root and fail if required file is missing.
+
+    Args:
+        rel_path: Path relative to `ROOT` of the file to read.
+    """
     path = ROOT / rel_path
     if not path.exists():
         raise RuntimeError(f"Missing required file: {rel_path}")
     return path.read_text(encoding="utf-8")
 
 
+def _read_entry_candidate_group(rel_path: str) -> str:
+    """Concatenate a GUI entrypoint file with its sibling `_mixin_*.py` modules.
+
+    GUI entrypoints like main_window.py were split into per-concern mixins;
+    a contract that used to live directly in the entrypoint file may now live
+    in any of its sibling mixins.
+
+    Args:
+        rel_path: Path relative to `ROOT` of the GUI entrypoint file.
+    """
+    candidate_path = ROOT / rel_path
+    texts = [_read(rel_path)]
+    for sibling in sorted(candidate_path.parent.glob("_mixin_*.py")):
+        texts.append(sibling.read_text(encoding="utf-8"))
+    return "\n".join(texts)
+
+
+def _read_main_window_module_group() -> str:
+    """Concatenate main_window.py with its sibling `_mixin_*.py` modules."""
+    return _read_entry_candidate_group("app/adapters/gui/main_window.py")
+
+
 def _require_substring(text: str, needle: str, source: str, errors: list[str]) -> None:
-    """Append guardrail error when required text fragment is missing."""
+    """Append guardrail error when required text fragment is missing.
+
+    Args:
+        text: Source text to search within.
+        needle: Required substring that must be present in `text`.
+        source: Label identifying the source of `text`, used in the error message.
+        errors: Error list to append to when the check fails.
+    """
     if needle not in text:
         errors.append(f"{source}: missing required text -> {needle}")
 
 
 def _forbid_substring(text: str, needle: str, source: str, errors: list[str]) -> None:
-    """Append guardrail error when deprecated fallback text is still present."""
+    """Append guardrail error when deprecated fallback text is still present.
+
+    Args:
+        text: Source text to search within.
+        needle: Forbidden substring that must not be present in `text`.
+        source: Label identifying the source of `text`, used in the error message.
+        errors: Error list to append to when the check fails.
+    """
     if needle in text:
         errors.append(f"{source}: forbidden fallback text present -> {needle}")
 
 
 def _is_future_gui_entry_path(rel_path: str) -> bool:
-    """Return whether the path points to a guarded GUI entrypoint filename."""
+    """Return whether the path points to a guarded GUI entrypoint filename.
+
+    Args:
+        rel_path: Candidate path to check, relative to the repository root.
+    """
     normalized = rel_path.replace("\\", "/")
     file_name = normalized.rsplit("/", 1)[-1]
     if file_name not in FUTURE_GUI_ENTRY_FILE_NAMES:
@@ -248,7 +296,11 @@ def _iter_future_gui_entry_candidates() -> list[str]:
 
 
 def _is_repo_gui_python_path(rel_path: str) -> bool:
-    """Return whether a path belongs to repo-wide GUI python scan roots."""
+    """Return whether a path belongs to repo-wide GUI python scan roots.
+
+    Args:
+        rel_path: Candidate path to check, relative to the repository root.
+    """
     normalized = rel_path.replace("\\", "/")
     if not normalized.endswith(".py"):
         return False
@@ -268,7 +320,11 @@ def _iter_repo_gui_python_files() -> list[str]:
 
 
 def _iter_python_files_under(rel_roots: tuple[str, ...]) -> list[str]:
-    """Collect Python files under given roots relative to `ROOT`."""
+    """Collect Python files under given roots relative to `ROOT`.
+
+    Args:
+        rel_roots: Root directories (relative to `ROOT`) to scan recursively.
+    """
 
     files: set[str] = set()
     for rel_root in rel_roots:
@@ -281,7 +337,11 @@ def _iter_python_files_under(rel_roots: tuple[str, ...]) -> list[str]:
 
 
 def _contains_direct_tkinter_import(module: ast.Module) -> bool:
-    """Detect direct tkinter/ttk imports in module-level imports."""
+    """Detect direct tkinter/ttk imports in module-level imports.
+
+    Args:
+        module: Parsed AST module to inspect for forbidden imports.
+    """
     for node in module.body:
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -300,7 +360,11 @@ def _contains_direct_tkinter_import(module: ast.Module) -> bool:
 
 
 def _local_ui_bases(class_node: ast.ClassDef) -> list[str]:
-    """Return local UI base expressions like ui.Tk/widgets.Frame/tui.Frame."""
+    """Return local UI base expressions like ui.Tk/widgets.Frame/tui.Frame.
+
+    Args:
+        class_node: Parsed AST class definition whose base classes are inspected.
+    """
     bases: list[str] = []
     for base in class_node.bases:
         if isinstance(base, ast.Attribute) and isinstance(base.value, ast.Name):
@@ -310,7 +374,12 @@ def _local_ui_bases(class_node: ast.ClassDef) -> list[str]:
 
 
 def _has_relevant_staged_changes(staged: set[str], repo_root: Path) -> bool:
-    """Run guardrails only when staged changes touch relevant policy files."""
+    """Run guardrails only when staged changes touch relevant policy files.
+
+    Args:
+        staged: Staged file paths to check against the relevant policy paths.
+        repo_root: Root directory of the git repository, used to resolve relative paths.
+    """
     try:
         root_rel_to_repo = str(ROOT.resolve().relative_to(repo_root.resolve())).replace("\\", "/")
     except ValueError:
@@ -332,7 +401,12 @@ def _has_relevant_staged_changes(staged: set[str], repo_root: Path) -> bool:
 
 
 def _check_development_log_updated(staged: set[str], errors: list[str]) -> None:
-    """Require development log updates when feature or architecture files change."""
+    """Require development log updates when feature or architecture files change.
+
+    Args:
+        staged: Staged file paths to inspect for feature/architecture changes.
+        errors: Error list to append to when the development log is missing an update.
+    """
     normalized = {path.replace("\\", "/") for path in staged}
     if not normalized:
         return
@@ -354,7 +428,12 @@ def _check_development_log_updated(staged: set[str], errors: list[str]) -> None:
 
 
 def _check_changelog_updated(staged: set[str], errors: list[str]) -> None:
-    """Require changelog updates when user-facing code paths change."""
+    """Require changelog updates when user-facing code paths change.
+
+    Args:
+        staged: Staged file paths to inspect for user-facing changes.
+        errors: Error list to append to when the changelog is missing an update.
+    """
     normalized = {path.replace("\\", "/") for path in staged}
     if not normalized:
         return
@@ -393,7 +472,12 @@ def _collect_process_guidance_warnings() -> list[str]:
 
 
 def _has_any_marker(rel_paths: tuple[str, ...], markers: tuple[str, ...]) -> bool:
-    """Return whether any marker appears in at least one existing source file."""
+    """Return whether any marker appears in at least one existing source file.
+
+    Args:
+        rel_paths: Candidate file paths (relative to `ROOT`) to search.
+        markers: Substrings to look for in each existing file's contents.
+    """
 
     for rel_path in rel_paths:
         path = ROOT / rel_path
@@ -430,31 +514,36 @@ def _is_ci_environment() -> bool:
 
 
 def _check_runtime_shortcut_integration(errors: list[str]) -> None:
-    """Require runtime shortcut integration and debug intents in GUI flow."""
+    """Require runtime shortcut integration and debug intents in GUI flow.
 
-    main_window = _read("app/adapters/gui/main_window.py")
+    Args:
+        errors: Error list to append to when a required contract snippet is missing.
+    """
+
+    main_window = _read_main_window_module_group()
+    source_label = "main_window.py (+ _mixin_*.py)"
     _require_substring(
         main_window,
         "self._runtime_shortcuts = KeybindingRegistry()",
-        "main_window.py",
+        source_label,
         errors,
     )
     _require_substring(
         main_window,
         "self._popup_registry = PopupPolicyRegistry()",
-        "main_window.py",
+        source_label,
         errors,
     )
     _require_substring(
         main_window,
         "self._runtime_shortcuts.evaluate_runtime(",
-        "main_window.py",
+        source_label,
         errors,
     )
     _require_substring(
         main_window,
         "def open_shortcut_runtime_debug_dialog(self) -> None:",
-        "main_window.py",
+        source_label,
         errors,
     )
 
@@ -472,25 +561,30 @@ def _check_runtime_shortcut_integration(errors: list[str]) -> None:
         errors,
     )
 
-    intent_controller = _read("app/adapters/gui/ui_intent_controller.py")
+    shortcut_mixin = _read("app/adapters/gui/_mixin_shortcuts.py")
     _require_substring(
-        intent_controller,
-        "if intent == UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG:",
-        "ui_intent_controller.py",
+        shortcut_mixin,
+        "UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG: lambda: self.open_shortcut_runtime_debug_dialog(),",
+        "_mixin_shortcuts.py",
         errors,
     )
     _require_substring(
-        intent_controller,
-        "if intent == UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE:",
-        "ui_intent_controller.py",
+        shortcut_mixin,
+        "UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE: lambda: self.toggle_shortcut_runtime_offline(),",
+        "_mixin_shortcuts.py",
         errors,
     )
 
 
 def _check_shared_ui_contracts(errors: list[str]) -> None:
-    """Require shared menu/dialog/tooltip contracts in main window."""
+    """Require shared menu/dialog/tooltip contracts in main window (+ mixins).
 
-    main_window = _read("app/adapters/gui/main_window.py")
+    Args:
+        errors: Error list to append to when a required or forbidden snippet check fails.
+    """
+
+    main_window = _read_main_window_module_group()
+    source_label = "app/adapters/gui/main_window.py (+ _mixin_*.py)"
 
     required_snippets = (
         "from bw_gui.dialogs import open_tabbed_settings_dialog as open_shared_tabbed_settings_dialog",
@@ -510,19 +604,23 @@ def _check_shared_ui_contracts(errors: list[str]) -> None:
     )
 
     for snippet in required_snippets:
-        _require_substring(main_window, snippet, "app/adapters/gui/main_window.py", errors)
+        _require_substring(main_window, snippet, source_label, errors)
     for snippet in forbidden_snippets:
-        _forbid_substring(main_window, snippet, "app/adapters/gui/main_window.py", errors)
+        _forbid_substring(main_window, snippet, source_label, errors)
 
 
 def _check_future_gui_entry_contracts(errors: list[str]) -> None:
-    """Require shared GUI bootstrap contracts for newly added entrypoint files."""
+    """Require shared GUI bootstrap contracts for newly added entrypoint files.
+
+    Args:
+        errors: Error list to append to when a new entrypoint candidate fails a contract check.
+    """
 
     for rel_path in _iter_future_gui_entry_candidates():
         if rel_path in FUTURE_GUI_ENTRY_BASELINES:
             continue
 
-        text = _read(rel_path)
+        text = _read_entry_candidate_group(rel_path)
         for snippet in FUTURE_GUI_REQUIRED_SHARED_SNIPPETS:
             _require_substring(text, snippet, rel_path, errors)
 
@@ -531,7 +629,11 @@ def _check_future_gui_entry_contracts(errors: list[str]) -> None:
 
 
 def _check_repo_wide_gui_contracts(errors: list[str]) -> None:
-    """Enforce repo-wide GUI contract: no direct tkinter imports and no new local widget bases."""
+    """Enforce repo-wide GUI contract: no direct tkinter imports and no new local widget bases.
+
+    Args:
+        errors: Error list to append to when a GUI source file violates the contract.
+    """
 
     for rel_path in _iter_repo_gui_python_files():
         try:
@@ -571,7 +673,11 @@ def _check_repo_wide_gui_contracts(errors: list[str]) -> None:
 
 
 def _check_gui_migration_backlog(errors: list[str]) -> None:
-    """Require explicit backlog tracking for all active GUI exemption baselines/allowlists."""
+    """Require explicit backlog tracking for all active GUI exemption baselines/allowlists.
+
+    Args:
+        errors: Error list to append to when the backlog is missing a required entry.
+    """
 
     backlog = _read(GUI_MIGRATION_BACKLOG_PATH)
     _require_substring(backlog, "## Active Exemptions", GUI_MIGRATION_BACKLOG_PATH, errors)
@@ -585,7 +691,11 @@ def _check_gui_migration_backlog(errors: list[str]) -> None:
 
 
 def _check_laufkern_fallback_sunset(errors: list[str]) -> None:
-    """Enforce Wave-3 fallback sunset: no ModuleNotFoundError fallback branch remains."""
+    """Enforce Wave-3 fallback sunset: no ModuleNotFoundError fallback branch remains.
+
+    Args:
+        errors: Error list to append to when a forbidden fallback branch is found.
+    """
 
     for rel_path in _iter_python_files_under(LAUFKERN_FALLBACK_SCAN_ROOTS):
         if "except ModuleNotFoundError" in _read(rel_path):
@@ -595,7 +705,11 @@ def _check_laufkern_fallback_sunset(errors: list[str]) -> None:
 
 
 def _check_ui_contract_bridge_decommission(errors: list[str]) -> None:
-    """Phase-I decommission gate: ui_contract bridges stay thin shared re-export shims."""
+    """Phase-I decommission gate: ui_contract bridges stay thin shared re-export shims.
+
+    Args:
+        errors: Error list to append to when a bridge module fails the decommission contract.
+    """
 
     required_imports = {
         "bw_libs/ui_contract/keybinding.py": "from bw_gui.contracts.keybinding import",
