@@ -145,7 +145,7 @@ class KartographMainWindow(
         settings = self._controller.state.settings
         self._settings = settings.to_dict()
         self.plans_dir = Path(settings.plans_dir or self.plans_dir)
-        self.theme_key = normalize_theme_key(settings.theme)
+        initial_theme_key = normalize_theme_key(settings.theme)
         self.canvas_radius = settings.canvas_radius
         self.symbol_strength = settings.symbol_strength
         self.viewport_follow_buffer = settings.viewport_follow_buffer
@@ -160,11 +160,14 @@ class KartographMainWindow(
         super().__init__(
             title=resolved_shell_config.title,
             geometry=resolved_shell_config.geometry,
-            theme_key=self.theme_key,
+            theme_key=initial_theme_key,
             min_width=resolved_shell_config.min_width,
             min_height=resolved_shell_config.min_height,
             on_close=self._on_shell_close,
         )
+        # self.theme_key is a read-only BwBaseWindow property backed by the shell
+        # from here on (set above via theme_key=initial_theme_key); it must not be
+        # assigned to directly.
 
     def build_menu(self) -> list:
         """Liefert die Menüstruktur für BwBaseWindow."""
@@ -289,13 +292,17 @@ class KartographMainWindow(
         """Wechselt Theme und synchronisiert alle kartograph-spezifischen Flächen.
 
         Accepts an optional theme_key for BwBaseWindow compatibility (View menu radio).
-        When called without arguments (e.g. from apply_state), uses self.theme_key.
+        When called without arguments, re-applies the shell's current self.theme_key
+        (``apply_state`` handles its own theme-change branch directly instead, so it
+        does not re-trigger the persist step in this method).
         """
         if theme_key is not None:
-            self.theme_key = normalize_theme_key(theme_key)
+            theme_key = normalize_theme_key(theme_key)
+            BwBaseWindow.apply_theme(self, theme_key)  # updates self.theme_key via the shell
             self.theme_var.set(self.theme_key)
             self._on_theme_changed()  # persists via UpdateSettingsIntent; won't re-trigger (theme_key already set)
-        BwBaseWindow.apply_theme(self, self.theme_key)
+        else:
+            BwBaseWindow.apply_theme(self, self.theme_key)
         self._apply_kartograph_theme()
 
     def _on_shell_close(self) -> bool:
@@ -389,9 +396,10 @@ class KartographMainWindow(
         self.current_plan_path = state.current_plan_path
 
         if state.settings.theme != self.theme_key:
-            self.theme_key = normalize_theme_key(state.settings.theme)
+            new_theme = normalize_theme_key(state.settings.theme)
+            BwBaseWindow.apply_theme(self, new_theme)  # updates self.theme_key via the shell
             self.theme_var.set(self.theme_key)
-            self.apply_theme()
+            self._apply_kartograph_theme()
             self.redraw_grid()
 
         if state.status_message:

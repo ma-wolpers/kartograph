@@ -18,6 +18,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Kartograph stürzte beim Start zuverlässig ab: `ui_theme.py` importierte `get_theme` noch aus dem inzwischen privatisierten `bw_gui.theming`-Modul (`ImportError`), und `KartographMainWindow` versuchte weiterhin, die seit der `BwBaseWindow`-Migration schreibgeschützte `theme_key`-Property direkt zuzuweisen (`AttributeError`). Beide Stellen wurden auf die neuen bw_gui-Verträge umgestellt: privater Importpfad für `get_theme`, Theme-Wechsel jetzt ausschließlich über `BwBaseWindow.apply_theme()` (aktualisiert die Shell) statt direkter Attributzuweisung.
 - Der Toolbar-Button "★ S" (Symbol zum markierten Platz hinzufügen) funktioniert wieder: der Dialog war beim Mixin-Split/v4-Umzug verloren gegangen und ist jetzt als `add_symbol_to_selected_desk_dialog()` in `_mixin_edit.py` wiederhergestellt.
 - Die Legenden-Seite im PDF-Export nutzt jetzt pro Kompetenzblock getrennte Tabellen mit eigener Header-Zeile, automatischem Zeilenumbruch und kompakterer Tabellenbreite, statt einer flachen Einzeilenliste ohne sauberes Wrapping.
 - PDF export popup no longer opens as an empty window: overlay dialogs now resolve the main-window parent to a valid Tk path when running through `TkRootHost`, so export controls render and respond again.

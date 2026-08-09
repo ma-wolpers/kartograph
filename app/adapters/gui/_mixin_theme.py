@@ -18,10 +18,11 @@ class ThemeMixin:
     def _on_theme_changed(self) -> None:
         """Persistiert das in ``self.theme_var`` gewählte Theme über UpdateSettingsIntent (v4).
 
-        ``apply_state`` übernimmt das neue Theme anschließend selbst in
-        ``self.theme_key`` und ruft ``apply_theme()``/``redraw_grid()`` auf --
-        diese Methode darf ``self.theme_key`` daher nicht selbst vorab setzen,
-        sonst erkennt der Vergleich in ``apply_state`` keine Änderung mehr.
+        ``apply_state`` erkennt die geänderte Einstellung im zurückgelaufenen
+        ``AppState`` und wendet sie über ``BwBaseWindow.apply_theme()`` an
+        (``self.theme_key`` ist eine schreibgeschützte Property der Shell) --
+        diese Methode darf daher selbst nichts anwenden, sonst erkennt der
+        Vergleich in ``apply_state`` keine Änderung mehr.
         """
         new_theme = normalize_theme_key(self.theme_var.get())
         self._settings["theme"] = new_theme

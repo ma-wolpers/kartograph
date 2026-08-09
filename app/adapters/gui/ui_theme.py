@@ -14,11 +14,8 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 
-from bw_gui.theming import (
-    THEME_ORDER,
-    get_theme as _get_theme,
-    normalize_theme_key as _normalize,
-)
+from bw_gui.theming import THEME_ORDER, normalize_theme_key as _normalize
+from bw_gui.theming._theme_manager import get_theme as _get_theme
 
 DEFAULT_THEME = "mono_day"
 
