@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from app.adapters.gui.main_window_constants import DEFAULT_PERIODIC_BACKUP_INTERVAL_MS
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.settings import KartographSettings
+from app.core.intents.view_intents import UpdateSettingsIntent
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -70,7 +72,7 @@ class ExportMixin:
                 selected = list(self.symbol_catalog)
             self._grid_visible_symbols = set(selected)
             self._settings["grid_visible_symbols"] = selected
-            self.settings_repository.save_settings(self._settings)
+            self._controller.dispatch(UpdateSettingsIntent(settings=KartographSettings.from_dict(self._settings)))
             dialog.destroy()
             self.redraw_grid()
             self._refresh_details_panel()

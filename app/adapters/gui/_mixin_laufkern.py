@@ -8,6 +8,8 @@ Tischgruppen-Overlay bereit.
 from __future__ import annotations
 
 from app.adapters.gui.laufkern_manifest_provider import build_runtime_shortcut_manifest
+from app.core.domain.settings import KartographSettings
+from app.core.intents.view_intents import UpdateSettingsIntent
 from bw_libs.ui_contract.keybinding import (
     UI_MODE_DIALOG,
     UI_MODE_EDITOR,
@@ -241,7 +243,7 @@ class LaufkernMixin:
         """Speichert die neue Details-Overlay-Position und ordnet die Widgets neu an."""
         self.details_overlay_position = self._normalize_details_overlay_position(self.details_overlay_position_var.get())
         self._settings["details_overlay_position"] = self.details_overlay_position
-        self.settings_repository.save_settings(self._settings)
+        self._controller.dispatch(UpdateSettingsIntent(settings=KartographSettings.from_dict(self._settings)))
         self._apply_details_overlay_position()
         if self._details_panel_visible:
             fill_mode = "both" if self.details_overlay_position in {"left", "right"} else "x"
@@ -255,5 +257,5 @@ class LaufkernMixin:
             self.tablegroup_overlay_position_var.get()
         )
         self._settings["tablegroup_overlay_position"] = self.tablegroup_overlay_position
-        self.settings_repository.save_settings(self._settings)
+        self._controller.dispatch(UpdateSettingsIntent(settings=KartographSettings.from_dict(self._settings)))
         self._position_tablegroup_overlay()

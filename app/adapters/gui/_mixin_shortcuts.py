@@ -59,7 +59,7 @@ class ShortcutMixin:
             UiIntent.ZOOM_IN: lambda: self.zoom_in(),
             UiIntent.ZOOM_OUT: lambda: self.zoom_out(),
             UiIntent.RESET_VIEW: lambda: self.reset_viewport(),
-            UiIntent.GO_TO_LIST: lambda: self.show_plan_list_view(),
+            UiIntent.GO_TO_LIST: lambda: self._return_to_plan_list(),
             UiIntent.VIEW_GRID: lambda: self._controller.dispatch(SetEditorSurfaceIntent(surface="grid")),
             UiIntent.VIEW_DOCUMENTATION: lambda: self._controller.dispatch(SetEditorSurfaceIntent(surface="documentation")),
             UiIntent.TOGGLE_DOCUMENTATION: lambda: self._controller.dispatch(ToggleEditorSurfaceIntent()),

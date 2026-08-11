@@ -189,7 +189,7 @@ def make_ctx(plans: dict | None = None) -> HandlerContext:
         plan_repository=FakePlanRepository(plans),
         settings_repository=FakeSettingsRepository(),
         history=PlanHistory(),
-        plans_dir=PLANS_DIR,
+        default_plans_dir=PLANS_DIR,
     )
 
 
@@ -878,7 +878,7 @@ class TestKartographAppController:
         ctrl = KartographAppController(
             plan_repository=FakePlanRepository(plans),
             settings_repository=FakeSettingsRepository(),
-            plans_dir=PLANS_DIR,
+            default_plans_dir=PLANS_DIR,
             symbols_path=SYMBOLS_PATH,
             on_state_changed=received.append,
         )
@@ -1006,7 +1006,7 @@ class TestKartographAppController:
         ctrl = KartographAppController(
             plan_repository=FakePlanRepository({path: plan}),
             settings_repository=FakeSettingsRepository(),
-            plans_dir=PLANS_DIR,
+            default_plans_dir=PLANS_DIR,
             symbols_path=SYMBOLS_PATH,
             on_state_changed=bad_callback,
         )

@@ -7,6 +7,7 @@ from app.application.app_state import AppState, InteractionMode, PlanListEntry
 from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import _refresh_plan_list, _with_plan
 from app.core.domain.plan_selection import RectSelection
+from app.core.domain.settings import resolve_plans_dir
 from app.core.intents.plan_intents import (
     CreatePlanIntent,
     DeletePlanIntent,
@@ -33,7 +34,7 @@ def handle_open_plan(intent: OpenPlanIntent, state: AppState, ctx: HandlerContex
         return dataclasses.replace(state, status_message=f"Fehler beim Öffnen: {intent.plan_path.name}")
 
     ctx.history.reset(plan)
-    plan_list = _refresh_plan_list(ctx)
+    plan_list = _refresh_plan_list(state, ctx)
     return dataclasses.replace(
         state,
         current_plan=plan,
@@ -56,13 +57,14 @@ def handle_create_plan(intent: CreatePlanIntent, state: AppState, ctx: HandlerCo
         ctx: Handler-Kontext (Repository, History, Plan-Verzeichnis).
     """
     try:
-        plan_path, plan = ctx.plan_repository.create_new_plan(ctx.plans_dir, intent.name)
+        plans_dir = resolve_plans_dir(state.settings.plans_dir, ctx.default_plans_dir)
+        plan_path, plan = ctx.plan_repository.create_new_plan(plans_dir, intent.name)
     except Exception:
         _log.exception("handle_create_plan: failed for name=%r", intent.name)
         return dataclasses.replace(state, status_message="Fehler beim Erstellen des Plans")
 
     ctx.history.reset(plan)
-    plan_list = _refresh_plan_list(ctx)
+    plan_list = _refresh_plan_list(state, ctx)
     return dataclasses.replace(
         state,
         current_plan=plan,
@@ -90,7 +92,7 @@ def handle_rename_plan(intent: RenamePlanIntent, state: AppState, ctx: HandlerCo
         _log.exception("handle_rename_plan: failed")
         return dataclasses.replace(state, status_message="Fehler beim Umbenennen")
 
-    plan_list = _refresh_plan_list(ctx)
+    plan_list = _refresh_plan_list(state, ctx)
     new_current_path = new_path if state.current_plan_path == intent.plan_path else state.current_plan_path
     return dataclasses.replace(state, plan_list=plan_list, current_plan_path=new_current_path)
 
@@ -109,7 +111,7 @@ def handle_delete_plan(intent: DeletePlanIntent, state: AppState, ctx: HandlerCo
         _log.exception("handle_delete_plan: failed for %s", intent.plan_path)
         return dataclasses.replace(state, status_message="Fehler beim Löschen")
 
-    plan_list = _refresh_plan_list(ctx)
+    plan_list = _refresh_plan_list(state, ctx)
     was_open = state.current_plan_path == intent.plan_path
     if was_open:
         return dataclasses.replace(
@@ -140,5 +142,5 @@ def handle_duplicate_plan(intent: DuplicatePlanIntent, state: AppState, ctx: Han
         _log.exception("handle_duplicate_plan: failed for %s", intent.plan_path)
         return dataclasses.replace(state, status_message="Fehler beim Duplizieren")
 
-    plan_list = _refresh_plan_list(ctx)
+    plan_list = _refresh_plan_list(state, ctx)
     return dataclasses.replace(state, plan_list=plan_list, status_message=f"Plan dupliziert: {intent.new_name}")

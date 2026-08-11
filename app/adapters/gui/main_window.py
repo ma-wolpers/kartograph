@@ -61,6 +61,7 @@ from app.application.app_controller import KartographAppController
 from app.application.app_state import AppState, EditorSurface, InteractionMode, PlanListEntry
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.plan_selection import RectSelection
+from app.core.domain.settings import resolve_plans_dir
 from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
 from app.infrastructure.symbol_config_loader import SymbolDefinition
 from bw_libs.app_shell import AppShellConfig
@@ -133,18 +134,16 @@ class KartographMainWindow(
 
         self._controller = controller
         self._controller._on_state_changed = self.apply_state
-        # Expose repos for unmigrated mixins (pdf, export, settings, undo-redo)
-        self.settings_repository = controller.settings_repository
+        # Expose repo for unmigrated mixins (pdf, export, plan-list, undo-redo)
         self.plan_repository = controller.plan_repository
-        self.plans_dir = controller.plans_dir
-        self.default_plans_dir = controller.plans_dir
+        self.default_plans_dir = controller.default_plans_dir
 
         # AppState.settings ist beim Controller-Start bereits aus dem
         # Settings-Repository geladen und normalisiert (Phase D1) — die GUI
         # übernimmt nur noch die Werte, statt sie selbst erneut zu laden.
         settings = self._controller.state.settings
         self._settings = settings.to_dict()
-        self.plans_dir = Path(settings.plans_dir or self.plans_dir)
+        self.plans_dir = resolve_plans_dir(settings.plans_dir, self.default_plans_dir)
         initial_theme_key = normalize_theme_key(settings.theme)
         self.canvas_radius = settings.canvas_radius
         self.symbol_strength = settings.symbol_strength
@@ -190,8 +189,6 @@ class KartographMainWindow(
         self.cell_size = DEFAULT_CELL_SIZE
         self._plan_index: list[PlanListEntry] = []
         self.interaction_mode = LIST_ACTIVE
-        self._plan_list_undo_actions: list[dict[str, object]] = []
-        self._plan_list_redo_actions: list[dict[str, object]] = []
 
         self._ui_action_registry = self._build_ui_action_registry()
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())

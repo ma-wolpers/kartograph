@@ -9,7 +9,6 @@ from __future__ import annotations
 from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.adapters.gui.main_window_constants import GRID_SELECTED, LIST_ACTIVE, NAME_EDITING
 from app.core.intents.color_intents import ToggleColorIntent
-from app.core.intents.navigation_intents import ClearSelectionIntent
 from app.core.intents.student_intents import (
     CreateStudentIntent,
     DeleteStudentIntent,
@@ -255,8 +254,7 @@ class EditMixin:
             self.exit_name_edit_mode()
             return
         if action == ESCAPE_POP_PARENT:
-            self.show_plan_list_view()
-            self._controller.dispatch(ClearSelectionIntent())
+            self._return_to_plan_list()
             return
         self._ensure_list_selection(preferred_path=self.current_plan_path)
         self.plan_listbox.focus_set()

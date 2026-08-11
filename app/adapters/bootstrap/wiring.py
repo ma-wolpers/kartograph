@@ -40,7 +40,7 @@ def build_gui_dependencies(workspace_root: Path) -> AppDependencies:
     controller = KartographAppController(
         plan_repository=plan_repository,
         settings_repository=settings_repository,
-        plans_dir=default_plans_dir,
+        default_plans_dir=default_plans_dir,
         symbols_path=symbols_path,
         on_state_changed=lambda _state: None,  # replaced by main_window after init
     )

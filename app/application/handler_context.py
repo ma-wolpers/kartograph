@@ -19,5 +19,5 @@ class HandlerContext:
     plan_repository: Any          # SeatingPlanRepository (v4-kompatibel)
     settings_repository: Any      # SettingsRepository
     history: PlanHistory
-    plans_dir: Path
+    default_plans_dir: Path       # Fallback, falls kein Ordner konfiguriert ist
     clipboard: StudentClipboard = field(default_factory=StudentClipboard)

@@ -149,7 +149,8 @@ class KartographAppController:
     Args:
         plan_repository:     v4-kompatibles ``SeatingPlanRepository``.
         settings_repository: ``SettingsRepository``-Implementierung.
-        plans_dir:           Verzeichnis, in dem Plandateien liegen.
+        default_plans_dir:   Fallback-Verzeichnis für Plandateien, falls in
+                             den Einstellungen kein Ordner konfiguriert ist.
         symbols_path:        Pfad zur Symbol-Konfigurationsdatei (einmalig beim
                              Start geladen, s. ``AppState.symbol_catalog``).
         on_state_changed:    Callback der GUI; wird nach jeder Zustandsänderung
@@ -160,7 +161,7 @@ class KartographAppController:
         self,
         plan_repository: Any,
         settings_repository: Any,
-        plans_dir: Path,
+        default_plans_dir: Path,
         symbols_path: Path,
         on_state_changed: Callable[[AppState], None],
     ) -> None:
@@ -168,7 +169,7 @@ class KartographAppController:
             plan_repository=plan_repository,
             settings_repository=settings_repository,
             history=PlanHistory(),
-            plans_dir=plans_dir,
+            default_plans_dir=default_plans_dir,
         )
         initial_settings = KartographSettings.from_dict(settings_repository.load_settings())
         symbol_definitions, self.symbol_catalog_warning = load_symbol_definitions(symbols_path)
@@ -197,9 +198,9 @@ class KartographAppController:
         return self._ctx.settings_repository
 
     @property
-    def plans_dir(self) -> Path:
-        """Verzeichnis, in dem Plandateien liegen."""
-        return self._ctx.plans_dir
+    def default_plans_dir(self) -> Path:
+        """Fallback-Verzeichnis für Plandateien, falls nichts konfiguriert ist."""
+        return self._ctx.default_plans_dir
 
     def replace_plan_in_state(self, plan) -> None:
         """Ersetzt den Plan im aktuellen State ohne History-Eintrag.

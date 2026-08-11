@@ -51,12 +51,25 @@ def handle_move_selection(intent: MoveSelectionIntent, state: AppState, ctx: Han
 
 
 def handle_clear_selection(intent: ClearSelectionIntent, state: AppState, ctx: HandlerContext) -> AppState:
-    """Wechselt vom Raster zurück in den Listen-Interaktionsmodus.
+    """Wechselt vom Raster zurück in den Listen-Interaktionsmodus und schließt den offenen Plan.
+
+    Einziger Dispatch-Ort ist der Rückweg von der Editor- zur Listenansicht
+    (Escape / "Zur Planliste") — deshalb hält dieser Handler ``AppState`` mit
+    der GUI-Ansicht synchron: ohne das würde ``current_plan`` fälschlich
+    weiter als "offen" gelten, obwohl der Editor gar nicht mehr sichtbar ist.
 
     Args:
         intent: Trägt keine Felder.
         state: Aktueller AppState.
         ctx: Handler-Kontext.
     """
-    plan_list = _refresh_plan_list(ctx)
-    return dataclasses.replace(state, interaction_mode=InteractionMode.LIST, plan_list=plan_list)
+    plan_list = _refresh_plan_list(state, ctx)
+    return dataclasses.replace(
+        state,
+        interaction_mode=InteractionMode.LIST,
+        plan_list=plan_list,
+        current_plan=None,
+        current_plan_path=None,
+        can_undo=False,
+        can_redo=False,
+    )

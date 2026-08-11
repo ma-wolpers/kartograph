@@ -8,6 +8,7 @@ deshalb als Literale dupliziert statt aus ``main_window_constants.py`` importier
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 DEFAULT_CANVAS_RADIUS = 50
 MIN_CANVAS_RADIUS = 1
@@ -110,3 +111,20 @@ class KartographSettings:
             "tablegroup_overlay_position": self.tablegroup_overlay_position,
             "sitzplan_popup_delay": self.sitzplan_popup_delay,
         }
+
+
+def resolve_plans_dir(raw: str, default: Path) -> Path:
+    """Liefert den konfigurierten Plan-Ordner, sonst *default*.
+
+    Einzige Stelle, die "konfiguriert oder Standard" für den Plan-Ordner
+    entscheidet — wird sowohl von der Handler-Schicht (mit
+    ``KartographSettings.plans_dir``) als auch von GUI-Code (teils mit
+    rohem Dialog-Text) genutzt, damit diese Logik nicht mehrfach dupliziert
+    auseinanderlaufen kann.
+
+    Args:
+        raw: Roher, konfigurierter Ordnerpfad (leer, wenn nichts gesetzt ist).
+        default: Fallback, falls *raw* leer ist.
+    """
+    text = (raw or "").strip()
+    return Path(text) if text else default

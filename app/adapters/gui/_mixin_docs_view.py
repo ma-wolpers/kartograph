@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.adapters.gui.main_window_constants import GRID_SELECTED, LIST_ACTIVE
+from app.core.intents.navigation_intents import ClearSelectionIntent
 from app.core.intents.session_intents import GoToTodayIntent
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -54,6 +55,17 @@ class DocsViewMixin:
         self.interaction_mode = LIST_ACTIVE
         self._ensure_list_selection(preferred_path=self.current_plan_path)
         self.plan_listbox.focus_set()
+
+    def _return_to_plan_list(self) -> None:
+        """Verlässt den Editor zurück zur Planliste und schließt den offenen Plan im AppState.
+
+        Einziger Ort, der beide Rückwege (Escape und der Button/Menüpunkt
+        "Zur Planliste") zusammenführt — hält so ``AppState.current_plan``
+        mit der sichtbaren Ansicht synchron, statt es (wie zuvor) offen zu
+        lassen, obwohl der Editor gar nicht mehr zu sehen ist.
+        """
+        self.show_plan_list_view()
+        self._controller.dispatch(ClearSelectionIntent())
 
     def show_editor_view(self) -> None:
         """Wechselt zur Editor-Ansicht (Raster oder Doku, je nach letzter Oberfläche)."""

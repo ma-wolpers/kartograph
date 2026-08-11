@@ -6,8 +6,6 @@ Einstellungs-Dialog (spec, values, payload-Verarbeitung) bereit.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from app.adapters.gui.dialog_services import messagebox
 from app.adapters.gui.main_window_constants import (
     DEFAULT_CANVAS_RADIUS,
@@ -23,7 +21,7 @@ from app.adapters.gui.main_window_constants import (
     MIN_CANVAS_RADIUS,
     MIN_SITZPLAN_POPUP_DELAY,
 )
-from app.core.domain.settings import KartographSettings
+from app.core.domain.settings import KartographSettings, resolve_plans_dir
 from app.core.intents.view_intents import OpenSettingsIntent, UpdateSettingsIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -225,7 +223,7 @@ class SettingsMixin:
         if not isinstance(payload, dict):
             return False
         selected_text = str(payload.get("plans_dir") or "").strip()
-        selected_path = Path(selected_text or str(self.default_plans_dir))
+        selected_path = resolve_plans_dir(selected_text, self.default_plans_dir)
         try:
             selected_path.mkdir(parents=True, exist_ok=True)
         except Exception as exc:
@@ -261,7 +259,6 @@ class SettingsMixin:
         except (TypeError, ValueError):
             self.sitzplan_popup_delay = DEFAULT_SITZPLAN_POPUP_DELAY
         self._settings["sitzplan_popup_delay"] = self.sitzplan_popup_delay
-        self.settings_repository.save_settings(self._settings)
         self._controller.dispatch(UpdateSettingsIntent(settings=KartographSettings.from_dict(self._settings)))
         self._update_scroll_region()
         self._set_selection_single(*self.selection.active_cell())
@@ -280,7 +277,7 @@ class SettingsMixin:
         """
         self._controller.dispatch(OpenSettingsIntent())
         fresh = self._controller.state.settings
-        self.plans_dir = Path(fresh.plans_dir or self.plans_dir)
+        self.plans_dir = resolve_plans_dir(fresh.plans_dir, self.plans_dir)
         self.canvas_radius = fresh.canvas_radius
         self.symbol_strength = fresh.symbol_strength
         self.viewport_follow_buffer = fresh.viewport_follow_buffer

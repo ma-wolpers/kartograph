@@ -8,6 +8,7 @@ from pathlib import Path
 from app.application.app_state import AppState, PlanListEntry
 from app.application.handler_context import HandlerContext
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.settings import resolve_plans_dir
 
 
 def _can_undo(ctx: HandlerContext) -> bool:
@@ -70,12 +71,14 @@ def _with_plan(
     )
 
 
-def _refresh_plan_list(ctx: HandlerContext) -> list[PlanListEntry]:
-    """Liest alle Pläne aus *ctx.plans_dir* neu ein; gibt bei Fehlern eine leere Liste zurück.
+def _refresh_plan_list(state: AppState, ctx: HandlerContext) -> list[PlanListEntry]:
+    """Liest alle Pläne aus dem konfigurierten Plan-Ordner neu ein; gibt bei Fehlern eine leere Liste zurück.
 
     Args:
-        ctx: Handler-Kontext mit Zugriff auf Repository und Plan-Verzeichnis.
+        state: Aktueller AppState (liefert den konfigurierten Plan-Ordner).
+        ctx: Handler-Kontext mit Zugriff auf Repository und Fallback-Verzeichnis.
     """
+    plans_dir = resolve_plans_dir(state.settings.plans_dir, ctx.default_plans_dir)
     try:
         return [
             PlanListEntry(
@@ -83,7 +86,7 @@ def _refresh_plan_list(ctx: HandlerContext) -> list[PlanListEntry]:
                 name=plan.meta.name,
                 student_count=len(plan.classroom.students),
             )
-            for p, plan in ctx.plan_repository.list_plans(ctx.plans_dir)
+            for p, plan in ctx.plan_repository.list_plans(plans_dir)
         ]
     except Exception:
         return []
