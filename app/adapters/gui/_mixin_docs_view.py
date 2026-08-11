@@ -65,6 +65,7 @@ class DocsViewMixin:
         lassen, obwohl der Editor gar nicht mehr zu sehen ist.
         """
         self.show_plan_list_view()
+        self._hide_details()
         self._controller.dispatch(ClearSelectionIntent())
 
     def show_editor_view(self) -> None:

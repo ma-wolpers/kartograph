@@ -56,7 +56,13 @@ class DetailsMixin:
             self._selected_marker_var.set(f"Bereich: ({min_x}, {min_y}) bis ({max_x}, {max_y}) | {count} Zellen")
 
         is_student_single = bool(self.selection.is_single() and student is not None and not is_teacher)
-        self._set_details_panel_visible(is_student_single)
+        active_cell = (x, y)
+        if self._details_revealed_for is not None and (
+            not is_student_single or self._details_revealed_for != active_cell
+        ):
+            self._details_revealed_for = None
+        is_revealed = is_student_single and self._details_revealed_for == active_cell
+        self._set_details_panel_visible(is_revealed)
 
         if not is_student_single:
             self._name_var.set("")
@@ -160,6 +166,47 @@ class DetailsMixin:
         if not visible and self._details_panel_visible:
             self.details_frame.pack_forget()
             self._details_panel_visible = False
+
+    def _reveal_details(self, x: int, y: int) -> None:
+        """Deckt die Tischdetails für Zelle (x, y) explizit auf (Enter).
+
+        Args:
+            x: Raster-x-Koordinate der Zelle.
+            y: Raster-y-Koordinate der Zelle.
+        """
+        self._details_revealed_for = (x, y)
+        self._refresh_details_panel()
+
+    def _hide_details(self) -> None:
+        """Blendet aufgedeckte Tischdetails wieder aus, falls welche offen sind (Escape / Verlassen)."""
+        if self._details_revealed_for is None:
+            return
+        self._details_revealed_for = None
+        self._refresh_details_panel()
+
+    def _confirm_selected_desk(self) -> None:
+        """1. Enter zeigt die Tischdetails lesend; erneutes Enter auf derselben Zelle startet die Namensbearbeitung."""
+        if not self.current_plan or not self.current_plan_path:
+            return
+
+        if not self.selection.is_single():
+            self._collapse_selection_to_anchor()
+            self.redraw_grid()
+            self._refresh_details_panel()
+
+        x, y = self.selected_cell
+        ts = self.current_plan.classroom.teacher_seat
+        if ts.x == x and ts.y == y:
+            self.status_var.set("Lehrertisch ist nicht editierbar")
+            return
+
+        if self._details_revealed_for == (x, y):
+            self.enter_name_edit_mode()
+            return
+
+        if not self.current_plan.student_at(x, y):
+            self._controller.dispatch(CreateStudentIntent(x=x, y=y))
+        self._reveal_details(x, y)
 
     def enter_name_edit_mode(self) -> None:
         """Aktiviert den Namenseditier-Modus für den aktuell ausgewählten Schüler."""

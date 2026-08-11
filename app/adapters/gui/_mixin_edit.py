@@ -7,7 +7,7 @@ Lehrertisch setzen, Escape-Handler sowie zugehörige Tastatur-Shortcut-Handler.
 from __future__ import annotations
 
 from app.adapters.gui.dialog_services import messagebox, simpledialog
-from app.adapters.gui.main_window_constants import GRID_SELECTED, LIST_ACTIVE, NAME_EDITING
+from app.adapters.gui.main_window_constants import ATTENDANCE_SYMBOL_NAME, GRID_SELECTED, LIST_ACTIVE, NAME_EDITING
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.student_intents import (
     CreateStudentIntent,
@@ -108,6 +108,80 @@ class EditMixin:
                 strength=new_strength,
             )
         )
+
+    def _on_attendance_shortcut(self, event) -> str | None:
+        """Tastatur-Shortcut-Handler (Leertaste): Anwesenheit für heute umschalten.
+
+        Args:
+            event: Tkinter-Tastaturereignis (für Modifier-Prüfung, sonst unbenutzt).
+        """
+        if not self._shortcut_scope_allows("docs") and not self._shortcut_scope_allows("grid"):
+            return None
+        if event.state & 0x0004 or event.state & 0x0008:
+            return None
+        if not self.editor_view.winfo_ismapped():
+            return None
+        if not self.current_plan or not self.current_plan_path:
+            return None
+        if ATTENDANCE_SYMBOL_NAME not in self._documentation_only_symbols:
+            self.status_var.set("Anwesenheits-Symbol ist nicht konfiguriert")
+            return "break"
+        if self._editor_surface == "grid":
+            self._toggle_attendance_today_grid()
+        elif self._editor_surface == "docs":
+            self._toggle_attendance_today_docs()
+        else:
+            return None
+        return "break"
+
+    def _toggle_attendance_for_student(self, student) -> None:
+        """Schaltet das Anwesenheitssymbol für *student* am heutigen Datum um (v4).
+
+        Args:
+            student: Schüler, dessen Anwesenheit heute umgeschaltet wird.
+        """
+        today = self._today_doc_date()
+        current_strength = 0
+        session = self.current_plan.documentation.session_for_date(today)
+        if session is not None:
+            entry = session.entry_for(student.student_id)
+            if entry is not None:
+                current_strength = int(entry.symbols.get(ATTENDANCE_SYMBOL_NAME, 0))
+        next_strength = 0 if current_strength > 0 else 1
+        self._controller.dispatch(
+            RecordDocumentationSymbolIntent(
+                student_id=student.student_id,
+                date=today,
+                symbol=ATTENDANCE_SYMBOL_NAME,
+                strength=next_strength,
+            )
+        )
+        state_label = "anwesend" if next_strength == 0 else "abwesend"
+        self.status_var.set(f"{student.first_name} {student.last_name}: heute {state_label}")
+
+    def _toggle_attendance_today_grid(self) -> None:
+        """Schaltet die Anwesenheit heute für den ausgewählten Schülertisch im Raster um."""
+        if not self.selection.is_single():
+            self.status_var.set("Anwesenheit nur bei Einzelauswahl")
+            return
+        x, y = self.selected_cell
+        student = self.current_plan.student_at(x, y)
+        if not student or not student.is_named():
+            self.status_var.set("Anwesenheit nur fuer Schuelertische")
+            return
+        self._toggle_attendance_for_student(student)
+
+    def _toggle_attendance_today_docs(self) -> None:
+        """Schaltet die Anwesenheit heute für den ausgewählten Schüler in der Dokutabelle um."""
+        if not self._doc_student_coords:
+            return
+        idx = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+        x, y = self._doc_student_coords[idx]
+        student = self.current_plan.student_at(x, y)
+        if not student or not student.is_named():
+            return
+        self._toggle_attendance_for_student(student)
+        self._refresh_documentation_table()
 
     def add_symbol_to_selected_desk_dialog(self) -> None:
         """Öffnet einen Dialog zur Symbolauswahl für den markierten Schülerplatz (v4)."""
@@ -228,10 +302,19 @@ class EditMixin:
         self.center_on_cell(0, 0)
 
     def handle_escape(self) -> None:
-        """Verarbeitet die Escape-Taste kontextabhängig via HSM-Kontrakt."""
+        """Verarbeitet die Escape-Taste kontextabhängig via HSM-Kontrakt.
+
+        Ein aufgedecktes Tischdetails-Panel zählt wie ein Popup (schließt
+        auf das erste Escape), aber erst nachdem eine laufende
+        Namensbearbeitung beendet wurde — sonst würde "Popup schließen"
+        Vorrang vor "Inline-Editor verlassen" bekommen und die Details
+        würden übersprungen, obwohl der Nutzer nur den Namenseditor
+        verlassen wollte.
+        """
         self._sync_popup_sessions_from_windows()
-        has_popup = self._popup_registry.has_active_popup()
         has_inline_editor = self._is_name_entry_focused() or self.interaction_mode == NAME_EDITING
+        details_revealed = self._details_revealed_for is not None
+        has_popup = self._popup_registry.has_active_popup() or (details_revealed and not has_inline_editor)
         has_parent_state = self.editor_view.winfo_ismapped()
         action = self._hsm_contract.resolve_escape_action(
             has_popup=has_popup, has_inline_editor=has_inline_editor, has_parent_state=has_parent_state
@@ -250,6 +333,8 @@ class EditMixin:
                 self._popup_registry.close_popup(popup_id)
                 self._tracked_popup_ids.discard(popup_id)
                 return
+            self._hide_details()
+            return
         if action == ESCAPE_EXIT_INLINE_EDITOR:
             self.exit_name_edit_mode()
             return

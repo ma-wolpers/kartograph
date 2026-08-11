@@ -51,7 +51,7 @@ class ShortcutMixin:
             UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG: lambda: self.open_shortcut_runtime_debug_dialog(),
             UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE: lambda: self.toggle_shortcut_runtime_offline(),
             UiIntent.ESCAPE: lambda: self.handle_escape(),
-            UiIntent.CONFIRM_SELECTION: lambda: self.enter_name_edit_mode(),
+            UiIntent.CONFIRM_SELECTION: lambda: self._confirm_selected_desk(),
             UiIntent.MOVE_UP: lambda: self.move_selection(0, -1),
             UiIntent.MOVE_DOWN: lambda: self.move_selection(0, 1),
             UiIntent.MOVE_LEFT: lambda: self.move_selection(-1, 0),
@@ -141,6 +141,8 @@ class ShortcutMixin:
 
         for key, _color_key, _label, _hex_color in self.color_palette:
             self.bind_all(f"<KeyPress-{key}>", lambda event, ck=_color_key: self._on_color_shortcut(event, ck), add="+")
+
+        self.bind_all("<KeyPress-space>", self._on_attendance_shortcut, add="+")
 
     def _register_runtime_shortcut(
         self,

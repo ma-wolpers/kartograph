@@ -34,6 +34,7 @@ MAX_SITZPLAN_POPUP_DELAY = 30
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
+ATTENDANCE_SYMBOL_NAME = "Abwesend"
 
 COLOR_MARKER_PALETTE: list[tuple[str, str, str, str]] = [
     ("1", "gelb", "Gelb", "#f4d35e"),

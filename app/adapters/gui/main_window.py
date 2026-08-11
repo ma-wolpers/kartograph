@@ -189,6 +189,7 @@ class KartographMainWindow(
         self.cell_size = DEFAULT_CELL_SIZE
         self._plan_index: list[PlanListEntry] = []
         self.interaction_mode = LIST_ACTIVE
+        self._details_revealed_for: tuple[int, int] | None = None
 
         self._ui_action_registry = self._build_ui_action_registry()
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
