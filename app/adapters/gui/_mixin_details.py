@@ -7,7 +7,7 @@ Die Widget-Konstruktion liegt in ``_mixin_details_layout.py``.
 
 from __future__ import annotations
 
-from app.adapters.gui.main_window_constants import GRID_SELECTED, NAME_EDITING
+from app.adapters.gui.main_window_constants import NAME_EDITING
 from app.core.intents.accommodation_intents import SetAccommodationsIntent
 from app.core.intents.student_intents import CreateStudentIntent, RenameStudentIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -71,7 +71,6 @@ class DetailsMixin:
             self.last_name_entry.configure(state="disabled")
             self._set_accommodations_field(None)
             if self.interaction_mode == NAME_EDITING:
-                self.interaction_mode = GRID_SELECTED
                 self.canvas.focus_set()
             self._refresh_tablegroup_overlay()
             return
@@ -222,7 +221,6 @@ class DetailsMixin:
         ts = self.current_plan.classroom.teacher_seat
         if ts.x == x and ts.y == y:
             self.status_var.set("Lehrertisch ist nicht editierbar")
-            self.interaction_mode = GRID_SELECTED
             self.canvas.focus_set()
             return
 
@@ -234,7 +232,6 @@ class DetailsMixin:
         # Re-read from updated state
         student = self.current_plan.student_at(x, y)
         if not student:
-            self.interaction_mode = GRID_SELECTED
             self.canvas.focus_set()
             return
 
@@ -242,7 +239,6 @@ class DetailsMixin:
         self.name_entry.state(["!disabled"])
         self.last_name_entry.state(["!disabled"])
         if self.name_entry.instate(["!disabled"]):
-            self.interaction_mode = NAME_EDITING
             self.name_entry.focus_set()
             self.name_entry.selection_clear()
             self.name_entry.icursor(ui.END)
@@ -250,7 +246,6 @@ class DetailsMixin:
     def exit_name_edit_mode(self) -> None:
         """Beendet den Namenseditier-Modus und gibt den Fokus an den Canvas zurück."""
         if self.editor_view.winfo_ismapped():
-            self.interaction_mode = GRID_SELECTED
             self.canvas.focus_set()
             self._refresh_details_panel()
 

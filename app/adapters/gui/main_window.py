@@ -50,6 +50,8 @@ from app.adapters.gui.main_window_constants import (
     DEFAULT_UI_WATCHDOG_INTERVAL_MS,
     LOGGER,
     LIST_ACTIVE,
+    GRID_SELECTED,
+    NAME_EDITING,
     UI_WATCHDOG_WARN_DRIFT_SECONDS,
     _known_ui_intents,
     apply_window_icon,
@@ -142,7 +144,6 @@ class KartographMainWindow(
         # Settings-Repository geladen und normalisiert (Phase D1) — die GUI
         # übernimmt nur noch die Werte, statt sie selbst erneut zu laden.
         settings = self._controller.state.settings
-        self._settings = settings.to_dict()
         self.plans_dir = resolve_plans_dir(settings.plans_dir, self.default_plans_dir)
         initial_theme_key = normalize_theme_key(settings.theme)
         self.canvas_radius = settings.canvas_radius
@@ -188,7 +189,6 @@ class KartographMainWindow(
         self._drag_active = False
         self.cell_size = DEFAULT_CELL_SIZE
         self._plan_index: list[PlanListEntry] = []
-        self.interaction_mode = LIST_ACTIVE
         self._details_revealed_for: tuple[int, int] | None = None
 
         self._ui_action_registry = self._build_ui_action_registry()
@@ -262,7 +262,9 @@ class KartographMainWindow(
         self._documentation_only_symbols = {item.meaning for item in self.symbol_definitions if item.role == "documentation_only"}
         self._symbol_by_meaning = {item.meaning: item for item in self.symbol_definitions}
         self._shortcut_to_symbol = self._build_symbol_shortcut_map(self.symbol_definitions)
-        self._grid_visible_symbols = self._normalize_grid_visible_symbols(self._settings.get("grid_visible_symbols"), self.symbol_catalog)
+        self._grid_visible_symbols = self._normalize_grid_visible_symbols(
+            list(self._controller.state.settings.grid_visible_symbols), self.symbol_catalog
+        )
         self.pdf_exporter = PdfSeatingPlanExporter(self.symbol_definitions, color_palette=self.color_palette)
         if warning:
             self.status_var.set(warning)
@@ -353,6 +355,26 @@ class KartographMainWindow(
         """
         self._controller.dispatch(intent)
 
+    @property
+    def interaction_mode(self) -> str:
+        """Aktueller Interaktionsmodus der GUI.
+
+        LIST_ACTIVE/GRID_SELECTED werden live aus ``AppState.interaction_mode``
+        abgeleitet (keine eigene GUI-Kopie). NAME_EDITING wird live an der
+        echten Tk-Fokuslage erkannt statt gespeichert: ``AppState``s
+        ``InteractionMode.NAME_EDIT`` markiert nur den Moment direkt nach dem
+        Neuanlegen eines Schülers (s. ``handle_create_student``) und wird
+        durch jeden Tastenanschlag beim Umbenennen sofort wieder auf
+        ``GRID`` zurückgesetzt (s. ``handle_rename_student``) — es bildet
+        also nicht "Cursor sitzt gerade im Namensfeld" ab, das ist ein
+        reines UI-Fokusdetail ohne Entsprechung in der Domäne.
+        """
+        if self._is_name_entry_focused():
+            return NAME_EDITING
+        if self._controller.state.interaction_mode == InteractionMode.GRID:
+            return GRID_SELECTED
+        return LIST_ACTIVE
+
     def _center_window_on_screen(self) -> None:
         """Zentriert das Fenster auf dem Bildschirm nach dem ersten Layout-Durchgang."""
         self.update_idletasks()
@@ -400,6 +422,16 @@ class KartographMainWindow(
             self._apply_kartograph_theme()
             self.redraw_grid()
 
+        settings = state.settings
+        self.canvas_radius = settings.canvas_radius
+        self.symbol_strength = settings.symbol_strength
+        self.viewport_follow_buffer = settings.viewport_follow_buffer
+        self.grid_name_format = settings.grid_name_format
+        self.sitzplan_popup_delay = settings.sitzplan_popup_delay
+        self.details_overlay_position = settings.details_overlay_position
+        self.tablegroup_overlay_position = settings.tablegroup_overlay_position
+        self.plans_dir = resolve_plans_dir(settings.plans_dir, self.default_plans_dir)
+
         if state.status_message:
             self.status_var.set(state.status_message)
 
@@ -444,10 +476,25 @@ class KartographMainWindow(
             if self._editor_surface == "docs" and state.current_plan is not None:
                 self._refresh_documentation_table()
                 if state.doc_selected_date is not None and state.doc_selected_date in self._doc_dates:
-                    self._doc_selected_date_index = self._doc_dates.index(state.doc_selected_date)
+                    self._select_doc_date_column(self._doc_dates.index(state.doc_selected_date))
                 self._apply_doc_column_heading_highlight()
 
         self._notify_sitzplan_popup(state.current_plan, self.theme_key, self.grid_name_format)
+
+    def _replace_current_plan(self, plan) -> None:
+        """Ersetzt den aktuellen Plan im AppState und im GUI-Zustand synchron.
+
+        Für History-freie Vorab-Anpassungen (z. B. Tischgruppen-Normalisierung,
+        Farbpaletten-Bedeutung), die keinen ``on_state_changed``-Callback über
+        ``apply_state()`` auslösen (s. ``KartographAppController.replace_plan_in_state``).
+        Einziger Weg für diese Art Ersetzung, damit ``self.current_plan`` nie
+        vergessen wird nachzuziehen.
+
+        Args:
+            plan: Neuer Planzustand, der den aktuellen ersetzt.
+        """
+        self.current_plan = plan
+        self._controller.replace_plan_in_state(plan)
 
     def _apply_plan_list(self, plan_list: list[PlanListEntry]) -> None:
         """Aktualisiert die interne Planliste und die Listbox aus einem PlanListEntry-Array.

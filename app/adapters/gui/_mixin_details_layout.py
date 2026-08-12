@@ -49,8 +49,6 @@ class DetailsLayoutMixin:
         self.name_entry.bind("<KeyRelease>", lambda _event: self._on_name_changed())
         self.name_entry.bind("<Escape>", self._on_name_entry_escape)
         self.name_entry.bind("<Return>", self._on_name_entry_return)
-        self.name_entry.bind("<FocusIn>", self._on_name_entry_focus_in)
-        self.name_entry.bind("<FocusOut>", self._on_name_entry_focus_out)
 
         tui.Label(self.details_form, text="Nachname", style="Panel.TLabel").pack(side="left")
         self.last_name_entry = tui.Entry(self.details_form, textvariable=self._last_name_var, width=20)
@@ -58,8 +56,6 @@ class DetailsLayoutMixin:
         self.last_name_entry.bind("<KeyRelease>", lambda _event: self._on_last_name_changed())
         self.last_name_entry.bind("<Escape>", self._on_name_entry_escape)
         self.last_name_entry.bind("<Return>", self._on_name_entry_return)
-        self.last_name_entry.bind("<FocusIn>", self._on_name_entry_focus_in)
-        self.last_name_entry.bind("<FocusOut>", self._on_name_entry_focus_out)
 
         self.symbols_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.symbols_frame.pack(fill="x", pady=(6, 0))

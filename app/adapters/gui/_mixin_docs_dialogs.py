@@ -45,7 +45,7 @@ class DocsDialogsMixin:
         if new_date is None:
             return
         renamed_plan = rename_session_date(self.current_plan, old_date, new_date)
-        self._controller.replace_plan_in_state(renamed_plan)
+        self._replace_current_plan(renamed_plan)
         self._controller.dispatch(AddSessionIntent(date=new_date))
         self.status_var.set("Dokudatum umbenannt")
         self._refresh_documentation_table()
@@ -119,6 +119,9 @@ class DocsDialogsMixin:
         if title is None:
             return
         self._controller.dispatch(AddGradeColumnIntent(category=clean_category, title=title or ""))
+        new_column_id = self._controller.state.doc_selected_column_id
+        if new_column_id:
+            self._select_doc_fixed_column(f"grade_{new_column_id}")
         self._refresh_documentation_table()
 
     def delete_grade_column_dialog(self) -> None:
@@ -239,7 +242,7 @@ class DocsDialogsMixin:
                         break
             if column is None:
                 column = grade_columns[0]
-        self._doc_selected_fixed_column_id = f"grade_{column.column_id}"
+        self._select_doc_fixed_column(f"grade_{column.column_id}")
         self._refresh_doc_selection_status()
         self._open_selected_docs_grade_cell_editor()
 

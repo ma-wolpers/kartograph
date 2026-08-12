@@ -6,6 +6,8 @@ Einstellungs-Dialog (spec, values, payload-Verarbeitung) bereit.
 
 from __future__ import annotations
 
+import dataclasses
+
 from app.adapters.gui.dialog_services import messagebox
 from app.adapters.gui.main_window_constants import (
     DEFAULT_CANVAS_RADIUS,
@@ -21,7 +23,7 @@ from app.adapters.gui.main_window_constants import (
     MIN_CANVAS_RADIUS,
     MIN_SITZPLAN_POPUP_DELAY,
 )
-from app.core.domain.settings import KartographSettings, resolve_plans_dir
+from app.core.domain.settings import resolve_plans_dir
 from app.core.intents.view_intents import OpenSettingsIntent, UpdateSettingsIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -245,21 +247,23 @@ class SettingsMixin:
         symbol_strength_key = str(payload.get("symbol_strength") or "Fett").strip()
         next_symbol_strength = symbol_strength_values.get(symbol_strength_key, DEFAULT_SYMBOL_STRENGTH)
         self.plans_dir = selected_path
-        self._settings["plans_dir"] = str(selected_path)
         self.canvas_radius = new_radius
-        self._settings["canvas_radius"] = new_radius
         self.symbol_strength = next_symbol_strength
-        self._settings["symbol_strength"] = self.symbol_strength
         self.viewport_follow_buffer = self._normalize_viewport_follow_buffer(payload.get("viewport_follow_buffer"))
-        self._settings["viewport_follow_buffer"] = self.viewport_follow_buffer
         self.grid_name_format = self._normalize_grid_name_format(payload.get("grid_name_format"))
-        self._settings["grid_name_format"] = self.grid_name_format
         try:
             self.sitzplan_popup_delay = max(MIN_SITZPLAN_POPUP_DELAY, min(MAX_SITZPLAN_POPUP_DELAY, int(payload.get("sitzplan_popup_delay", DEFAULT_SITZPLAN_POPUP_DELAY))))
         except (TypeError, ValueError):
             self.sitzplan_popup_delay = DEFAULT_SITZPLAN_POPUP_DELAY
-        self._settings["sitzplan_popup_delay"] = self.sitzplan_popup_delay
-        self._controller.dispatch(UpdateSettingsIntent(settings=KartographSettings.from_dict(self._settings)))
+        self._controller.dispatch(UpdateSettingsIntent(settings=dataclasses.replace(
+            self._controller.state.settings,
+            plans_dir=str(self.plans_dir),
+            canvas_radius=self.canvas_radius,
+            symbol_strength=self.symbol_strength,
+            viewport_follow_buffer=self.viewport_follow_buffer,
+            grid_name_format=self.grid_name_format,
+            sitzplan_popup_delay=self.sitzplan_popup_delay,
+        )))
         self._update_scroll_region()
         self._set_selection_single(*self.selection.active_cell())
         self.redraw_grid()

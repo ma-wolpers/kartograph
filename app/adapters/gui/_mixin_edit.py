@@ -7,7 +7,7 @@ Lehrertisch setzen, Escape-Handler sowie zugehörige Tastatur-Shortcut-Handler.
 from __future__ import annotations
 
 from app.adapters.gui.dialog_services import messagebox, simpledialog
-from app.adapters.gui.main_window_constants import ATTENDANCE_SYMBOL_NAME, GRID_SELECTED, LIST_ACTIVE, NAME_EDITING
+from app.adapters.gui.main_window_constants import ATTENDANCE_SYMBOL_NAME, NAME_EDITING
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.student_intents import (
     CreateStudentIntent,
@@ -258,8 +258,7 @@ class EditMixin:
                 return
             # Set palette meaning on the current plan (direct v4 usecase call), then save via toggle
             updated_plan = set_palette_meaning(self.current_plan, color_key, clean)
-            self.current_plan = updated_plan
-            self._controller.replace_plan_in_state(updated_plan)
+            self._replace_current_plan(updated_plan)
         self._controller.dispatch(ToggleColorIntent(student_id=student.student_id, color_key=color_key))
         self.canvas.focus_set()
 
@@ -276,7 +275,7 @@ class EditMixin:
             student = self.current_plan.student_at(x, y)
             if student is not None:
                 self._controller.dispatch(DeleteStudentIntent(student_id=student.student_id))
-        self.interaction_mode = GRID_SELECTED
+        self.canvas.focus_set()
         self._set_selection_single(*self.selection.anchor_cell())
 
     def set_selected_as_teacher_desk(self) -> None:
@@ -297,7 +296,7 @@ class EditMixin:
             if not proceed:
                 return
         self._controller.dispatch(SetTeacherSeatIntent(x=x, y=y))
-        self.interaction_mode = GRID_SELECTED
+        self.canvas.focus_set()
         self._set_selection_single(0, 0)
         self.center_on_cell(0, 0)
 
@@ -312,7 +311,7 @@ class EditMixin:
         verlassen wollte.
         """
         self._sync_popup_sessions_from_windows()
-        has_inline_editor = self._is_name_entry_focused() or self.interaction_mode == NAME_EDITING
+        has_inline_editor = self.interaction_mode == NAME_EDITING
         details_revealed = self._details_revealed_for is not None
         has_popup = self._popup_registry.has_active_popup() or (details_revealed and not has_inline_editor)
         has_parent_state = self.editor_view.winfo_ismapped()
@@ -343,4 +342,3 @@ class EditMixin:
             return
         self._ensure_list_selection(preferred_path=self.current_plan_path)
         self.plan_listbox.focus_set()
-        self.interaction_mode = LIST_ACTIVE

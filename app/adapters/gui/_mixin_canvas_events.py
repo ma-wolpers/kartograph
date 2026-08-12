@@ -6,7 +6,7 @@ Raster-Canvas sowie die zugehörigen Viewport-Operationen.
 
 from __future__ import annotations
 
-from app.adapters.gui.main_window_constants import GRID_SELECTED, NAME_EDITING
+from app.adapters.gui.main_window_constants import NAME_EDITING
 from app.core.intents.view_intents import ResetViewIntent, ZoomInIntent, ZoomOutIntent
 
 
@@ -33,7 +33,6 @@ class CanvasEventsMixin:
         x, y = self._event_to_cell(event)
         self._set_selection_single(x, y)
         self._drag_active = True
-        self.interaction_mode = GRID_SELECTED
         self.canvas.focus_set()
         self.redraw_grid()
         self._update_selection_no_open()
@@ -94,7 +93,6 @@ class CanvasEventsMixin:
             self.name_entry.configure(state="disabled")
             self.last_name_entry.configure(state="disabled")
             if self.interaction_mode == NAME_EDITING:
-                self.interaction_mode = GRID_SELECTED
                 self.canvas.focus_set()
             self._refresh_tablegroup_overlay()
             return
@@ -111,7 +109,6 @@ class CanvasEventsMixin:
             self.name_entry.configure(state="disabled")
             self.last_name_entry.configure(state="disabled")
             if self.interaction_mode == NAME_EDITING:
-                self.interaction_mode = GRID_SELECTED
                 self.canvas.focus_set()
         elif self._details_panel_visible:
             self._refresh_details_panel()

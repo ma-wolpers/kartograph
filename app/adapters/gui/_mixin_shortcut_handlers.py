@@ -93,7 +93,7 @@ class ShortcutHandlersMixin:
             return None
         if not self._doc_dates:
             return "break"
-        self._doc_selected_fixed_column_id = None
+        self._select_doc_fixed_column(None)
         self._controller.dispatch(NavigateSessionIntent(direction="prev"))
         return "break"
 
@@ -107,7 +107,7 @@ class ShortcutHandlersMixin:
             return None
         if not self._doc_dates:
             return "break"
-        self._doc_selected_fixed_column_id = None
+        self._select_doc_fixed_column(None)
         self._controller.dispatch(NavigateSessionIntent(direction="next"))
         return "break"
 

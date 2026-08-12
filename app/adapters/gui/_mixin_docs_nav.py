@@ -204,6 +204,41 @@ class DocsNavMixin:
             index += step
         return None
 
+    def _select_doc_date_column(self, date_index: int) -> None:
+        """Wählt eine Datumsspalte aus; hebt eine aktive Fixspalten-Auswahl auf.
+
+        Args:
+            date_index: Index der Zieldatumsspalte in ``self._doc_dates``.
+        """
+        self._doc_selected_date_index = date_index
+        self._doc_selected_fixed_column_id = None
+
+    def _select_doc_fixed_column(self, column_id: str | None) -> None:
+        """Setzt die aktive Fixspalte (oder ``None`` für den Datumsmodus).
+
+        Rührt bewusst nicht an ``_doc_selected_date_index`` — der Index
+        bleibt als Rücksprungpunkt erhalten, falls der Nutzer zurück in den
+        Datumsmodus wechselt.
+
+        Args:
+            column_id: ID der Fixspalte (Noten/Zusammenfassung), oder ``None``.
+        """
+        self._doc_selected_fixed_column_id = column_id
+
+    def _clamp_doc_column_selection_after_rebuild(self, date_count: int) -> None:
+        """Hält Datums-/Fixspalten-Auswahl nach einem Tabellen-Rebuild in gültigen Grenzen.
+
+        Unabhängige Gültigkeitsprüfung je Feld, keine Auswahl-Aktion — löscht
+        insbesondere keine noch gültige Fixspalten-Auswahl, im Unterschied zu
+        ``_select_doc_date_column``.
+
+        Args:
+            date_count: Aktuelle Anzahl der Datumsspalten nach dem Rebuild.
+        """
+        self._doc_selected_date_index = max(0, min(self._doc_selected_date_index, max(0, date_count - 1)))
+        if self._doc_selected_fixed_column_id not in set(self._doc_fixed_column_ids):
+            self._doc_selected_fixed_column_id = None
+
     def _restore_docs_column_selection(self, fixed_column_id: str | None, date_index: int) -> None:
         """Stellt die gespeicherte Spaltenauswahl nach einer Treeview-Aktualisierung wieder her.
 
@@ -212,11 +247,11 @@ class DocsNavMixin:
             date_index: Gespeicherter Datums-Spaltenindex.
         """
         if fixed_column_id is not None and fixed_column_id in self._doc_fixed_column_ids and fixed_column_id != "summary":
-            self._doc_selected_fixed_column_id = fixed_column_id
+            self._select_doc_fixed_column(fixed_column_id)
         else:
-            self._doc_selected_fixed_column_id = None
+            self._select_doc_fixed_column(None)
             if self._doc_dates:
-                self._doc_selected_date_index = max(0, min(date_index, len(self._doc_dates) - 1))
+                self._select_doc_date_column(max(0, min(date_index, len(self._doc_dates) - 1)))
         self._apply_doc_column_heading_highlight()
 
     def _preserve_docs_column_selection_after_keypress(self) -> None:

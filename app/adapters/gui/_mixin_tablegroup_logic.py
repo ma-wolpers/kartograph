@@ -32,8 +32,7 @@ class TablegroupLogicMixin:
             return
 
         normalized = normalize_tablegroups(self.current_plan)
-        self.current_plan = normalized
-        self._controller.replace_plan_in_state(normalized)
+        self._replace_current_plan(normalized)
         x, y = self.selection.active_cell()
         number = tablegroup_number_at(self.current_plan, x, y)
         if number is None:
@@ -140,8 +139,7 @@ class TablegroupLogicMixin:
             status = f"TG {source_number} gespeichert"
 
         self.plan_repository.save_plan(next_plan, self.current_plan_path)
-        self.current_plan = next_plan
-        self._controller.replace_plan_in_state(next_plan)
+        self._replace_current_plan(next_plan)
         if self._tg_status_var:
             self._tg_status_var.set(status)
 

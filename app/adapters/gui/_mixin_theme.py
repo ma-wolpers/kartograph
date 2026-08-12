@@ -7,8 +7,9 @@ der Hover-Tooltips und der Farbpunkt-Buttons.
 
 from __future__ import annotations
 
+import dataclasses
+
 from app.adapters.gui.ui_theme import kartograph_theme, normalize_theme_key, theme_names
-from app.core.domain.settings import KartographSettings
 from app.core.intents.view_intents import UpdateSettingsIntent
 
 
@@ -25,8 +26,9 @@ class ThemeMixin:
         Vergleich in ``apply_state`` keine Änderung mehr.
         """
         new_theme = normalize_theme_key(self.theme_var.get())
-        self._settings["theme"] = new_theme
-        self._controller.dispatch(UpdateSettingsIntent(settings=KartographSettings.from_dict(self._settings)))
+        self._controller.dispatch(UpdateSettingsIntent(
+            settings=dataclasses.replace(self._controller.state.settings, theme=new_theme)
+        ))
 
     def toggle_theme(self) -> None:
         """Rotiert zum nächsten Theme in der Reihenfolge von theme_names() (v4: UpdateSettingsIntent)."""

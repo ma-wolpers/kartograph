@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.adapters.gui.main_window_constants import GRID_SELECTED, LIST_ACTIVE
 from app.core.intents.navigation_intents import ClearSelectionIntent
 from app.core.intents.session_intents import GoToTodayIntent
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
@@ -52,7 +51,6 @@ class DocsViewMixin:
         self._close_tablegroup_overlay()
         self.editor_view.pack_forget()
         self.list_view.pack(fill="both", expand=True)
-        self.interaction_mode = LIST_ACTIVE
         self._ensure_list_selection(preferred_path=self.current_plan_path)
         self.plan_listbox.focus_set()
 
@@ -72,7 +70,6 @@ class DocsViewMixin:
         """Wechselt zur Editor-Ansicht (Raster oder Doku, je nach letzter Oberfläche)."""
         self.list_view.pack_forget()
         self.editor_view.pack(fill="both", expand=True)
-        self.interaction_mode = GRID_SELECTED
         if self._editor_surface == "docs":
             self.show_documentation_surface()
         else:
@@ -91,7 +88,6 @@ class DocsViewMixin:
         self.grid_stack.pack_forget()
         self.details_container.pack_forget()
         self._apply_details_overlay_position()
-        self.interaction_mode = GRID_SELECTED
         self.canvas.focus_set()
 
     def show_documentation_surface(self) -> None:
@@ -174,7 +170,7 @@ class DocsViewMixin:
         """
         if not self._doc_dates:
             return
-        self._doc_selected_fixed_column_id = None
+        self._select_doc_fixed_column(None)
         self._controller.dispatch(GoToTodayIntent())
 
     def _refresh_doc_selection_status(self) -> None:

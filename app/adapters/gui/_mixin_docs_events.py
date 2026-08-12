@@ -22,7 +22,7 @@ class DocsEventsMixin:
         row_id = self.docs_tree.identify_row(event.y)
         if row_id:
             self._set_docs_row_selection(row_id, source="main")
-        self._doc_selected_fixed_column_id = None
+        self._select_doc_fixed_column(None)
         col_id = self.docs_tree.identify_column(event.x)
         if col_id.startswith("#"):
             try:
@@ -30,7 +30,7 @@ class DocsEventsMixin:
             except ValueError:
                 col_index = -1
             if 0 <= col_index < len(self._doc_dates):
-                self._doc_selected_date_index = col_index
+                self._select_doc_date_column(col_index)
                 self._apply_doc_column_heading_highlight()
 
     def _on_docs_tree_select(self) -> None:
@@ -43,7 +43,7 @@ class DocsEventsMixin:
         row_id = selected[0]
         self._set_docs_row_selection(row_id, source="main")
         if self.focus_get() == self.docs_tree:
-            self._doc_selected_fixed_column_id = None
+            self._select_doc_fixed_column(None)
         self._refresh_doc_selection_status()
 
     def _on_docs_tree_keypress(self, event) -> None:
@@ -77,9 +77,9 @@ class DocsEventsMixin:
             if 0 <= col_index < len(self._doc_fixed_column_ids):
                 selected_column_id = self._doc_fixed_column_ids[col_index]
                 if selected_column_id == "summary":
-                    self._doc_selected_fixed_column_id = self._first_selectable_doc_fixed_column()
+                    self._select_doc_fixed_column(self._first_selectable_doc_fixed_column())
                 else:
-                    self._doc_selected_fixed_column_id = selected_column_id
+                    self._select_doc_fixed_column(selected_column_id)
                 self._apply_doc_column_heading_highlight()
 
     def _on_docs_right_tree_double_click(self, event) -> None:
@@ -104,7 +104,7 @@ class DocsEventsMixin:
         fixed_column_id = self._doc_fixed_column_ids[col_index]
         if fixed_column_id == "summary":
             return
-        self._doc_selected_fixed_column_id = fixed_column_id
+        self._select_doc_fixed_column(fixed_column_id)
         self._apply_doc_column_heading_highlight()
         if fixed_column_id.startswith("grade_"):
             self._open_docs_inline_grade_editor(row_id, fixed_column_id)
@@ -122,9 +122,9 @@ class DocsEventsMixin:
             self._refresh_doc_selection_status()
             return
         if self._doc_selected_fixed_column_id not in set(self._doc_fixed_column_ids) or self._doc_selected_fixed_column_id == "summary":
-            self._doc_selected_fixed_column_id = None
+            self._select_doc_fixed_column(None)
         if self._doc_selected_fixed_column_id is None:
-            self._doc_selected_fixed_column_id = self._first_selectable_doc_fixed_column()
+            self._select_doc_fixed_column(self._first_selectable_doc_fixed_column())
         self._apply_doc_column_heading_highlight()
 
     def _on_docs_right_tree_keypress(self, event) -> None:
@@ -231,35 +231,35 @@ class DocsEventsMixin:
         if delta > 0:
             if self._doc_selected_fixed_column_id is None:
                 if self._doc_dates and self._doc_selected_date_index < len(self._doc_dates) - 1:
-                    self._doc_selected_date_index += 1
+                    self._select_doc_date_column(self._doc_selected_date_index + 1)
                 elif self._doc_fixed_column_ids:
-                    self._doc_selected_fixed_column_id = self._first_selectable_doc_fixed_column()
+                    self._select_doc_fixed_column(self._first_selectable_doc_fixed_column())
                 self._apply_doc_column_heading_highlight()
                 return "break"
             if self._doc_selected_fixed_column_id not in self._doc_fixed_column_ids or self._doc_selected_fixed_column_id == "summary":
-                self._doc_selected_fixed_column_id = self._first_selectable_doc_fixed_column()
+                self._select_doc_fixed_column(self._first_selectable_doc_fixed_column())
                 self._apply_doc_column_heading_highlight()
                 return "break"
             next_col = self._adjacent_selectable_doc_fixed_column(self._doc_selected_fixed_column_id, step=1)
             if next_col is not None:
-                self._doc_selected_fixed_column_id = next_col
+                self._select_doc_fixed_column(next_col)
             self._apply_doc_column_heading_highlight()
             return "break"
 
         if self._doc_selected_fixed_column_id is None:
             if self._doc_dates:
-                self._doc_selected_date_index = max(0, self._doc_selected_date_index - 1)
+                self._select_doc_date_column(max(0, self._doc_selected_date_index - 1))
                 self._apply_doc_column_heading_highlight()
             return "break"
 
         if self._doc_selected_fixed_column_id not in self._doc_fixed_column_ids or self._doc_selected_fixed_column_id == "summary":
-            self._doc_selected_fixed_column_id = None
+            self._select_doc_fixed_column(None)
             self._apply_doc_column_heading_highlight()
             return "break"
         prev_col = self._adjacent_selectable_doc_fixed_column(self._doc_selected_fixed_column_id, step=-1)
         if prev_col is not None:
-            self._doc_selected_fixed_column_id = prev_col
+            self._select_doc_fixed_column(prev_col)
         else:
-            self._doc_selected_fixed_column_id = None
+            self._select_doc_fixed_column(None)
         self._apply_doc_column_heading_highlight()
         return "break"

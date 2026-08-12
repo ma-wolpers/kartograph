@@ -193,7 +193,6 @@ class DocsTableMixin:
 
         if self._doc_student_coords:
             self._doc_selected_student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-            self._doc_selected_date_index = max(0, min(self._doc_selected_date_index, max(0, len(all_dates) - 1)))
             selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
             if selected_iid is not None:
                 self._set_docs_row_selection(selected_iid)
@@ -201,8 +200,7 @@ class DocsTableMixin:
             self._doc_selected_student_index = 0
             self._doc_selected_date_index = 0
 
-        if self._doc_selected_fixed_column_id not in set(self._doc_fixed_column_ids):
-            self._doc_selected_fixed_column_id = None
+        self._clamp_doc_column_selection_after_rebuild(len(all_dates))
 
         self._apply_doc_column_heading_highlight()
         self._apply_doc_sort_order()

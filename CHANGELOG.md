@@ -7,6 +7,9 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Added
+- Leertaste schaltet in Tisch- und Dokuansicht die Anwesenheit des ausgewählten Schülers für das heutige Datum um (unabhängig davon, welcher Termin in der Dokutabelle gerade angezeigt wird).
+- Tischdetails im Sitzplan-Editor werden jetzt erst nach Drücken von Enter angezeigt (lesend); ein zweites Enter auf derselben Zelle startet die Namensbearbeitung. Escape schließt aufgedeckte Details zuerst, erst ein weiteres Escape geht zurück zur Kursliste.
+- Neu angelegte Notenspalten werden direkt in der Dokutabelle als aktive Spalte markiert.
 - Details-Panel: neues Feld "Nachteilsausgleiche" pro Schüler (Freitext-Liste, eine Zeile pro Eintrag, z. B. "Zeitzuschlag 25 %"), editierbar analog zu Name/Farbpunkten und im Sitzplan persistiert.
 - Einstellungen werden jetzt typisiert im zentralen App-Zustand gehalten (`AppState.settings`) statt als freies Dict, inklusive eigenem Lese-/Schreib-Intent fuer den Einstellungsdialog.
 - Live-Vorschau-Popup beim Hovern ueber Schuelertische zeigt Namen, Symbole und Nachteilsausgleiche kompakt an, ohne in den Bearbeitungsmodus wechseln zu muessen.
@@ -18,6 +21,9 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Neu angelegte Kurse landeten in einem falschen, fest verdrahteten Standardordner statt im in den Einstellungen konfigurierten Sitzplan-Ordner; die Kursliste zeigte danach nur noch die (leeren) Kurse aus diesem falschen Ordner.
+- Nach dem ersten in einer Sitzung geöffneten Kurs ließ sich kein weiterer Kurs mehr sichtbar öffnen (Doppelklick, Enter und der Öffnen-Button blieben ohne Wirkung, obwohl der Kurs intern korrekt geladen wurde).
+- Pfeiltasten-Navigation im Sitzplan-Raster reagierte nach dem Löschen eines Schülertisches oder dem Verschieben des Lehrertischs nicht mehr sofort, weil der Tastaturfokus nicht zurück zum Raster wechselte.
 - Kartograph stürzte beim Start zuverlässig ab: `ui_theme.py` importierte `get_theme` noch aus dem inzwischen privatisierten `bw_gui.theming`-Modul (`ImportError`), und `KartographMainWindow` versuchte weiterhin, die seit der `BwBaseWindow`-Migration schreibgeschützte `theme_key`-Property direkt zuzuweisen (`AttributeError`). Beide Stellen wurden auf die neuen bw_gui-Verträge umgestellt: privater Importpfad für `get_theme`, Theme-Wechsel jetzt ausschließlich über `BwBaseWindow.apply_theme()` (aktualisiert die Shell) statt direkter Attributzuweisung.
 - Der Toolbar-Button "★ S" (Symbol zum markierten Platz hinzufügen) funktioniert wieder: der Dialog war beim Mixin-Split/v4-Umzug verloren gegangen und ist jetzt als `add_symbol_to_selected_desk_dialog()` in `_mixin_edit.py` wiederhergestellt.
 - Die Legenden-Seite im PDF-Export nutzt jetzt pro Kompetenzblock getrennte Tabellen mit eigener Header-Zeile, automatischem Zeilenumbruch und kompakterer Tabellenbreite, statt einer flachen Einzeilenliste ohne sauberes Wrapping.

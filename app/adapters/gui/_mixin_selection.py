@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from app.adapters.gui.main_window_constants import GRID_SELECTED, LIST_ACTIVE, NAME_EDITING
+from app.adapters.gui.main_window_constants import LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.intents.navigation_intents import MoveSelectionIntent, SelectCellIntent
@@ -107,7 +107,6 @@ class SelectionMixin:
         x, y = self.selection.active_cell()
         cx, cy = self._clamp_cell(x + dx, y + dy)
         self._controller.dispatch(MoveSelectionIntent(dx=cx - x, dy=cy - y))
-        self.interaction_mode = GRID_SELECTED
         self._follow_selection_viewport(*self.selection.active_cell())
         self.redraw_grid()
         self._update_selection_no_open()
@@ -124,7 +123,6 @@ class SelectionMixin:
         x, y = self.selection.active_cell()
         cx, cy = self._clamp_cell(x + dx, y + dy)
         self._controller.dispatch(MoveSelectionIntent(dx=cx - x, dy=cy - y, expand=True))
-        self.interaction_mode = GRID_SELECTED
         self._follow_selection_viewport(*self.selection.active_cell())
         self.redraw_grid()
         self._update_selection_no_open()
@@ -206,29 +204,6 @@ class SelectionMixin:
         """
         self.exit_name_edit_mode()
         return "break"
-
-    def _on_name_entry_focus_in(self, _event) -> None:
-        """Schaltet den Interaktionsmodus auf NAME_EDITING wenn ein Namensfeld den Fokus erhält.
-
-        Args:
-            _event: Tkinter-Fokusereignis (ungenutzt).
-        """
-        if (
-            self.editor_view.winfo_exists()
-            and self.editor_view.winfo_ismapped()
-            and self.name_entry.winfo_exists()
-            and self.name_entry.instate(["!disabled"])
-        ):
-            self.interaction_mode = NAME_EDITING
-
-    def _on_name_entry_focus_out(self, _event) -> None:
-        """Schaltet den Interaktionsmodus zurück auf GRID_SELECTED wenn ein Namensfeld den Fokus verliert.
-
-        Args:
-            _event: Tkinter-Fokusereignis (ungenutzt).
-        """
-        if self.editor_view.winfo_exists() and self.editor_view.winfo_ismapped() and self.interaction_mode == NAME_EDITING:
-            self.interaction_mode = GRID_SELECTED
 
     def _today_doc_date(self) -> str:
         """Gibt das heutige Datum im ISO-Format als Dokumentations-Datums-Schlüssel zurück."""
