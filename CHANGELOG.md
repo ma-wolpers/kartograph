@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Added
+- Alle Toolbar-Buttons (Planliste und Sitzplan-Editor) zeigen jetzt statt Unicode-Symbolen (＋, ✎, ⌫, ★, ⤓, ♛ …) passende PNG-Icons aus dem Tabler-Icons-Set (MIT-lizenziert, `assets/toolbar/`), die sich automatisch an das aktive Theme anpassen.
 - Leertaste schaltet in Tisch- und Dokuansicht die Anwesenheit des ausgewählten Schülers für das heutige Datum um (unabhängig davon, welcher Termin in der Dokutabelle gerade angezeigt wird).
 - Tischdetails im Sitzplan-Editor werden jetzt erst nach Drücken von Enter angezeigt (lesend); ein zweites Enter auf derselben Zelle startet die Namensbearbeitung. Escape schließt aufgedeckte Details zuerst, erst ein weiteres Escape geht zurück zur Kursliste.
 - Neu angelegte Notenspalten werden direkt in der Dokutabelle als aktive Spalte markiert.

@@ -7,6 +7,7 @@ Widgets werden in ``_mixin_layout_docs.py`` ergänzt.
 
 from __future__ import annotations
 
+from app.adapters.gui.toolbar_icon_styler import ToolbarIconStyler
 from app.adapters.gui.ui_intents import UiIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -21,6 +22,7 @@ class LayoutMixin:
 
     def _build_layout(self, frame=None) -> None:
         """Erstellt den Hauptrahmen und delegiert an List- und Editor-Aufbau."""
+        self._toolbar_icons = ToolbarIconStyler()
         self.style = tui.Style(self)
         self.style.theme_use("clam")
 
@@ -58,6 +60,7 @@ class LayoutMixin:
         self,
         parent: ui.Widget,
         *,
+        icon_key: str,
         icon: str,
         shortcut: str,
         label: str,
@@ -70,7 +73,9 @@ class LayoutMixin:
 
         Args:
             parent: Eltern-Widget.
-            icon: Angezeigtes Icon-Zeichen.
+            icon_key: Schlüssel des PNG-Icons in ``assets/toolbar`` (siehe
+                ``ToolbarIconStyler``). Zeigt der zugehörige Button ein PNG.
+            icon: Unicode-Ersatzzeichen, falls das PNG-Icon fehlt.
             shortcut: Tastaturkürzel für die Hover-Hilfe.
             label: Beschriftung der Aktion für die Hover-Hilfe.
             command: Callback-Funktion.
@@ -81,8 +86,10 @@ class LayoutMixin:
         Returns:
             Der erstellte Button.
         """
-        caption = icon.strip() or label
-        button = tui.Button(parent, text=caption, command=command)
+        button = self._toolbar_icons.create_button(parent, icon_key, command)
+        if button is None:
+            caption = icon.strip() or label
+            button = tui.Button(parent, text=caption, command=command)
         button.pack(side=side, padx=padx)
         if bind_editor_return:
             self._bind_editor_return_override(button)
@@ -94,11 +101,11 @@ class LayoutMixin:
         self.list_toolbar = tui.Frame(self.list_view)
         self.list_toolbar.pack(fill="x", padx=14, pady=(14, 8))
 
-        self._create_toolbar_shortcut_button(self.list_toolbar, icon="＋", shortcut="Ctrl+N", label="Neuen Sitzplan erstellen", command=lambda: self._handle_intent(UiIntent.NEW_PLAN))
-        self._create_toolbar_shortcut_button(self.list_toolbar, icon="↩", shortcut="Enter", label="Ausgewaehlten Sitzplan oeffnen", command=lambda: self._handle_intent(UiIntent.LIST_OPEN_SELECTED))
-        self._create_toolbar_shortcut_button(self.list_toolbar, icon="✎", shortcut="F2", label="Ausgewaehlten Sitzplan umbenennen", command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN))
-        self._create_toolbar_shortcut_button(self.list_toolbar, icon="⌫", shortcut="Entf", label="Ausgewaehlten Sitzplan loeschen", command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN))
-        self._create_toolbar_shortcut_button(self.list_toolbar, icon="⧉", shortcut="Ctrl+D", label="Ausgewaehlten Sitzplan duplizieren", command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN), padx=(0, 0))
+        self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="new_plan", icon="＋", shortcut="Ctrl+N", label="Neuen Sitzplan erstellen", command=lambda: self._handle_intent(UiIntent.NEW_PLAN))
+        self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="open_plan", icon="↩", shortcut="Enter", label="Ausgewaehlten Sitzplan oeffnen", command=lambda: self._handle_intent(UiIntent.LIST_OPEN_SELECTED))
+        self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="rename_plan", icon="✎", shortcut="F2", label="Ausgewaehlten Sitzplan umbenennen", command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN))
+        self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="delete_plan", icon="⌫", shortcut="Entf", label="Ausgewaehlten Sitzplan loeschen", command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN))
+        self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="duplicate_plan", icon="⧉", shortcut="Ctrl+D", label="Ausgewaehlten Sitzplan duplizieren", command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN), padx=(0, 0))
 
         self.list_body = tui.Frame(self.list_view)
         self.list_body.pack(fill="both", expand=True, padx=14, pady=(0, 14))
@@ -132,16 +139,16 @@ class LayoutMixin:
         self.editor_topbar = tui.Frame(self.editor_view)
         self.editor_topbar.pack(fill="x", padx=12, pady=(12, 8))
 
-        self._create_toolbar_shortcut_button(self.editor_topbar, icon="≡", shortcut="Esc", label="Zur Planliste wechseln", command=lambda: self._handle_intent(UiIntent.GO_TO_LIST), bind_editor_return=True, padx=(0, 0))
-        self._create_toolbar_shortcut_button(self.editor_topbar, icon="⌫", shortcut="Entf", label="Ausgewaehlten Platz loeschen", command=lambda: self._handle_intent(UiIntent.DELETE_DESK), bind_editor_return=True, padx=(8, 0))
-        self._create_toolbar_shortcut_button(self.editor_topbar, icon="★", shortcut="S", label="Symbol zum markierten Platz hinzufuegen", command=lambda: self._handle_intent(UiIntent.ADD_SYMBOL), bind_editor_return=True, padx=(8, 0))
-        self._create_toolbar_shortcut_button(self.editor_topbar, icon="▦", shortcut="Ctrl+T", label="Tischgruppen-Einstellungen oeffnen", command=lambda: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS), bind_editor_return=True, padx=(8, 0))
-        self._create_toolbar_shortcut_button(self.editor_topbar, icon="⤓", shortcut="Ctrl+E", label="Plan als PDF exportieren", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF), bind_editor_return=True, padx=(8, 0))
-        self._create_toolbar_shortcut_button(self.editor_topbar, icon="♛", shortcut="Ctrl+Enter", label="Ausgewaehlten Platz als Lehrertisch setzen", command=lambda: self._handle_intent(UiIntent.SET_TEACHER_DESK), bind_editor_return=True, padx=(8, 0))
-        self._create_toolbar_shortcut_button(self.editor_topbar, icon="⌗", shortcut="Ctrl+Shift+D", label="Dokumentationsansicht ein- oder ausblenden", command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION), bind_editor_return=True, padx=(8, 0))
-        self._create_toolbar_shortcut_button(self.editor_topbar, icon="⚲", shortcut="Ctrl+Alt+S", label="Sichtbare Symbole im Grid filtern", command=self.open_grid_symbol_filter_dialog, bind_editor_return=True, padx=(8, 0))
-        self._create_toolbar_shortcut_button(self.editor_topbar, icon="−", shortcut="Ctrl+-", label="Ansicht herauszoomen", command=lambda: self._handle_intent(UiIntent.ZOOM_OUT), side="right", bind_editor_return=True, padx=(0, 8))
-        self._create_toolbar_shortcut_button(self.editor_topbar, icon="+", shortcut="Ctrl++", label="Ansicht hineinzoomen", command=lambda: self._handle_intent(UiIntent.ZOOM_IN), side="right", bind_editor_return=True, padx=(0, 0))
+        self._create_toolbar_shortcut_button(self.editor_topbar, icon_key="go_to_list", icon="≡", shortcut="Esc", label="Zur Planliste wechseln", command=lambda: self._handle_intent(UiIntent.GO_TO_LIST), bind_editor_return=True, padx=(0, 0))
+        self._create_toolbar_shortcut_button(self.editor_topbar, icon_key="delete_desk", icon="⌫", shortcut="Entf", label="Ausgewaehlten Platz loeschen", command=lambda: self._handle_intent(UiIntent.DELETE_DESK), bind_editor_return=True, padx=(8, 0))
+        self._create_toolbar_shortcut_button(self.editor_topbar, icon_key="add_symbol", icon="★", shortcut="S", label="Symbol zum markierten Platz hinzufuegen", command=lambda: self._handle_intent(UiIntent.ADD_SYMBOL), bind_editor_return=True, padx=(8, 0))
+        self._create_toolbar_shortcut_button(self.editor_topbar, icon_key="tablegroup_settings", icon="▦", shortcut="Ctrl+T", label="Tischgruppen-Einstellungen oeffnen", command=lambda: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS), bind_editor_return=True, padx=(8, 0))
+        self._create_toolbar_shortcut_button(self.editor_topbar, icon_key="export_pdf", icon="⤓", shortcut="Ctrl+E", label="Plan als PDF exportieren", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF), bind_editor_return=True, padx=(8, 0))
+        self._create_toolbar_shortcut_button(self.editor_topbar, icon_key="teacher_desk", icon="♛", shortcut="Ctrl+Enter", label="Ausgewaehlten Platz als Lehrertisch setzen", command=lambda: self._handle_intent(UiIntent.SET_TEACHER_DESK), bind_editor_return=True, padx=(8, 0))
+        self._create_toolbar_shortcut_button(self.editor_topbar, icon_key="toggle_documentation", icon="⌗", shortcut="Ctrl+Shift+D", label="Dokumentationsansicht ein- oder ausblenden", command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION), bind_editor_return=True, padx=(8, 0))
+        self._create_toolbar_shortcut_button(self.editor_topbar, icon_key="symbol_filter", icon="⚲", shortcut="Ctrl+Alt+S", label="Sichtbare Symbole im Grid filtern", command=self.open_grid_symbol_filter_dialog, bind_editor_return=True, padx=(8, 0))
+        self._create_toolbar_shortcut_button(self.editor_topbar, icon_key="zoom_out", icon="−", shortcut="Ctrl+-", label="Ansicht herauszoomen", command=lambda: self._handle_intent(UiIntent.ZOOM_OUT), side="right", bind_editor_return=True, padx=(0, 8))
+        self._create_toolbar_shortcut_button(self.editor_topbar, icon_key="zoom_in", icon="+", shortcut="Ctrl++", label="Ansicht hineinzoomen", command=lambda: self._handle_intent(UiIntent.ZOOM_IN), side="right", bind_editor_return=True, padx=(0, 0))
 
         self.plan_name_var = ui.StringVar(value="")
         tui.Label(self.editor_topbar, textvariable=self.plan_name_var).pack(side="right", padx=(0, 14))
