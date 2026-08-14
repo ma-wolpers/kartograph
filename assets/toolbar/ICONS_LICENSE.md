@@ -25,6 +25,7 @@ auf die jeweilige Theme-Vordergrundfarbe passiert danach zur Laufzeit durch
 | tb_add_symbol.png               | star                   |
 | tb_tablegroup_settings.png      | table                  |
 | tb_export_pdf.png               | file-type-pdf          |
+| tb_export_namenfit_csv.png      | file-type-csv          |
 | tb_teacher_desk.png             | crown                  |
 | tb_toggle_docs.png              | notes                  |
 | tb_symbol_filter.png            | filter                 |
