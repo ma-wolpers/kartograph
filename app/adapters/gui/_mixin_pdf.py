@@ -115,6 +115,8 @@ class PdfMixin:
                     visible_symbols=selected_symbols,
                     include_color_markers=include_color_markers_var.get(),
                     include_legend_page=include_legend_var.get(),
+                    name_format=self.name_format,
+                    disambiguate_colliding_names=self.disambiguate_colliding_names,
                 )
                 self._controller.dispatch(ExportPdfIntent())
                 self.status_var.set(f"PDF exportiert: {Path(output).name}")

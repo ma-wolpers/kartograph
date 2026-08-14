@@ -78,6 +78,27 @@ class TestBasicRoundtrip:
         restored = deserialize_plan(payload)
         assert restored.student_by_id(sid).diagnostic.accommodations == []
 
+    def test_nickname_preserved(self):
+        sid = StudentId.new()
+        s = make_student(student_id=sid, first_name="Alexander", nickname="Alex")
+        plan = make_plan(students=[s])
+        restored = _roundtrip(plan)
+        restored_student = restored.student_by_id(sid)
+        assert restored_student.nickname == "Alex"
+        assert restored_student.first_name_official == "Alexander"
+        assert restored_student.first_name == "Alex"
+
+    def test_nickname_default_empty_when_missing_in_json(self):
+        """Abwärtskompatibilität: Pläne von vor der Spitzname-Erweiterung haben kein 'nickname'-Feld."""
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(student_id=sid, first_name="Anna")])
+        payload = serialize_plan(plan)
+        del payload["classroom"]["students"][0]["nickname"]
+        restored = deserialize_plan(payload)
+        s = restored.student_by_id(sid)
+        assert s.nickname == ""
+        assert s.first_name == "Anna"
+
 
 class TestTableGroupRoundtrip:
     def test_tablegroup_preserved(self, plan):

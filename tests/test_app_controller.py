@@ -47,6 +47,7 @@ from app.application.handlers.student_handlers import (
     handle_create_student,
     handle_delete_student,
     handle_rename_student,
+    handle_set_nickname,
 )
 from app.application.handlers.view_handlers import (
     handle_open_settings,
@@ -85,6 +86,7 @@ from app.core.intents.student_intents import (
     CreateStudentIntent,
     DeleteStudentIntent,
     RenameStudentIntent,
+    SetNicknameIntent,
 )
 from app.core.intents.view_intents import (
     OpenSettingsIntent,
@@ -404,6 +406,41 @@ class TestHandleStudentHandlers:
         )
 
         assert result.interaction_mode == InteractionMode.GRID
+
+
+# ---------------------------------------------------------------------------
+# Handler-Isolation: Nickname-Handler
+# ---------------------------------------------------------------------------
+
+class TestHandleNicknameHandler:
+    def test_set_nickname_updates_student(self):
+        student = make_student(first_name="Alexander")
+        plan = make_plan(students=[student])
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        result = handle_set_nickname(
+            SetNicknameIntent(student_id=student.student_id, nickname="Alex"),
+            state,
+            ctx,
+        )
+
+        s = result.current_plan.student_by_id(student.student_id)
+        assert s.nickname == "Alex"
+        assert s.first_name == "Alex"
+
+    def test_set_nickname_without_plan_is_noop(self):
+        ctx = make_ctx()
+        state = AppState()
+
+        result = handle_set_nickname(
+            SetNicknameIntent(student_id=StudentId.new(), nickname="X"),
+            state,
+            ctx,
+        )
+
+        assert result is state
 
 
 # ---------------------------------------------------------------------------

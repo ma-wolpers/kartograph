@@ -11,6 +11,7 @@ from app.core.intents.student_intents import (
     DeleteStudentIntent,
     MoveStudentIntent,
     RenameStudentIntent,
+    SetNicknameIntent,
     SetTeacherSeatIntent,
 )
 from app.core.usecases.v4.student_usecases import (
@@ -19,6 +20,7 @@ from app.core.usecases.v4.student_usecases import (
     move_student,
     move_teacher_seat,
     rename_student,
+    set_nickname,
 )
 
 _log = logging.getLogger("kartograph.handlers.student")
@@ -73,6 +75,21 @@ def handle_rename_student(intent: RenameStudentIntent, state: AppState, ctx: Han
         _with_plan(state, next_plan, ctx),
         interaction_mode=InteractionMode.GRID,
     )
+
+
+def handle_set_nickname(intent: SetNicknameIntent, state: AppState, ctx: HandlerContext) -> AppState:
+    """Setzt den Spitznamen eines Schülers und speichert den Plan.
+
+    Args:
+        intent: Schüler-ID und neuer Spitzname.
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository, History).
+    """
+    if state.current_plan is None or state.current_plan_path is None:
+        return state
+    next_plan = set_nickname(state.current_plan, intent.student_id, intent.nickname)
+    _record_and_save(next_plan, state.current_plan_path, "student.set_nickname", ctx)
+    return _with_plan(state, next_plan, ctx)
 
 
 def handle_delete_student(intent: DeleteStudentIntent, state: AppState, ctx: HandlerContext) -> AppState:

@@ -38,6 +38,36 @@ class TestClassroom:
 
 
 # ---------------------------------------------------------------------------
+# Student.first_name (Spitzname-Auflösung)
+# ---------------------------------------------------------------------------
+
+class TestStudentFirstNameProperty:
+    def test_returns_official_first_name_when_no_nickname(self):
+        s = make_student(first_name="Anna")
+        assert s.first_name == "Anna"
+
+    def test_returns_nickname_when_set(self):
+        s = make_student(first_name="Alexander", nickname="Alex")
+        assert s.first_name == "Alex"
+
+    def test_whitespace_only_nickname_falls_back_to_official(self):
+        s = make_student(first_name="Anna", nickname="   ")
+        assert s.first_name == "Anna"
+
+    def test_first_name_official_always_returns_the_raw_value(self):
+        s = make_student(first_name="Alexander", nickname="Alex")
+        assert s.first_name_official == "Alexander"
+
+    def test_first_name_has_no_setter(self):
+        s = make_student(first_name="Anna")
+        try:
+            s.first_name = "Should not work"
+            assert False, "assigning to student.first_name should raise AttributeError"
+        except AttributeError:
+            pass
+
+
+# ---------------------------------------------------------------------------
 # Student.display_name
 # ---------------------------------------------------------------------------
 

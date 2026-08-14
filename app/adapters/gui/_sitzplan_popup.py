@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from app.adapters.gui.ui_theme import kartograph_theme
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.student_naming import compute_display_names
 from app.core.domain.table_groups import build_seat_geometries_v4
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -26,6 +27,8 @@ class SitzplanPopup:
         self._window.geometry("860x640")
         self._theme_key = theme_key
         self._name_format = name_format
+        self._disambiguate = False
+        self._display_names: dict = {}
         self._plan: SeatingPlan | None = None
         self._flipped = False
 
@@ -53,11 +56,15 @@ class SitzplanPopup:
     def window(self) -> ui.Toplevel:
         return self._window
 
-    def update(self, plan: SeatingPlan | None, theme_key: str, name_format: str) -> None:
+    def update(self, plan: SeatingPlan | None, theme_key: str, name_format: str, disambiguate: bool = False) -> None:
         """Aktualisiert Plan, Theme und Namensformat, dann neu zeichnen."""
         self._plan = plan
         self._theme_key = theme_key
         self._name_format = name_format
+        self._disambiguate = disambiguate
+        self._display_names = (
+            compute_display_names(plan.classroom.students, name_format, disambiguate) if plan is not None else {}
+        )
         theme = kartograph_theme(theme_key)
         self._canvas.configure(bg=theme["bg_main"])
         self._redraw()
@@ -137,24 +144,10 @@ class SitzplanPopup:
                     font=("Segoe UI", max(7, int(cell * 0.12)), "bold"),
                 )
             elif g.student is not None:
-                name = self._format_name(g.student.first_name, g.student.last_name)
+                name = self._display_names.get(g.student.student_id, "")
                 if name:
                     self._canvas.create_text(
                         label_cx, label_cy,
                         text=name, fill=theme["fg_primary"],
                         font=("Segoe UI", name_fs, "bold"),
                     )
-
-    def _format_name(self, first: str, last: str) -> str:
-        first = first.strip()
-        last = last.strip()
-        if not first and not last:
-            return ""
-        fmt = self._name_format
-        if fmt == "Vorname N":
-            return f"{first} {last[0]}".strip() if (first and last) else (first or last)
-        if fmt == "V. Nachname":
-            return f"{first[0]}. {last}".strip() if (first and last) else (first or last)
-        if fmt == "Nachname":
-            return last or first
-        return f"{first} {last}".strip() if (first and last) else (first or last)

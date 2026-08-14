@@ -12,12 +12,12 @@ from app.adapters.gui.dialog_services import messagebox
 from app.adapters.gui.main_window_constants import (
     DEFAULT_CANVAS_RADIUS,
     DEFAULT_DETAILS_OVERLAY_POSITION,
-    DEFAULT_GRID_NAME_FORMAT,
+    DEFAULT_NAME_FORMAT,
     DEFAULT_SITZPLAN_POPUP_DELAY,
     DEFAULT_SYMBOL_STRENGTH,
     DEFAULT_TABLEGROUP_OVERLAY_POSITION,
     DEFAULT_VIEWPORT_FOLLOW_BUFFER,
-    GRID_NAME_FORMAT_OPTIONS,
+    NAME_FORMAT_OPTIONS,
     MAX_CANVAS_RADIUS,
     MAX_SITZPLAN_POPUP_DELAY,
     MIN_CANVAS_RADIUS,
@@ -76,14 +76,14 @@ class SettingsMixin:
             parsed = DEFAULT_VIEWPORT_FOLLOW_BUFFER
         return max(0, min(5, parsed))
 
-    def _normalize_grid_name_format(self, value: object) -> str:
-        """Gibt das Namensformat für die Rasteransicht zurück, falls gültig.
+    def _normalize_name_format(self, value: object) -> str:
+        """Gibt das Namensformat für Grid, Sitzplan-Vorschau und PDF-Export zurück, falls gültig.
 
         Args:
-            value: Rohwert; muss in ``GRID_NAME_FORMAT_OPTIONS`` enthalten sein.
+            value: Rohwert; muss in ``NAME_FORMAT_OPTIONS`` enthalten sein.
         """
         raw = str(value or "").strip()
-        return raw if raw in GRID_NAME_FORMAT_OPTIONS else DEFAULT_GRID_NAME_FORMAT
+        return raw if raw in NAME_FORMAT_OPTIONS else DEFAULT_NAME_FORMAT
 
     def _normalize_grid_visible_symbols(self, raw_value: object, symbol_catalog: list[str]) -> set[str]:
         """Gibt die Menge der im Raster sichtbaren Symbole zurück.
@@ -178,11 +178,18 @@ class SettingsMixin:
                             hint="0 = immer zentrieren, 1 = 3x3-Zentrum",
                         ),
                         SharedSettingsFieldSpec(
-                            key="grid_name_format",
-                            label="Name in Gridansicht",
+                            key="name_format",
+                            label="Namensanzeige (Grid, Vorschau, PDF-Export)",
                             field_type="enum",
-                            enum_values=GRID_NAME_FORMAT_OPTIONS,
-                            default=self.grid_name_format,
+                            enum_values=NAME_FORMAT_OPTIONS,
+                            default=self.name_format,
+                        ),
+                        SharedSettingsFieldSpec(
+                            key="disambiguate_colliding_names",
+                            label="Nur so viel Nachname wie nötig zur Unterscheidung",
+                            field_type="bool",
+                            default=self.disambiguate_colliding_names,
+                            hint="Bei gleichen Vornamen wird automatisch so viel vom Nachnamen ergänzt, bis eindeutig",
                         ),
                         SharedSettingsFieldSpec(
                             key="sitzplan_popup_delay",
@@ -206,7 +213,8 @@ class SettingsMixin:
             "canvas_radius": self.canvas_radius,
             "symbol_strength": symbol_strength_labels.get(self.symbol_strength, "Fett"),
             "viewport_follow_buffer": self.viewport_follow_buffer,
-            "grid_name_format": self.grid_name_format,
+            "name_format": self.name_format,
+            "disambiguate_colliding_names": self.disambiguate_colliding_names,
             "sitzplan_popup_delay": self.sitzplan_popup_delay,
         }
 
@@ -250,7 +258,8 @@ class SettingsMixin:
         self.canvas_radius = new_radius
         self.symbol_strength = next_symbol_strength
         self.viewport_follow_buffer = self._normalize_viewport_follow_buffer(payload.get("viewport_follow_buffer"))
-        self.grid_name_format = self._normalize_grid_name_format(payload.get("grid_name_format"))
+        self.name_format = self._normalize_name_format(payload.get("name_format"))
+        self.disambiguate_colliding_names = bool(payload.get("disambiguate_colliding_names", False))
         try:
             self.sitzplan_popup_delay = max(MIN_SITZPLAN_POPUP_DELAY, min(MAX_SITZPLAN_POPUP_DELAY, int(payload.get("sitzplan_popup_delay", DEFAULT_SITZPLAN_POPUP_DELAY))))
         except (TypeError, ValueError):
@@ -261,7 +270,8 @@ class SettingsMixin:
             canvas_radius=self.canvas_radius,
             symbol_strength=self.symbol_strength,
             viewport_follow_buffer=self.viewport_follow_buffer,
-            grid_name_format=self.grid_name_format,
+            name_format=self.name_format,
+            disambiguate_colliding_names=self.disambiguate_colliding_names,
             sitzplan_popup_delay=self.sitzplan_popup_delay,
         )))
         self._update_scroll_region()
@@ -285,7 +295,8 @@ class SettingsMixin:
         self.canvas_radius = fresh.canvas_radius
         self.symbol_strength = fresh.symbol_strength
         self.viewport_follow_buffer = fresh.viewport_follow_buffer
-        self.grid_name_format = fresh.grid_name_format
+        self.name_format = fresh.name_format
+        self.disambiguate_colliding_names = fresh.disambiguate_colliding_names
         spec = self._build_settings_dialog_spec()
         payload = open_shared_tabbed_settings_dialog(
             self,

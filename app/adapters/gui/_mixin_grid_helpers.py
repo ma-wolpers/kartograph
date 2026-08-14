@@ -38,9 +38,7 @@ class GridHelpersMixin:
             theme: Aktuelles Farb-/Theme-Dictionary für das Zeichnen.
             student_name_font_size: Schriftgröße für den Schülernamen.
         """
-        main_text = self._format_student_name_for_grid(
-            student.first_name.strip(), student.last_name.strip()
-        )
+        main_text = self._display_names.get(student.student_id, "")
         effective_symbols = self._effective_grid_symbols_v4(student)
         symbol_lines = self._symbol_grid_lines(effective_symbols)
         desk_color_markers = self._ordered_color_markers(student.diagnostic.color_tags)
@@ -88,26 +86,6 @@ class GridHelpersMixin:
                     font=("Segoe UI", symbol_size, symbol_weight), tags=("grid",),
                 )
 
-    def _format_student_name_for_grid(self, first: str, last: str) -> str:
-        """Formatiert Vor- und Nachname gemäß dem eingestellten Namensformat.
-
-        Args:
-            first: Vorname des Schülers.
-            last: Nachname des Schülers.
-        """
-        fmt = self.grid_name_format
-        if not first and not last:
-            return ""
-        if fmt == "Vorname N":
-            return f"{first} {last[0]}".strip() if (first and last) else (first or last)
-        if fmt == "Vorname Nachname":
-            return f"{first} {last}".strip() if (first and last) else (first or last)
-        if fmt == "V. Nachname":
-            return f"{first[0]}. {last}".strip() if (first and last) else (first or last)
-        if fmt == "Nachname":
-            return last or first
-        return first or last
-
     def _symbol_font_style(self, base_size: int) -> tuple[int, str]:
         """Berechnet Schriftgröße und -gewicht für Symbol-Glyphen.
 
@@ -126,11 +104,7 @@ class GridHelpersMixin:
         min_size = 5
         max_text_width = int(self.cell_size * 0.88)
 
-        labels = [
-            self._format_student_name_for_grid(s.first_name.strip(), s.last_name.strip())
-            for s in self.current_plan.classroom.students
-            if self._format_student_name_for_grid(s.first_name.strip(), s.last_name.strip())
-        ]
+        labels = [label for label in self._display_names.values() if label]
         if not labels:
             return base_size
 

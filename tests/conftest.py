@@ -42,13 +42,15 @@ def make_student(
     y: int = 0,
     first_name: str = "Anna",
     last_name: str = "Müller",
+    nickname: str = "",
     student_id: StudentId | None = None,
 ) -> Student:
     return Student(
         student_id=student_id or StudentId.new(),
-        first_name=first_name,
+        first_name_official=first_name,
         last_name=last_name,
         seat=Seat(x=x, y=y),
+        nickname=nickname,
         diagnostic=DiagnosticProfile(),
     )
 

@@ -20,9 +20,30 @@ class TestFromDict:
         settings = KartographSettings.from_dict({"canvas_radius": "not-a-number"})
         assert settings.canvas_radius == 50
 
-    def test_invalid_grid_name_format_falls_back_to_default(self):
-        settings = KartographSettings.from_dict({"grid_name_format": "Unbekanntes Format"})
-        assert settings.grid_name_format == "Vorname Nachname"
+    def test_invalid_name_format_falls_back_to_default(self):
+        settings = KartographSettings.from_dict({"name_format": "Unbekanntes Format"})
+        assert settings.name_format == "Vorname Nachname"
+
+    def test_legacy_grid_name_format_key_still_read(self):
+        """Alte Settings-Dateien (vor der Umbenennung) nutzten ``grid_name_format``."""
+        settings = KartographSettings.from_dict({"grid_name_format": "Nachname"})
+        assert settings.name_format == "Nachname"
+
+    def test_name_format_key_wins_over_legacy_key(self):
+        settings = KartographSettings.from_dict({"name_format": "Vorname", "grid_name_format": "Nachname"})
+        assert settings.name_format == "Vorname"
+
+    def test_disambiguate_colliding_names_defaults_false_when_missing(self):
+        settings = KartographSettings.from_dict({})
+        assert settings.disambiguate_colliding_names is False
+
+    def test_disambiguate_colliding_names_parses_truthy_string(self):
+        settings = KartographSettings.from_dict({"disambiguate_colliding_names": "true"})
+        assert settings.disambiguate_colliding_names is True
+
+    def test_disambiguate_colliding_names_parses_bool(self):
+        settings = KartographSettings.from_dict({"disambiguate_colliding_names": True})
+        assert settings.disambiguate_colliding_names is True
 
     def test_theme_passthrough_for_arbitrary_string(self):
         # Validierung gegen die GUI-Theme-Registry bleibt Aufgabe der GUI.
@@ -46,7 +67,8 @@ class TestToDictRoundtrip:
             canvas_radius=10,
             symbol_strength=2,
             viewport_follow_buffer=3,
-            grid_name_format="Nachname",
+            name_format="Nachname",
+            disambiguate_colliding_names=True,
             grid_visible_symbols=("Laptop",),
             details_overlay_position="left",
             tablegroup_overlay_position="bottom",

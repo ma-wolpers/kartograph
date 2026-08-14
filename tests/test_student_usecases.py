@@ -10,6 +10,7 @@ from app.core.usecases.v4.student_usecases import (
     move_student,
     move_teacher_seat,
     rename_student,
+    set_nickname,
 )
 from tests.conftest import make_plan, make_student
 
@@ -141,6 +142,36 @@ class TestRenameStudent:
     def test_no_effect_for_unknown_id(self, plan_with_anna):
         result = rename_student(plan_with_anna, StudentId.new(), "X", "Y")
         assert len(result.classroom.students) == 1
+
+
+# ---------------------------------------------------------------------------
+# set_nickname
+# ---------------------------------------------------------------------------
+
+class TestSetNickname:
+    def test_sets_nickname(self, anna_id):
+        plan = make_plan(students=[make_student(student_id=anna_id, first_name="Alexander")])
+        result = set_nickname(plan, anna_id, "Alex")
+        s = result.student_by_id(anna_id)
+        assert s.nickname == "Alex"
+        assert s.first_name == "Alex"
+        assert s.first_name_official == "Alexander"
+
+    def test_trims_whitespace(self, anna_id):
+        plan = make_plan(students=[make_student(student_id=anna_id)])
+        result = set_nickname(plan, anna_id, "  Ana  ")
+        assert result.student_by_id(anna_id).nickname == "Ana"
+
+    def test_empty_nickname_falls_back_to_official_first_name(self, anna_id):
+        plan = make_plan(students=[make_student(student_id=anna_id, first_name="Anna", nickname="Ani")])
+        result = set_nickname(plan, anna_id, "")
+        s = result.student_by_id(anna_id)
+        assert s.nickname == ""
+        assert s.first_name == "Anna"
+
+    def test_no_effect_for_unknown_id(self, plan_with_anna):
+        result = set_nickname(plan_with_anna, StudentId.new(), "X")
+        assert result.classroom.students[0].nickname == ""
 
 
 # ---------------------------------------------------------------------------

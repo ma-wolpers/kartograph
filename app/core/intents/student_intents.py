@@ -39,6 +39,14 @@ class RenameStudentIntent(Intent):
 
 
 @dataclass(frozen=True)
+class SetNicknameIntent(Intent):
+    """Setzt oder löscht den Spitznamen eines Schülers (unabhängig von Vor-/Nachname)."""
+
+    student_id: StudentId
+    nickname: str
+
+
+@dataclass(frozen=True)
 class DeleteStudentIntent(Intent):
     """Entfernt einen Schüler vollständig aus dem Plan (inkl. Diagnoseprofil)."""
 

@@ -74,10 +74,24 @@ class Student:
     """Ein Schüler mit stabiler ID, Sitzplatz und Diagnoseprofil."""
 
     student_id: StudentId
-    first_name: str
+    first_name_official: str
     last_name: str
     seat: Seat
+    nickname: str = ""
     diagnostic: DiagnosticProfile = field(default_factory=DiagnosticProfile)
+
+    @property
+    def first_name(self) -> str:
+        """Effektiver Vorname für Anzeigezwecke: Spitzname falls gesetzt, sonst der offizielle Vorname.
+
+        Schreibgeschützt (kein Setter) — Umbenennen läuft immer explizit über
+        ``first_name_official``. Das erzwingt, dass jeder Code, der ``.first_name``
+        liest, automatisch spitznamen-bewusst ist, ohne das wissen zu müssen; nur
+        Stellen, die wirklich den offiziellen Vornamen brauchen (Vorname-Editierfeld,
+        Umbenennen-Logik, Persistenz), greifen bewusst auf ``first_name_official`` zu.
+        """
+        nickname = self.nickname.strip()
+        return nickname if nickname else self.first_name_official
 
     def display_name(self) -> str:
         """Gibt „Nachname, Vorname" zurück, oder Koordinaten als Fallback."""
@@ -88,7 +102,7 @@ class Student:
         return last or first or f"({self.seat.x},{self.seat.y})"
 
     def is_named(self) -> bool:
-        """True, wenn mindestens ein Vorname gesetzt ist."""
+        """True, wenn mindestens ein (effektiver) Vorname gesetzt ist."""
         return bool(self.first_name.strip())
 
 

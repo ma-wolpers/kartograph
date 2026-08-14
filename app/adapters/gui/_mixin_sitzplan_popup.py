@@ -16,6 +16,7 @@ class SitzplanPopupMixin:
         self._sitzplan_popup_pending_plan: SeatingPlan | None = None
         self._sitzplan_popup_pending_theme: str = "mono_day"
         self._sitzplan_popup_pending_fmt: str = "Vorname Nachname"
+        self._sitzplan_popup_pending_disambiguate: bool = False
 
     def open_sitzplan_popup(self) -> None:
         """Öffnet das Vorschaufenster oder bringt es bei erneutem Aufruf in den Vordergrund."""
@@ -29,10 +30,12 @@ class SitzplanPopupMixin:
                 pass
             self._sitzplan_popup = None
 
-        popup = SitzplanPopup(self, theme_key=self.theme_key, name_format=self.grid_name_format)
+        popup = SitzplanPopup(self, theme_key=self.theme_key, name_format=self.name_format)
         popup.window.protocol("WM_DELETE_WINDOW", self._close_sitzplan_popup)
         self._sitzplan_popup = popup
-        self._sitzplan_popup.update(self.current_plan, self.theme_key, self.grid_name_format)
+        self._sitzplan_popup.update(
+            self.current_plan, self.theme_key, self.name_format, self.disambiguate_colliding_names
+        )
 
     def _close_sitzplan_popup(self) -> None:
         """Schließt das Vorschaufenster und bricht ausstehende Timer ab."""
@@ -68,6 +71,7 @@ class SitzplanPopupMixin:
         self._sitzplan_popup_pending_plan = plan
         self._sitzplan_popup_pending_theme = theme_key
         self._sitzplan_popup_pending_fmt = name_format
+        self._sitzplan_popup_pending_disambiguate = self.disambiguate_colliding_names
 
         if self._sitzplan_popup_after_id is not None:
             try:
@@ -94,4 +98,5 @@ class SitzplanPopupMixin:
             self._sitzplan_popup_pending_plan,
             self._sitzplan_popup_pending_theme,
             self._sitzplan_popup_pending_fmt,
+            self._sitzplan_popup_pending_disambiguate,
         )

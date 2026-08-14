@@ -76,6 +76,7 @@ class PdfDeskRenderer:
         include_color_markers: bool,
         used_symbol_levels: dict[str, set[int]],
         used_colors: set[str],
+        display_names: dict,
     ) -> None:
         """Zeichnet einen einzelnen Tisch auf das Canvas.
 
@@ -99,6 +100,9 @@ class PdfDeskRenderer:
             include_color_markers: Farbpunkte zeichnen.
             used_symbol_levels: Wird mit Symbolstärken befüllt (für Legende).
             used_colors: Wird mit Farbschlüsseln befüllt (für Legende).
+            display_names: Vorab per ``compute_display_names()`` berechnete
+                Anzeigenamen aller Schüler des Plans (Namensformat +
+                Eindeutigkeits-Modus sind hier bereits aufgelöst).
         """
         pixel_points: list[float] = []
         px_values: list[float] = []
@@ -134,11 +138,7 @@ class PdfDeskRenderer:
 
         student = seat.student
         c.setFillColor(colors.black)
-        first_name = (student.first_name or "").strip()
-        last_name = (student.last_name or "").strip()
-        student_name = (
-            f"{first_name} {last_name}".strip() if (first_name and last_name) else (first_name or last_name)
-        )
+        student_name = display_names.get(student.student_id, "")
 
         if grade_mode == "include_provisional":
             overall_grade = compute_grade_display(export_plan, student.student_id, allow_provisional=True)

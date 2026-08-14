@@ -52,10 +52,17 @@ class DetailsLayoutMixin:
 
         tui.Label(self.details_form, text="Nachname", style="Panel.TLabel").pack(side="left")
         self.last_name_entry = tui.Entry(self.details_form, textvariable=self._last_name_var, width=20)
-        self.last_name_entry.pack(side="left", padx=(8, 0))
+        self.last_name_entry.pack(side="left", padx=(8, 16))
         self.last_name_entry.bind("<KeyRelease>", lambda _event: self._on_last_name_changed())
         self.last_name_entry.bind("<Escape>", self._on_name_entry_escape)
         self.last_name_entry.bind("<Return>", self._on_name_entry_return)
+
+        tui.Label(self.details_form, text="Spitzname", style="Panel.TLabel").pack(side="left")
+        self.nickname_entry = tui.Entry(self.details_form, textvariable=self._nickname_var, width=20)
+        self.nickname_entry.pack(side="left", padx=(8, 0))
+        self.nickname_entry.bind("<KeyRelease>", lambda _event: self._on_nickname_changed())
+        self.nickname_entry.bind("<Escape>", self._on_name_entry_escape)
+        self.nickname_entry.bind("<Return>", self._on_name_entry_return)
 
         self.symbols_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.symbols_frame.pack(fill="x", pady=(6, 0))

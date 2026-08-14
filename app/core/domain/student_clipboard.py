@@ -217,7 +217,8 @@ class StudentClipboard:
                 source = next_plan.classroom.student_by_id(entry.student_id)
                 next_plan = create_student(next_plan, x, y)
                 clone = next_plan.classroom.student_at(x, y)
-                clone.first_name = source.first_name
+                clone.first_name_official = source.first_name_official
+                clone.nickname = source.nickname
                 clone.last_name = source.last_name
                 clone.diagnostic = deepcopy(source.diagnostic)
                 pasted += 1

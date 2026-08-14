@@ -131,9 +131,10 @@ def _deserialize_student(raw: dict) -> Student:
     diagnostic = _deserialize_diagnostic(raw.get("diagnostic") or {})
     return Student(
         student_id=student_id,
-        first_name=str(raw.get("first_name") or "").strip(),
+        first_name_official=str(raw.get("first_name") or "").strip(),
         last_name=str(raw.get("last_name") or "").strip(),
         seat=seat,
+        nickname=str(raw.get("nickname") or "").strip(),
         diagnostic=diagnostic,
     )
 

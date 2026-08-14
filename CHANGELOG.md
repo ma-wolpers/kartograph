@@ -7,6 +7,8 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Added
+- Details-Panel: neues Feld "Spitzname" pro Schüler, editierbar neben Vor- und Nachname. Ist es gesetzt, ersetzt es den Vornamen überall in der Anzeige (Sitzplan-Grid, Sitzplan-Vorschau, PDF-Export, Dokumentationstabelle, Statusmeldungen) — nur das Vorname-Feld selbst zeigt weiterhin den echten, offiziellen Vornamen zum Bearbeiten.
+- Neue Einstellung "Nur so viel Nachname wie nötig zur Unterscheidung": Ist sie aktiv, zeigen Sitzplan-Grid, Sitzplan-Vorschau und PDF-Export standardmäßig nur den Vornamen (bzw. Spitznamen) und ergänzen automatisch so viel vom Nachnamen, wie zur Unterscheidung zweier Schüler mit gleichem Vornamen nötig ist (z. B. "Paul Mö." und "Paul Mü." bei zwei Pauls mit unterschiedlichem Nachnamen-Anfang). Die Einstellung "Name in Gridansicht" heißt jetzt "Namensanzeige" und gilt jetzt einheitlich für Grid, Sitzplan-Vorschau *und* PDF-Export (bisher zeigte der PDF-Export immer fest "Vorname Nachname", unabhängig von dieser Einstellung).
 - Alle Toolbar-Buttons (Planliste und Sitzplan-Editor) zeigen jetzt statt Unicode-Symbolen (＋, ✎, ⌫, ★, ⤓, ♛ …) passende PNG-Icons aus dem Tabler-Icons-Set (MIT-lizenziert, `assets/toolbar/`), die sich automatisch an das aktive Theme anpassen.
 - Leertaste schaltet in Tisch- und Dokuansicht die Anwesenheit des ausgewählten Schülers für das heutige Datum um (unabhängig davon, welcher Termin in der Dokutabelle gerade angezeigt wird).
 - Tischdetails im Sitzplan-Editor werden jetzt erst nach Drücken von Enter angezeigt (lesend); ein zweites Enter auf derselben Zelle startet die Namensbearbeitung. Escape schließt aufgedeckte Details zuerst, erst ein weiteres Escape geht zurück zur Kursliste.

@@ -151,7 +151,8 @@ class KartographMainWindow(
         self.viewport_follow_buffer = settings.viewport_follow_buffer
         self.details_overlay_position = settings.details_overlay_position
         self.tablegroup_overlay_position = settings.tablegroup_overlay_position
-        self.grid_name_format = settings.grid_name_format
+        self.name_format = settings.name_format
+        self.disambiguate_colliding_names = settings.disambiguate_colliding_names
         self.sitzplan_popup_delay = settings.sitzplan_popup_delay
 
         resolved_shell_config = shell_config or AppShellConfig(
@@ -184,6 +185,7 @@ class KartographMainWindow(
 
         self.current_plan_path: Path | None = None
         self.current_plan: SeatingPlan | None = None
+        self._display_names: dict = {}
         self.selected_cell: tuple[int, int] = (0, 0)
         self.selection = RectSelection(0, 0)
         self._drag_active = False
@@ -196,6 +198,7 @@ class KartographMainWindow(
 
         self._name_var = ui.StringVar(value="")
         self._last_name_var = ui.StringVar(value="")
+        self._nickname_var = ui.StringVar(value="")
         self._selected_marker_var = ui.StringVar(value="")
         self._doc_selection_status_var = ui.StringVar(value="Doku-Zelle: -")
         self.status_var = ui.StringVar(value="Bereit")
@@ -426,7 +429,8 @@ class KartographMainWindow(
         self.canvas_radius = settings.canvas_radius
         self.symbol_strength = settings.symbol_strength
         self.viewport_follow_buffer = settings.viewport_follow_buffer
-        self.grid_name_format = settings.grid_name_format
+        self.name_format = settings.name_format
+        self.disambiguate_colliding_names = settings.disambiguate_colliding_names
         self.sitzplan_popup_delay = settings.sitzplan_popup_delay
         self.details_overlay_position = settings.details_overlay_position
         self.tablegroup_overlay_position = settings.tablegroup_overlay_position
@@ -479,7 +483,7 @@ class KartographMainWindow(
                     self._select_doc_date_column(self._doc_dates.index(state.doc_selected_date))
                 self._apply_doc_column_heading_highlight()
 
-        self._notify_sitzplan_popup(state.current_plan, self.theme_key, self.grid_name_format)
+        self._notify_sitzplan_popup(state.current_plan, self.theme_key, self.name_format)
 
     def _replace_current_plan(self, plan) -> None:
         """Ersetzt den aktuellen Plan im AppState und im GUI-Zustand synchron.

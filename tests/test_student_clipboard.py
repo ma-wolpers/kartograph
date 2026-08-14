@@ -85,9 +85,22 @@ class TestPasteAfterCopy:
         assert clone.student_id != anna.student_id
         assert clone.first_name == "Anna"
         assert clone.last_name == "Müller"
+        assert clone.first_name_official == "Anna"
         # Original bleibt unveraendert an seinem Platz stehen.
         assert next_plan.classroom.student_at(1, 0) is not None
         assert next_plan.classroom.student_at(1, 0).student_id == anna.student_id
+
+    def test_paste_copies_nickname(self):
+        anna = make_student(x=1, y=0, first_name="Alexander", nickname="Alex")
+        plan = make_plan(students=[anna])
+        clip = StudentClipboard()
+        clip.copy_from_plan(plan, [(1, 0)])
+
+        next_plan, _pasted, _conflict = clip.paste_into_plan(plan, target_x=3, target_y=0)
+
+        clone = next_plan.classroom.student_at(3, 0)
+        assert clone.nickname == "Alex"
+        assert clone.first_name == "Alex"
 
     def test_paste_copies_diagnostic_profile_but_not_session_history(self):
         anna = make_student(x=1, y=0)

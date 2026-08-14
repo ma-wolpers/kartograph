@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Literal
 
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.settings import DEFAULT_NAME_FORMAT
+from app.core.domain.student_naming import compute_display_names
 from app.core.domain.table_groups import build_seat_geometries_v4
 from app.core.usecases.v4.tablegroup_usecases import normalize_tablegroups
 from app.infrastructure.exporters.pdf_desk_renderer import PdfDeskRenderer
@@ -83,6 +85,8 @@ class PdfSeatingPlanExporter:
         visible_symbols: set[str] | None = None,
         include_color_markers: bool = False,
         include_legend_page: bool = False,
+        name_format: str = DEFAULT_NAME_FORMAT,
+        disambiguate_colliding_names: bool = False,
     ) -> None:
         """Exportiert *plan* als PDF nach *output_path*.
 
@@ -94,6 +98,11 @@ class PdfSeatingPlanExporter:
             visible_symbols: Zu exportierende Symbole; None = alle.
             include_color_markers: Farbpunkte an Tischen zeichnen.
             include_legend_page: Legendenseite anhängen.
+            name_format: Namensformat (eines der ``NAME_FORMAT_OPTIONS``), wie
+                für Grid und Sitzplan-Vorschau.
+            disambiguate_colliding_names: Bei gleichen Vornamen automatisch so
+                viel vom Nachnamen ergänzen, bis eindeutig (siehe
+                ``compute_display_names()``).
 
         Raises:
             RuntimeError: Wenn reportlab nicht installiert ist.
@@ -155,6 +164,9 @@ class PdfSeatingPlanExporter:
 
         used_symbol_levels: dict[str, set[int]] = {}
         used_colors: set[str] = set()
+        display_names = compute_display_names(
+            export_plan.classroom.students, name_format, disambiguate_colliding_names
+        )
 
         for polygon, center, geometry in render_items:
             pdf_polygon = tuple(
@@ -168,7 +180,7 @@ class PdfSeatingPlanExporter:
             self._desk_renderer.render_desk(
                 c, colors, pdfmetrics, geometry, pdf_polygon, pdf_center, cell_size,
                 export_plan, grade_mode, visible_symbols, include_color_markers,
-                used_symbol_levels, used_colors,
+                used_symbol_levels, used_colors, display_names,
             )
 
         if include_legend_page:

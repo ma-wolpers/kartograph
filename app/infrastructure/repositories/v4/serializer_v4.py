@@ -69,7 +69,8 @@ def _serialize_student(student) -> dict:
     """
     return {
         "student_id": str(student.student_id),
-        "first_name": student.first_name,
+        "first_name": student.first_name_official,
+        "nickname": student.nickname,
         "last_name": student.last_name,
         "seat": {"x": student.seat.x, "y": student.seat.y},
         "diagnostic": {

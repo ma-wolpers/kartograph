@@ -43,7 +43,7 @@ def create_student(plan: SeatingPlan, x: int, y: int) -> SeatingPlan:
     next_plan.classroom.students.append(
         Student(
             student_id=StudentId.new(),
-            first_name="",
+            first_name_official="",
             last_name="",
             seat=Seat(x=x, y=y),
         )
@@ -144,8 +144,27 @@ def rename_student(
     student = next_plan.classroom.student_by_id(student_id)
     if student is None:
         return next_plan
-    student.first_name = first_name.strip()
+    student.first_name_official = first_name.strip()
     student.last_name = last_name.strip()
+    return next_plan
+
+
+def set_nickname(plan: SeatingPlan, student_id: StudentId, nickname: str) -> SeatingPlan:
+    """Setzt den Spitznamen eines Schülers (leerer String löscht ihn wieder).
+
+    Args:
+        plan: Ausgangsplan.
+        student_id: ID des Schülers.
+        nickname: Neuer Spitzname (wird getrimmt).
+
+    Returns:
+        Neuer Plan mit aktualisiertem Spitznamen.
+    """
+    next_plan = deepcopy(plan)
+    student = next_plan.classroom.student_by_id(student_id)
+    if student is None:
+        return next_plan
+    student.nickname = nickname.strip()
     return next_plan
 
 

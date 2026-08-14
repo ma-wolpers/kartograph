@@ -8,6 +8,7 @@ Die Inhalts-Zeichnung einzelner Schülertische ist in ``_mixin_grid_helpers.py``
 from __future__ import annotations
 
 from app.adapters.gui.ui_theme import kartograph_theme
+from app.core.domain.student_naming import compute_display_names
 from app.core.domain.table_groups import (
     build_seat_geometries_v4,
     group_bounds_from_geometries_v4,
@@ -26,6 +27,9 @@ class GridRenderMixin:
             return
 
         theme = kartograph_theme(self.theme_key)
+        self._display_names = compute_display_names(
+            self.current_plan.classroom.students, self.name_format, self.disambiguate_colliding_names
+        )
 
         left = self.canvas.canvasx(0)
         top = self.canvas.canvasy(0)

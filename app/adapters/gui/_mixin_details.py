@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from app.adapters.gui.main_window_constants import NAME_EDITING
 from app.core.intents.accommodation_intents import SetAccommodationsIntent
-from app.core.intents.student_intents import CreateStudentIntent, RenameStudentIntent
+from app.core.intents.student_intents import CreateStudentIntent, RenameStudentIntent, SetNicknameIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -67,18 +67,22 @@ class DetailsMixin:
         if not is_student_single:
             self._name_var.set("")
             self._last_name_var.set("")
+            self._nickname_var.set("")
             self.name_entry.configure(state="disabled")
             self.last_name_entry.configure(state="disabled")
+            self.nickname_entry.configure(state="disabled")
             self._set_accommodations_field(None)
             if self.interaction_mode == NAME_EDITING:
                 self.canvas.focus_set()
             self._refresh_tablegroup_overlay()
             return
 
-        self._name_var.set(student.first_name)
+        self._name_var.set(student.first_name_official)
         self._last_name_var.set(student.last_name)
+        self._nickname_var.set(student.nickname)
         self.name_entry.configure(state="normal")
         self.last_name_entry.configure(state="normal")
+        self.nickname_entry.configure(state="normal")
         self._set_accommodations_field(student)
 
         symbol_cols = self._details_button_columns()
@@ -291,9 +295,23 @@ class DetailsMixin:
         self._controller.dispatch(
             RenameStudentIntent(
                 student_id=student.student_id,
-                first_name=student.first_name,
+                first_name=student.first_name_official,
                 last_name=self._last_name_var.get(),
             )
+        )
+
+    def _on_nickname_changed(self) -> None:
+        """Callback für Tastatureingabe im Spitzname-Feld: speichert den neuen Spitznamen sofort."""
+        if not self.current_plan or not self.current_plan_path:
+            return
+        if not self.selection.is_single():
+            return
+        x, y = self.selected_cell
+        student = self.current_plan.student_at(x, y)
+        if not student:
+            return
+        self._controller.dispatch(
+            SetNicknameIntent(student_id=student.student_id, nickname=self._nickname_var.get())
         )
 
     def _set_accommodations_field(self, student) -> None:
