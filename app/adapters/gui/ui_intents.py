@@ -30,6 +30,7 @@ class UiIntent:
     DELETE_GRADE_COLUMN = "view.documentation.grade_column.delete"
     TOGGLE_THEME = "theme.toggle"
     EXPORT_PDF = "export.pdf"
+    EXPORT_NAMENFIT_CSV = "export.namenfit_csv"
     UNDO = "edit.undo"
     REDO = "edit.redo"
     UNDO_LAST_FIVE = "edit.undo_last_five"

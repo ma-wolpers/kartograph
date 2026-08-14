@@ -69,6 +69,7 @@ class ShortcutMixin:
             UiIntent.DELETE_GRADE_COLUMN: lambda: self.delete_grade_column_dialog(),
             UiIntent.TOGGLE_THEME: lambda: self.toggle_theme(),
             UiIntent.EXPORT_PDF: lambda: self.export_plan_pdf_dialog(),
+            UiIntent.EXPORT_NAMENFIT_CSV: lambda: self.export_plan_namenfit_csv_dialog(),
             UiIntent.UNDO: lambda: self.undo_last_change(),
             UiIntent.REDO: lambda: self.redo_last_change(),
             UiIntent.UNDO_LAST_FIVE: lambda: self.undo_last_five_changes(),

@@ -6,6 +6,7 @@ from app.application.app_state import AppState, EditorSurface
 from app.application.handler_context import HandlerContext
 from app.core.domain.settings import KartographSettings
 from app.core.intents.view_intents import (
+    ExportNamenfitCsvIntent,
     ExportPdfIntent,
     OpenSettingsIntent,
     OpenTablegroupSettingsIntent,
@@ -83,15 +84,26 @@ def handle_reset_view(intent: ResetViewIntent, state: AppState, ctx: HandlerCont
     return dataclasses.replace(state, cell_size=DEFAULT_CELL_SIZE)
 
 
-# ExportPdfIntent/OpenTablegroupSettingsIntent sind bewusste No-Ops: PDF-Export
-# (Dateidialog + Dateischreiben) und das Tischgruppen-Overlay (Toplevel-Fenster)
-# sind reine Tk-/IO-Seiteneffekte ohne AppState-Wirkung. Dispatch dient hier nur
-# der Konsistenz mit dem Intent-System (z. B. künftiges Makro-Recording, s.
-# Architekturplan v2 Abschnitt 4.2) -- die GUI führt die eigentliche Aktion
-# weiterhin selbst aus.
+# ExportPdfIntent/ExportNamenfitCsvIntent/OpenTablegroupSettingsIntent sind
+# bewusste No-Ops: PDF-/CSV-Export (Dateidialog + Dateischreiben) und das
+# Tischgruppen-Overlay (Toplevel-Fenster) sind reine Tk-/IO-Seiteneffekte ohne
+# AppState-Wirkung. Dispatch dient hier nur der Konsistenz mit dem
+# Intent-System (z. B. künftiges Makro-Recording, s. Architekturplan v2
+# Abschnitt 4.2) -- die GUI führt die eigentliche Aktion weiterhin selbst aus.
 
 def handle_export_pdf(intent: ExportPdfIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """No-Op: PDF-Export hat keine AppState-Wirkung (s. Kommentar oben).
+
+    Args:
+        intent: Trägt keine Felder.
+        state: Aktueller AppState (wird unverändert zurückgegeben).
+        ctx: Handler-Kontext (von diesem Handler nicht benötigt).
+    """
+    return state
+
+
+def handle_export_namenfit_csv(intent: ExportNamenfitCsvIntent, state: AppState, ctx: HandlerContext) -> AppState:
+    """No-Op: Namenfit-CSV-Export hat keine AppState-Wirkung (s. Kommentar oben).
 
     Args:
         intent: Trägt keine Felder.

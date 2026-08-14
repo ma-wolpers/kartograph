@@ -45,6 +45,15 @@ class ExportPdfIntent(Intent):
 
 
 @dataclass(frozen=True)
+class ExportNamenfitCsvIntent(Intent):
+    """Markiert einen abgeschlossenen Namenfit-CSV-Export.
+
+    Reiner No-Op-Marker, analog zu ``ExportPdfIntent``: Dateidialog und
+    CSV-Schreiben sind Tk-/IO-Seiteneffekte ohne AppState-Wirkung.
+    """
+
+
+@dataclass(frozen=True)
 class OpenSettingsIntent(Intent):
     """Lädt die persistierten Einstellungen frisch aus dem Settings-Repository in den AppState."""
 

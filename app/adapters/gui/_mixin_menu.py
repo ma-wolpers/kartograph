@@ -62,6 +62,7 @@ class MenuMixin:
             SharedMenuItem(type="command", label="Plan duplizieren (Strg+D)", command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN)),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Export PDF (Strg+E)", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF)),
+            SharedMenuItem(type="command", label="Für Namenfit exportieren (CSV)", command=lambda: self._handle_intent(UiIntent.EXPORT_NAMENFIT_CSV)),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Zur Planliste", command=lambda: self._handle_intent(UiIntent.GO_TO_LIST)),
             SharedMenuItem(type="separator"),

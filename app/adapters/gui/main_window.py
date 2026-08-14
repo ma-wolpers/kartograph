@@ -28,6 +28,7 @@ from app.adapters.gui._mixin_laufkern import LaufkernMixin
 from app.adapters.gui._mixin_layout import LayoutMixin
 from app.adapters.gui._mixin_layout_docs import LayoutDocsMixin
 from app.adapters.gui._mixin_menu import MenuMixin
+from app.adapters.gui._mixin_namenfit_export import NamenfitExportMixin
 from app.adapters.gui._mixin_pdf import PdfMixin
 from app.adapters.gui._mixin_plan_crud import PlanCrudMixin
 from app.adapters.gui._mixin_plan_list import PlanListMixin
@@ -79,6 +80,7 @@ from bw_gui.menu import section_spec
 
 class KartographMainWindow(
     PdfMixin,
+    NamenfitExportMixin,
     ExportMixin,
     SettingsMixin,
     UndoRedoMixin,
