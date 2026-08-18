@@ -188,7 +188,11 @@ class DetailsMixin:
         self._refresh_details_panel()
 
     def _confirm_selected_desk(self) -> None:
-        """1. Enter zeigt die Tischdetails lesend; erneutes Enter auf derselben Zelle startet die Namensbearbeitung."""
+        """1. Enter zeigt die Tischdetails lesend; erneutes Enter auf derselben Zelle startet die Namensbearbeitung.
+
+        Bei einem neu angelegten (bisher leeren) Tisch gibt es nichts zu lesen, daher
+        startet dort bereits das erste Enter direkt die Namensbearbeitung.
+        """
         if not self.current_plan or not self.current_plan_path:
             return
 
@@ -209,6 +213,9 @@ class DetailsMixin:
 
         if not self.current_plan.student_at(x, y):
             self._controller.dispatch(CreateStudentIntent(x=x, y=y))
+            self._reveal_details(x, y)
+            self.enter_name_edit_mode()
+            return
         self._reveal_details(x, y)
 
     def enter_name_edit_mode(self) -> None:
