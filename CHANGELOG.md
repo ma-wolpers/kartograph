@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Added
+- Vorname, Nachname und Spitzname werden beim Tippen nicht mehr bei jedem Tastendruck sofort gespeichert, sondern gebündelt nach einer kurzen, einstellbaren Pause (Einstellungen: "Namen speichern: Verzögerung", Standard 2 Sek.) — spätestens aber beim Verlassen des Feldes.
 - Neue Export-Funktion "Für Namenfit exportieren (CSV)" (Datei-Menü und Editor-Toolbar): schreibt eine CSV-Datei im Sitzraster-Format, das die Schwester-App Namenfit direkt importieren kann — jede Tischgruppe als eigener Spaltenblock, Namensformat frei wählbar (dieselben Optionen wie bei der Namensanzeige-Einstellung), Zielpfad über den Datei-speichern-Dialog. Der Export bricht mit einer klaren Fehlermeldung ab (keine Datei wird geschrieben), wenn ein benannter Schüler zu keiner nummerierten Tischgruppe gehört, oder wenn zwei Schüler denselben Anzeigenamen hätten.
 - Details-Panel: neues Feld "Spitzname" pro Schüler, editierbar neben Vor- und Nachname. Ist es gesetzt, ersetzt es den Vornamen überall in der Anzeige (Sitzplan-Grid, Sitzplan-Vorschau, PDF-Export, Dokumentationstabelle, Statusmeldungen) — nur das Vorname-Feld selbst zeigt weiterhin den echten, offiziellen Vornamen zum Bearbeiten.
 - Neue Einstellung "Nur so viel Nachname wie nötig zur Unterscheidung": Ist sie aktiv, zeigen Sitzplan-Grid, Sitzplan-Vorschau und PDF-Export standardmäßig nur den Vornamen (bzw. Spitznamen) und ergänzen automatisch so viel vom Nachnamen, wie zur Unterscheidung zweier Schüler mit gleichem Vornamen nötig ist (z. B. "Paul Mö." und "Paul Mü." bei zwei Pauls mit unterschiedlichem Nachnamen-Anfang). Die Einstellung "Name in Gridansicht" heißt jetzt "Namensanzeige" und gilt jetzt einheitlich für Grid, Sitzplan-Vorschau *und* PDF-Export (bisher zeigte der PDF-Export immer fest "Vorname Nachname", unabhängig von dieser Einstellung).
@@ -25,6 +26,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Enter auf einem neu angelegten Tisch springt jetzt direkt in die Namensbearbeitung, statt ein zweites Enter zu verlangen. Doppelklick auf einen neuen, leeren Tisch fokussierte das Namensfeld bisher manchmal in einem noch unsichtbaren Panel — behoben.
 - Neu angelegte Kurse landeten in einem falschen, fest verdrahteten Standardordner statt im in den Einstellungen konfigurierten Sitzplan-Ordner; die Kursliste zeigte danach nur noch die (leeren) Kurse aus diesem falschen Ordner.
 - Nach dem ersten in einer Sitzung geöffneten Kurs ließ sich kein weiterer Kurs mehr sichtbar öffnen (Doppelklick, Enter und der Öffnen-Button blieben ohne Wirkung, obwohl der Kurs intern korrekt geladen wurde).
 - Pfeiltasten-Navigation im Sitzplan-Raster reagierte nach dem Löschen eines Schülertisches oder dem Verschieben des Lehrertischs nicht mehr sofort, weil der Tastaturfokus nicht zurück zum Raster wechselte.

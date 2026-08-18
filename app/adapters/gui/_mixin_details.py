@@ -7,7 +7,13 @@ Die Widget-Konstruktion liegt in ``_mixin_details_layout.py``.
 
 from __future__ import annotations
 
-from app.adapters.gui.main_window_constants import DEFAULT_NAME_SAVE_DELAY, NAME_EDITING
+from app.adapters.gui.main_window_constants import (
+    DEFAULT_NAME_SAVE_DELAY,
+    DESK_DETAIL_EDITING,
+    DESK_DETAIL_REVEALED,
+    DeskDetailMode,
+    NAME_EDITING,
+)
 from app.core.intents.accommodation_intents import SetAccommodationsIntent
 from app.core.intents.student_intents import CreateStudentIntent, RenameStudentIntent, SetNicknameIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -21,7 +27,12 @@ class DetailsMixin:
     """Mixin: Details-Panel-Refresh, Sichtbarkeit und Namenseditier-Modus (v4)."""
 
     def _refresh_details_panel(self) -> None:
-        """Aktualisiert den gesamten Inhalt des Details-Panels für die aktuelle Auswahl."""
+        """Aktualisiert den gesamten Inhalt des Details-Panels für die aktuelle Auswahl.
+
+        Liest ausschließlich den vorhandenen ``_desk_detail_state`` und stellt ihn dar --
+        mutiert ihn nicht selbst (das übernehmen ausschließlich die State-Funnel-Methoden
+        ``_set_desk_detail_state``/``_clear_desk_detail_state``/``_reconcile_desk_detail_state``).
+        """
         self._color_marker_buttons = []
         for child in self.symbols_frame.winfo_children():
             child.destroy()
@@ -56,12 +67,8 @@ class DetailsMixin:
             self._selected_marker_var.set(f"Bereich: ({min_x}, {min_y}) bis ({max_x}, {max_y}) | {count} Zellen")
 
         is_student_single = bool(self.selection.is_single() and student is not None and not is_teacher)
-        active_cell = (x, y)
-        if self._details_revealed_for is not None and (
-            not is_student_single or self._details_revealed_for != active_cell
-        ):
-            self._details_revealed_for = None
-        is_revealed = is_student_single and self._details_revealed_for == active_cell
+        self._reconcile_desk_detail_state(x, y, is_student_single)
+        is_revealed = is_student_single and self._desk_detail_state is not None
         self._set_details_panel_visible(is_revealed)
 
         if not is_student_single:
@@ -170,22 +177,66 @@ class DetailsMixin:
             self.details_frame.pack_forget()
             self._details_panel_visible = False
 
+    def _set_desk_detail_state(self, x: int, y: int, mode: DeskDetailMode) -> None:
+        """Bringt die Tischdetails-UI für Zelle (x, y) in den Zustand *mode*.
+
+        Kein bloßer Feld-Setter: hält Detail-Zustand, Panel-Darstellung und (bei
+        EDITING) Tk-Fokus synchron. Reihenfolge bewusst so: Zustand setzen -> rendern
+        -> Feld ist sichtbar/aktiv -> erst dann fokussieren -- damit der historische
+        Bug "Fokus auf unsichtbarem Panel" strukturell nicht mehr durch einen
+        einzelnen Aufrufer reproduzierbar ist. EDITING ist dabei der semantische
+        Quellzustand der Anwendung; der echte Tk-Fokus auf ``name_entry`` ist nur die
+        technische Konsequenz davon, nicht umgekehrt.
+        """
+        self._desk_detail_state = (x, y, mode)
+        self._refresh_details_panel()
+        if mode == DESK_DETAIL_EDITING and self.name_entry.instate(["!disabled"]):
+            self.name_entry.focus_set()
+            self.name_entry.selection_clear()
+            self.name_entry.icursor(ui.END)
+
+    def _clear_desk_detail_state(self) -> None:
+        """Blendet aufgedeckte/editierte Tischdetails wieder aus (HIDDEN)."""
+        if self._desk_detail_state is None:
+            return
+        self._desk_detail_state = None
+        self._refresh_details_panel()
+
+    def _reconcile_desk_detail_state(self, x: int, y: int, is_student_single: bool) -> None:
+        """Verwirft einen veralteten Detail-Zustand (Zellwechsel, Mehrfachauswahl oder
+        Zelle nicht mehr einzeln von einem benannten Schüler belegt).
+
+        Teil des State-Funnels, NICHT des Renderers: wird von ``_refresh_details_panel()``
+        einmalig VOR dem eigentlichen Rendern aufgerufen und ruft selbst kein
+        ``_refresh_details_panel()`` auf (keine Rekursion) -- der anschließende Refresh
+        passiert im Aufrufer.
+        """
+        if self._desk_detail_state is None:
+            return
+        if not is_student_single or self._desk_detail_state[:2] != (x, y):
+            self._desk_detail_state = None
+
+    def _downgrade_desk_detail_editing_to_revealed(self) -> bool:
+        """Fällt von EDITING auf REVEALED für dieselbe Zelle zurück, falls aktuell
+        EDITING. Idempotent; gibt zurück, ob tatsächlich heruntergestuft wurde."""
+        if self._desk_detail_state is None or self._desk_detail_state[2] != DESK_DETAIL_EDITING:
+            return False
+        x, y, _mode = self._desk_detail_state
+        self._set_desk_detail_state(x, y, DESK_DETAIL_REVEALED)
+        return True
+
     def _reveal_details(self, x: int, y: int) -> None:
-        """Deckt die Tischdetails für Zelle (x, y) explizit auf (Enter).
+        """Deckt die Tischdetails für Zelle (x, y) explizit auf, lesend (Enter).
 
         Args:
             x: Raster-x-Koordinate der Zelle.
             y: Raster-y-Koordinate der Zelle.
         """
-        self._details_revealed_for = (x, y)
-        self._refresh_details_panel()
+        self._set_desk_detail_state(x, y, DESK_DETAIL_REVEALED)
 
     def _hide_details(self) -> None:
         """Blendet aufgedeckte Tischdetails wieder aus, falls welche offen sind (Escape / Verlassen)."""
-        if self._details_revealed_for is None:
-            return
-        self._details_revealed_for = None
-        self._refresh_details_panel()
+        self._clear_desk_detail_state()
 
     def _confirm_selected_desk(self) -> None:
         """1. Enter zeigt die Tischdetails lesend; erneutes Enter auf derselben Zelle startet die Namensbearbeitung.
@@ -207,19 +258,18 @@ class DetailsMixin:
             self.status_var.set("Lehrertisch ist nicht editierbar")
             return
 
-        if self._details_revealed_for == (x, y):
-            self.enter_name_edit_mode()
-            return
-
-        if not self.current_plan.student_at(x, y):
-            self._controller.dispatch(CreateStudentIntent(x=x, y=y))
-            self._reveal_details(x, y)
+        details_are_open_for_cell = self._desk_detail_state is not None and self._desk_detail_state[:2] == (x, y)
+        is_new_desk = self.current_plan.student_at(x, y) is None
+        if details_are_open_for_cell or is_new_desk:
             self.enter_name_edit_mode()
             return
         self._reveal_details(x, y)
 
     def enter_name_edit_mode(self) -> None:
-        """Aktiviert den Namenseditier-Modus für den aktuell ausgewählten Schüler."""
+        """Aktiviert den Namenseditier-Modus (semantischer Zustand EDITING) für den
+        aktuell ausgewählten Schüler; legt ihn bei Bedarf an. Der Tk-Fokus auf
+        ``name_entry`` folgt aus diesem Zustandsübergang (siehe ``_set_desk_detail_state``),
+        nicht umgekehrt."""
         if not self.current_plan or not self.current_plan_path:
             return
 
@@ -246,20 +296,30 @@ class DetailsMixin:
             self.canvas.focus_set()
             return
 
-        self._refresh_details_panel()
-        self.name_entry.state(["!disabled"])
-        self.last_name_entry.state(["!disabled"])
-        if self.name_entry.instate(["!disabled"]):
-            self.name_entry.focus_set()
-            self.name_entry.selection_clear()
-            self.name_entry.icursor(ui.END)
+        self._set_desk_detail_state(x, y, DESK_DETAIL_EDITING)
 
     def exit_name_edit_mode(self) -> None:
-        """Beendet den Namenseditier-Modus: speichert ausstehende Namensänderungen sofort und gibt den Fokus an den Canvas zurück."""
+        """Beendet den Namenseditier-Modus: speichert ausstehende Änderungen sofort und
+        stuft den Detail-Zustand (falls EDITING) bedingungslos auf REVEALED zurück --
+        unabhängig davon, ob der Editor gerade sichtbar ist, damit nie ein stale
+        EDITING-Zustand zurückbleibt. Fokus geht nur zum Canvas, wenn der Editor
+        tatsächlich sichtbar ist."""
         self._flush_pending_name_save()
-        if self.editor_view.winfo_ismapped():
-            self.canvas.focus_set()
-            self._refresh_details_panel()
+        self._downgrade_desk_detail_editing_to_revealed()
+        if not self.editor_view.winfo_ismapped():
+            return
+        self.canvas.focus_set()
+
+    def _on_name_field_focus_out(self) -> None:
+        """FocusOut auf Vorname-/Nachname-/Spitzname-Feld: speichert ausstehende
+        Änderungen sofort und stuft EDITING auf REVEALED zurück, falls der Fokus das
+        (wiederverwendete) Eingabefeld verlassen hat -- ohne selbst den Fokus zu bewegen.
+        Generische Absicherung für Fokusverlust, der nicht über ``exit_name_edit_mode()``
+        läuft (Klick auf Farbpunkt/Button, andere/dieselbe Tischzelle, Tab, Planliste, ...).
+        Darf mehrfach bzw. zusammen mit ``exit_name_edit_mode()`` feuern, ohne
+        inkonsistenten Zustand zu erzeugen (beide Downgrade-Pfade sind idempotent)."""
+        self._flush_pending_name_save()
+        self._downgrade_desk_detail_editing_to_revealed()
 
     def confirm_selected_cell(self) -> None:
         """Bestätigt die ausgewählte Zelle: kollabiert Auswahl und legt ggf. einen Schüler an."""

@@ -53,6 +53,7 @@ from app.adapters.gui.main_window_constants import (
     LIST_ACTIVE,
     GRID_SELECTED,
     NAME_EDITING,
+    DeskDetailMode,
     UI_WATCHDOG_WARN_DRIFT_SECONDS,
     _known_ui_intents,
     apply_window_icon,
@@ -194,7 +195,12 @@ class KartographMainWindow(
         self._drag_active = False
         self.cell_size = DEFAULT_CELL_SIZE
         self._plan_index: list[PlanListEntry] = []
-        self._details_revealed_for: tuple[int, int] | None = None
+        # None = HIDDEN. Sonst (x, y, mode): Detail-Panel fuer Zelle (x, y) sichtbar,
+        # mode = DESK_DETAIL_REVEALED (lesend) oder DESK_DETAIL_EDITING (Namensfelder
+        # aktiv). EDITING ist der semantische Quellzustand; Tk-Fokus auf name_entry
+        # folgt daraus, nicht umgekehrt. Einzige Schreibzugriffe: _set_desk_detail_state(),
+        # _clear_desk_detail_state(), _reconcile_desk_detail_state() in _mixin_details.py.
+        self._desk_detail_state: tuple[int, int, DeskDetailMode] | None = None
 
         self._ui_action_registry = self._build_ui_action_registry()
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())

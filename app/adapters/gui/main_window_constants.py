@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
+from typing import Literal
 
 from app.adapters.gui.ui_intents import UiIntent
 
@@ -38,6 +39,10 @@ LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
 ATTENDANCE_SYMBOL_NAME = "Abwesend"
+
+DeskDetailMode = Literal["desk_detail_revealed", "desk_detail_editing"]
+DESK_DETAIL_REVEALED: DeskDetailMode = "desk_detail_revealed"
+DESK_DETAIL_EDITING: DeskDetailMode = "desk_detail_editing"
 
 COLOR_MARKER_PALETTE: list[tuple[str, str, str, str]] = [
     ("1", "gelb", "Gelb", "#f4d35e"),

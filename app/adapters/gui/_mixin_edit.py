@@ -312,7 +312,7 @@ class EditMixin:
         """
         self._sync_popup_sessions_from_windows()
         has_inline_editor = self.interaction_mode == NAME_EDITING
-        details_revealed = self._details_revealed_for is not None
+        details_revealed = self._desk_detail_state is not None
         has_popup = self._popup_registry.has_active_popup() or (details_revealed and not has_inline_editor)
         has_parent_state = self.editor_view.winfo_ismapped()
         action = self._hsm_contract.resolve_escape_action(
