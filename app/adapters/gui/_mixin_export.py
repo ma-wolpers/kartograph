@@ -23,13 +23,17 @@ class ExportMixin:
     """Mixin: Symbol-Exportliste, Symbolfilterdialog, Overlay-Infrastruktur, Speichern und Backup."""
 
     def _collect_export_symbols(self, plan: SeatingPlan) -> list[str]:
-        """Gibt alle im Plan tatsächlich vorhandenen Symbole in Katalog-Reihenfolge zurück.
+        """Gibt alle im Plan tatsächlich vorhandenen diagnostischen Symbole in Katalog-Reihenfolge zurück.
 
         Berücksichtigt Dokumentations-Einträge vorrangig, fällt auf Raster-Symbole zurück.
+        Dokumentationsgebundene Symbole (z. B. "Abwesend") werden bewusst ausgeschlossen,
+        da sie den zuletzt jemals gesetzten Wert zeigen würden statt eines für den
+        gedruckten Sitzplan sinnvollen Dauerzustands.
 
         Args:
             plan: Sitzplan dessen Symbole gesammelt werden.
         """
+        diagnostic_names = set(self.diagnostic_symbol_catalog)
         seen: set[str] = set()
         for student in plan.classroom.students:
             if not student.is_named():
@@ -37,6 +41,8 @@ class ExportMixin:
             summary = summarize_latest_symbols(plan, student.student_id)
             source = summary if summary else student.diagnostic.symbols
             for symbol_name, raw_count in source.items():
+                if symbol_name not in diagnostic_names:
+                    continue
                 try:
                     count = int(raw_count)
                 except (TypeError, ValueError):

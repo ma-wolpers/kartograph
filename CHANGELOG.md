@@ -27,6 +27,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- PDF-Export: dokumentationsgebundene Symbole (z. B. "Abwesend", "Nicht abgegeben / verweigert") erscheinen nicht mehr in der Symbol-Checkliste des Export-Dialogs. Sie zeigten dort den zuletzt jemals gesetzten Wert statt eines für den gedruckten Sitzplan sinnvollen Dauerzustands und konnten so unbeabsichtigt auf einem ausgedruckten Sitzplan landen.
 - Enter auf einem neu angelegten Tisch springt jetzt direkt in die Namensbearbeitung, statt ein zweites Enter zu verlangen. Doppelklick auf einen neuen, leeren Tisch fokussierte das Namensfeld bisher manchmal in einem noch unsichtbaren Panel — behoben.
 - Neu angelegte Kurse landeten in einem falschen, fest verdrahteten Standardordner statt im in den Einstellungen konfigurierten Sitzplan-Ordner; die Kursliste zeigte danach nur noch die (leeren) Kurse aus diesem falschen Ordner.
 - Nach dem ersten in einer Sitzung geöffneten Kurs ließ sich kein weiterer Kurs mehr sichtbar öffnen (Doppelklick, Enter und der Öffnen-Button blieben ohne Wirkung, obwohl der Kurs intern korrekt geladen wurde).
