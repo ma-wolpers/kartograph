@@ -7,7 +7,7 @@ Details-Panel (Spaltenanzahl, Legende, Farb-/Symbol-Zeilen).
 
 from __future__ import annotations
 
-from app.core.domain.models_v4 import SeatingPlan, Student
+from app.core.domain.models_v4 import ParticipationRating, SeatingPlan, Student
 from app.core.usecases.v4.grade_usecases import compute_grade_display
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -40,7 +40,8 @@ class GridHelpersMixin:
         """
         main_text = self._display_names.get(student.student_id, "")
         effective_symbols = self._effective_grid_symbols_v4(student)
-        symbol_lines = self._symbol_grid_lines(effective_symbols)
+        participation_today = self._participation_rating_today(student)
+        symbol_lines = self._symbol_grid_lines(effective_symbols, participation_today)
         desk_color_markers = self._ordered_color_markers(student.diagnostic.color_tags)
 
         if desk_color_markers:
@@ -143,18 +144,29 @@ class GridHelpersMixin:
                     entries.append((symbol_name, min(3, count)))
         return entries
 
-    def _symbol_grid_lines(self, symbols: dict[str, int]) -> list[str]:
+    def _symbol_grid_lines(
+        self, symbols: dict[str, int], participation: ParticipationRating | None = None
+    ) -> list[str]:
         """Erstellt Zeilen mit Symbol-Glyphen für die Rasterdarstellung (max 6 Glyphen/Zeile).
 
         Args:
             symbols: Dictionary von Symbolname zu Anzahl.
+            participation: Heutige Mitarbeit-Bewertung ("+"/"o"/"-"/"☆"), falls gesetzt.
+                Erscheint als führendes Token vor den Symbol-Glyphen.
         """
         entries = self._iter_symbol_counts(symbols)
-        if not entries:
+        if not entries and not participation:
             return []
         lines: list[str] = []
         line_tokens: list[str] = []
         used_slots = 0
+        if participation:
+            # Bewertung ist immer genau EIN visueller Token (+, o, -, ☆), unabhängig
+            # von ihrer String-Laenge in Python -- bewusst nicht len(participation),
+            # das waere nur zufaellig korrekt (alle vier Werte sind ein Codepoint)
+            # und wuerde die eigentliche Absicht verschleiern.
+            line_tokens.append(participation)
+            used_slots = 1
         for symbol_name, count in entries:
             token = self._symbol_glyph(symbol_name) * count
             token_slots = len(token)
@@ -263,3 +275,20 @@ class GridHelpersMixin:
                     effective[k] = int(v)
 
         return effective
+
+    def _participation_rating_today(self, student: Student) -> ParticipationRating | None:
+        """Gibt die heutige Mitarbeit-Bewertung eines Schülers zurück, falls gesetzt.
+
+        Bewusst über ``entry.participation`` statt ``entry.symbols`` -- kein
+        Vermischen mit dem Symbolsystem (siehe ``ParticipationRating``).
+
+        Args:
+            student: Schüler, dessen heutige Bewertung ermittelt wird.
+        """
+        if not self.current_plan or not student.is_named():
+            return None
+        session = self.current_plan.documentation.session_for_date(self._today_doc_date())
+        if session is None:
+            return None
+        entry = session.entry_for(student.student_id)
+        return entry.participation if entry else None

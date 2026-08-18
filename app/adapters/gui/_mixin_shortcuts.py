@@ -149,9 +149,9 @@ class ShortcutMixin:
         self.bind_all("<KeyPress-KP_Add>", lambda e: self._on_participation_rating_shortcut(e, "+"), add="+")
         self.bind_all("<KeyPress-minus>", lambda e: self._on_participation_rating_shortcut(e, "-"), add="+")
         self.bind_all("<KeyPress-KP_Subtract>", lambda e: self._on_participation_rating_shortcut(e, "-"), add="+")
-        self.bind_all("<KeyPress-0>", lambda e: self._on_participation_rating_shortcut(e, "o"), add="+")
-        self.bind_all("<KeyPress-KP_0>", lambda e: self._on_participation_rating_shortcut(e, "o"), add="+")
-        self.bind_all("<KeyPress-KP_Insert>", lambda e: self._on_participation_rating_shortcut(e, "o"), add="+")
+        self.bind_all("<KeyPress-o>", lambda e: self._on_participation_rating_shortcut(e, "o"), add="+")
+        self.bind_all("<KeyPress-s>", lambda e: self._on_participation_rating_shortcut(e, "☆"), add="+")
+        self._bind_runtime_shortcut("<KeyPress-d>", lambda _e: self._handle_intent(UiIntent.ADD_SYMBOL), binding_id="desk.add_symbol", intent=UiIntent.ADD_SYMBOL, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
 
     def _register_runtime_shortcut(
         self,

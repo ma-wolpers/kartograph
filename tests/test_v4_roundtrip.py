@@ -180,6 +180,17 @@ class TestDocumentationRoundtrip:
         assert entry is not None
         assert entry.participation == "+"
 
+    def test_participation_rating_star_preserved(self):
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(student_id=sid)])
+        session = Session(date="2025-09-01", entries={sid: SessionEntry(participation="☆")})
+        plan.documentation.sessions.append(session)
+
+        restored = _roundtrip(plan)
+        entry = restored.documentation.session_for_date("2025-09-01").entries.get(sid)
+        assert entry is not None
+        assert entry.participation == "☆"
+
     def test_participation_defaults_to_none_when_missing_in_json(self):
         sid = StudentId.new()
         plan = make_plan(students=[make_student(student_id=sid)])

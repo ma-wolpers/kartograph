@@ -20,7 +20,7 @@ from typing import Literal
 from app.core.domain.student_id import StudentId
 
 GradeCategory = Literal["schriftlich", "sonstig"]
-ParticipationRating = Literal["+", "o", "-"]
+ParticipationRating = Literal["+", "o", "-", "☆"]
 
 
 # ---------------------------------------------------------------------------

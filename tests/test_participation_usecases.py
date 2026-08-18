@@ -33,9 +33,16 @@ class TestSetParticipationRating:
         session = r2.documentation.session_for_date(DATE)
         assert anna_id not in session.entries
 
+    def test_setting_star_again_clears_it(self, anna_id, plan_with_anna):
+        r1 = set_participation_rating(plan_with_anna, anna_id, DATE, "☆")
+        r2 = set_participation_rating(r1, anna_id, DATE, "☆")
+        session = r2.documentation.session_for_date(DATE)
+        assert anna_id not in session.entries
+
     def test_cross_transitions_replace_previous_rating(self, anna_id, plan_with_anna):
         transitions = [
             ("+", "o"), ("+", "-"), ("o", "+"), ("o", "-"), ("-", "+"), ("-", "o"),
+            ("☆", "+"), ("+", "☆"), ("☆", "o"), ("o", "☆"), ("☆", "-"), ("-", "☆"),
         ]
         for first, second in transitions:
             r1 = set_participation_rating(plan_with_anna, anna_id, DATE, first)
