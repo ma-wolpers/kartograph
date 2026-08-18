@@ -85,6 +85,8 @@ class ExportMixin:
             self.redraw_grid()
             self._refresh_details_panel()
 
+        dialog.bind("<Return>", lambda _e: apply_filter())
+
         button_row = tui.Frame(container)
         button_row.pack(fill="x", pady=(10, 0))
         all_button = tui.Button(button_row, text="Alle", command=lambda: [var.set(True) for var in vars_by_symbol.values()])

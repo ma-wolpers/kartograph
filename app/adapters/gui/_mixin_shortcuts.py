@@ -48,6 +48,7 @@ class ShortcutMixin:
             UiIntent.SET_TEACHER_DESK: lambda: self.set_selected_as_teacher_desk(),
             UiIntent.ADD_SYMBOL: lambda: self.add_symbol_to_selected_desk_dialog(),
             UiIntent.OPEN_TABLEGROUP_SETTINGS: lambda: self.open_tablegroup_settings_overlay(),
+            UiIntent.GRID_SYMBOL_FILTER: lambda: self.open_grid_symbol_filter_dialog(),
             UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG: lambda: self.open_shortcut_runtime_debug_dialog(),
             UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE: lambda: self.toggle_shortcut_runtime_offline(),
             UiIntent.ESCAPE: lambda: self.handle_escape(),
@@ -101,6 +102,7 @@ class ShortcutMixin:
         self._bind_runtime_shortcut("<Control-z>", lambda _e: self._handle_intent(UiIntent.UNDO), binding_id="edit.undo", intent=UiIntent.UNDO, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
         self._bind_runtime_shortcut("<Control-y>", lambda _e: self._handle_intent(UiIntent.REDO), binding_id="edit.redo", intent=UiIntent.REDO, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
         self._bind_runtime_shortcut("<Control-t>", lambda _e: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS), binding_id="tablegroup.settings", intent=UiIntent.OPEN_TABLEGROUP_SETTINGS, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
+        self._bind_runtime_shortcut("<Control-f>", lambda _e: self._handle_intent(UiIntent.GRID_SYMBOL_FILTER), binding_id="grid.symbol_filter", intent=UiIntent.GRID_SYMBOL_FILTER, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
         self._bind_runtime_shortcut("<Control-Shift-D>", lambda _e: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION), binding_id="view.docs.toggle", intent=UiIntent.TOGGLE_DOCUMENTATION, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
         self._bind_runtime_shortcut("<Control-Shift-d>", lambda _e: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION), binding_id="view.docs.toggle.lower", intent=UiIntent.TOGGLE_DOCUMENTATION, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
         self._bind_runtime_shortcut("<Control-Shift-r>", lambda _e: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG), binding_id="debug.runtime.open", intent=UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)

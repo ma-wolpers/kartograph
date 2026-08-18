@@ -277,6 +277,8 @@ class EditMixin:
             self._toggle_selected_symbol(symbol)
             dialog.destroy()
 
+        dialog.bind("<Return>", lambda _e: apply_choice())
+
         button_row = tui.Frame(dialog)
         button_row.pack(fill="x", padx=12, pady=(0, 12))
         apply_button = tui.Button(button_row, text="Übernehmen", command=apply_choice)

@@ -124,6 +124,8 @@ class PdfMixin:
             except Exception as exc:
                 messagebox.showerror("PDF-Export fehlgeschlagen", str(exc), parent=dialog)
 
+        dialog.bind("<Return>", lambda _e: do_export())
+
         button_row = tui.Frame(container)
         button_row.pack(fill="x", pady=(12, 0))
         cancel_button = tui.Button(button_row, text="Abbrechen", command=dialog.destroy)

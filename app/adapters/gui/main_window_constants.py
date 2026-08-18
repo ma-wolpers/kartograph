@@ -65,6 +65,7 @@ GRID_ONLY_INTENTS = {
     UiIntent.SET_TEACHER_DESK,
     UiIntent.ADD_SYMBOL,
     UiIntent.OPEN_TABLEGROUP_SETTINGS,
+    UiIntent.GRID_SYMBOL_FILTER,
     UiIntent.MOVE_UP,
     UiIntent.MOVE_DOWN,
     UiIntent.MOVE_LEFT,
