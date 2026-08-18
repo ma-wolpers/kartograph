@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.adapters.gui.main_window_constants import ATTENDANCE_SYMBOL_NAME, NAME_EDITING
+from app.core.domain.models_v4 import ParticipationRating
 from app.core.intents.color_intents import ToggleColorIntent
+from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.student_intents import (
     CreateStudentIntent,
     DeleteStudentIntent,
@@ -182,6 +184,63 @@ class EditMixin:
             return
         self._toggle_attendance_for_student(student)
         self._refresh_documentation_table()
+
+    def _set_participation_rating_today_grid(self, rating: ParticipationRating) -> None:
+        """Setzt/löscht die Mitarbeit-Bewertung heute für den ausgewählten Schülertisch im Raster (v4).
+
+        Args:
+            rating: Zu setzende Bewertung ("+"/"o"/"-").
+        """
+        if not self.selection.is_single():
+            self.status_var.set("Mitarbeit-Bewertung nur bei Einzelauswahl")
+            return
+        x, y = self.selected_cell
+        student = self.current_plan.student_at(x, y)
+        if not student or not student.is_named():
+            self.status_var.set("Mitarbeit-Bewertung nur fuer Schuelertische")
+            return
+        self._controller.dispatch(SetParticipationRatingIntent(
+            student_id=student.student_id, date=self._today_doc_date(), rating=rating))
+
+    def _set_participation_rating_today_docs(self, rating: ParticipationRating) -> None:
+        """Setzt/löscht die Mitarbeit-Bewertung heute für den ausgewählten Schüler in der Dokutabelle.
+
+        Args:
+            rating: Zu setzende Bewertung ("+"/"o"/"-").
+        """
+        if not self._doc_student_coords:
+            return
+        idx = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+        x, y = self._doc_student_coords[idx]
+        student = self.current_plan.student_at(x, y)
+        if not student or not student.is_named():
+            return
+        self._controller.dispatch(SetParticipationRatingIntent(
+            student_id=student.student_id, date=self._today_doc_date(), rating=rating))
+        self._refresh_documentation_table()
+
+    def _on_participation_rating_shortcut(self, event, rating: ParticipationRating) -> str | None:
+        """Tastatur-Shortcut-Handler (+/-/0): Mitarbeit-Bewertung heute setzen/löschen.
+
+        Args:
+            event: Tkinter-Tastaturereignis (für Modifier-Prüfung, sonst unbenutzt).
+            rating: Zu setzende Bewertung ("+"/"o"/"-").
+        """
+        if not self._shortcut_scope_allows("docs") and not self._shortcut_scope_allows("grid"):
+            return None
+        if event.state & 0x0004 or event.state & 0x0008:
+            return None
+        if not self.editor_view.winfo_ismapped():
+            return None
+        if not self.current_plan or not self.current_plan_path:
+            return None
+        if self._editor_surface == "grid":
+            self._set_participation_rating_today_grid(rating)
+        elif self._editor_surface == "docs":
+            self._set_participation_rating_today_docs(rating)
+        else:
+            return None
+        return "break"
 
     def add_symbol_to_selected_desk_dialog(self) -> None:
         """Öffnet einen Dialog zur Symbolauswahl für den markierten Schülerplatz (v4)."""

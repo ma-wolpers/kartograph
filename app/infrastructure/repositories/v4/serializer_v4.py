@@ -146,10 +146,10 @@ def _serialize_sessions(doc) -> list:
     """Wandelt alle Sessions von *doc* in eine JSON-Liste um.
 
     Symbol-Stärken außerhalb von 1–3 und nicht in Zahlen umwandelbare
-    Noten werden verworfen. Leere Einträge (ohne Symbole, Noten oder
-    Notiz) sowie Sessions ohne verbleibende Einträge werden komplett
-    weggelassen, damit die gespeicherte Datei nicht mit Leerdaten
-    aufgebläht wird.
+    Noten werden verworfen. Leere Einträge (ohne Symbole, Noten, Notiz
+    oder Mitarbeit-Bewertung) sowie Sessions ohne verbleibende Einträge
+    werden komplett weggelassen, damit die gespeicherte Datei nicht mit
+    Leerdaten aufgebläht wird.
 
     Args:
         doc: Dokumentationsblock, dessen Sessions serialisiert werden.
@@ -181,12 +181,13 @@ def _serialize_sessions(doc) -> list:
                 except (TypeError, ValueError):
                     continue
             note = entry.note.strip()
-            if not entry_symbols and not entry_grades and not note:
+            if not entry_symbols and not entry_grades and not note and entry.participation is None:
                 continue
             serialized_entries[str(student_id)] = {
                 "symbols": entry_symbols,
                 "grades":  entry_grades,
                 "note":    note,
+                "participation": entry.participation,
             }
         if not serialized_entries:
             continue

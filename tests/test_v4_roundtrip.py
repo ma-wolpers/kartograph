@@ -168,3 +168,30 @@ class TestDocumentationRoundtrip:
         plan.documentation.sessions = [Session(date="2025-09-01")]
         payload = serialize_plan(plan)
         assert payload["documentation"]["sessions"] == []
+
+    def test_participation_rating_preserved(self):
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(student_id=sid)])
+        session = Session(date="2025-09-01", entries={sid: SessionEntry(participation="+")})
+        plan.documentation.sessions.append(session)
+
+        restored = _roundtrip(plan)
+        entry = restored.documentation.session_for_date("2025-09-01").entries.get(sid)
+        assert entry is not None
+        assert entry.participation == "+"
+
+    def test_participation_defaults_to_none_when_missing_in_json(self):
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(student_id=sid)])
+        session = Session(date="2025-09-01", entries={sid: SessionEntry(note="Gut")})
+        plan.documentation.sessions.append(session)
+        payload = serialize_plan(plan)
+
+        # Simuliert eine alte Plandatei ohne das "participation"-Feld.
+        del payload["documentation"]["sessions"][0]["entries"][str(sid)]["participation"]
+        restored = deserialize_plan(payload)
+
+        entry = restored.documentation.session_for_date("2025-09-01").entries.get(sid)
+        assert entry is not None
+        assert entry.participation is None
+        assert entry.note == "Gut"

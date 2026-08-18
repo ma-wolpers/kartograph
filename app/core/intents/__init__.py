@@ -25,6 +25,7 @@ from app.core.intents.symbol_intents import (
     ToggleDiagnosticSymbolIntent,
     RecordDocumentationSymbolIntent,
 )
+from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
@@ -83,6 +84,8 @@ __all__ = [
     # Symbol
     "ToggleDiagnosticSymbolIntent",
     "RecordDocumentationSymbolIntent",
+    # Participation
+    "SetParticipationRatingIntent",
     # Color
     "ToggleColorIntent",
     # Grade

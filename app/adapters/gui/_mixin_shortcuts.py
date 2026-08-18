@@ -145,6 +145,14 @@ class ShortcutMixin:
 
         self.bind_all("<KeyPress-space>", self._on_attendance_shortcut, add="+")
 
+        self.bind_all("<KeyPress-plus>", lambda e: self._on_participation_rating_shortcut(e, "+"), add="+")
+        self.bind_all("<KeyPress-KP_Add>", lambda e: self._on_participation_rating_shortcut(e, "+"), add="+")
+        self.bind_all("<KeyPress-minus>", lambda e: self._on_participation_rating_shortcut(e, "-"), add="+")
+        self.bind_all("<KeyPress-KP_Subtract>", lambda e: self._on_participation_rating_shortcut(e, "-"), add="+")
+        self.bind_all("<KeyPress-0>", lambda e: self._on_participation_rating_shortcut(e, "o"), add="+")
+        self.bind_all("<KeyPress-KP_0>", lambda e: self._on_participation_rating_shortcut(e, "o"), add="+")
+        self.bind_all("<KeyPress-KP_Insert>", lambda e: self._on_participation_rating_shortcut(e, "o"), add="+")
+
     def _register_runtime_shortcut(
         self,
         *,

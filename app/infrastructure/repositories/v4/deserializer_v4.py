@@ -362,7 +362,11 @@ def _deserialize_entries(raw: dict) -> dict[StudentId, SessionEntry]:
                 continue
 
         note = str(raw_entry.get("note") or "").strip()
-        entry = SessionEntry(symbols=symbols, grades=grades, note=note)
+
+        raw_participation = raw_entry.get("participation")
+        participation = raw_participation if raw_participation in ("+", "o", "-") else None
+
+        entry = SessionEntry(symbols=symbols, grades=grades, note=note, participation=participation)
         if entry.has_content():
             entries[sid] = entry
     return entries

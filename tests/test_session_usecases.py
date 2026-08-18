@@ -76,3 +76,25 @@ class TestRenameSessionDate:
         assert len(result.documentation.sessions) == 1
         entry = result.documentation.session_for_date(DATE2).entries[sid]
         assert entry.note == "Neu"  # bestehender Wert bleibt erhalten
+
+    def test_merge_participation_conflict_target_wins(self):
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(student_id=sid)])
+        plan.documentation.sessions.extend([
+            Session(date=DATE,  entries={sid: SessionEntry(participation="+")}),
+            Session(date=DATE2, entries={sid: SessionEntry(participation="-")}),
+        ])
+        result = rename_session_date(plan, DATE, DATE2)
+        entry = result.documentation.session_for_date(DATE2).entries[sid]
+        assert entry.participation == "-"  # Ziel-Termin gewinnt bei echtem Konflikt
+
+    def test_merge_participation_fills_gap(self):
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(student_id=sid)])
+        plan.documentation.sessions.extend([
+            Session(date=DATE,  entries={sid: SessionEntry(participation="+")}),
+            Session(date=DATE2, entries={sid: SessionEntry(note="Neu")}),
+        ])
+        result = rename_session_date(plan, DATE, DATE2)
+        entry = result.documentation.session_for_date(DATE2).entries[sid]
+        assert entry.participation == "+"  # keine Kollision -> uebernommen

@@ -20,6 +20,7 @@ from typing import Literal
 from app.core.domain.student_id import StudentId
 
 GradeCategory = Literal["schriftlich", "sonstig"]
+ParticipationRating = Literal["+", "o", "-"]
 
 
 # ---------------------------------------------------------------------------
@@ -206,10 +207,11 @@ class SessionEntry:
     symbols: dict[str, int] = field(default_factory=dict)
     grades: dict[str, float] = field(default_factory=dict)
     note: str = ""
+    participation: ParticipationRating | None = None
 
     def has_content(self) -> bool:
-        """Prüft, ob der Eintrag Symbole, Noten oder eine Notiz enthält."""
-        return bool(self.symbols or self.grades or self.note.strip())
+        """Prüft, ob der Eintrag Symbole, Noten, eine Notiz oder eine Mitarbeit-Bewertung enthält."""
+        return bool(self.symbols or self.grades or self.note.strip() or self.participation is not None)
 
 
 @dataclass(slots=True)

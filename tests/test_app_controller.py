@@ -27,6 +27,7 @@ from app.application.handlers.edit_handlers import (
     handle_undo,
 )
 from app.application.handlers.grade_handlers import handle_add_grade_column, handle_delete_grade_column
+from app.application.handlers.participation_handlers import handle_set_participation_rating
 from app.application.handlers.navigation_handlers import (
     handle_clear_selection,
     handle_move_selection,
@@ -70,6 +71,7 @@ from app.core.intents.edit_intents import (
     UndoIntent,
 )
 from app.core.intents.grade_intents import AddGradeColumnIntent, DeleteGradeColumnIntent
+from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.navigation_intents import (
     ClearSelectionIntent,
     MoveSelectionIntent,
@@ -645,6 +647,93 @@ class TestHandleAccommodationHandlers:
         )
 
         assert result is state
+
+
+# ---------------------------------------------------------------------------
+# Handler-Isolation: Participation-Handler
+# ---------------------------------------------------------------------------
+
+class TestHandleParticipationHandlers:
+    def test_set_participation_rating_updates_plan(self):
+        student = make_student()
+        plan = make_plan(students=[student])
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        result = handle_set_participation_rating(
+            SetParticipationRatingIntent(student_id=student.student_id, date="2025-09-01", rating="+"),
+            state,
+            ctx,
+        )
+
+        entry = result.current_plan.documentation.session_for_date("2025-09-01").entries[student.student_id]
+        assert entry.participation == "+"
+
+    def test_without_plan_is_noop(self):
+        ctx = make_ctx()
+        state = AppState()
+
+        result = handle_set_participation_rating(
+            SetParticipationRatingIntent(student_id=StudentId.new(), date="2025-09-01", rating="+"),
+            state,
+            ctx,
+        )
+
+        assert result is state
+
+    def test_single_dispatch_creates_exactly_one_history_entry(self):
+        """Ein Dispatch (ein Tastendruck) muss genau einen History-Eintrag erzeugen --
+        die Atomaritaet kommt aus der Intent/Handler-Kette (ein _record_and_save()-
+        Aufruf pro Dispatch), nicht aus der Feldmodellierung allein. Weisst direkt
+        auf den internen History-Zustand nach (white-box), da PlanHistory keine
+        oeffentliche Laengen-API bietet."""
+        student = make_student()
+        plan = make_plan(students=[student])
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        ctx.history.reset(plan)
+        state = make_state_with_plan(plan, path)
+
+        before = len(ctx.history._states)
+        result = handle_set_participation_rating(
+            SetParticipationRatingIntent(student_id=student.student_id, date="2025-09-01", rating="+"),
+            state,
+            ctx,
+        )
+        assert len(ctx.history._states) == before + 1
+
+        entry = result.current_plan.documentation.session_for_date("2025-09-01").entries[student.student_id]
+        assert entry.participation == "+"
+
+    def test_rating_change_from_plus_to_minus_is_one_dispatch_one_entry(self):
+        """Ein Wechsel + -> - ist EIN fachlicher Vorgang (ein Tastendruck auf '-',
+        waehrend '+' bereits aktiv ist) -- kein "erst loeschen, dann setzen" mit
+        zwei sichtbaren Zwischenzustaenden. Der Usecase erledigt den Wechsel
+        innerhalb eines einzigen Aufrufs, entsprechend genau ein Dispatch/ein
+        History-Eintrag fuer den gesamten Wechsel."""
+        student = make_student()
+        plan = make_plan(students=[student])
+        # Ausgangslage direkt gesetzt (nicht ueber einen vorherigen Dispatch),
+        # damit dieser Test ausschliesslich den EINEN "+ -> -"-Dispatch misst.
+        plan.documentation.sessions.append(
+            Session(date="2025-09-01", entries={student.student_id: SessionEntry(participation="+")})
+        )
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        ctx.history.reset(plan)
+        state = make_state_with_plan(plan, path)
+
+        before = len(ctx.history._states)
+        result = handle_set_participation_rating(
+            SetParticipationRatingIntent(student_id=student.student_id, date="2025-09-01", rating="-"),
+            state,
+            ctx,
+        )
+
+        assert len(ctx.history._states) == before + 1
+        entry = result.current_plan.documentation.session_for_date("2025-09-01").entries[student.student_id]
+        assert entry.participation == "-"
 
 
 # ---------------------------------------------------------------------------

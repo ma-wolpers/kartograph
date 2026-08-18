@@ -39,8 +39,12 @@ def ensure_session(plan: SeatingPlan, date: str | None = None) -> SeatingPlan:
 def rename_session_date(plan: SeatingPlan, old_date: str, new_date: str) -> SeatingPlan:
     """Benennt eine Session um und migriert alle Einträge auf das neue Datum.
 
-    Existiert unter *new_date* bereits eine Session, werden Symbole, Noten
-    und Notizen aus *old_date* zusammengeführt (bestehende Werte bleiben).
+    Existiert unter *new_date* bereits eine Session, werden Symbole, Noten,
+    Notizen und Mitarbeit-Bewertungen aus *old_date* zusammengeführt
+    (bestehende Werte bleiben). Bei einem echten Konflikt (beide Tage haben
+    bereits eine unterschiedliche Mitarbeit-Bewertung für denselben Schüler)
+    gewinnt die Bewertung des Ziel-Termins (*new_date*), analog zur bereits
+    bestehenden Regel für Notizen.
 
     Args:
         plan: Ausgangsplan.
@@ -76,6 +80,8 @@ def rename_session_date(plan: SeatingPlan, old_date: str, new_date: str) -> Seat
             existing.grades.update(old_entry.grades)
             if old_entry.note.strip() and not existing.note.strip():
                 existing.note = old_entry.note.strip()
+            if old_entry.participation is not None and existing.participation is None:
+                existing.participation = old_entry.participation
 
     next_plan.documentation.sessions = [
         s for s in next_plan.documentation.sessions if s.date != clean_old

@@ -67,6 +67,7 @@ from app.application.handlers.student_handlers import (
     handle_set_nickname,
     handle_set_teacher_seat,
 )
+from app.application.handlers.participation_handlers import handle_set_participation_rating
 from app.application.handlers.symbol_handlers import (
     handle_record_documentation_symbol,
     handle_toggle_diagnostic_symbol,
@@ -105,6 +106,7 @@ from app.core.intents.navigation_intents import (
     MoveSelectionIntent,
     SelectCellIntent,
 )
+from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.plan_intents import (
     CreatePlanIntent,
     DeletePlanIntent,
@@ -268,6 +270,9 @@ class KartographAppController:
         # Symbol
         r.register(ToggleDiagnosticSymbolIntent,    lambda i, s: handle_toggle_diagnostic_symbol(i, s, ctx))
         r.register(RecordDocumentationSymbolIntent, lambda i, s: handle_record_documentation_symbol(i, s, ctx))
+
+        # Participation
+        r.register(SetParticipationRatingIntent, lambda i, s: handle_set_participation_rating(i, s, ctx))
 
         # Color
         r.register(ToggleColorIntent, lambda i, s: handle_toggle_color(i, s, ctx))

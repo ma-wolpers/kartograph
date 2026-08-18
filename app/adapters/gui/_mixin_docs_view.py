@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.core.domain.models_v4 import ParticipationRating
 from app.core.intents.navigation_intents import ClearSelectionIntent
 from app.core.intents.session_intents import GoToTodayIntent
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
@@ -106,16 +107,21 @@ class DocsViewMixin:
         self._refresh_documentation_table()
         self.docs_tree.focus_set()
 
-    def _documentation_cell_text(self, symbols: dict[str, int]) -> str:
-        """Erstellt den Anzeigetext für eine Dokumentations-Zelle aus einem Symbol-Dictionary.
+    def _documentation_cell_text(
+        self, symbols: dict[str, int], participation: ParticipationRating | None = None
+    ) -> str:
+        """Erstellt den Anzeigetext für eine Dokumentations-Zelle aus Symbolen und Mitarbeit-Bewertung.
 
         Args:
             symbols: Dictionary von symbol_name → Stärke.
+            participation: Mitarbeit-Bewertung des Tages ("+"/"o"/"-"), falls gesetzt.
 
         Returns:
-            Leerzeichen-getrennter Glyph-String.
+            Leerzeichen-getrennter String: Bewertung (falls gesetzt) vor den Symbol-Glyphen.
         """
         chunks: list[str] = []
+        if participation:
+            chunks.append(participation)
         for symbol, strength in sorted(symbols.items()):
             glyph = self._symbol_glyph(symbol)
             chunks.append(glyph * max(1, min(3, int(strength))))

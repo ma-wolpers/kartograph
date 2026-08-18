@@ -171,7 +171,9 @@ class DocsTableMixin:
             for date_key in all_dates:
                 session = self.current_plan.documentation.session_for_date(date_key)
                 entry = session.entry_for(student.student_id) if session else None
-                date_values.append(self._documentation_cell_text(entry.symbols) if entry else "")
+                date_values.append(
+                    self._documentation_cell_text(entry.symbols, entry.participation) if entry else ""
+                )
             fixed_values: list[str] = [self._documentation_summary_text(x, y)]
             fixed_values.extend(
                 self._latest_grade_value_for_column(student.student_id, grade.column_id)
