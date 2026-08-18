@@ -156,6 +156,7 @@ class KartographMainWindow(
         self.name_format = settings.name_format
         self.disambiguate_colliding_names = settings.disambiguate_colliding_names
         self.sitzplan_popup_delay = settings.sitzplan_popup_delay
+        self.name_save_delay = settings.name_save_delay
 
         resolved_shell_config = shell_config or AppShellConfig(
             title=APP_INFO.window_title, geometry="1320x860", min_width=1000, min_height=680
@@ -201,6 +202,8 @@ class KartographMainWindow(
         self._name_var = ui.StringVar(value="")
         self._last_name_var = ui.StringVar(value="")
         self._nickname_var = ui.StringVar(value="")
+        self._name_save_after_id: str | None = None
+        self._pending_name_save: dict | None = None
         self._selected_marker_var = ui.StringVar(value="")
         self._doc_selection_status_var = ui.StringVar(value="Doku-Zelle: -")
         self.status_var = ui.StringVar(value="Bereit")
@@ -312,6 +315,10 @@ class KartographMainWindow(
 
     def _on_shell_close(self) -> bool:
         """Schließt Overlay-Fenster bevor die Shell das Root-Fenster zerstört."""
+        try:
+            self._flush_pending_name_save()
+        except Exception:
+            pass
         try:
             self._close_shortcut_runtime_debug_dialog()
         except Exception:
@@ -434,6 +441,7 @@ class KartographMainWindow(
         self.name_format = settings.name_format
         self.disambiguate_colliding_names = settings.disambiguate_colliding_names
         self.sitzplan_popup_delay = settings.sitzplan_popup_delay
+        self.name_save_delay = settings.name_save_delay
         self.details_overlay_position = settings.details_overlay_position
         self.tablegroup_overlay_position = settings.tablegroup_overlay_position
         self.plans_dir = resolve_plans_dir(settings.plans_dir, self.default_plans_dir)

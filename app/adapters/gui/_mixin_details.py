@@ -7,7 +7,7 @@ Die Widget-Konstruktion liegt in ``_mixin_details_layout.py``.
 
 from __future__ import annotations
 
-from app.adapters.gui.main_window_constants import NAME_EDITING
+from app.adapters.gui.main_window_constants import DEFAULT_NAME_SAVE_DELAY, NAME_EDITING
 from app.core.intents.accommodation_intents import SetAccommodationsIntent
 from app.core.intents.student_intents import CreateStudentIntent, RenameStudentIntent, SetNicknameIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -248,7 +248,8 @@ class DetailsMixin:
             self.name_entry.icursor(ui.END)
 
     def exit_name_edit_mode(self) -> None:
-        """Beendet den Namenseditier-Modus und gibt den Fokus an den Canvas zurück."""
+        """Beendet den Namenseditier-Modus: speichert ausstehende Namensänderungen sofort und gibt den Fokus an den Canvas zurück."""
+        self._flush_pending_name_save()
         if self.editor_view.winfo_ismapped():
             self.canvas.focus_set()
             self._refresh_details_panel()
@@ -264,26 +265,15 @@ class DetailsMixin:
         x, y = self.selected_cell
         self._controller.dispatch(CreateStudentIntent(x=x, y=y))
 
-    def _on_name_changed(self) -> None:
-        """Callback für Tastatureingabe im Vorname-Feld: speichert den neuen Vornamen sofort."""
-        if not self.current_plan or not self.current_plan_path:
-            return
-        if not self.selection.is_single():
-            return
-        x, y = self.selected_cell
-        student = self.current_plan.student_at(x, y)
-        if not student:
-            return
-        self._controller.dispatch(
-            RenameStudentIntent(
-                student_id=student.student_id,
-                first_name=self._name_var.get(),
-                last_name=student.last_name,
-            )
-        )
+    def _schedule_name_save(self) -> None:
+        """Callback für Tastatureingabe in Vorname-/Nachname-/Spitzname-Feld.
 
-    def _on_last_name_changed(self) -> None:
-        """Callback für Tastatureingabe im Nachname-Feld: speichert den neuen Nachnamen sofort."""
+        Merkt sich die aktuell eingegebenen Werte sofort (unabhängig davon, ob spätere
+        Auswahlwechsel die Eingabefelder wieder leeren) und plant eine debounced
+        Speicherung: gespeichert wird erst, wenn `name_save_delay` Sekunden lang keine
+        weitere Eingabe kam. ``exit_name_edit_mode`` bzw. FocusOut auf den Feldern lösen
+        eine sofortige Speicherung aus, sodass beim Verlassen nichts verloren geht.
+        """
         if not self.current_plan or not self.current_plan_path:
             return
         if not self.selection.is_single():
@@ -292,27 +282,65 @@ class DetailsMixin:
         student = self.current_plan.student_at(x, y)
         if not student:
             return
-        self._controller.dispatch(
-            RenameStudentIntent(
-                student_id=student.student_id,
-                first_name=student.first_name_official,
-                last_name=self._last_name_var.get(),
-            )
-        )
 
-    def _on_nickname_changed(self) -> None:
-        """Callback für Tastatureingabe im Spitzname-Feld: speichert den neuen Spitznamen sofort."""
+        if self._pending_name_save is not None and self._pending_name_save["student_id"] != student.student_id:
+            self._flush_pending_name_save()
+
+        self._pending_name_save = {
+            "student_id": student.student_id,
+            "first_name": self._name_var.get(),
+            "last_name": self._last_name_var.get(),
+            "nickname": self._nickname_var.get(),
+        }
+
+        if self._name_save_after_id is not None:
+            try:
+                self.after_cancel(self._name_save_after_id)
+            except Exception:
+                pass
+            self._name_save_after_id = None
+
+        delay_ms = int(getattr(self, "name_save_delay", DEFAULT_NAME_SAVE_DELAY) * 1000)
+        if delay_ms <= 0:
+            self._flush_pending_name_save()
+            return
+        self._name_save_after_id = self.after(delay_ms, self._flush_pending_name_save)
+
+    def _flush_pending_name_save(self) -> None:
+        """Speichert eine ausstehende Namens-/Spitznamenänderung sofort.
+
+        Wird vom debounce-Timer, von ``exit_name_edit_mode`` (Escape/Return/Auswahlwechsel)
+        sowie von FocusOut auf den Namensfeldern aufgerufen. Nutzt die bei der Eingabe
+        gemerkten Werte statt der aktuellen Feldinhalte, damit ein zwischenzeitlich vom
+        Auswahlwechsel geleertes Eingabefeld keine Daten verwerfen kann.
+        """
+        if self._name_save_after_id is not None:
+            try:
+                self.after_cancel(self._name_save_after_id)
+            except Exception:
+                pass
+            self._name_save_after_id = None
+        pending = self._pending_name_save
+        self._pending_name_save = None
+        if pending is None:
+            return
         if not self.current_plan or not self.current_plan_path:
             return
-        if not self.selection.is_single():
-            return
-        x, y = self.selected_cell
-        student = self.current_plan.student_at(x, y)
+        student = self.current_plan.student_by_id(pending["student_id"])
         if not student:
             return
-        self._controller.dispatch(
-            SetNicknameIntent(student_id=student.student_id, nickname=self._nickname_var.get())
-        )
+        if student.first_name_official != pending["first_name"] or student.last_name != pending["last_name"]:
+            self._controller.dispatch(
+                RenameStudentIntent(
+                    student_id=pending["student_id"],
+                    first_name=pending["first_name"],
+                    last_name=pending["last_name"],
+                )
+            )
+        if student.nickname != pending["nickname"]:
+            self._controller.dispatch(
+                SetNicknameIntent(student_id=pending["student_id"], nickname=pending["nickname"])
+            )
 
     def _set_accommodations_field(self, student) -> None:
         """Befüllt das Nachteilsausgleiche-Textfeld oder deaktiviert es bei *student* = None.

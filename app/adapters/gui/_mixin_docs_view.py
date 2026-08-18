@@ -62,6 +62,7 @@ class DocsViewMixin:
         mit der sichtbaren Ansicht synchron, statt es (wie zuvor) offen zu
         lassen, obwohl der Editor gar nicht mehr zu sehen ist.
         """
+        self._flush_pending_name_save()
         self.show_plan_list_view()
         self._hide_details()
         self._controller.dispatch(ClearSelectionIntent())
