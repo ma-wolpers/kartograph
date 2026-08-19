@@ -196,11 +196,20 @@ class DetailsMixin:
             self.name_entry.icursor(ui.END)
 
     def _clear_desk_detail_state(self) -> None:
-        """Blendet aufgedeckte/editierte Tischdetails wieder aus (HIDDEN)."""
+        """Blendet aufgedeckte/editierte Tischdetails wieder aus (HIDDEN).
+
+        Holt den Tk-Fokus zurück zum Canvas (analog zu ``exit_name_edit_mode()``),
+        falls der Editor noch sichtbar ist -- sonst bleibt der Fokus z. B. auf
+        dem jetzt unsichtbaren Nachteilsausgleiche-Feld hängen, das keine eigene
+        Escape-Bindung hat und den globalen Handler stumm blockiert (Pfeiltasten
+        und Enter reagieren dann nicht mehr, da sie Canvas-Fokus voraussetzen).
+        """
         if self._desk_detail_state is None:
             return
         self._desk_detail_state = None
         self._refresh_details_panel()
+        if self.editor_view.winfo_ismapped():
+            self.canvas.focus_set()
 
     def _reconcile_desk_detail_state(self, x: int, y: int, is_student_single: bool) -> None:
         """Verwirft einen veralteten Detail-Zustand (Zellwechsel, Mehrfachauswahl oder

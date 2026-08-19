@@ -14,6 +14,8 @@ from typing import Literal
 
 from app.adapters.gui.ui_intents import UiIntent
 
+MIN_WINDOW_WIDTH = 600
+MIN_WINDOW_HEIGHT = 400
 MAX_CANVAS_RADIUS = 50
 MIN_CANVAS_RADIUS = 1
 DEFAULT_CANVAS_RADIUS = 50

@@ -6,6 +6,7 @@ from pathlib import Path
 from app.app_info import APP_INFO, AppInfo
 from bw_libs.app_shell import AppShellConfig
 
+from app.adapters.gui.main_window_constants import MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH
 from app.application.app_controller import KartographAppController
 from app.infrastructure.repositories.settings_repository import JsonSettingsRepository
 from app.infrastructure.repositories.v4.json_plan_repository_v4 import JsonSeatingPlanRepositoryV4
@@ -50,8 +51,8 @@ def build_gui_dependencies(workspace_root: Path) -> AppDependencies:
         shell_config=AppShellConfig(
             title=APP_INFO.window_title,
             geometry="1320x860",
-            min_width=1000,
-            min_height=680,
+            min_width=MIN_WINDOW_WIDTH,
+            min_height=MIN_WINDOW_HEIGHT,
         ),
         settings_repository=settings_repository,
         controller=controller,

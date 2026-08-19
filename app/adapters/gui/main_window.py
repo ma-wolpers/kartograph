@@ -54,6 +54,8 @@ from app.adapters.gui.main_window_constants import (
     GRID_SELECTED,
     NAME_EDITING,
     DeskDetailMode,
+    MIN_WINDOW_HEIGHT,
+    MIN_WINDOW_WIDTH,
     UI_WATCHDOG_WARN_DRIFT_SECONDS,
     _known_ui_intents,
     apply_window_icon,
@@ -160,7 +162,7 @@ class KartographMainWindow(
         self.name_save_delay = settings.name_save_delay
 
         resolved_shell_config = shell_config or AppShellConfig(
-            title=APP_INFO.window_title, geometry="1320x860", min_width=1000, min_height=680
+            title=APP_INFO.window_title, geometry="1320x860", min_width=MIN_WINDOW_WIDTH, min_height=MIN_WINDOW_HEIGHT
         )
         super().__init__(
             title=resolved_shell_config.title,

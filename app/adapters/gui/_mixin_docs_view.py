@@ -19,6 +19,43 @@ ensure_bw_gui_on_path()
 from bw_gui import ui
 
 
+def _resolve_doc_student_index_for_cell(
+    doc_student_coords: list[tuple[int, int]], x: int, y: int
+) -> int | None:
+    """Findet den Dokutabellen-Index für Rasterzelle (x, y).
+
+    Reine, Tk-freie Entscheidungslogik (separat testbar) -- liefert bewusst
+    ``None`` statt eines Fallback-Index, wenn an der Zelle niemand sitzt.
+
+    Args:
+        doc_student_coords: Sitzkoordinaten in Dokutabellen-Reihenfolge.
+        x: Raster-x-Koordinate.
+        y: Raster-y-Koordinate.
+    """
+    try:
+        return doc_student_coords.index((x, y))
+    except ValueError:
+        return None
+
+
+def _resolve_grid_cell_for_doc_index(
+    doc_student_coords: list[tuple[int, int]], doc_selected_student_index: int
+) -> tuple[int, int] | None:
+    """Liefert die Rasterzelle für den aktuell in der Dokutabelle ausgewählten Index.
+
+    Reine, Tk-freie Entscheidungslogik (separat testbar) -- liefert bewusst
+    ``None`` statt eines geklemmten Index (0 oder letzter gültiger Index) bei
+    einem ungültigen oder fehlenden Index.
+
+    Args:
+        doc_student_coords: Sitzkoordinaten in Dokutabellen-Reihenfolge.
+        doc_selected_student_index: Aktuell ausgewählter Dokutabellen-Index.
+    """
+    if not 0 <= doc_selected_student_index < len(doc_student_coords):
+        return None
+    return doc_student_coords[doc_selected_student_index]
+
+
 class DocsViewMixin:
     """Mixin: Ansichtswechsel, Dokumentations-Text-Helfer und Dokumentations-Sortierung."""
 
@@ -90,6 +127,7 @@ class DocsViewMixin:
         self.grid_stack.pack_forget()
         self.details_container.pack_forget()
         self._apply_details_overlay_position()
+        self._sync_grid_selection_from_doc()
         self.canvas.focus_set()
 
     def show_documentation_surface(self) -> None:
@@ -105,7 +143,37 @@ class DocsViewMixin:
         self.details_container.pack_forget()
         self.docs_container.pack(fill="both", expand=True)
         self._refresh_documentation_table()
+        if self.selected_cell is not None:
+            self._sync_doc_selection_from_grid(*self.selected_cell)
         self.docs_tree.focus_set()
+
+    def _sync_doc_selection_from_grid(self, x: int, y: int) -> None:
+        """Übernimmt die Doku-Auswahl von der Grid-Zelle (x, y).
+
+        Nur wenn dort tatsächlich ein benannter Schüler sitzt -- sonst bleibt
+        die bisherige Doku-Auswahl unverändert (kein erfundener Ersatz).
+
+        Args:
+            x: Raster-x-Koordinate der aktuellen Grid-Auswahl.
+            y: Raster-y-Koordinate der aktuellen Grid-Auswahl.
+        """
+        idx = _resolve_doc_student_index_for_cell(self._doc_student_coords, x, y)
+        if idx is None:
+            return
+        row_id = self._doc_tree_iid_by_student_index.get(idx)
+        if row_id is not None:
+            self._set_docs_row_selection(row_id)
+
+    def _sync_grid_selection_from_doc(self) -> None:
+        """Übernimmt die Grid-Auswahl vom aktuell in der Dokutabelle ausgewählten Schüler.
+
+        Nur bei einem gültigen Doku-Index -- sonst bleibt die bisherige
+        Grid-Auswahl unverändert (kein erfundener Ersatz).
+        """
+        cell = _resolve_grid_cell_for_doc_index(self._doc_student_coords, self._doc_selected_student_index)
+        if cell is None:
+            return
+        self._set_selection_single(*cell)
 
     def _documentation_cell_text(
         self, symbols: dict[str, int], participation: ParticipationRating | None = None

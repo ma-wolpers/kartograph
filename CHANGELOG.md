@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Added
+- Markierung bleibt beim Wechsel zwischen Tisch- und Dokuansicht erhalten: ein im Raster markierter Schüler ist danach in der Dokutabelle dieselbe Zeile ausgewählt, und umgekehrt. Enthält die Zielzelle/-auswahl keinen zuordenbaren Schüler, bleibt die bisherige Auswahl auf der Zieloberfläche unverändert.
 - Neue Mitarbeit-Tagesbewertung: bei markiertem Tisch (Sitzplan) oder ausgewähltem Schüler (Dokutabelle) setzt `+` (positive Mitarbeit), `o` (okay), `-` (verbesserungswürdig) oder `s` (☆, besonders gute Mitarbeit) eine Bewertung für den heutigen Tag, sichtbar direkt auf dem Tisch im Sitzplan-Raster und in der Dokumentationstabelle. Erneutes Drücken der bereits gesetzten Bewertung löscht sie wieder; pro Tag ist immer nur eine der vier Bewertungen aktiv.
 - Der Tastaturkürzel-Buchstabe für "Symbol zum markierten Platz hinzufügen" wurde von "S" auf "D" geändert (wegen der neuen Mitarbeit-Bewertung auf "s") und funktioniert jetzt auch tatsächlich als Tastenkürzel (vorher nur als Tooltip-Hinweis ohne echte Wirkung).
 - Der Symbolfilter-Dialog (Raster) hat jetzt das Tastenkürzel `Ctrl+F` statt des bisher nur behaupteten, aber nie funktionierenden `Ctrl+Alt+S`. Enter bestätigt jetzt außerdem wie im jeweiligen Tooltip versprochen im Symbolfilter-Dialog, im PDF-Export-Dialog, im Namenfit-CSV-Export-Dialog und im "Symbol hinzufügen"-Dialog (vorher ohne Wirkung).
@@ -29,6 +30,8 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Nach Escape im Nachteilsausgleiche-Feld schloss sich die Tischdetailansicht zwar korrekt, aber Pfeiltasten und Enter reagierten danach nicht mehr, weil der Tastaturfokus auf dem jetzt unsichtbaren Textfeld hängen blieb statt zurück zum Sitzplan-Raster zu wechseln.
+- Das Kartograph-Fenster ließ sich nicht kleiner als 1000×680 ziehen; die Mindestgröße liegt jetzt bei 600×400.
 - `tools/ci/check_ai_guardrails.py` prüfte noch auf die alte, seit der `BwBaseWindow`-Migration nicht mehr existierende `CustomMenuBar`-Konstruktion und schlug dadurch bei jeder Änderung an der GUI-Schicht fälschlich fehl; auf den aktuellen `build_menu()`/`section_spec()`-Stand nachgezogen (reine CI-Tooling-Wartung, keine Nutzer-sichtbare Änderung).
 - `tools/ci/check_ai_guardrails.py` prüfte 12 Tastenkürzel-Warnungen (Einstellungen öffnen, Neuer Plan, Umbenennen/Duplizieren, Rückgängig/Wiederholen, Kopieren/Ausschneiden/Einfügen, Escape, Debug-Runtime-Overlay/-Offline) nur in `main_window.py` und meldete dadurch bei jedem Lauf 12 falsche Warnungen — die zugehörigen Bindungen liegen seit dem Mixin-Split in `_mixin_shortcuts.py`. Auf die tatsächliche Struktur nachgezogen (reine CI-Tooling-Wartung, keine Nutzer-sichtbare Änderung).
 - PDF-Export: dokumentationsgebundene Symbole (z. B. "Abwesend", "Nicht abgegeben / verweigert") erscheinen nicht mehr in der Symbol-Checkliste des Export-Dialogs. Sie zeigten dort den zuletzt jemals gesetzten Wert statt eines für den gedruckten Sitzplan sinnvollen Dauerzustands und konnten so unbeabsichtigt auf einem ausgedruckten Sitzplan landen.
