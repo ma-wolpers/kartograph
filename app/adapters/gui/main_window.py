@@ -530,7 +530,8 @@ class KartographMainWindow(
             return
         self.plan_listbox.delete(0, _ui.END)
         for entry in self._plan_index:
-            self.plan_listbox.insert(_ui.END, f"{entry.name}  |  {entry.student_count} Schülertische")
+            display_name = f"({entry.name})" if entry.is_archived else entry.name
+            self.plan_listbox.insert(_ui.END, f"{display_name}  |  {entry.student_count} Schülertische")
         self._ensure_list_selection(preferred_path=self.current_plan_path)
 
     def _build_symbol_shortcut_map(self, definitions: list[SymbolDefinition]) -> dict[str, str]:

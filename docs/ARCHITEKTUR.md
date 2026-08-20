@@ -15,6 +15,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Pro Schuelertisch koennen tagesbasierte Dokumentationseintraege (`documentation_entries`) gespeichert werden mit Symbolstaerken, Notenwerten und optionaler Notiz.
 - Leere Tageskontexte bleiben volatil: Beim Speichern werden nur Dokumentationstage persistiert, die mindestens einen inhaltlichen Eintrag enthalten.
 - Sitzplaene werden als JSON-Dateien in `plans/` abgelegt.
+- Archivierte Sitzplaene liegen als dieselben, unveraenderten JSON-Dateien im Unterordner `plans/ALT/`. Da `list_plans()` nicht rekursiv arbeitet, ist die Ordnerlage die alleinige Quelle der Wahrheit fuer "archiviert" — kein zusaetzliches Feld im Planformat. Sichtbarkeit archivierter Plaene in der Planliste ist eine persistente Einstellung (`KartographSettings.show_archived_plans`).
 - Bei jedem Speichern wird zusaetzlich ein zeitgestempeltes JSON-Backup in einem versteckten AppData-Pfad (`%APPDATA%/Kartograph/backups/<plan>`) abgelegt; pro Lerngruppe bleibt eine Rotation der letzten 20 Sicherungen erhalten.
 - Zusaetzlich erzeugt die GUI in festem Intervall (5 Minuten) Snapshot-Backups des aktuell geoeffneten Plans ueber die Repository-Backup-API, ohne die Primardatei neu zu schreiben.
 - Symboldefinitionen werden aus `config/symbols.json` gelesen und validiert.
@@ -41,6 +42,9 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Der Markierungsrahmen fuer aktive Auswahlen wird aus transformierten Tischpolygonen abgeleitet, damit Shift/Rotation der Tischgruppe visuell korrekt abgebildet werden.
 - Bei Transformationskollisionen (Lehrer- oder Schuelertisch) wird der zuletzt geaenderte Transformationswert auf 0 zurueckgesetzt.
 - Exportaktionen werden in der GUI angestossen und durch den Infrastructure-Exporter als PDF geschrieben.
+
+## Bekannte Ausnahmen vom 300-Zeilen-Limit
+- `app/adapters/gui/main_window.py` (329 Codezeilen ohne Docstrings/Kommentare/Imports/Leerzeilen): zentrale Fensterklasse, die ~30 GUI-Mixins zusammensetzt und `apply_state()` orchestriert — Aufsplitten wuerde die zusammenhaengende Tk-Widget-Verdrahtung und den State-Sync-Callback fragmentieren, ohne die Zeilenzahl wirklich zu senken.
 
 ## Build- und Laufzeitkontext
 - Start lokal ueber `start-kartograph.bat` oder `python kartograph.py`.

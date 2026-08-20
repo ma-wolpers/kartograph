@@ -43,6 +43,7 @@ class ShortcutMixin:
             UiIntent.RENAME_SELECTED_PLAN: lambda: self.rename_selected_plan_dialog(),
             UiIntent.DELETE_SELECTED_PLAN: lambda: self.delete_selected_plan_dialog(),
             UiIntent.DUPLICATE_SELECTED_PLAN: lambda: self.duplicate_selected_plan_dialog(),
+            UiIntent.ARCHIVE_SELECTED_PLAN: lambda: self.archive_or_restore_selected_plan_dialog(),
             UiIntent.OPEN_SETTINGS: lambda: self.open_settings_dialog(),
             UiIntent.DELETE_DESK: lambda: self.delete_selected_desk(),
             UiIntent.SET_TEACHER_DESK: lambda: self.set_selected_as_teacher_desk(),

@@ -36,6 +36,20 @@ class DeletePlanIntent(Intent):
 
 
 @dataclass(frozen=True)
+class ArchivePlanIntent(Intent):
+    """Verschiebt den Plan unter *plan_path* ins Archiv (ALT-Unterordner)."""
+
+    plan_path: Path
+
+
+@dataclass(frozen=True)
+class RestorePlanIntent(Intent):
+    """Verschiebt den archivierten Plan unter *plan_path* zurück in den Plan-Ordner."""
+
+    plan_path: Path
+
+
+@dataclass(frozen=True)
 class DuplicatePlanIntent(Intent):
     """Dupliziert den Plan unter *plan_path* als neuen Plan mit Namen *new_name*.
 

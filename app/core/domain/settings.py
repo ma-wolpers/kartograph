@@ -43,6 +43,7 @@ class KartographSettings:
     tablegroup_overlay_position: str = DEFAULT_TABLEGROUP_OVERLAY_POSITION
     sitzplan_popup_delay: int = DEFAULT_SITZPLAN_POPUP_DELAY
     name_save_delay: int = DEFAULT_NAME_SAVE_DELAY
+    show_archived_plans: bool = False
 
     @classmethod
     def from_dict(cls, payload: dict) -> "KartographSettings":
@@ -107,6 +108,7 @@ class KartographSettings:
             tablegroup_overlay_position=_str(payload.get("tablegroup_overlay_position"), DEFAULT_TABLEGROUP_OVERLAY_POSITION, options=("left", "right", "bottom")),
             sitzplan_popup_delay=_int(payload.get("sitzplan_popup_delay"), DEFAULT_SITZPLAN_POPUP_DELAY, minimum=1, maximum=30),
             name_save_delay=_int(payload.get("name_save_delay"), DEFAULT_NAME_SAVE_DELAY, minimum=0, maximum=15),
+            show_archived_plans=_bool(payload.get("show_archived_plans"), False),
         )
 
     def to_dict(self) -> dict:
@@ -128,6 +130,7 @@ class KartographSettings:
             "tablegroup_overlay_position": self.tablegroup_overlay_position,
             "sitzplan_popup_delay": self.sitzplan_popup_delay,
             "name_save_delay": self.name_save_delay,
+            "show_archived_plans": self.show_archived_plans,
         }
 
 

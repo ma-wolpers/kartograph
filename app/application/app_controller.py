@@ -46,11 +46,13 @@ from app.application.handlers.navigation_handlers import (
     handle_select_cell,
 )
 from app.application.handlers.plan_handlers import (
+    handle_archive_plan,
     handle_create_plan,
     handle_delete_plan,
     handle_duplicate_plan,
     handle_open_plan,
     handle_rename_plan,
+    handle_restore_plan,
 )
 from app.application.handlers.session_handlers import (
     handle_add_session,
@@ -108,11 +110,13 @@ from app.core.intents.navigation_intents import (
 )
 from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.plan_intents import (
+    ArchivePlanIntent,
     CreatePlanIntent,
     DeletePlanIntent,
     DuplicatePlanIntent,
     OpenPlanIntent,
     RenamePlanIntent,
+    RestorePlanIntent,
 )
 from app.core.intents.session_intents import (
     AddSessionIntent,
@@ -258,6 +262,8 @@ class KartographAppController:
         r.register(RenamePlanIntent,     lambda i, s: handle_rename_plan(i, s, ctx))
         r.register(DeletePlanIntent,     lambda i, s: handle_delete_plan(i, s, ctx))
         r.register(DuplicatePlanIntent,  lambda i, s: handle_duplicate_plan(i, s, ctx))
+        r.register(ArchivePlanIntent,    lambda i, s: handle_archive_plan(i, s, ctx))
+        r.register(RestorePlanIntent,    lambda i, s: handle_restore_plan(i, s, ctx))
 
         # Student
         r.register(CreateStudentIntent,  lambda i, s: handle_create_student(i, s, ctx))

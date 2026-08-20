@@ -105,7 +105,8 @@ class LayoutMixin:
         self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="open_plan", icon="↩", shortcut="Enter", label="Ausgewaehlten Sitzplan oeffnen", command=lambda: self._handle_intent(UiIntent.LIST_OPEN_SELECTED))
         self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="rename_plan", icon="✎", shortcut="F2", label="Ausgewaehlten Sitzplan umbenennen", command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN))
         self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="delete_plan", icon="⌫", shortcut="Entf", label="Ausgewaehlten Sitzplan loeschen", command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN))
-        self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="duplicate_plan", icon="⧉", shortcut="Ctrl+D", label="Ausgewaehlten Sitzplan duplizieren", command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN), padx=(0, 0))
+        self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="duplicate_plan", icon="⧉", shortcut="Ctrl+D", label="Ausgewaehlten Sitzplan duplizieren", command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN))
+        self._create_toolbar_shortcut_button(self.list_toolbar, icon_key="archive_plan", icon="🗄", shortcut="", label="Ausgewaehlten Sitzplan archivieren/wiederherstellen", command=lambda: self._handle_intent(UiIntent.ARCHIVE_SELECTED_PLAN), padx=(0, 0))
 
         self.list_body = tui.Frame(self.list_view)
         self.list_body.pack(fill="both", expand=True, padx=14, pady=(0, 14))

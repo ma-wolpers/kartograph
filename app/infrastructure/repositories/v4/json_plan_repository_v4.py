@@ -37,8 +37,26 @@ class JsonSeatingPlanRepositoryV4:
     gesetzt und anschließend automatisch ein Backup-Snapshot angelegt.
     """
 
+    ARCHIVE_DIRNAME = "ALT"
+
     def __init__(self) -> None:
         self._backup = PlanBackupWriter()
+
+    def _archive_dir(self, plans_dir: Path) -> Path:
+        """Liefert den Archiv-Unterordner von *plans_dir*.
+
+        Einzige Stelle, die den Archivpfad aus ``plans_dir`` bildet — ``archive_plan``
+        und ``restore_plan`` vergleichen ihre Pfadverträge ausschließlich gegen das
+        Ergebnis dieser Methode, damit ``ARCHIVE_DIRNAME`` die einzige Quelle der
+        Wahrheit für den Ordnernamen bleibt.
+
+        Args:
+            plans_dir: Normaler Plan-Ordner.
+
+        Returns:
+            ``plans_dir / ARCHIVE_DIRNAME``.
+        """
+        return plans_dir / self.ARCHIVE_DIRNAME
 
     # ------------------------------------------------------------------
     # Lesen
@@ -59,6 +77,33 @@ class JsonSeatingPlanRepositoryV4:
         plans_dir.mkdir(parents=True, exist_ok=True)
         plans: list[tuple[Path, SeatingPlan]] = []
         for path in sorted(plans_dir.glob("*.json")):
+            try:
+                plans.append((path, self.load_plan(path)))
+            except Exception:
+                continue
+        return plans
+
+    def list_archived_plans(self, plans_dir: Path) -> list[tuple[Path, SeatingPlan]]:
+        """Gibt alle archivierten v4-Pläne im ``ALT``-Unterordner von *plans_dir* zurück.
+
+        Spiegelt ``list_plans()`` (gleiches Skip-Verhalten bei kaputten Dateien,
+        gleiche alphabetische Sortierung nach Dateiname), liest aber aus dem
+        Archiv-Unterordner. Anders als ``list_plans()`` legt diese Methode den
+        Ordner nicht an — ein fehlendes Archiv bedeutet schlicht "noch nichts
+        archiviert", kein Fehlerzustand.
+
+        Args:
+            plans_dir: Normaler Plan-Ordner (nicht der Archivordner selbst).
+
+        Returns:
+            Liste von (Pfad, Plan)-Tupeln aus dem Archiv, alphabetisch nach
+            Dateiname sortiert; ``[]``, wenn kein Archiv-Unterordner existiert.
+        """
+        archive_dir = self._archive_dir(plans_dir)
+        if not archive_dir.exists():
+            return []
+        plans: list[tuple[Path, SeatingPlan]] = []
+        for path in sorted(archive_dir.glob("*.json")):
             try:
                 plans.append((path, self.load_plan(path)))
             except Exception:
@@ -195,6 +240,72 @@ class JsonSeatingPlanRepositoryV4:
         if not plan_path.exists():
             raise FileNotFoundError(f"Plandatei nicht gefunden: {plan_path.name}")
         plan_path.unlink()
+
+    def archive_plan(self, plan_path: Path) -> Path:
+        """Verschiebt *plan_path* in den ``ALT``-Archiv-Unterordner desselben Plan-Ordners.
+
+        Reines Verschieben (``Path.rename``) — der Planinhalt (``plan_id``,
+        ``last_modified``, alle Felder) bleibt dabei unverändert; es wird kein
+        ``save_plan()`` aufgerufen.
+
+        Args:
+            plan_path: Pfad der zu archivierenden Plandatei; muss im normalen
+                Plan-Ordner liegen (nicht bereits im Archiv).
+
+        Returns:
+            Neuer Pfad der Datei im Archiv-Unterordner.
+
+        Raises:
+            ValueError: Wenn *plan_path* bereits im Archiv-Unterordner liegt.
+            FileNotFoundError: Wenn *plan_path* nicht existiert.
+            FileExistsError: Wenn im Archiv bereits eine Datei mit demselben
+                Namen liegt.
+        """
+        if plan_path.parent.name == self.ARCHIVE_DIRNAME:
+            raise ValueError(f"Plan liegt bereits im Archiv: {plan_path.name}")
+        if not plan_path.exists():
+            raise FileNotFoundError(f"Plandatei nicht gefunden: {plan_path.name}")
+
+        archive_dir = self._archive_dir(plan_path.parent)
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        target_path = archive_dir / plan_path.name
+        if target_path.exists():
+            raise FileExistsError(f"Im Archiv liegt bereits eine Datei mit diesem Namen: {target_path.name}")
+
+        plan_path.rename(target_path)
+        return target_path
+
+    def restore_plan(self, plan_path: Path) -> Path:
+        """Verschiebt den archivierten Plan *plan_path* zurück in den normalen Plan-Ordner.
+
+        Gegenstück zu ``archive_plan()``; ebenfalls ein reines ``Path.rename()``
+        ohne Inhaltsänderung.
+
+        Args:
+            plan_path: Pfad der archivierten Plandatei; muss direkt im
+                ``ALT``-Unterordner liegen.
+
+        Returns:
+            Neuer Pfad der Datei im übergeordneten Plan-Ordner.
+
+        Raises:
+            ValueError: Wenn *plan_path* nicht direkt im Archiv-Unterordner liegt.
+            FileNotFoundError: Wenn *plan_path* nicht existiert.
+            FileExistsError: Wenn im Plan-Ordner bereits eine Datei mit demselben
+                Namen liegt.
+        """
+        plans_dir = plan_path.parent.parent
+        if self._archive_dir(plans_dir) != plan_path.parent:
+            raise ValueError(f"Plan liegt nicht im Archiv: {plan_path.name}")
+        if not plan_path.exists():
+            raise FileNotFoundError(f"Plandatei nicht gefunden: {plan_path.name}")
+
+        target_path = plans_dir / plan_path.name
+        if target_path.exists():
+            raise FileExistsError(f"Es existiert bereits ein Plan mit diesem Namen: {target_path.name}")
+
+        plan_path.rename(target_path)
+        return target_path
 
     def duplicate_plan(
         self, source_path: Path, target_name: str, overwrite: bool = False

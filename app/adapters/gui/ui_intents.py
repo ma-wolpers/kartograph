@@ -4,6 +4,7 @@ class UiIntent:
     RENAME_SELECTED_PLAN = "plan.rename_selected"
     DELETE_SELECTED_PLAN = "plan.delete_selected"
     DUPLICATE_SELECTED_PLAN = "plan.duplicate_selected"
+    ARCHIVE_SELECTED_PLAN = "plan.archive_selected"
     OPEN_SETTINGS = "settings.open"
     DELETE_DESK = "desk.delete"
     SET_TEACHER_DESK = "desk.set_teacher"

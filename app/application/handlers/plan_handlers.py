@@ -9,11 +9,13 @@ from app.application.handlers._shared import _refresh_plan_list, _with_plan
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import resolve_plans_dir
 from app.core.intents.plan_intents import (
+    ArchivePlanIntent,
     CreatePlanIntent,
     DeletePlanIntent,
     DuplicatePlanIntent,
     OpenPlanIntent,
     RenamePlanIntent,
+    RestorePlanIntent,
 )
 
 _log = logging.getLogger("kartograph.handlers.plan")
@@ -124,6 +126,59 @@ def handle_delete_plan(intent: DeletePlanIntent, state: AppState, ctx: HandlerCo
             can_redo=False,
         )
     return dataclasses.replace(state, plan_list=plan_list)
+
+
+def handle_archive_plan(intent: ArchivePlanIntent, state: AppState, ctx: HandlerContext) -> AppState:
+    """Verschiebt den Plan aus *intent* ins Archiv; schließt ihn im Editor, falls er gerade offen ist.
+
+    Args:
+        intent: Pfad des zu archivierenden Plans.
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository).
+    """
+    try:
+        ctx.plan_repository.archive_plan(intent.plan_path)
+    except Exception:
+        _log.exception("handle_archive_plan: failed for %s", intent.plan_path)
+        return dataclasses.replace(state, status_message="Fehler beim Archivieren")
+
+    plan_list = _refresh_plan_list(state, ctx)
+    was_open = state.current_plan_path == intent.plan_path
+    if was_open:
+        return dataclasses.replace(
+            state,
+            current_plan=None,
+            current_plan_path=None,
+            plan_list=plan_list,
+            interaction_mode=InteractionMode.LIST,
+            can_undo=False,
+            can_redo=False,
+            status_message="Plan archiviert",
+        )
+    return dataclasses.replace(state, plan_list=plan_list, status_message="Plan archiviert")
+
+
+def handle_restore_plan(intent: RestorePlanIntent, state: AppState, ctx: HandlerContext) -> AppState:
+    """Verschiebt den archivierten Plan aus *intent* zurück in den Plan-Ordner.
+
+    Fasst den Editor-Zustand bewusst nicht an: ein archivierter Plan kann
+    strukturell nicht gerade im Editor offen sein, da ``handle_archive_plan``
+    ihn beim Archivieren bereits schließt — dieser Handler ist deshalb kein
+    symmetrisches Gegenstück zu ``handle_archive_plan``.
+
+    Args:
+        intent: Pfad des wiederherzustellenden Plans (im Archiv-Unterordner).
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository).
+    """
+    try:
+        ctx.plan_repository.restore_plan(intent.plan_path)
+    except Exception:
+        _log.exception("handle_restore_plan: failed for %s", intent.plan_path)
+        return dataclasses.replace(state, status_message="Fehler beim Wiederherstellen")
+
+    plan_list = _refresh_plan_list(state, ctx)
+    return dataclasses.replace(state, plan_list=plan_list, status_message="Plan wiederhergestellt")
 
 
 def handle_duplicate_plan(intent: DuplicatePlanIntent, state: AppState, ctx: HandlerContext) -> AppState:

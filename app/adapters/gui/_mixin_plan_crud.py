@@ -8,7 +8,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.adapters.gui.dialog_services import messagebox, simpledialog
-from app.core.intents.plan_intents import DeletePlanIntent, DuplicatePlanIntent, RenamePlanIntent
+from app.core.intents.plan_intents import (
+    ArchivePlanIntent,
+    DeletePlanIntent,
+    DuplicatePlanIntent,
+    RenamePlanIntent,
+    RestorePlanIntent,
+)
 
 
 class PlanCrudMixin:
@@ -80,6 +86,27 @@ class PlanCrudMixin:
         if not confirm:
             return
         self._controller.dispatch(DeletePlanIntent(plan_path=plan_path))
+
+    def archive_or_restore_selected_plan_dialog(self) -> None:
+        """Archiviert den ausgewaehlten Sitzplan oder stellt ihn wieder her.
+
+        Ein archivierter Plan (``entry.is_archived``) wird sofort wiederhergestellt
+        (unkritisch, kein Datenverlust). Ein normaler Plan wird nur nach expliziter
+        Bestaetigung archiviert, analog zu ``delete_selected_plan_dialog``.
+        """
+        entry = self._selected_plan_list_entry()
+        if not entry:
+            self.status_var.set("Kein Sitzplan ausgewaehlt")
+            return
+        if entry.is_archived:
+            self._controller.dispatch(RestorePlanIntent(plan_path=entry.path))
+            return
+        confirm = messagebox.askyesno(
+            "Sitzplan archivieren", f"Moechtest du den Sitzplan '{entry.name}' archivieren?", parent=self
+        )
+        if not confirm:
+            return
+        self._controller.dispatch(ArchivePlanIntent(plan_path=entry.path))
 
     def duplicate_selected_plan_dialog(self) -> None:
         """Öffnet einen Dialog zum Duplizieren des ausgewählten Sitzplans (v4: DuplicatePlanIntent)."""

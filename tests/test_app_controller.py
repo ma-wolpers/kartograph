@@ -34,10 +34,12 @@ from app.application.handlers.navigation_handlers import (
     handle_select_cell,
 )
 from app.application.handlers.plan_handlers import (
+    handle_archive_plan,
     handle_create_plan,
     handle_delete_plan,
     handle_duplicate_plan,
     handle_open_plan,
+    handle_restore_plan,
 )
 from app.application.handlers.session_handlers import (
     handle_add_session,
@@ -78,10 +80,12 @@ from app.core.intents.navigation_intents import (
     SelectCellIntent,
 )
 from app.core.intents.plan_intents import (
+    ArchivePlanIntent,
     CreatePlanIntent,
     DeletePlanIntent,
     DuplicatePlanIntent,
     OpenPlanIntent,
+    RestorePlanIntent,
 )
 from app.core.intents.session_intents import AddSessionIntent, GoToTodayIntent, NavigateSessionIntent
 from app.core.intents.student_intents import (
@@ -108,6 +112,8 @@ from tests.conftest import make_plan, make_student
 class FakePlanRepository:
     """In-Memory-Repository für Tests."""
 
+    ARCHIVE_DIRNAME = "ALT"
+
     def __init__(self, plans: dict[Path, object] | None = None) -> None:
         from app.core.domain.models_v4 import Classroom, PlanMeta, SeatingPlan, TeacherSeat
         self._plans: dict[Path, object] = plans or {}
@@ -116,8 +122,38 @@ class FakePlanRepository:
         self._Classroom = Classroom
         self._TeacherSeat = TeacherSeat
 
+    def _archive_dir(self, plans_dir: Path) -> Path:
+        return plans_dir / self.ARCHIVE_DIRNAME
+
     def list_plans(self, plans_dir: Path) -> list[tuple[Path, object]]:
-        return list(self._plans.items())
+        return [(p, plan) for p, plan in self._plans.items() if p.parent == plans_dir]
+
+    def list_archived_plans(self, plans_dir: Path) -> list[tuple[Path, object]]:
+        archive_dir = self._archive_dir(plans_dir)
+        return [(p, plan) for p, plan in self._plans.items() if p.parent == archive_dir]
+
+    def archive_plan(self, plan_path: Path) -> Path:
+        if plan_path.parent.name == self.ARCHIVE_DIRNAME:
+            raise ValueError(f"Plan liegt bereits im Archiv: {plan_path.name}")
+        if plan_path not in self._plans:
+            raise FileNotFoundError(f"Plandatei nicht gefunden: {plan_path.name}")
+        target_path = self._archive_dir(plan_path.parent) / plan_path.name
+        if target_path in self._plans:
+            raise FileExistsError(f"Im Archiv liegt bereits eine Datei mit diesem Namen: {target_path.name}")
+        self._plans[target_path] = self._plans.pop(plan_path)
+        return target_path
+
+    def restore_plan(self, plan_path: Path) -> Path:
+        plans_dir = plan_path.parent.parent
+        if self._archive_dir(plans_dir) != plan_path.parent:
+            raise ValueError(f"Plan liegt nicht im Archiv: {plan_path.name}")
+        if plan_path not in self._plans:
+            raise FileNotFoundError(f"Plandatei nicht gefunden: {plan_path.name}")
+        target_path = plans_dir / plan_path.name
+        if target_path in self._plans:
+            raise FileExistsError(f"Es existiert bereits ein Plan mit diesem Namen: {target_path.name}")
+        self._plans[target_path] = self._plans.pop(plan_path)
+        return target_path
 
     def load_plan(self, plan_path: Path) -> object:
         if plan_path not in self._plans:
@@ -327,6 +363,92 @@ class TestHandlePlanHandlers:
 
         assert ctx.plan_repository._plans[conflict_path].meta.name == "Kopie"
         assert result.status_message == "Plan dupliziert: Kopie"
+
+    def test_archive_open_plan_clears_current_plan(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        result = handle_archive_plan(ArchivePlanIntent(plan_path=path), state, ctx)
+
+        assert result.current_plan is None
+        assert result.current_plan_path is None
+        assert result.interaction_mode == InteractionMode.LIST
+
+    def test_archive_other_plan_keeps_current_plan(self):
+        plan = make_plan()
+        current_path = PLANS_DIR / "current.json"
+        other_path = PLANS_DIR / "other.json"
+        ctx = make_ctx({current_path: plan, other_path: make_plan()})
+        state = make_state_with_plan(plan, current_path)
+
+        result = handle_archive_plan(ArchivePlanIntent(plan_path=other_path), state, ctx)
+
+        assert result.current_plan is plan
+        assert result.current_plan_path == current_path
+
+    def test_archive_plan_moves_file_out_of_normal_listing(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+
+        result = handle_archive_plan(ArchivePlanIntent(plan_path=path), AppState(), ctx)
+
+        assert not any(entry.path == path for entry in result.plan_list)
+
+    def test_archive_plan_visible_as_archived_when_setting_enabled(self):
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = AppState(settings=KartographSettings(show_archived_plans=True))
+
+        result = handle_archive_plan(ArchivePlanIntent(plan_path=path), state, ctx)
+
+        archived_entry = next(e for e in result.plan_list if e.name == "Klasse 5a")
+        assert archived_entry.is_archived is True
+
+    def test_archive_plan_with_existing_archive_entry_returns_error_status(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        archive_path = PLANS_DIR / "ALT" / "test.json"
+        ctx = make_ctx({path: plan, archive_path: make_plan()})
+
+        result = handle_archive_plan(ArchivePlanIntent(plan_path=path), AppState(), ctx)
+
+        assert result.status_message == "Fehler beim Archivieren"
+
+    def test_restore_plan_does_not_touch_editor_state(self):
+        open_plan = make_plan(name="Offener Plan")
+        open_path = PLANS_DIR / "offen.json"
+        archived_path = PLANS_DIR / "ALT" / "archiviert.json"
+        ctx = make_ctx({open_path: open_plan, archived_path: make_plan(name="Archiviert")})
+        state = make_state_with_plan(open_plan, open_path)
+
+        result = handle_restore_plan(RestorePlanIntent(plan_path=archived_path), state, ctx)
+
+        assert result.current_plan is open_plan
+        assert result.current_plan_path == open_path
+        assert result.interaction_mode == state.interaction_mode
+
+    def test_restore_plan_moves_file_back_into_normal_listing(self):
+        archived_path = PLANS_DIR / "ALT" / "test.json"
+        ctx = make_ctx({archived_path: make_plan(name="Klasse 5a")})
+
+        result = handle_restore_plan(RestorePlanIntent(plan_path=archived_path), AppState(), ctx)
+
+        restored_entry = next(e for e in result.plan_list if e.name == "Klasse 5a")
+        assert restored_entry.is_archived is False
+        assert restored_entry.path == PLANS_DIR / "test.json"
+
+    def test_restore_plan_with_existing_target_returns_error_status(self):
+        archived_path = PLANS_DIR / "ALT" / "test.json"
+        target_path = PLANS_DIR / "test.json"
+        ctx = make_ctx({archived_path: make_plan(), target_path: make_plan()})
+
+        result = handle_restore_plan(RestorePlanIntent(plan_path=archived_path), AppState(), ctx)
+
+        assert result.status_message == "Fehler beim Wiederherstellen"
 
 
 # ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.adapters.gui.main_window_constants import LOGGER
+from app.application.plan_listing import build_plan_list
 from app.core.intents.plan_intents import CreatePlanIntent, OpenPlanIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -25,25 +26,21 @@ class PlanListMixin:
         """Lädt alle Pläne aus dem Sitzplan-Ordner neu und aktualisiert die Listbox."""
         started = time.perf_counter()
         LOGGER.info("refresh_plan_list started")
+        include_archived = self._controller.state.settings.show_archived_plans
         try:
-            raw = self.plan_repository.list_plans(self.plans_dir)
+            plan_list = build_plan_list(self.plan_repository, self.plans_dir, include_archived=include_archived)
         except Exception as exc:
             self.status_var.set(f"Planliste konnte nicht geladen werden: {exc}")
             LOGGER.exception("refresh_plan_list: list_plans failed")
-            raw = []
+            plan_list = []
 
-        if not raw:
+        if not plan_list:
             try:
                 self.plan_repository.create_new_plan(self.plans_dir, "Neuer Sitzplan")
-                raw = self.plan_repository.list_plans(self.plans_dir)
+                plan_list = build_plan_list(self.plan_repository, self.plans_dir, include_archived=include_archived)
             except Exception as exc:
                 self.status_var.set(f"Konnte keinen Startplan erstellen: {exc}")
 
-        from app.application.app_state import PlanListEntry
-        plan_list = [
-            PlanListEntry(path=p, name=plan.meta.name, student_count=len(plan.classroom.students))
-            for p, plan in raw
-        ]
         self._apply_plan_list(plan_list)
         LOGGER.info("refresh_plan_list finished in %.3fs with %d plans", time.perf_counter() - started, len(plan_list))
 

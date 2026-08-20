@@ -7,8 +7,11 @@ Overlay-Position-Wechsel bereit.
 
 from __future__ import annotations
 
+import dataclasses
+
 from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS
 from app.adapters.gui.ui_intents import UiIntent
+from app.core.intents.view_intents import UpdateSettingsIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -53,6 +56,24 @@ class MenuMixin:
         self.tablegroup_overlay_position_var.set(value)
         self._on_tablegroup_overlay_position_changed()
 
+    def _set_show_archived_plans(self, value: bool) -> None:
+        """Schaltet die Sichtbarkeit archivierter Sitzplaene um und persistiert die Einstellung.
+
+        ``KartographAppController.dispatch()`` aktualisiert ``self._state``
+        synchron, bevor es zurückkehrt — der anschließende
+        ``refresh_plan_list()``-Aufruf liest also garantiert bereits den neuen
+        Wert. ``handle_update_settings`` aktualisiert ``state.plan_list`` selbst
+        nicht; die Planliste wird deshalb hier explizit neu geladen (analog zum
+        Refresh nach dem Settings-Dialog).
+
+        Args:
+            value: Neuer Sichtbarkeits-Zustand fuer archivierte Sitzplaene.
+        """
+        self._controller.dispatch(UpdateSettingsIntent(
+            settings=dataclasses.replace(self._controller.state.settings, show_archived_plans=value)
+        ))
+        self.refresh_plan_list()
+
     def _menu_items_file(self):
         """Liefert die Menüeinträge für das Datei-Menü."""
         return (
@@ -85,9 +106,12 @@ class MenuMixin:
         """Liefert die Menüeinträge für das Ansicht-Menü (Overlays, Debug)."""
         details_position = self.details_overlay_position_var.get()
         tablegroup_position = self.tablegroup_overlay_position_var.get()
+        show_archived = self._controller.state.settings.show_archived_plans
 
         return [
             SharedMenuItem(type="command", label="Sitzplan-Vorschau oeffnen", command=self.open_sitzplan_popup),
+            SharedMenuItem(type="separator"),
+            SharedMenuItem(type="radio", label="Archivierte Sitzplaene anzeigen", checked=show_archived, command=lambda: self._set_show_archived_plans(not show_archived)),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Dokumentationssicht umschalten (Strg+Shift+D)", command=lambda: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION)),
             SharedMenuItem(type="command", label="Shortcut-Runtime-Debug anzeigen (Strg+Shift+R)", command=lambda: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG)),

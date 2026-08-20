@@ -49,6 +49,7 @@ class PlanListEntry:
     path: Path
     name: str
     student_count: int
+    is_archived: bool = False
 
 
 @dataclass(frozen=True)

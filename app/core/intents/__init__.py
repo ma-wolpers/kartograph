@@ -13,6 +13,8 @@ from app.core.intents.plan_intents import (
     RenamePlanIntent,
     DeletePlanIntent,
     DuplicatePlanIntent,
+    ArchivePlanIntent,
+    RestorePlanIntent,
 )
 from app.core.intents.student_intents import (
     CreateStudentIntent,
@@ -75,6 +77,8 @@ __all__ = [
     "RenamePlanIntent",
     "DeletePlanIntent",
     "DuplicatePlanIntent",
+    "ArchivePlanIntent",
+    "RestorePlanIntent",
     # Student
     "CreateStudentIntent",
     "MoveStudentIntent",

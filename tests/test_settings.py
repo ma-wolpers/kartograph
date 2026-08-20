@@ -45,6 +45,14 @@ class TestFromDict:
         settings = KartographSettings.from_dict({"disambiguate_colliding_names": True})
         assert settings.disambiguate_colliding_names is True
 
+    def test_show_archived_plans_defaults_false_when_missing(self):
+        settings = KartographSettings.from_dict({})
+        assert settings.show_archived_plans is False
+
+    def test_show_archived_plans_parses_bool(self):
+        settings = KartographSettings.from_dict({"show_archived_plans": True})
+        assert settings.show_archived_plans is True
+
     def test_theme_passthrough_for_arbitrary_string(self):
         # Validierung gegen die GUI-Theme-Registry bleibt Aufgabe der GUI.
         settings = KartographSettings.from_dict({"theme": "porcelain"})
@@ -72,6 +80,7 @@ class TestToDictRoundtrip:
             grid_visible_symbols=("Laptop",),
             details_overlay_position="left",
             tablegroup_overlay_position="bottom",
+            show_archived_plans=True,
         )
         restored = KartographSettings.from_dict(settings.to_dict())
         assert restored == settings

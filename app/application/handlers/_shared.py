@@ -7,6 +7,7 @@ from pathlib import Path
 
 from app.application.app_state import AppState, PlanListEntry
 from app.application.handler_context import HandlerContext
+from app.application.plan_listing import build_plan_list
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.settings import resolve_plans_dir
 
@@ -80,13 +81,6 @@ def _refresh_plan_list(state: AppState, ctx: HandlerContext) -> list[PlanListEnt
     """
     plans_dir = resolve_plans_dir(state.settings.plans_dir, ctx.default_plans_dir)
     try:
-        return [
-            PlanListEntry(
-                path=p,
-                name=plan.meta.name,
-                student_count=len(plan.classroom.students),
-            )
-            for p, plan in ctx.plan_repository.list_plans(plans_dir)
-        ]
+        return build_plan_list(ctx.plan_repository, plans_dir, include_archived=state.settings.show_archived_plans)
     except Exception:
         return []
