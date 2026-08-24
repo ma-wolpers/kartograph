@@ -36,9 +36,12 @@ class UndoRedoMixin:
             self._controller.dispatch(UndoIntent())
 
     def redo_last_change(self) -> None:
-        """Wiederholt die zuletzt rückgängig gemachte Änderung (v4: RedoIntent)."""
-        if not self.current_plan or not self.current_plan_path:
-            return
+        """Wiederholt die zuletzt rückgängig gemachte Änderung (v4: RedoIntent).
+
+        Auch ohne offenen Plan (Listenansicht) dispatcht, damit eine zuvor
+        per Undo rückgängig gemachte Listenaktion (Rename/Delete/Duplicate)
+        erneut angewendet werden kann — analog zu ``undo_last_change``.
+        """
         self._controller.dispatch(RedoIntent())
 
     def copy_selection(self) -> None:

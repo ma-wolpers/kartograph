@@ -6,6 +6,7 @@ import logging
 from app.application.app_state import AppState, InteractionMode, PlanListEntry
 from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import _can_redo, _can_undo, _refresh_plan_list, _with_plan
+from app.core.domain.list_action_history import DeletePlanAction, DuplicatePlanAction, RenamePlanAction
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import resolve_plans_dir
 from app.core.intents.plan_intents import (
@@ -95,16 +96,39 @@ def handle_create_plan(intent: CreatePlanIntent, state: AppState, ctx: HandlerCo
 def handle_rename_plan(intent: RenamePlanIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Benennt den Plan aus *intent* um; aktualisiert ``current_plan_path``, falls er gerade offen ist.
 
+    Merkt sich die Umbenennung in ``ctx.list_history``, damit sie per Undo
+    rückgängig gemacht werden kann. Gehört der umbenannte Plan zur aktuell
+    im Speicher gehaltenen ``PlanHistory`` (z. B. weil der Kurs zuvor nur
+    verlassen wurde), wandert deren getrackter Pfad mit — der Raster-Undo-
+    Verlauf bleibt dabei erhalten (anders als beim Löschen).
+
     Args:
         intent: Pfad des umzubenennenden Plans und neuer Anzeigename.
         state: Aktueller AppState.
-        ctx: Handler-Kontext (Repository).
+        ctx: Handler-Kontext (Repository, History).
     """
+    try:
+        before_name = ctx.plan_repository.load_plan(intent.plan_path).meta.name
+    except Exception:
+        before_name = None
+
     try:
         new_path, plan = ctx.plan_repository.rename_plan(intent.plan_path, intent.new_name)
     except Exception:
         _log.exception("handle_rename_plan: failed")
         return dataclasses.replace(state, status_message="Fehler beim Umbenennen")
+
+    if before_name is not None and new_path != intent.plan_path:
+        ctx.list_history.record(
+            RenamePlanAction(
+                before_path=intent.plan_path,
+                after_path=new_path,
+                before_name=before_name,
+                after_name=plan.meta.name,
+            )
+        )
+    if ctx.history.plan_path == intent.plan_path:
+        ctx.history.rename(new_path)
 
     plan_list = _refresh_plan_list(state, ctx)
     new_current_path = new_path if state.current_plan_path == intent.plan_path else state.current_plan_path
@@ -114,7 +138,7 @@ def handle_rename_plan(intent: RenamePlanIntent, state: AppState, ctx: HandlerCo
 def handle_delete_plan(intent: DeletePlanIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Löscht den Plan aus *intent*; schließt ihn im Editor, falls er gerade offen ist.
 
-    Merkt sich den gelöschten Plan in ``ctx.last_deleted_plan``, damit ein
+    Merkt sich den gelöschten Plan in ``ctx.list_history``, damit ein
     nachfolgendes Undo (siehe ``handle_undo``) die Datei wiederherstellen kann.
     Gehört der gelöschte Plan zur aktuell im Speicher gehaltenen ``PlanHistory``
     (z. B. weil der Kurs zuvor nur verlassen, nicht neu geöffnet wurde), wird
@@ -138,7 +162,7 @@ def handle_delete_plan(intent: DeletePlanIntent, state: AppState, ctx: HandlerCo
         return dataclasses.replace(state, status_message="Fehler beim Löschen")
 
     if loaded_plan is not None:
-        ctx.last_deleted_plan = (intent.plan_path, loaded_plan)
+        ctx.list_history.record(DeletePlanAction(path=intent.plan_path, plan=loaded_plan))
     if ctx.history.plan_path == intent.plan_path:
         ctx.history.discard()
 
@@ -213,18 +237,22 @@ def handle_restore_plan(intent: RestorePlanIntent, state: AppState, ctx: Handler
 def handle_duplicate_plan(intent: DuplicatePlanIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Dupliziert den Plan aus *intent* unter dem neuen Namen; öffnet das Duplikat nicht automatisch.
 
+    Merkt sich das Duplikat in ``ctx.list_history``, damit es per Undo wieder
+    entfernt (und per Redo mit demselben Snapshot erneut angelegt) werden kann.
+
     Args:
         intent: Quellpfad, neuer Anzeigename und ob eine vorhandene Zieldatei überschrieben werden soll.
         state: Aktueller AppState.
-        ctx: Handler-Kontext (Repository).
+        ctx: Handler-Kontext (Repository, History).
     """
     try:
-        _new_path, _plan = ctx.plan_repository.duplicate_plan(
+        new_path, plan = ctx.plan_repository.duplicate_plan(
             intent.plan_path, intent.new_name, overwrite=intent.overwrite
         )
     except Exception:
         _log.exception("handle_duplicate_plan: failed for %s", intent.plan_path)
         return dataclasses.replace(state, status_message="Fehler beim Duplizieren")
 
+    ctx.list_history.record(DuplicatePlanAction(path=new_path, plan=plan))
     plan_list = _refresh_plan_list(state, ctx)
     return dataclasses.replace(state, plan_list=plan_list, status_message=f"Plan dupliziert: {intent.new_name}")

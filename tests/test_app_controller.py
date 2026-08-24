@@ -39,6 +39,7 @@ from app.application.handlers.plan_handlers import (
     handle_delete_plan,
     handle_duplicate_plan,
     handle_open_plan,
+    handle_rename_plan,
     handle_restore_plan,
 )
 from app.application.handlers.session_handlers import (
@@ -85,6 +86,7 @@ from app.core.intents.plan_intents import (
     DeletePlanIntent,
     DuplicatePlanIntent,
     OpenPlanIntent,
+    RenamePlanIntent,
     RestorePlanIntent,
 )
 from app.core.intents.session_intents import AddSessionIntent, GoToTodayIntent, NavigateSessionIntent
@@ -513,7 +515,7 @@ class TestDeletePlanUndo:
         result = handle_undo(UndoIntent(), deleted, ctx)
 
         assert path in ctx.plan_repository._plans
-        assert ctx.last_deleted_plan is None
+        assert ctx.list_history.peek_undo() is None
         assert any(e.path == path for e in result.plan_list)
         assert result.status_message == "Löschen rückgängig gemacht"
 
@@ -554,7 +556,7 @@ class TestDeletePlanUndo:
         result = handle_undo(UndoIntent(), AppState(), ctx)
 
         assert ctx.plan_repository._plans[path] is new_plan
-        assert ctx.last_deleted_plan is not None
+        assert ctx.list_history.peek_undo() is not None
         assert "existiert bereits" in result.status_message
 
     def test_failed_delete_does_not_set_undo_slot(self):
@@ -570,7 +572,7 @@ class TestDeletePlanUndo:
         result = handle_delete_plan(DeletePlanIntent(plan_path=path), AppState(), ctx)
 
         assert result.status_message == "Fehler beim Löschen"
-        assert ctx.last_deleted_plan is None
+        assert ctx.list_history.peek_undo() is None
 
     def test_deleting_open_plans_own_history_invalidates_it(self):
         plan = make_plan()
@@ -583,6 +585,260 @@ class TestDeletePlanUndo:
         handle_delete_plan(DeletePlanIntent(plan_path=path), left, ctx)
 
         assert ctx.history.plan_path is None
+
+
+# ---------------------------------------------------------------------------
+# Regressionstests: Sitzplan-Umbenennen ist rückgängig machbar (voller Stack)
+# ---------------------------------------------------------------------------
+
+class TestRenamePlanUndo:
+    def test_undo_after_rename_restores_old_name_and_path(self):
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "Klasse 5a.json"
+        ctx = make_ctx({path: plan})
+
+        handle_rename_plan(RenamePlanIntent(plan_path=path, new_name="Klasse 5b"), AppState(), ctx)
+        new_path = PLANS_DIR / "Klasse 5b.json"
+        assert new_path in ctx.plan_repository._plans
+        assert path not in ctx.plan_repository._plans
+
+        result = handle_undo(UndoIntent(), AppState(), ctx)
+
+        assert path in ctx.plan_repository._plans
+        assert new_path not in ctx.plan_repository._plans
+        assert ctx.plan_repository._plans[path].meta.name == "Klasse 5a"
+        assert result.status_message == "Umbenennen rückgängig gemacht"
+
+    def test_redo_after_rename_undo_reapplies_rename(self):
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "Klasse 5a.json"
+        ctx = make_ctx({path: plan})
+        new_path = PLANS_DIR / "Klasse 5b.json"
+
+        handle_rename_plan(RenamePlanIntent(plan_path=path, new_name="Klasse 5b"), AppState(), ctx)
+        handle_undo(UndoIntent(), AppState(), ctx)
+        result = handle_redo(RedoIntent(), AppState(), ctx)
+
+        assert new_path in ctx.plan_repository._plans
+        assert path not in ctx.plan_repository._plans
+        assert result.status_message == "Umbenennen wiederholt"
+
+    def test_undo_after_rename_collision_is_rejected_and_stack_preserved(self):
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "Klasse 5a.json"
+        ctx = make_ctx({path: plan})
+        new_path = PLANS_DIR / "Klasse 5b.json"
+
+        handle_rename_plan(RenamePlanIntent(plan_path=path, new_name="Klasse 5b"), AppState(), ctx)
+        # ein anderer Plan belegt inzwischen den freigewordenen alten Namen
+        ctx.plan_repository._plans[path] = make_plan(name="Andere Klasse")
+
+        result = handle_undo(UndoIntent(), AppState(), ctx)
+
+        assert "existiert bereits" in result.status_message
+        assert ctx.list_history.peek_undo() is not None
+        assert new_path in ctx.plan_repository._plans
+
+    def test_renaming_history_tracked_plan_updates_path_and_keeps_history(self):
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "Klasse 5a.json"
+        ctx = make_ctx({path: plan})
+        opened = handle_open_plan(OpenPlanIntent(plan_path=path), AppState(), ctx)
+        edited = handle_create_student(CreateStudentIntent(x=1, y=0), opened, ctx)
+        assert edited.can_undo is True
+        left = handle_clear_selection(ClearSelectionIntent(), edited, ctx)
+        assert ctx.history.plan_path == path
+
+        handle_rename_plan(RenamePlanIntent(plan_path=path, new_name="Klasse 5b"), left, ctx)
+
+        new_path = PLANS_DIR / "Klasse 5b.json"
+        assert ctx.history.plan_path == new_path
+        reopened = handle_open_plan(OpenPlanIntent(plan_path=new_path), left, ctx)
+        assert reopened.can_undo is True
+
+
+# ---------------------------------------------------------------------------
+# Regressionstests: Sitzplan-Duplizieren ist rückgängig machbar (voller Stack)
+# ---------------------------------------------------------------------------
+
+class TestDuplicatePlanUndo:
+    def test_undo_after_duplicate_removes_copy_but_keeps_original(self):
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "Klasse 5a.json"
+        ctx = make_ctx({path: plan})
+
+        handle_duplicate_plan(
+            DuplicatePlanIntent(plan_path=path, new_name="Klasse 5a Kopie", overwrite=False), AppState(), ctx
+        )
+        copy_path = PLANS_DIR / "Klasse 5a Kopie.json"
+        assert copy_path in ctx.plan_repository._plans
+
+        result = handle_undo(UndoIntent(), AppState(), ctx)
+
+        assert copy_path not in ctx.plan_repository._plans
+        assert path in ctx.plan_repository._plans
+        assert result.status_message == "Duplizieren rückgängig gemacht"
+
+    def test_redo_after_duplicate_undo_recreates_identical_snapshot(self):
+        """Redo muss den urspruenglich erzeugten Snapshot (gleiche plan_id) liefern,
+        nicht bloss eine neue, erneut generierte Kopie."""
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "Klasse 5a.json"
+        ctx = make_ctx({path: plan})
+
+        handle_duplicate_plan(
+            DuplicatePlanIntent(plan_path=path, new_name="Klasse 5a Kopie", overwrite=False), AppState(), ctx
+        )
+        copy_path = PLANS_DIR / "Klasse 5a Kopie.json"
+        original_plan_id = ctx.plan_repository._plans[copy_path].plan_id
+
+        handle_undo(UndoIntent(), AppState(), ctx)
+        result = handle_redo(RedoIntent(), AppState(), ctx)
+
+        assert copy_path in ctx.plan_repository._plans
+        assert ctx.plan_repository._plans[copy_path].plan_id == original_plan_id
+        assert result.status_message == "Duplizieren wiederholt"
+
+    def test_undo_after_duplicate_collision_is_rejected_and_stack_preserved(self):
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "Klasse 5a.json"
+        ctx = make_ctx({path: plan})
+
+        handle_duplicate_plan(
+            DuplicatePlanIntent(plan_path=path, new_name="Klasse 5a Kopie", overwrite=False), AppState(), ctx
+        )
+        handle_undo(UndoIntent(), AppState(), ctx)
+        # zwischenzeitlich belegt ein anderer Plan denselben Namen erneut
+        copy_path = PLANS_DIR / "Klasse 5a Kopie.json"
+        ctx.plan_repository._plans[copy_path] = make_plan(name="Klasse 5a Kopie")
+
+        result = handle_redo(RedoIntent(), AppState(), ctx)
+
+        assert "existiert bereits" in result.status_message
+        assert ctx.list_history.peek_redo() is not None
+
+    def test_undoing_duplicate_of_history_tracked_plan_discards_that_history(self):
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "Klasse 5a.json"
+        ctx = make_ctx({path: plan})
+        handle_duplicate_plan(
+            DuplicatePlanIntent(plan_path=path, new_name="Klasse 5a Kopie", overwrite=False), AppState(), ctx
+        )
+        copy_path = PLANS_DIR / "Klasse 5a Kopie.json"
+        opened_copy = handle_open_plan(OpenPlanIntent(plan_path=copy_path), AppState(), ctx)
+        handle_clear_selection(ClearSelectionIntent(), opened_copy, ctx)
+        assert ctx.history.plan_path == copy_path
+
+        handle_undo(UndoIntent(), AppState(), ctx)
+
+        assert ctx.history.plan_path is None
+
+
+# ---------------------------------------------------------------------------
+# Regressionstest: gemeinsamer LIFO-Stack ueber Rename/Delete/Duplicate hinweg
+# ---------------------------------------------------------------------------
+
+class TestMixedListActionStack:
+    def _perform_rename_duplicate_delete(self, ctx):
+        path_a = PLANS_DIR / "A.json"
+        path_b = PLANS_DIR / "B.json"
+        handle_rename_plan(RenamePlanIntent(plan_path=path_a, new_name="A2"), AppState(), ctx)
+        path_a2 = PLANS_DIR / "A2.json"
+        handle_duplicate_plan(
+            DuplicatePlanIntent(plan_path=path_a2, new_name="A2 Kopie", overwrite=False), AppState(), ctx
+        )
+        path_a2_copy = PLANS_DIR / "A2 Kopie.json"
+        handle_delete_plan(DeletePlanIntent(plan_path=path_b), AppState(), ctx)
+        return path_a, path_a2, path_a2_copy, path_b
+
+    def test_mixed_kind_undo_order_is_lifo(self):
+        ctx = make_ctx({PLANS_DIR / "A.json": make_plan(name="A"), PLANS_DIR / "B.json": make_plan(name="B")})
+        path_a, path_a2, path_a2_copy, path_b = self._perform_rename_duplicate_delete(ctx)
+
+        first = handle_undo(UndoIntent(), AppState(), ctx)
+        assert first.status_message == "Löschen rückgängig gemacht"
+        assert path_b in ctx.plan_repository._plans
+
+        second = handle_undo(UndoIntent(), AppState(), ctx)
+        assert second.status_message == "Duplizieren rückgängig gemacht"
+        assert path_a2_copy not in ctx.plan_repository._plans
+
+        third = handle_undo(UndoIntent(), AppState(), ctx)
+        assert third.status_message == "Umbenennen rückgängig gemacht"
+        assert path_a in ctx.plan_repository._plans
+        assert path_a2 not in ctx.plan_repository._plans
+
+        assert ctx.list_history.peek_undo() is None
+
+    def test_mixed_kind_redo_restores_identical_end_state(self):
+        ctx = make_ctx({PLANS_DIR / "A.json": make_plan(name="A"), PLANS_DIR / "B.json": make_plan(name="B")})
+        path_a, path_a2, path_a2_copy, path_b = self._perform_rename_duplicate_delete(ctx)
+        original_copy_plan_id = ctx.plan_repository._plans[path_a2_copy].plan_id
+
+        for _ in range(3):
+            handle_undo(UndoIntent(), AppState(), ctx)
+        for _ in range(3):
+            handle_redo(RedoIntent(), AppState(), ctx)
+
+        assert path_b not in ctx.plan_repository._plans
+        assert path_a not in ctx.plan_repository._plans
+        assert path_a2 in ctx.plan_repository._plans
+        assert path_a2_copy in ctx.plan_repository._plans
+        assert ctx.plan_repository._plans[path_a2_copy].plan_id == original_copy_plan_id
+        assert ctx.list_history.peek_redo() is None
+
+
+# ---------------------------------------------------------------------------
+# Regressionstest: List-History und Raster-History bleiben getrennte Systeme
+# ---------------------------------------------------------------------------
+
+class TestListVsGridHistorySeparation:
+    def test_undo_with_open_plan_uses_grid_history_not_list_history(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        opened = handle_open_plan(OpenPlanIntent(plan_path=path), AppState(), ctx)
+        edited = handle_create_student(CreateStudentIntent(x=1, y=0), opened, ctx)
+
+        other_path = PLANS_DIR / "other.json"
+        ctx.plan_repository._plans[other_path] = make_plan(name="Other")
+        handle_delete_plan(DeletePlanIntent(plan_path=other_path), AppState(), ctx)
+        assert ctx.list_history.peek_undo() is not None
+
+        result = handle_undo(UndoIntent(), edited, ctx)
+
+        assert result.current_plan.student_at(1, 0) is None
+        assert ctx.list_history.peek_undo() is not None
+        assert other_path not in ctx.plan_repository._plans
+
+    def test_undo_without_open_plan_uses_list_history_not_grid_history(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        opened = handle_open_plan(OpenPlanIntent(plan_path=path), AppState(), ctx)
+        edited = handle_create_student(CreateStudentIntent(x=1, y=0), opened, ctx)
+        left = handle_clear_selection(ClearSelectionIntent(), edited, ctx)
+        assert ctx.history.plan_path == path
+
+        other_path = PLANS_DIR / "other.json"
+        ctx.plan_repository._plans[other_path] = make_plan(name="Other")
+        handle_delete_plan(DeletePlanIntent(plan_path=other_path), left, ctx)
+
+        result = handle_undo(UndoIntent(), left, ctx)
+
+        assert other_path in ctx.plan_repository._plans
+        assert result.status_message == "Löschen rückgängig gemacht"
+        reopened = handle_open_plan(OpenPlanIntent(plan_path=path), left, ctx)
+        assert reopened.can_undo is True
+
+    def test_undo_in_list_mode_with_empty_list_history_is_clean_noop(self):
+        ctx = make_ctx()
+        state = AppState()
+
+        result = handle_undo(UndoIntent(), state, ctx)
+
+        assert result.status_message == "Nichts rückgängig zu machen"
+        assert result.current_plan is None
 
 
 # ---------------------------------------------------------------------------
