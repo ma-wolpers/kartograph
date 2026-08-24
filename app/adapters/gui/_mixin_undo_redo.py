@@ -19,9 +19,13 @@ class UndoRedoMixin:
     """Mixin: Undo/Redo für Raster sowie Clipboard-Operationen (v4)."""
 
     def undo_last_change(self) -> None:
-        """Macht die letzte Änderung rückgängig (v4: UndoIntent)."""
-        if not self.current_plan or not self.current_plan_path:
-            return
+        """Macht die letzte Änderung rückgängig (v4: UndoIntent).
+
+        Auch ohne offenen Plan (Listenansicht) dispatcht, damit ein zuvor
+        gelöschter Sitzplan per Undo wiederhergestellt werden kann — der
+        Handler selbst entscheidet, ob Raster-Undo, Lösch-Wiederherstellung
+        oder "nichts zu tun" zutrifft.
+        """
         self._controller.dispatch(UndoIntent())
 
     def undo_last_five_changes(self) -> None:

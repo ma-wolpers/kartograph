@@ -49,6 +49,9 @@ The format is based on Keep a Changelog.
 - Veraltete Kartograph-Prozesse aus vorherigen Sitzungen werden beim Start automatisch beendet, damit keine Zombie-Prozesse Ports oder Ressourcen blockieren.
 - Maus-Trigger in Canvas-Interaktionen wurden korrigiert: bestimmte Klick-Events wurden nicht zuverlaessig ausgeloest, wenn der Mauszeiger schnell zwischen Kacheln bewegt wurde.
 - Zwischenablage-Operationen (Kopieren/Ausschneiden/Einfuegen) funktionierten nach bestimmten Interaktionssequenzen nicht zuverlaessig; die Clipboard-Verarbeitung wurde robuster gemacht.
+- Dokumentationssymbole schalteten nur noch binär zwischen 0 und 1 um, statt wie vorgesehen zyklisch durch die vier Stärken 0, 1, 2, 3 durchzuschalten (beim Mixin-Split versehentlich verlorengegangene Zyklus-Formel).
+- "Rückgängig" vergaß den bisherigen Bearbeitungsverlauf, sobald man einen Kurs verließ und denselben Kurs erneut öffnete — der Verlauf bleibt jetzt erhalten, solange kein anderer Kurs dazwischen geöffnet wird.
+- Das Löschen eines Sitzplans ließ sich nicht mehr rückgängig machen (Strg+Z blieb in der Kursliste wirkungslos); ein gelöschter Sitzplan lässt sich jetzt per Strg+Z wiederherstellen, solange danach kein weiterer Plan gelöscht wurde.
 
 ### Changed
 - Die Dokumentationsansicht ist jetzt in kleinen Fenstern deutlich besser bedienbar: der Mitteltrenner zwischen Datumstabelle und Notentabelle ist per Drag&Drop verschiebbar, und horizontales Scrollen per Shift+Mausrad reagiert mit groesserer Schrittweite.

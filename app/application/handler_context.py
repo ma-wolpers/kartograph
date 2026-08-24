@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.plan_history import PlanHistory
 from app.core.domain.student_clipboard import StudentClipboard
 
@@ -21,3 +22,4 @@ class HandlerContext:
     history: PlanHistory
     default_plans_dir: Path       # Fallback, falls kein Ordner konfiguriert ist
     clipboard: StudentClipboard = field(default_factory=StudentClipboard)
+    last_deleted_plan: tuple[Path, SeatingPlan] | None = None  # zuletzt gelöschter Plan, für Undo

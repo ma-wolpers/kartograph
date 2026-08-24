@@ -5,7 +5,7 @@ import logging
 
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _can_redo, _can_undo, _record_and_save, _with_plan
+from app.application.handlers._shared import _can_redo, _can_undo, _record_and_save, _refresh_plan_list, _with_plan
 from app.core.intents.edit_intents import (
     CopySelectionIntent,
     CutSelectionIntent,
@@ -17,8 +17,55 @@ from app.core.intents.edit_intents import (
 _log = logging.getLogger("kartograph.handlers.edit")
 
 
+def _undo_deleted_plan(state: AppState, ctx: HandlerContext) -> AppState:
+    """Stellt den zuletzt gelöschten Plan wieder her, falls einer vorliegt.
+
+    One-shot: bei Erfolg wird ``ctx.last_deleted_plan`` geleert, ein erneutes
+    Undo hat dann nichts mehr rückgängig zu machen. Existiert am Zielpfad
+    bereits wieder eine Datei (z. B. neu angelegter Plan mit gleichem Namen),
+    wird nicht überschrieben und der Slot bleibt erhalten, damit der Nutzer
+    den Konflikt auflösen und Undo erneut versuchen kann.
+
+    Args:
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository, zuletzt gelöschter Plan).
+    """
+    if ctx.last_deleted_plan is None:
+        return dataclasses.replace(state, status_message="Nichts rückgängig zu machen")
+
+    path, plan = ctx.last_deleted_plan
+    try:
+        ctx.plan_repository.load_plan(path)
+    except Exception:
+        pass
+    else:
+        return dataclasses.replace(
+            state, status_message=f"Datei existiert bereits, kann nicht wiederhergestellt werden: {path.name}"
+        )
+
+    try:
+        ctx.plan_repository.save_plan(plan, path)
+    except Exception:
+        _log.exception("handle_undo: restore of deleted plan failed for %s", path)
+        return dataclasses.replace(state, status_message="Fehler beim Wiederherstellen")
+
+    ctx.last_deleted_plan = None
+    plan_list = _refresh_plan_list(state, ctx)
+    return dataclasses.replace(
+        state,
+        plan_list=plan_list,
+        can_undo=False,
+        can_redo=False,
+        status_message="Löschen rückgängig gemacht",
+    )
+
+
 def handle_undo(intent: UndoIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Macht *intent.steps* Planänderungen rückgängig und persistiert den wiederhergestellten Plan.
+
+    Ist kein Plan geöffnet (Listenansicht) und wurde zuletzt ein Plan gelöscht,
+    stellt Undo stattdessen diese Löschung wieder her (siehe
+    ``ctx.last_deleted_plan``), statt einen Raster-Undo zu versuchen.
 
     Args:
         intent: Anzahl der rückgängig zu machenden Schritte.
@@ -26,7 +73,7 @@ def handle_undo(intent: UndoIntent, state: AppState, ctx: HandlerContext) -> App
         ctx: Handler-Kontext (Repository, History).
     """
     if state.current_plan is None or state.current_plan_path is None:
-        return state
+        return _undo_deleted_plan(state, ctx)
     restored = ctx.history.undo(intent.steps)
     if restored is None:
         return dataclasses.replace(state, status_message="Nichts rückgängig zu machen")

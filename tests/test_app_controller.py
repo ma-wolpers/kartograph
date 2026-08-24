@@ -452,6 +452,140 @@ class TestHandlePlanHandlers:
 
 
 # ---------------------------------------------------------------------------
+# Regressionstests: History bleibt beim Wiederbetreten desselben Kurses erhalten
+# ---------------------------------------------------------------------------
+
+class TestPlanHistoryPersistsAcrossReopen:
+    def test_reopening_same_plan_preserves_undo_history(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        opened = handle_open_plan(OpenPlanIntent(plan_path=path), AppState(), ctx)
+        edited = handle_create_student(CreateStudentIntent(x=1, y=0), opened, ctx)
+        assert edited.can_undo is True
+
+        left = handle_clear_selection(ClearSelectionIntent(), edited, ctx)
+        reopened = handle_open_plan(OpenPlanIntent(plan_path=path), left, ctx)
+
+        assert reopened.can_undo is True
+
+    def test_opening_different_plan_resets_undo_history(self):
+        plan_a = make_plan()
+        path_a = PLANS_DIR / "a.json"
+        plan_b = make_plan()
+        path_b = PLANS_DIR / "b.json"
+        ctx = make_ctx({path_a: plan_a, path_b: plan_b})
+        opened_a = handle_open_plan(OpenPlanIntent(plan_path=path_a), AppState(), ctx)
+        edited_a = handle_create_student(CreateStudentIntent(x=1, y=0), opened_a, ctx)
+        assert edited_a.can_undo is True
+
+        opened_b = handle_open_plan(OpenPlanIntent(plan_path=path_b), edited_a, ctx)
+
+        assert opened_b.can_undo is False
+        assert ctx.history.plan_path == path_b
+
+    def test_undo_after_reopening_same_plan_restores_previous_state(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        opened = handle_open_plan(OpenPlanIntent(plan_path=path), AppState(), ctx)
+        edited = handle_create_student(CreateStudentIntent(x=1, y=0), opened, ctx)
+        left = handle_clear_selection(ClearSelectionIntent(), edited, ctx)
+        reopened = handle_open_plan(OpenPlanIntent(plan_path=path), left, ctx)
+
+        result = handle_undo(UndoIntent(), reopened, ctx)
+
+        assert result.current_plan.student_at(1, 0) is None
+
+
+# ---------------------------------------------------------------------------
+# Regressionstests: Sitzplan-Löschen ist rückgängig machbar
+# ---------------------------------------------------------------------------
+
+class TestDeletePlanUndo:
+    def test_undo_after_delete_restores_file(self):
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "klasse5a.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        deleted = handle_delete_plan(DeletePlanIntent(plan_path=path), state, ctx)
+        result = handle_undo(UndoIntent(), deleted, ctx)
+
+        assert path in ctx.plan_repository._plans
+        assert ctx.last_deleted_plan is None
+        assert any(e.path == path for e in result.plan_list)
+        assert result.status_message == "Löschen rückgängig gemacht"
+
+    def test_undo_after_delete_only_restores_most_recent(self):
+        plan_a = make_plan(name="A")
+        plan_b = make_plan(name="B")
+        path_a = PLANS_DIR / "a.json"
+        path_b = PLANS_DIR / "b.json"
+        ctx = make_ctx({path_a: plan_a, path_b: plan_b})
+
+        handle_delete_plan(DeletePlanIntent(plan_path=path_a), AppState(), ctx)
+        handle_delete_plan(DeletePlanIntent(plan_path=path_b), AppState(), ctx)
+        handle_undo(UndoIntent(), AppState(), ctx)
+
+        assert path_b in ctx.plan_repository._plans
+        assert path_a not in ctx.plan_repository._plans
+
+    def test_second_undo_after_delete_restore_does_nothing(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+
+        handle_delete_plan(DeletePlanIntent(plan_path=path), AppState(), ctx)
+        handle_undo(UndoIntent(), AppState(), ctx)
+        result = handle_undo(UndoIntent(), AppState(), ctx)
+
+        assert result.status_message == "Nichts rückgängig zu machen"
+
+    def test_undo_after_delete_does_not_overwrite_recreated_plan(self):
+        plan = make_plan(name="Klasse 5a")
+        path = PLANS_DIR / "Klasse 5a.json"
+        ctx = make_ctx({path: plan})
+
+        handle_delete_plan(DeletePlanIntent(plan_path=path), AppState(), ctx)
+        handle_create_plan(CreatePlanIntent(name="Klasse 5a"), AppState(), ctx)
+        new_plan = ctx.plan_repository._plans[path]
+
+        result = handle_undo(UndoIntent(), AppState(), ctx)
+
+        assert ctx.plan_repository._plans[path] is new_plan
+        assert ctx.last_deleted_plan is not None
+        assert "existiert bereits" in result.status_message
+
+    def test_failed_delete_does_not_set_undo_slot(self):
+        class FailingDeleteRepository(FakePlanRepository):
+            def delete_plan(self, plan_path: Path) -> None:
+                raise OSError("Zugriff verweigert")
+
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx()
+        ctx.plan_repository = FailingDeleteRepository({path: plan})
+
+        result = handle_delete_plan(DeletePlanIntent(plan_path=path), AppState(), ctx)
+
+        assert result.status_message == "Fehler beim Löschen"
+        assert ctx.last_deleted_plan is None
+
+    def test_deleting_open_plans_own_history_invalidates_it(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        opened = handle_open_plan(OpenPlanIntent(plan_path=path), AppState(), ctx)
+        left = handle_clear_selection(ClearSelectionIntent(), opened, ctx)
+        assert ctx.history.plan_path == path
+
+        handle_delete_plan(DeletePlanIntent(plan_path=path), left, ctx)
+
+        assert ctx.history.plan_path is None
+
+
+# ---------------------------------------------------------------------------
 # Handler-Isolation: Student-Handler
 # ---------------------------------------------------------------------------
 
@@ -814,7 +948,7 @@ class TestHandleParticipationHandlers:
         plan = make_plan(students=[student])
         path = PLANS_DIR / "test.json"
         ctx = make_ctx({path: plan})
-        ctx.history.reset(plan)
+        ctx.history.reset(plan, path)
         state = make_state_with_plan(plan, path)
 
         before = len(ctx.history._states)
@@ -843,7 +977,7 @@ class TestHandleParticipationHandlers:
         )
         path = PLANS_DIR / "test.json"
         ctx = make_ctx({path: plan})
-        ctx.history.reset(plan)
+        ctx.history.reset(plan, path)
         state = make_state_with_plan(plan, path)
 
         before = len(ctx.history._states)
@@ -1053,7 +1187,7 @@ class TestHandleUndoRedo:
         plan = make_plan()
         path = PLANS_DIR / "test.json"
         ctx.plan_repository.save_plan(plan, path)
-        ctx.history.reset(plan)
+        ctx.history.reset(plan, path)
         student = make_student(x=1, y=0)
         plan_v2 = make_plan(students=[student])
         ctx.history.record(plan_v2, "student.create")
@@ -1095,8 +1229,8 @@ class TestHandleUndoRedo:
     def test_undo_without_history_returns_message(self):
         ctx = make_ctx()
         plan = make_plan()
-        ctx.history.reset(plan)
         path = PLANS_DIR / "test.json"
+        ctx.history.reset(plan, path)
         ctx.plan_repository.save_plan(plan, path)
         state = AppState(current_plan=plan, current_plan_path=path)
 
@@ -1104,13 +1238,17 @@ class TestHandleUndoRedo:
 
         assert result.status_message != ""
 
-    def test_undo_without_plan_returns_unchanged_state(self):
+    def test_undo_without_plan_and_without_deleted_plan_reports_nothing_to_undo(self):
+        """Ohne offenen Plan und ohne zuvor gelöschten Plan liefert Undo eine
+        Statusmeldung statt (wie vor dem Lösch-Undo-Fix) den State stillschweigend
+        unveraendert zurueckzugeben -- die Listenansicht kann so Feedback zeigen."""
         ctx = make_ctx()
         state = AppState()
 
         result = handle_undo(UndoIntent(), state, ctx)
 
-        assert result is state
+        assert result.status_message == "Nichts rückgängig zu machen"
+        assert result.current_plan is None
 
 
 # ---------------------------------------------------------------------------

@@ -114,16 +114,33 @@ def handle_rename_plan(intent: RenamePlanIntent, state: AppState, ctx: HandlerCo
 def handle_delete_plan(intent: DeletePlanIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Löscht den Plan aus *intent*; schließt ihn im Editor, falls er gerade offen ist.
 
+    Merkt sich den gelöschten Plan in ``ctx.last_deleted_plan``, damit ein
+    nachfolgendes Undo (siehe ``handle_undo``) die Datei wiederherstellen kann.
+    Gehört der gelöschte Plan zur aktuell im Speicher gehaltenen ``PlanHistory``
+    (z. B. weil der Kurs zuvor nur verlassen, nicht neu geöffnet wurde), wird
+    diese History verworfen — sonst würde ein später unter demselben Pfad neu
+    angelegter Plan versehentlich ihren Verlauf erben.
+
     Args:
         intent: Pfad des zu löschenden Plans.
         state: Aktueller AppState.
-        ctx: Handler-Kontext (Repository).
+        ctx: Handler-Kontext (Repository, History).
     """
+    try:
+        loaded_plan = ctx.plan_repository.load_plan(intent.plan_path)
+    except Exception:
+        loaded_plan = None
+
     try:
         ctx.plan_repository.delete_plan(intent.plan_path)
     except Exception:
         _log.exception("handle_delete_plan: failed for %s", intent.plan_path)
         return dataclasses.replace(state, status_message="Fehler beim Löschen")
+
+    if loaded_plan is not None:
+        ctx.last_deleted_plan = (intent.plan_path, loaded_plan)
+    if ctx.history.plan_path == intent.plan_path:
+        ctx.history.discard()
 
     plan_list = _refresh_plan_list(state, ctx)
     was_open = state.current_plan_path == intent.plan_path
