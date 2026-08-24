@@ -48,6 +48,20 @@ class PlanHistory:
         self._redo_states = []
         self._redo_kinds = []
 
+    def rename(self, new_path: Path) -> None:
+        """Aktualisiert den getrackten Pfad nach einer Umbenennung; Verlauf bleibt erhalten.
+
+        Anders als ``discard()`` (für einen gelöschten Plan gedacht) ändert
+        sich bei einer Umbenennung nur der Dateipfad, nicht der Plan-Inhalt
+        — der Undo/Redo-Verlauf bleibt deshalb vollständig nutzbar, nur die
+        Plan-Identität muss mitwandern, sonst würde ein später unter dem
+        alten Pfad neu angelegter Plan versehentlich diesen Verlauf erben.
+
+        Args:
+            new_path: Neuer Pfad der umbenannten Plandatei.
+        """
+        self.plan_path = new_path
+
     def record(self, plan: SeatingPlan, action_kind: str) -> None:
         """Merkt sich *plan* als neuen Verlaufszustand und löscht den Redo-Stack.
 
