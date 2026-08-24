@@ -52,6 +52,7 @@ The format is based on Keep a Changelog.
 - Dokumentationssymbole schalteten nur noch binär zwischen 0 und 1 um, statt wie vorgesehen zyklisch durch die vier Stärken 0, 1, 2, 3 durchzuschalten (beim Mixin-Split versehentlich verlorengegangene Zyklus-Formel).
 - "Rückgängig" vergaß den bisherigen Bearbeitungsverlauf, sobald man einen Kurs verließ und denselben Kurs erneut öffnete — der Verlauf bleibt jetzt erhalten, solange kein anderer Kurs dazwischen geöffnet wird.
 - Das Löschen eines Sitzplans ließ sich nicht mehr rückgängig machen (Strg+Z blieb in der Kursliste wirkungslos); ein gelöschter Sitzplan lässt sich jetzt per Strg+Z wiederherstellen, solange danach kein weiterer Plan gelöscht wurde.
+- Umbenennen und Duplizieren von Sitzplänen waren ebenfalls nicht mehr rückgängig machbar (dieselbe Regression wie beim Löschen). Alle drei Kursaktionen (Umbenennen, Löschen, Duplizieren) teilen sich jetzt wieder einen gemeinsamen Verlauf: Strg+Z macht in der Kursliste immer die zuletzt ausgeführte dieser drei Aktionen rückgängig, unabhängig von ihrer Art, und Strg+Y wiederholt sie bei Bedarf erneut.
 
 ### Changed
 - Die Dokumentationsansicht ist jetzt in kleinen Fenstern deutlich besser bedienbar: der Mitteltrenner zwischen Datumstabelle und Notentabelle ist per Drag&Drop verschiebbar, und horizontales Scrollen per Shift+Mausrad reagiert mit groesserer Schrittweite.
