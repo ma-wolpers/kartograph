@@ -30,6 +30,7 @@ from app.adapters.gui._mixin_layout_docs import LayoutDocsMixin
 from app.adapters.gui._mixin_menu import MenuMixin
 from app.adapters.gui._mixin_namenfit_export import NamenfitExportMixin
 from app.adapters.gui._mixin_pdf import PdfMixin
+from app.adapters.gui._mixin_student_png_export import StudentPngExportMixin
 from app.adapters.gui._mixin_plan_crud import PlanCrudMixin
 from app.adapters.gui._mixin_plan_list import PlanListMixin
 from app.adapters.gui._mixin_popup import PopupMixin
@@ -84,6 +85,7 @@ from bw_gui.menu import section_spec
 class KartographMainWindow(
     PdfMixin,
     NamenfitExportMixin,
+    StudentPngExportMixin,
     ExportMixin,
     SettingsMixin,
     UndoRedoMixin,

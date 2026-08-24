@@ -33,6 +33,7 @@ class UiIntent:
     TOGGLE_THEME = "theme.toggle"
     EXPORT_PDF = "export.pdf"
     EXPORT_NAMENFIT_CSV = "export.namenfit_csv"
+    EXPORT_STUDENT_PNGS_ZIP = "export.student_pngs_zip"
     UNDO = "edit.undo"
     REDO = "edit.redo"
     UNDO_LAST_FIVE = "edit.undo_last_five"

@@ -84,6 +84,7 @@ class MenuMixin:
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Export PDF (Strg+E)", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF)),
             SharedMenuItem(type="command", label="Für Namenfit exportieren (CSV)", command=lambda: self._handle_intent(UiIntent.EXPORT_NAMENFIT_CSV)),
+            SharedMenuItem(type="command", label="Sitzkärtchen exportieren (ZIP)", command=lambda: self._handle_intent(UiIntent.EXPORT_STUDENT_PNGS_ZIP)),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Zur Planliste", command=lambda: self._handle_intent(UiIntent.GO_TO_LIST)),
             SharedMenuItem(type="separator"),

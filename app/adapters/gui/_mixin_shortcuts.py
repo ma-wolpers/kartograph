@@ -72,6 +72,7 @@ class ShortcutMixin:
             UiIntent.TOGGLE_THEME: lambda: self.toggle_theme(),
             UiIntent.EXPORT_PDF: lambda: self.export_plan_pdf_dialog(),
             UiIntent.EXPORT_NAMENFIT_CSV: lambda: self.export_plan_namenfit_csv_dialog(),
+            UiIntent.EXPORT_STUDENT_PNGS_ZIP: lambda: self.export_plan_student_pngs_dialog(),
             UiIntent.UNDO: lambda: self.undo_last_change(),
             UiIntent.REDO: lambda: self.redo_last_change(),
             UiIntent.UNDO_LAST_FIVE: lambda: self.undo_last_five_changes(),
