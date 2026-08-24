@@ -77,6 +77,7 @@ from app.application.handlers.symbol_handlers import (
 from app.application.handlers.view_handlers import (
     handle_export_namenfit_csv,
     handle_export_pdf,
+    handle_export_student_pngs_zip,
     handle_open_settings,
     handle_open_tablegroup_settings,
     handle_reset_view,
@@ -140,6 +141,7 @@ from app.core.intents.symbol_intents import (
 from app.core.intents.view_intents import (
     ExportNamenfitCsvIntent,
     ExportPdfIntent,
+    ExportStudentPngsZipIntent,
     OpenSettingsIntent,
     OpenTablegroupSettingsIntent,
     ResetViewIntent,
@@ -319,6 +321,7 @@ class KartographAppController:
         r.register(ResetViewIntent,              lambda i, s: handle_reset_view(i, s, ctx))
         r.register(ExportPdfIntent,              lambda i, s: handle_export_pdf(i, s, ctx))
         r.register(ExportNamenfitCsvIntent,      lambda i, s: handle_export_namenfit_csv(i, s, ctx))
+        r.register(ExportStudentPngsZipIntent,   lambda i, s: handle_export_student_pngs_zip(i, s, ctx))
         r.register(OpenSettingsIntent,           lambda i, s: handle_open_settings(i, s, ctx))
         r.register(UpdateSettingsIntent,         lambda i, s: handle_update_settings(i, s, ctx))
         r.register(OpenTablegroupSettingsIntent, lambda i, s: handle_open_tablegroup_settings(i, s, ctx))

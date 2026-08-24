@@ -54,6 +54,16 @@ class ExportNamenfitCsvIntent(Intent):
 
 
 @dataclass(frozen=True)
+class ExportStudentPngsZipIntent(Intent):
+    """Markiert einen abgeschlossenen PNG-ZIP-Export (ein Sitzkärtchen je Schüler).
+
+    Reiner No-Op-Marker, analog zu ``ExportPdfIntent``/``ExportNamenfitCsvIntent``:
+    Dateidialog, PNG-Rendering und ZIP-Schreiben sind Tk-/IO-Seiteneffekte
+    ohne AppState-Wirkung.
+    """
+
+
+@dataclass(frozen=True)
 class OpenSettingsIntent(Intent):
     """Lädt die persistierten Einstellungen frisch aus dem Settings-Repository in den AppState."""
 

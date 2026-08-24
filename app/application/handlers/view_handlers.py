@@ -8,6 +8,7 @@ from app.core.domain.settings import KartographSettings
 from app.core.intents.view_intents import (
     ExportNamenfitCsvIntent,
     ExportPdfIntent,
+    ExportStudentPngsZipIntent,
     OpenSettingsIntent,
     OpenTablegroupSettingsIntent,
     ResetViewIntent,
@@ -104,6 +105,19 @@ def handle_export_pdf(intent: ExportPdfIntent, state: AppState, ctx: HandlerCont
 
 def handle_export_namenfit_csv(intent: ExportNamenfitCsvIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """No-Op: Namenfit-CSV-Export hat keine AppState-Wirkung (s. Kommentar oben).
+
+    Args:
+        intent: Trägt keine Felder.
+        state: Aktueller AppState (wird unverändert zurückgegeben).
+        ctx: Handler-Kontext (von diesem Handler nicht benötigt).
+    """
+    return state
+
+
+def handle_export_student_pngs_zip(
+    intent: ExportStudentPngsZipIntent, state: AppState, ctx: HandlerContext
+) -> AppState:
+    """No-Op: PNG-ZIP-Export hat keine AppState-Wirkung (s. Kommentar oben).
 
     Args:
         intent: Trägt keine Felder.
