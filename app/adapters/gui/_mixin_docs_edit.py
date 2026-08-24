@@ -15,7 +15,7 @@ class DocsEditMixin:
     def _toggle_documentation_symbol(self, symbol: str) -> None:
         """Schaltet ein Dokumentationssymbol für die aktuelle Doku-Zellenauswahl um.
 
-        Setzt das Symbol auf 1 falls es zuvor nicht aktiv war, andernfalls auf 0.
+        Schaltet zyklisch durch die Stärken 0, 1, 2, 3 und wieder zurück auf 0.
         Aktualisiert danach die Doku-Tabelle.
 
         Args:
@@ -36,7 +36,7 @@ class DocsEditMixin:
             entry = session.entry_for(student.student_id)
             if entry is not None:
                 current_strength = int(entry.symbols.get(symbol, 0))
-        next_strength = 0 if current_strength > 0 else 1
+        next_strength = (current_strength + 1) % 4
         self._controller.dispatch(
             RecordDocumentationSymbolIntent(
                 student_id=student.student_id,
