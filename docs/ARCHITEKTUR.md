@@ -20,6 +20,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Zusaetzlich erzeugt die GUI in festem Intervall (5 Minuten) Snapshot-Backups des aktuell geoeffneten Plans ueber die Repository-Backup-API, ohne die Primardatei neu zu schreiben.
 - Symboldefinitionen werden aus `config/symbols.json` gelesen und validiert.
 - PDF-Export wird ueber einen dedizierten Infrastructure-Exporter umgesetzt.
+- PNG-ZIP-Export (ein transparentes Sitzkaertchen je benanntem Schueler) nutzt dieselbe v4-Geometrieberechnung (`build_seat_geometries_v4`) wie PDF-Export und Sitzplan-Vorschau; Dateinamens-Aufloesung (`app/core/domain/student_png_export.py`) baut auf `compute_display_names()` auf, Rendering laeuft ueber Pillow (`app/infrastructure/exporters/student_png_renderer.py`, keine Datei-I/O), ZIP-Zusammenbau ueber einen duennen I/O-Wrapper (`student_png_zip_exporter.py`). Anders als der PDF-Export mappt der PNG-Renderer Weltkoordinaten ohne y-Invertierung auf Pixel, weil Pillow (wie die Tkinter-Canvases von Grid und Sitzplan-Vorschau) y nach unten wachsen laesst -- nur ReportLabs PDF-Koordinatensystem waechst nach oben und braucht deshalb die Invertierung.
 
 ## Datenfluss
 - GUI-Interaktionen werden in Use-Cases ueberfuehrt.
@@ -42,6 +43,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Der Markierungsrahmen fuer aktive Auswahlen wird aus transformierten Tischpolygonen abgeleitet, damit Shift/Rotation der Tischgruppe visuell korrekt abgebildet werden.
 - Bei Transformationskollisionen (Lehrer- oder Schuelertisch) wird der zuletzt geaenderte Transformationswert auf 0 zurueckgesetzt.
 - Exportaktionen werden in der GUI angestossen und durch den Infrastructure-Exporter als PDF geschrieben.
+- Der PNG-ZIP-Export berechnet die Tisch-Pixelgeometrie einmal pro Export (`GeometryTransform`) und rendert daraus pro benanntem Schueler ein eigenes PNG mit identischer Bildgroesse/Skalierung; nur die Fuellfarbe des eigenen Tisches wechselt. Schichtgrenzen strikt eingehalten: Domain (`student_png_export.py`) kennt Pillow nicht, der Renderer macht kein Datei-I/O, der ZIP-Exporter macht kein GUI, die GUI waehlt nur den Zielpfad und startet den Export ueber ein No-Op-Intent (analog PDF/CSV).
 
 ## Bekannte Ausnahmen vom 300-Zeilen-Limit
 - `app/adapters/gui/main_window.py` (329 Codezeilen ohne Docstrings/Kommentare/Imports/Leerzeilen): zentrale Fensterklasse, die ~30 GUI-Mixins zusammensetzt und `apply_state()` orchestriert — Aufsplitten wuerde die zusammenhaengende Tk-Widget-Verdrahtung und den State-Sync-Callback fragmentieren, ohne die Zeilenzahl wirklich zu senken.
