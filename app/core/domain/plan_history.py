@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from pathlib import Path
 
 from app.core.domain.models import SeatingPlan
 
@@ -10,19 +11,40 @@ class PlanHistory:
 
     def __init__(self, max_undo_steps: int = 20):
         self.max_undo_steps = max(1, int(max_undo_steps))
+        self.plan_path: Path | None = None
         self._states: list[SeatingPlan] = []
         self._action_kinds: list[str | None] = []
         self._redo_states: list[SeatingPlan] = []
         self._redo_kinds: list[str | None] = []
 
-    def reset(self, plan: SeatingPlan) -> None:
+    def reset(self, plan: SeatingPlan, plan_path: Path) -> None:
         """Setzt den Verlauf auf *plan* als einzigen Zustand zurück; löscht Undo/Redo.
+
+        *plan_path* verankert die History an einer Plan-Identität: ein erneutes
+        ``reset()`` mit demselben Pfad (z. B. nach Verlassen und Wiederbetreten
+        desselben Kurses) kann so von einem echten Planwechsel unterschieden
+        werden, statt den Verlauf grundlos zu verwerfen.
 
         Args:
             plan: Sitzplan, der als einziger Verlaufszustand gespeichert wird.
+            plan_path: Pfad der Plandatei, zu der dieser Verlauf gehört.
         """
+        self.plan_path = plan_path
         self._states = [deepcopy(plan)]
         self._action_kinds = [None]
+        self._redo_states = []
+        self._redo_kinds = []
+
+    def discard(self) -> None:
+        """Verwirft den gesamten Verlauf und die Plan-Identität (kein Plan mehr getrackt).
+
+        Wird aufgerufen, wenn der Plan, zu dem dieser Verlauf gehört, gelöscht
+        wurde, damit ein später unter demselben Pfad neu angelegter Plan nicht
+        versehentlich den Verlauf des gelöschten Plans erbt.
+        """
+        self.plan_path = None
+        self._states = []
+        self._action_kinds = []
         self._redo_states = []
         self._redo_kinds = []
 
@@ -40,7 +62,7 @@ class PlanHistory:
                 aufeinanderfolgender gleichartiger Schritte dient.
         """
         if not self._states:
-            self.reset(plan)
+            self.reset(plan, self.plan_path)
             return
 
         candidate = deepcopy(plan)

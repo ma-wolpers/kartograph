@@ -5,7 +5,7 @@ import logging
 
 from app.application.app_state import AppState, InteractionMode, PlanListEntry
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _refresh_plan_list, _with_plan
+from app.application.handlers._shared import _can_redo, _can_undo, _refresh_plan_list, _with_plan
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import resolve_plans_dir
 from app.core.intents.plan_intents import (
@@ -22,7 +22,12 @@ _log = logging.getLogger("kartograph.handlers.plan")
 
 
 def handle_open_plan(intent: OpenPlanIntent, state: AppState, ctx: HandlerContext) -> AppState:
-    """Lädt den Plan aus *intent* und macht ihn zum aktuellen Plan; setzt History und Auswahl zurück.
+    """Lädt den Plan aus *intent* und macht ihn zum aktuellen Plan.
+
+    Wird derselbe Plan erneut geöffnet, dessen Verlauf noch im Speicher steht
+    (z. B. weil der Kurs nur kurz verlassen und wieder betreten wurde), bleibt
+    dessen Undo/Redo-Verlauf erhalten statt verworfen zu werden. Bei einem
+    Wechsel auf einen anderen Plan wird der Verlauf wie bisher zurückgesetzt.
 
     Args:
         intent: Pfad der zu öffnenden Plandatei.
@@ -35,7 +40,14 @@ def handle_open_plan(intent: OpenPlanIntent, state: AppState, ctx: HandlerContex
         _log.exception("handle_open_plan: load failed for %s", intent.plan_path)
         return dataclasses.replace(state, status_message=f"Fehler beim Öffnen: {intent.plan_path.name}")
 
-    ctx.history.reset(plan)
+    if ctx.history.plan_path == intent.plan_path:
+        can_undo = _can_undo(ctx)
+        can_redo = _can_redo(ctx)
+    else:
+        ctx.history.reset(plan, intent.plan_path)
+        can_undo = False
+        can_redo = False
+
     plan_list = _refresh_plan_list(state, ctx)
     return dataclasses.replace(
         state,
@@ -44,8 +56,8 @@ def handle_open_plan(intent: OpenPlanIntent, state: AppState, ctx: HandlerContex
         plan_list=plan_list,
         selection=RectSelection(0, 0),
         interaction_mode=InteractionMode.GRID,
-        can_undo=False,
-        can_redo=False,
+        can_undo=can_undo,
+        can_redo=can_redo,
         status_message="",
     )
 
@@ -65,7 +77,7 @@ def handle_create_plan(intent: CreatePlanIntent, state: AppState, ctx: HandlerCo
         _log.exception("handle_create_plan: failed for name=%r", intent.name)
         return dataclasses.replace(state, status_message="Fehler beim Erstellen des Plans")
 
-    ctx.history.reset(plan)
+    ctx.history.reset(plan, plan_path)
     plan_list = _refresh_plan_list(state, ctx)
     return dataclasses.replace(
         state,
