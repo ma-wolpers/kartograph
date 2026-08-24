@@ -20,7 +20,25 @@ _log = logging.getLogger("kartograph.handlers.edit")
 
 
 def _plan_exists(ctx: HandlerContext, path: Path) -> bool:
-    """Prüft über das Repository, ob unter *path* bereits eine Plandatei liegt."""
+    """Prüft, ob unter *path* bereits eine Plandatei liegt (Kollisionscheck vor Undo/Redo).
+
+    Geht bewusst über ``ctx.plan_repository.load_plan()`` statt eines
+    direkten Dateisystemzugriffs (``Path.exists()``): so funktioniert die
+    Prüfung unverändert gegen jede Repository-Implementierung, inklusive
+    des In-Memory-Fake-Repositorys in Tests, das keinen echten Pfad auf
+    Platte hat. Ein Fehlschlag beim Laden wird als "existiert nicht"
+    gewertet, unabhängig von der genauen Fehlerursache (fehlende Datei,
+    korrupter Inhalt, o. Ä.) — für den Kollisionscheck zählt nur, ob am
+    Zielpfad aktuell etwas Ladbares liegt, das durch ein Undo/Redo
+    überschrieben werden könnte.
+
+    Args:
+        ctx: Handler-Kontext (liefert das Repository).
+        path: Zu prüfender Plandatei-Pfad.
+
+    Returns:
+        True, wenn unter *path* ein Plan geladen werden kann, sonst False.
+    """
     try:
         ctx.plan_repository.load_plan(path)
     except Exception:
@@ -29,7 +47,23 @@ def _plan_exists(ctx: HandlerContext, path: Path) -> bool:
 
 
 def _list_history_flags(ctx: HandlerContext) -> tuple[bool, bool]:
-    """Liefert (can_undo, can_redo) für ``ctx.list_history`` als reine State-Ableitung."""
+    """Leitet (can_undo, can_redo) für ``ctx.list_history`` aus deren aktuellem Zustand ab.
+
+    Reine Ableitung ohne Nebenwirkung (Peek auf beide Stacks), analog zu
+    ``_can_undo``/``_can_redo`` in ``_shared.py`` für die Raster-History
+    (``ctx.history``) — nur für die separate Listen-Aktionen-History
+    (Rename/Delete/Duplicate). Wird nach jedem erfolgreichen
+    ``confirm_undo()``/``confirm_redo()`` aufgerufen, damit ``AppState``
+    den tatsächlichen Stack-Zustand widerspiegelt, auch wenn aktuell keine
+    GUI-Stelle diese Felder liest.
+
+    Args:
+        ctx: Handler-Kontext (liefert ``ctx.list_history``).
+
+    Returns:
+        Tupel ``(can_undo, can_redo)`` — True, wenn der jeweilige Stack
+        (Undo bzw. Redo) mindestens einen Eintrag enthält.
+    """
     return ctx.list_history.peek_undo() is not None, ctx.list_history.peek_redo() is not None
 
 

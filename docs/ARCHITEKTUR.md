@@ -45,6 +45,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 
 ## Bekannte Ausnahmen vom 300-Zeilen-Limit
 - `app/adapters/gui/main_window.py` (329 Codezeilen ohne Docstrings/Kommentare/Imports/Leerzeilen): zentrale Fensterklasse, die ~30 GUI-Mixins zusammensetzt und `apply_state()` orchestriert — Aufsplitten wuerde die zusammenhaengende Tk-Widget-Verdrahtung und den State-Sync-Callback fragmentieren, ohne die Zeilenzahl wirklich zu senken.
+- `tests/test_app_controller.py` (~1060 Codezeilen ohne Docstrings/Kommentare/Imports/Leerzeilen, 103 Testmethoden): eine Testdatei, kein Programm-Feature — die Struktur folgt bewusst der Handler-Isolation-Gliederung der Applikationsschicht (`TestHandle<Feature>Handlers`-Klassen), nicht eigenen fachlichen Modulgrenzen. Ein Split nach Zeilenzahl wuerde diese 1:1-Zuordnung zu den Handler-Modulen aufbrechen, ohne einen Klarheitsgewinn zu bringen.
 
 ## Build- und Laufzeitkontext
 - Start lokal ueber `start-kartograph.bat` oder `python kartograph.py`.
