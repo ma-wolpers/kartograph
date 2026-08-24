@@ -32,6 +32,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Die Toolbar-Buttons "Archivieren/Wiederherstellen" und "Sitzkärtchen exportieren (ZIP)" hatten kein eigenes Icon und wurden deutlich breiter als alle anderen Toolbar-Buttons dargestellt, mit einem winzigen Platzhalterzeichen in der Mitte. Beide haben jetzt passende Icons im selben Tabler-Icons-Stil wie alle anderen Toolbar-Buttons.
 - Nach Escape im Nachteilsausgleiche-Feld schloss sich die Tischdetailansicht zwar korrekt, aber Pfeiltasten und Enter reagierten danach nicht mehr, weil der Tastaturfokus auf dem jetzt unsichtbaren Textfeld hängen blieb statt zurück zum Sitzplan-Raster zu wechseln.
 - Das Kartograph-Fenster ließ sich nicht kleiner als 1000×680 ziehen; die Mindestgröße liegt jetzt bei 600×400.
 - `tools/ci/check_ai_guardrails.py` prüfte noch auf die alte, seit der `BwBaseWindow`-Migration nicht mehr existierende `CustomMenuBar`-Konstruktion und schlug dadurch bei jeder Änderung an der GUI-Schicht fälschlich fehl; auf den aktuellen `build_menu()`/`section_spec()`-Stand nachgezogen (reine CI-Tooling-Wartung, keine Nutzer-sichtbare Änderung).

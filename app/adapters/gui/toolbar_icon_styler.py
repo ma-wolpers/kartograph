@@ -29,6 +29,8 @@ _ICON_FILE_BY_KEY: dict[str, str] = {
     "tablegroup_settings": "tb_tablegroup_settings.png",
     "export_pdf": "tb_export_pdf.png",
     "export_namenfit_csv": "tb_export_namenfit_csv.png",
+    "export_student_pngs": "tb_export_student_pngs.png",
+    "archive_plan": "tb_archive_plan.png",
     "teacher_desk": "tb_teacher_desk.png",
     "toggle_documentation": "tb_toggle_docs.png",
     "symbol_filter": "tb_symbol_filter.png",

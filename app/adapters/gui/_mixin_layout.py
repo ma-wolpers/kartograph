@@ -75,7 +75,13 @@ class LayoutMixin:
             parent: Eltern-Widget.
             icon_key: Schlüssel des PNG-Icons in ``assets/toolbar`` (siehe
                 ``ToolbarIconStyler``). Zeigt der zugehörige Button ein PNG.
-            icon: Unicode-Ersatzzeichen, falls das PNG-Icon fehlt.
+            icon: Unicode-Ersatzzeichen, falls das PNG-Icon fehlt. Wird in
+                einem schmalen ``width=2``-Button dargestellt (siehe
+                Funktionskörper), damit er trotz des ttk-Standardstils
+                genauso kompakt wirkt wie die PNG-Icon-Buttons -- ttk
+                reserviert für einen ``text=``-Button ohne explizite
+                ``width`` sonst deutlich mehr Platz, als ein einzelnes
+                Zeichen braucht.
             shortcut: Tastaturkürzel für die Hover-Hilfe.
             label: Beschriftung der Aktion für die Hover-Hilfe.
             command: Callback-Funktion.
@@ -89,7 +95,7 @@ class LayoutMixin:
         button = self._toolbar_icons.create_button(parent, icon_key, command)
         if button is None:
             caption = icon.strip() or label
-            button = tui.Button(parent, text=caption, command=command)
+            button = tui.Button(parent, text=caption, command=command, width=2)
         button.pack(side=side, padx=padx)
         if bind_editor_return:
             self._bind_editor_return_override(button)

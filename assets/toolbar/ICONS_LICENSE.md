@@ -31,6 +31,8 @@ auf die jeweilige Theme-Vordergrundfarbe passiert danach zur Laufzeit durch
 | tb_symbol_filter.png            | filter                 |
 | tb_zoom_out.png                 | zoom-out               |
 | tb_zoom_in.png                  | zoom-in                |
+| tb_export_student_pngs.png      | photo                  |
+| tb_archive_plan.png             | archive                |
 
 ## MIT-Lizenztext (Tabler Icons)
 
