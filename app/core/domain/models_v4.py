@@ -175,6 +175,28 @@ class PaletteEntry:
 
 
 # ---------------------------------------------------------------------------
+# Eigene Doku-Symbole (pro Plan)
+# ---------------------------------------------------------------------------
+
+@dataclass(slots=True)
+class CustomSymbolDefinition:
+    """Ein vom Nutzer pro Plan definiertes Doku-Symbol (immer documentation-only).
+
+    ``id`` ist die stabile Identität und zugleich der Schlüssel, unter dem
+    Verwendungen in ``SessionEntry.symbols`` gespeichert werden — bewusst
+    *nicht* ``meaning``, damit Bearbeiten (Bedeutung/Glyph/Shortcut ändern)
+    bereits erfasste Dokumentationsdaten nicht verwaist zurücklässt. Siehe
+    ``app/core/domain/effective_symbol.py`` für die Anzeige-Projektion, die
+    eigene und eingebaute Symbole für die GUI vereinheitlicht.
+    """
+
+    id: str
+    glyph: str
+    meaning: str
+    shortcut: str
+
+
+# ---------------------------------------------------------------------------
 # Dokumentation: Notenstruktur
 # ---------------------------------------------------------------------------
 
@@ -297,6 +319,7 @@ class SeatingPlan:
     classroom: Classroom
     tablegroups: list[TableGroup] = field(default_factory=list)
     color_palette: dict[str, PaletteEntry] = field(default_factory=dict)
+    custom_symbols: dict[str, CustomSymbolDefinition] = field(default_factory=dict)
     documentation: DocumentationBlock = field(default_factory=DocumentationBlock)
 
     # --- Convenience-Shortcuts auf Classroom-Methoden --------------------
