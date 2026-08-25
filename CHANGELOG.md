@@ -34,6 +34,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Sitzplan umbenennen bot beim Umbenennen auf einen bereits vergebenen Namen keine Möglichkeit mehr zum Überschreiben (nur noch eine allgemeine Fehlermeldung "Fehler beim Umbenennen") — das "Überschreiben?"-Nachfragedialog war zwar im Code vorhanden, wurde aber nie erreicht. Funktioniert jetzt wie beim Duplizieren: Kollision wird vor dem Umbenennen erkannt, mit expliziter Nachfrage zum Überschreiben.
 - Die Toolbar-Buttons "Archivieren/Wiederherstellen" und "Sitzkärtchen exportieren (ZIP)" hatten kein eigenes Icon und wurden deutlich breiter als alle anderen Toolbar-Buttons dargestellt, mit einem winzigen Platzhalterzeichen in der Mitte. Beide haben jetzt passende Icons im selben Tabler-Icons-Stil wie alle anderen Toolbar-Buttons.
 - Nach Escape im Nachteilsausgleiche-Feld schloss sich die Tischdetailansicht zwar korrekt, aber Pfeiltasten und Enter reagierten danach nicht mehr, weil der Tastaturfokus auf dem jetzt unsichtbaren Textfeld hängen blieb statt zurück zum Sitzplan-Raster zu wechseln.
 - Das Kartograph-Fenster ließ sich nicht kleiner als 1000×680 ziehen; die Mindestgröße liegt jetzt bei 600×400.

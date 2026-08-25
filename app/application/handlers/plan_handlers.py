@@ -103,7 +103,8 @@ def handle_rename_plan(intent: RenamePlanIntent, state: AppState, ctx: HandlerCo
     Verlauf bleibt dabei erhalten (anders als beim Löschen).
 
     Args:
-        intent: Pfad des umzubenennenden Plans und neuer Anzeigename.
+        intent: Pfad des umzubenennenden Plans, neuer Anzeigename und ob eine
+            vorhandene Zieldatei überschrieben werden soll.
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
@@ -113,7 +114,9 @@ def handle_rename_plan(intent: RenamePlanIntent, state: AppState, ctx: HandlerCo
         before_name = None
 
     try:
-        new_path, plan = ctx.plan_repository.rename_plan(intent.plan_path, intent.new_name)
+        new_path, plan = ctx.plan_repository.rename_plan(
+            intent.plan_path, intent.new_name, overwrite=intent.overwrite
+        )
     except Exception:
         _log.exception("handle_rename_plan: failed")
         return dataclasses.replace(state, status_message="Fehler beim Umbenennen")

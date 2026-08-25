@@ -41,7 +41,19 @@ class PlanCrudMixin:
         return f"{base} Kopie"
 
     def rename_selected_plan_dialog(self) -> None:
-        """Öffnet einen Dialog zum Umbenennen des ausgewählten Sitzplans."""
+        """Öffnet einen Dialog zum Umbenennen des ausgewählten Sitzplans (v4: RenamePlanIntent).
+
+        Kollisionsprüfung läuft VOR dem Dispatch über
+        ``self.plan_repository.plan_name_taken()`` — nicht über ein
+        ``try/except FileExistsError`` um ``self._controller.dispatch(...)``
+        herum, das hier vorher stand: ``KartographAppController.dispatch()``/
+        ``IntentRegistry.dispatch()`` fangen jede Handler-Exception global ab
+        und verwerfen den State-Wechsel, eine Exception aus
+        ``handle_rename_plan()`` hätte diesen Aufrufer also nie erreicht
+        (zusätzlich fängt der Handler ``FileExistsError`` ohnehin schon
+        selbst ab). Exaktes Vorbild: ``duplicate_selected_plan_dialog()``
+        unten, das dasselbe Pre-Check-Muster bereits richtig macht.
+        """
         entry = self._selected_plan_list_entry()
         if not entry:
             self.status_var.set("Kein Sitzplan ausgewaehlt")
@@ -56,22 +68,18 @@ class PlanCrudMixin:
             if not plan_name.strip():
                 messagebox.showerror("Fehler", "Bitte gib einen Namen ein.", parent=self)
                 continue
-            try:
-                self._controller.dispatch(RenamePlanIntent(plan_path=plan_path, new_name=plan_name))
-                return
-            except FileExistsError:
-                overwrite = messagebox.askyesnocancel(
+            overwrite = False
+            if self.plan_repository.plan_name_taken(plan_path, plan_name):
+                choice = messagebox.askyesnocancel(
                     "Datei existiert bereits", "Für diese Lerngruppe existiert bereits ein Plan. Überschreiben?", parent=self
                 )
-                if overwrite is None:
+                if choice is None:
                     return
-                if overwrite:
-                    self._controller.dispatch(RenamePlanIntent(plan_path=plan_path, new_name=plan_name))
-                    return
-                continue
-            except Exception as exc:
-                messagebox.showerror("Fehler", f"Sitzplan konnte nicht umbenannt werden:\n{exc}", parent=self)
-                return
+                if not choice:
+                    continue
+                overwrite = True
+            self._controller.dispatch(RenamePlanIntent(plan_path=plan_path, new_name=plan_name, overwrite=overwrite))
+            return
 
     def delete_selected_plan_dialog(self) -> None:
         """Öffnet einen Bestätigungs-Dialog zum Löschen des ausgewählten Sitzplans."""

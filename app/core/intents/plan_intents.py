@@ -22,10 +22,18 @@ class CreatePlanIntent(Intent):
 
 @dataclass(frozen=True)
 class RenamePlanIntent(Intent):
-    """Benennt den Plan unter *plan_path* zu *new_name* um (verschiebt ggf. die Datei)."""
+    """Benennt den Plan unter *plan_path* zu *new_name* um (verschiebt ggf. die Datei).
+
+    Args:
+        plan_path: Aktuelle Plandatei.
+        new_name: Neuer Anzeigename.
+        overwrite: Überschreibt eine bereits vorhandene Zieldatei, wenn True
+            (analog ``DuplicatePlanIntent.overwrite``).
+    """
 
     plan_path: Path
     new_name: str
+    overwrite: bool = False
 
 
 @dataclass(frozen=True)

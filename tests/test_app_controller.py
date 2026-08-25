@@ -192,9 +192,11 @@ class FakePlanRepository:
     def rename_plan(
         self, source_path: Path, new_name: str, overwrite: bool = False
     ) -> tuple[Path, object]:
+        new_path = source_path.with_name(f"{new_name}.json")
+        if new_path != source_path and new_path in self._plans and not overwrite:
+            raise FileExistsError(f"Plandatei existiert bereits: {new_path.name}")
         plan = self._plans.pop(source_path)
         plan.meta.name = new_name
-        new_path = source_path.with_name(f"{new_name}.json")
         self._plans[new_path] = plan
         return new_path, plan
 
@@ -375,6 +377,34 @@ class TestHandlePlanHandlers:
 
         assert ctx.plan_repository._plans[conflict_path].meta.name == "Kopie"
         assert result.status_message == "Plan dupliziert: Kopie"
+
+    def test_rename_plan_with_name_conflict_returns_error_status(self):
+        plan = make_plan(name="Original")
+        path = PLANS_DIR / "klasse5a.json"
+        conflict_path = PLANS_DIR / "Klasse 5b.json"
+        ctx = make_ctx({path: plan, conflict_path: make_plan(name="Klasse 5b")})
+
+        result = handle_rename_plan(
+            RenamePlanIntent(plan_path=path, new_name="Klasse 5b"), AppState(), ctx
+        )
+
+        assert result.status_message != ""
+        assert "fehler" in result.status_message.lower()
+        assert path in ctx.plan_repository._plans
+        assert ctx.plan_repository._plans[conflict_path].meta.name == "Klasse 5b"
+
+    def test_rename_plan_with_overwrite_replaces_conflicting_file(self):
+        plan = make_plan(name="Original")
+        path = PLANS_DIR / "klasse5a.json"
+        conflict_path = PLANS_DIR / "Klasse 5b.json"
+        ctx = make_ctx({path: plan, conflict_path: make_plan(name="Klasse 5b")})
+
+        handle_rename_plan(
+            RenamePlanIntent(plan_path=path, new_name="Klasse 5b", overwrite=True), AppState(), ctx
+        )
+
+        assert ctx.plan_repository._plans[conflict_path].meta.name == "Klasse 5b"
+        assert path not in ctx.plan_repository._plans
 
     def test_archive_open_plan_clears_current_plan(self):
         plan = make_plan()
