@@ -5,6 +5,7 @@ import json
 import pytest
 
 from app.core.domain.models_v4 import (
+    CustomSymbolDefinition,
     GradeColumn,
     GradeWeighting,
     GroupSeat,
@@ -126,6 +127,39 @@ class TestColorPaletteRoundtrip:
         assert entry is not None
         assert entry.meaning == "Förderbedarf"
         assert entry.hex == "#f4d35e"
+
+
+class TestCustomSymbolsRoundtrip:
+    def test_custom_symbol_preserved(self, plan):
+        plan.custom_symbols = {
+            "abc123": CustomSymbolDefinition(id="abc123", glyph="☕", meaning="Kaffee vergessen", shortcut="Ctrl+Shift+K"),
+        }
+        restored = _roundtrip(plan)
+        entry = restored.custom_symbols.get("abc123")
+        assert entry is not None
+        assert entry.id == "abc123"
+        assert entry.glyph == "☕"
+        assert entry.meaning == "Kaffee vergessen"
+        assert entry.shortcut == "Ctrl+Shift+K"
+
+    def test_missing_field_defaults_to_empty(self, plan):
+        """Altes Planformat ohne custom_symbols-Feld laedt weiterhin klaglos."""
+        payload = serialize_plan(plan)
+        del payload["custom_symbols"]
+        restored = deserialize_plan(payload)
+        assert restored.custom_symbols == {}
+
+    def test_corrupted_shortcut_does_not_prevent_loading(self, plan):
+        """Deserializer ist bewusst lenient: ein von Hand kaputt gemachter
+        Shortcut-Wert fuehrt nicht zum Ladefehler des ganzen Plans."""
+        payload = serialize_plan(plan)
+        payload["custom_symbols"] = {
+            "abc123": {"id": "abc123", "glyph": "☕", "meaning": "Kaffee vergessen", "shortcut": "not-a-valid-shortcut"},
+        }
+        restored = deserialize_plan(payload)
+        entry = restored.custom_symbols.get("abc123")
+        assert entry is not None
+        assert entry.shortcut == "not-a-valid-shortcut"
 
 
 class TestDocumentationRoundtrip:

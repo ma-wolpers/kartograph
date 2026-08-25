@@ -26,6 +26,7 @@ def serialize_plan(plan: SeatingPlan) -> dict:
         "classroom": _serialize_classroom(plan),
         "tablegroups": _serialize_tablegroups(plan),
         "color_palette": _serialize_color_palette(plan),
+        "custom_symbols": _serialize_custom_symbols(plan),
         "documentation": _serialize_documentation(plan),
     }
 
@@ -114,6 +115,18 @@ def _serialize_color_palette(plan: SeatingPlan) -> dict:
     return {
         key: {"label": entry.label, "hex": entry.hex, "meaning": entry.meaning}
         for key, entry in plan.color_palette.items()
+    }
+
+
+def _serialize_custom_symbols(plan: SeatingPlan) -> dict:
+    """Wandelt die eigenen Doku-Symbole von *plan* in ein JSON-Dict um.
+
+    Args:
+        plan: Sitzplan, dessen eigene Symbole serialisiert werden.
+    """
+    return {
+        symbol_id: {"id": cs.id, "glyph": cs.glyph, "meaning": cs.meaning, "shortcut": cs.shortcut}
+        for symbol_id, cs in plan.custom_symbols.items()
     }
 
 

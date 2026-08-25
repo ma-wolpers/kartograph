@@ -11,6 +11,7 @@ import uuid
 
 from app.core.domain.models_v4 import (
     Classroom,
+    CustomSymbolDefinition,
     DiagnosticProfile,
     DocumentationBlock,
     GradeColumn,
@@ -52,6 +53,7 @@ def deserialize_plan(payload: dict) -> SeatingPlan:
     classroom = _deserialize_classroom(payload.get("classroom") or {})
     tablegroups = _deserialize_tablegroups(payload.get("tablegroups") or [])
     color_palette = _deserialize_color_palette(payload.get("color_palette") or {})
+    custom_symbols = _deserialize_custom_symbols(payload.get("custom_symbols") or {})
     documentation = _deserialize_documentation(payload.get("documentation") or {})
 
     return SeatingPlan(
@@ -61,6 +63,7 @@ def deserialize_plan(payload: dict) -> SeatingPlan:
         classroom=classroom,
         tablegroups=tablegroups,
         color_palette=color_palette,
+        custom_symbols=custom_symbols,
         documentation=documentation,
     )
 
@@ -236,6 +239,38 @@ def _deserialize_color_palette(raw: dict) -> dict[str, PaletteEntry]:
             meaning=str(entry.get("meaning") or "").strip(),
         )
     return palette
+
+
+# ---------------------------------------------------------------------------
+# Eigene Doku-Symbole
+# ---------------------------------------------------------------------------
+
+def _deserialize_custom_symbols(raw: dict) -> dict[str, CustomSymbolDefinition]:
+    """Liest die eigenen Doku-Symbole (id/glyph/meaning/shortcut) aus *raw*; überspringt leere Schlüssel.
+
+    Bewusst LENIENT beim Shortcut-Feld (nur ``.strip()``, keine Re-Validierung
+    gegen ``validate_custom_symbol_shortcut()``) — ein per Hand beschädigter
+    Shortcut-Wert führt nicht zum Ladefehler des ganzen Plans, das Symbol
+    bleibt sichtbar/editierbar, ist aber über Tastatur schlicht nicht
+    erreichbar (der Ctrl+Shift-Handler matcht nur exakt gültige kanonische
+    Formen). Gleiche Fehlertoleranz-Philosophie wie
+    ``load_symbol_definitions()`` für den globalen Katalog.
+
+    Args:
+        raw: Roh-Dict des ``custom_symbols``-Feldes aus der Plandatei.
+    """
+    result: dict[str, CustomSymbolDefinition] = {}
+    for key, entry in raw.items():
+        key = str(key).strip()
+        if not key or not isinstance(entry, dict):
+            continue
+        result[key] = CustomSymbolDefinition(
+            id=str(entry.get("id") or key).strip(),
+            glyph=str(entry.get("glyph") or "").strip(),
+            meaning=str(entry.get("meaning") or "").strip(),
+            shortcut=str(entry.get("shortcut") or "").strip(),
+        )
+    return result
 
 
 # ---------------------------------------------------------------------------
