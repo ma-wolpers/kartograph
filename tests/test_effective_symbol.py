@@ -16,6 +16,7 @@ class _FakeSymbolDefinition:
     meaning: str
     glyph: str
     role: str
+    shortcut: str | None = None
     legend_one: str = "eins"
     legend_two: str = "zwei"
     legend_three: str = "drei"
@@ -46,7 +47,7 @@ class TestBuildEffectiveDocumentationSymbols:
         assert result == []
 
     def test_custom_symbol_is_included_without_legend(self):
-        custom = _custom("abc123", "☕", "Kaffee vergessen")
+        custom = _custom("abc123", "☕", "Kaffee vergessen", shortcut="Ctrl+Shift+K")
 
         result = build_effective_documentation_symbols([], {custom.id: custom})
 
@@ -57,6 +58,14 @@ class TestBuildEffectiveDocumentationSymbols:
         assert symbol.display_name == "Kaffee vergessen"
         assert symbol.is_custom is True
         assert symbol.legend is None
+        assert symbol.shortcut == "Ctrl+Shift+K"
+
+    def test_builtin_symbol_shortcut_is_preserved(self):
+        defs = [_FakeSymbolDefinition(meaning="Abwesend", glyph="∅", role="documentation_only", shortcut="u")]
+
+        result = build_effective_documentation_symbols(defs, {})
+
+        assert result[0].shortcut == "u"
 
     def test_builtin_and_custom_symbols_are_combined(self):
         defs = [_FakeSymbolDefinition(meaning="Abwesend", glyph="∅", role="documentation_only")]

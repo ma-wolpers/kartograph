@@ -7,6 +7,7 @@ Symbol-Auswahl und Gewichtungskonfiguration bereit.
 from __future__ import annotations
 
 from app.adapters.gui.dialog_services import messagebox, simpledialog
+from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import GradeColumn
 from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
@@ -275,12 +276,22 @@ class DocsDialogsMixin:
     def set_selected_documentation_symbol_dialog(self) -> None:
         """Öffnet einen Dialog zur Symbolauswahl für die aktuelle Doku-Zelle (v4).
 
-        Zeigt alle konfigurierten Symbole als auswählbare Liste mit Tastaturkürzel-Hinweisen.
-        Unterstützt Zifferntasten 1–9 zur Schnellauswahl, Delete/Backspace/0 zum Löschen.
+        Zeigt alle konfigurierten Symbole (eingebaut, jede Rolle) UND alle
+        eigenen Doku-Symbole des aktuellen Plans als auswählbare Liste mit
+        Tastaturkürzel-Hinweisen (eingebaute Symbole zeigen ihr einzelnes
+        Tastenzeichen, eigene ihr ``Ctrl+Shift+<Buchstabe>``-Kürzel). Bewusst
+        eine ERWEITERTE statt eine ersetzte Liste (``self.symbol_catalog``
+        bleibt unverändert Teil davon) — dieser Dialog erlaubt seit jeher auch
+        das Setzen diagnostischer Symbole für einen einzelnen Tag, das darf
+        durch eigene Doku-Symbole nicht verloren gehen. Unterstützt
+        Zifferntasten 1–9 zur Schnellauswahl, Delete/Backspace/0 zum Löschen.
         """
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
             return
-        if not self.symbol_catalog:
+        all_symbol_keys = self.symbol_catalog + [
+            s.key for s in self.effective_documentation_symbols if s.is_custom
+        ]
+        if not all_symbol_keys:
             messagebox.showinfo("Keine Symbole", "Es sind keine Symbole konfiguriert.", parent=self)
             return
 
@@ -294,7 +305,7 @@ class DocsDialogsMixin:
             session = self.current_plan.documentation.session_for_date(date_key)
             entry = session.entry_for(student.student_id) if session else None
             if entry and entry.symbols:
-                non_zero = [s for s in self.symbol_catalog if int(entry.symbols.get(s, 0)) > 0]
+                non_zero = [s for s in all_symbol_keys if int(entry.symbols.get(s, 0)) > 0]
                 if non_zero:
                     preferred_symbol = non_zero[0]
 
@@ -311,15 +322,24 @@ class DocsDialogsMixin:
             label="Symbolauswahl per Tastatur",
             shortcut="1-9 waehlt, 0 loescht, Enter uebernimmt, Entf/Backspace loescht, Esc schliesst",
         )
-        for symbol in self.symbol_catalog:
-            shortcut = self._symbol_by_meaning.get(symbol).shortcut if self._symbol_by_meaning.get(symbol) else None
-            suffix = f" [{shortcut.upper()}]" if shortcut else ""
-            symbol_listbox.insert(ui.END, f"{self._symbol_glyph(symbol)} {symbol}{suffix}")
+        for symbol in all_symbol_keys:
+            definition = self._symbol_by_meaning.get(symbol)
+            if definition is not None:
+                shortcut = definition.shortcut.upper() if definition.shortcut else None
+            else:
+                effective = self._effective_symbol_by_key.get(symbol)
+                shortcut = effective.shortcut if effective is not None else None
+            suffix = f" [{shortcut}]" if shortcut else ""
+            if definition is not None:
+                glyph, label = definition.glyph, symbol
+            else:
+                glyph, label = resolve_symbol_display(symbol, self.effective_documentation_symbols)
+            symbol_listbox.insert(ui.END, f"{glyph} {label}{suffix}")
 
-        if self.symbol_catalog:
-            sel_idx = max(0, min(self._docs_symbol_dialog_last_index, len(self.symbol_catalog) - 1))
-            if preferred_symbol in self.symbol_catalog:
-                sel_idx = self.symbol_catalog.index(preferred_symbol)
+        if all_symbol_keys:
+            sel_idx = max(0, min(self._docs_symbol_dialog_last_index, len(all_symbol_keys) - 1))
+            if preferred_symbol in all_symbol_keys:
+                sel_idx = all_symbol_keys.index(preferred_symbol)
             symbol_listbox.selection_set(sel_idx)
             symbol_listbox.activate(sel_idx)
             symbol_listbox.see(sel_idx)
@@ -331,7 +351,7 @@ class DocsDialogsMixin:
                 return
             idx = int(selected[0])
             self._docs_symbol_dialog_last_index = idx
-            self._toggle_documentation_symbol(self.symbol_catalog[idx])
+            self._toggle_documentation_symbol(all_symbol_keys[idx])
             dialog.destroy()
 
         def clear_symbol() -> None:
@@ -342,7 +362,7 @@ class DocsDialogsMixin:
                 return
             idx = int(selected[0])
             self._docs_symbol_dialog_last_index = idx
-            sym = self.symbol_catalog[idx]
+            sym = all_symbol_keys[idx]
             self._controller.dispatch(
                 RecordDocumentationSymbolIntent(student_id=student.student_id, date=date_key, symbol=sym, strength=0)
             )
@@ -357,7 +377,7 @@ class DocsDialogsMixin:
         symbol_listbox.bind("<KP_Enter>", lambda _event: apply_symbol())
 
         def select_by_digit(index: int) -> None:
-            if index < 0 or index >= len(self.symbol_catalog):
+            if index < 0 or index >= len(all_symbol_keys):
                 return
             symbol_listbox.selection_clear(0, ui.END)
             symbol_listbox.selection_set(index)

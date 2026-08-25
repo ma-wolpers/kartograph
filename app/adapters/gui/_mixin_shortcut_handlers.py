@@ -10,6 +10,7 @@ from __future__ import annotations
 from app.adapters.gui.main_window_constants import LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.intents.session_intents import NavigateSessionIntent
+from app.core.usecases.v4.custom_symbol_usecases import resolve_custom_symbol_shortcut
 
 
 class ShortcutHandlersMixin:
@@ -120,4 +121,29 @@ class ShortcutHandlersMixin:
         if not self._shortcut_scope_allows("docs"):
             return None
         self.select_today_documentation_date()
+        return "break"
+
+    def _on_custom_symbol_shortcut(self, letter: str) -> str | None:
+        """Handler für ``Ctrl+Shift+<Buchstabe>``: eigenes Doku-Symbol togglen.
+
+        Löst *letter* live gegen die eigenen Symbole des AKTUELL offenen Plans
+        auf (``resolve_custom_symbol_shortcut()``) — kein Rebind bei
+        Planwechsel nötig, derselbe physische Tastenraum wird einmalig in
+        ``_mixin_shortcuts.py::_bind_shortcuts()`` gebunden. Nur in der
+        Dokuansicht aktiv, analog zu eingebauten ``documentation_only``-
+        Symbolen, die im Raster per Tastenkürzel ebenfalls nicht auslösbar
+        sind (``_on_symbol_shortcut`` in ``_mixin_edit.py``) — eigene Symbole
+        sind immer documentation-only.
+
+        Args:
+            letter: Der gedrückte Großbuchstabe (z. B. ``"K"``).
+        """
+        if not self._shortcut_scope_allows("docs"):
+            return None
+        if not self.current_plan or not self.current_plan_path:
+            return None
+        custom = resolve_custom_symbol_shortcut(self.current_plan, letter)
+        if custom is None:
+            return None
+        self._toggle_documentation_symbol(custom.id)
         return "break"

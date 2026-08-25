@@ -37,6 +37,7 @@ class _SymbolDefinitionLike(Protocol):
     meaning: str
     glyph: str
     role: SymbolRole
+    shortcut: str | None
     legend_one: str
     legend_two: str
     legend_three: str
@@ -59,6 +60,7 @@ class EffectiveSymbol:
     role: SymbolRole
     is_custom: bool
     legend: tuple[str, str, str] | None
+    shortcut: str | None
 
 
 def build_effective_documentation_symbols(
@@ -97,6 +99,7 @@ def build_effective_documentation_symbols(
             role=definition.role,
             is_custom=False,
             legend=(definition.legend_one, definition.legend_two, definition.legend_three),
+            shortcut=definition.shortcut,
         )
         for definition in symbol_definitions
         if definition.role == "documentation_only"
@@ -109,6 +112,7 @@ def build_effective_documentation_symbols(
             role="documentation_only",
             is_custom=True,
             legend=None,
+            shortcut=custom.shortcut,
         )
         for custom in custom_symbols.values()
     )

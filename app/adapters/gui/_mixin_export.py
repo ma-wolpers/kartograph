@@ -61,22 +61,37 @@ class ExportMixin:
     def open_grid_symbol_filter_dialog(self) -> None:
         """Öffnet einen Dialog zur Auswahl der im Raster angezeigten Symbole.
 
-        Speichert die Auswahl persistent in den Einstellungen und zeichnet das Raster neu.
+        Zeigt eingebaute Symbole (``self.symbol_catalog``, unverändert) UND
+        eigene Doku-Symbole des aktuellen Plans — ohne Letztere wären eigene
+        Symbole nach einer manuellen Filteranpassung nicht mehr sichtbar zu
+        machen. Speichert die Auswahl persistent in den Einstellungen und
+        zeichnet das Raster neu.
         """
         dialog = self._create_overlay_dialog("Sichtbare Symbole", "420x480")
         container = tui.Frame(dialog)
         container.pack(fill="both", expand=True, padx=12, pady=12)
         tui.Label(container, text="Welche Symbole sollen im Sitzraster angezeigt werden?").pack(anchor="w", pady=(0, 8))
+        all_symbol_keys = self.symbol_catalog + [
+            s.key for s in self.effective_documentation_symbols if s.is_custom
+        ]
         vars_by_symbol: dict[str, ui.BooleanVar] = {}
         for symbol in self.symbol_catalog:
             var = ui.BooleanVar(value=symbol in self._grid_visible_symbols)
             vars_by_symbol[symbol] = var
             tui.Checkbutton(container, text=symbol, variable=var).pack(anchor="w", pady=(0, 2))
+        for effective in self.effective_documentation_symbols:
+            if not effective.is_custom:
+                continue
+            var = ui.BooleanVar(value=effective.key in self._grid_visible_symbols)
+            vars_by_symbol[effective.key] = var
+            tui.Checkbutton(
+                container, text=f"{effective.glyph} {effective.display_name}", variable=var
+            ).pack(anchor="w", pady=(0, 2))
 
         def apply_filter() -> None:
             selected = [symbol for symbol, var in vars_by_symbol.items() if var.get()]
             if not selected:
-                selected = list(self.symbol_catalog)
+                selected = list(all_symbol_keys)
             self._grid_visible_symbols = set(selected)
             self._controller.dispatch(UpdateSettingsIntent(
                 settings=dataclasses.replace(self._controller.state.settings, grid_visible_symbols=tuple(selected))

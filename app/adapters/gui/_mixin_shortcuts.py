@@ -7,10 +7,12 @@ zentralen Intent-Dispatcher. Symbol- und Farb-Shortcuts sind in
 
 from __future__ import annotations
 
+import string
 from typing import Callable
 
 from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS, LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
+from app.core.domain.custom_symbol_validation import RESERVED_CTRL_SHIFT_LETTERS
 from app.core.intents.view_intents import SetEditorSurfaceIntent, ToggleEditorSurfaceIntent
 from bw_libs.ui_contract.keybinding import (
     UI_MODE_DIALOG,
@@ -143,6 +145,22 @@ class ShortcutMixin:
         for shortcut, symbol_name in self._shortcut_to_symbol.items():
             self.bind_all(f"<KeyPress-{shortcut}>", lambda event, s=symbol_name: self._on_symbol_shortcut(event, s), add="+")
             self.bind_all(f"<KeyPress-{shortcut.upper()}>", lambda event, s=symbol_name: self._on_symbol_shortcut(event, s), add="+")
+
+        # Eigene Doku-Symbole: EINMALIG der gesamte freie Ctrl+Shift+<Buchstabe>-
+        # Tastenraum gebunden (26 Buchstaben minus die 6 fest belegten Systemkuerzel,
+        # RESERVED_CTRL_SHIFT_LETTERS aus custom_symbol_validation.py -- einzige
+        # Quelle der Wahrheit fuer beide Seiten). Der Handler loest pro Tastendruck
+        # live gegen den AKTUELL offenen Plan auf (resolve_custom_symbol_shortcut()),
+        # kein Rebind bei Planwechsel noetig.
+        for letter in sorted(set(string.ascii_uppercase) - RESERVED_CTRL_SHIFT_LETTERS):
+            self._bind_runtime_shortcut(
+                f"<Control-Shift-{letter}>",
+                lambda _e, l=letter: self._on_custom_symbol_shortcut(l),
+                binding_id=f"custom_symbol.{letter.lower()}",
+                intent=UiIntent.CUSTOM_SYMBOL_SHORTCUT,
+                modes=(UI_MODE_PREVIEW,),
+                allow_when_text_input=False,
+            )
 
         for key, _color_key, _label, _hex_color in self.color_palette:
             self.bind_all(f"<KeyPress-{key}>", lambda event, ck=_color_key: self._on_color_shortcut(event, ck), add="+")

@@ -48,6 +48,7 @@ class UiIntent:
     DOCS_GRADE = "docs.grade"
     DOCS_SYMBOL = "docs.symbol"
     DOCS_SYMBOL_LOWER = "docs.symbol.lower"
+    CUSTOM_SYMBOL_SHORTCUT = "docs.custom_symbol_shortcut"
     DOCS_CLEAR = "docs.clear"
     DOCS_CLEAR_BACKSPACE = "docs.clear.backspace"
     DOCS_TODAY = "docs.today"

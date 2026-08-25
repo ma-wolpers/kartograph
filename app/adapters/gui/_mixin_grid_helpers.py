@@ -7,6 +7,7 @@ Details-Panel (Spaltenanzahl, Legende, Farb-/Symbol-Zeilen).
 
 from __future__ import annotations
 
+from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import ParticipationRating, SeatingPlan, Student
 from app.core.usecases.v4.grade_usecases import compute_grade_display
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
@@ -120,11 +121,20 @@ class GridHelpersMixin:
     def _symbol_glyph(self, symbol_name: str) -> str:
         """Gibt die Glyph-Zeichenkette für ein Symbol zurück.
 
+        Prüft zuerst den eingebauten Katalog (``self._symbol_by_meaning``,
+        unverändert), dann eigene Doku-Symbole des aktuellen Plans über
+        ``resolve_symbol_display()`` — deren Fallback greift auch für
+        historische Einträge, deren eigenes Symbol inzwischen gelöscht wurde.
+
         Args:
-            symbol_name: Name (Bedeutung) des gesuchten Symbols.
+            symbol_name: Name (eingebaute Bedeutung) bzw. ID (eigenes Symbol)
+                des gesuchten Symbols.
         """
         symbol = self._symbol_by_meaning.get(symbol_name)
-        return symbol.glyph if symbol is not None else "•"
+        if symbol is not None:
+            return symbol.glyph
+        glyph, _display_name = resolve_symbol_display(symbol_name, self.effective_documentation_symbols)
+        return glyph
 
     def _iter_symbol_counts(self, symbols: dict[str, int]) -> list[tuple[str, int]]:
         """Erstellt eine geordnete Liste von (symbol_name, count)-Paaren.
@@ -193,7 +203,10 @@ class GridHelpersMixin:
         for symbol_name, count in self._iter_symbol_counts(symbols):
             glyph = self._symbol_glyph(symbol_name)
             definition = self._symbol_by_meaning.get(symbol_name)
-            legend_text = definition.legend_for_count(count) if definition is not None else symbol_name
+            if definition is not None:
+                legend_text = definition.legend_for_count(count)
+            else:
+                _glyph, legend_text = resolve_symbol_display(symbol_name, self.effective_documentation_symbols)
             lines.append(f"{glyph * count} {legend_text}".strip())
         return lines
 

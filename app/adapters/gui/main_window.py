@@ -66,7 +66,8 @@ from app.adapters.gui.ui_intents import UiIntent
 from app.adapters.gui.ui_theme import normalize_theme_key
 from app.application.app_controller import KartographAppController
 from app.application.app_state import AppState, EditorSurface, InteractionMode, PlanListEntry
-from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.effective_symbol import EffectiveSymbol, build_effective_documentation_symbols
+from app.core.domain.models_v4 import CustomSymbolDefinition, SeatingPlan
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import resolve_plans_dir
 from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
@@ -280,9 +281,14 @@ class KartographMainWindow(
         self._documentation_only_symbols = {item.meaning for item in self.symbol_definitions if item.role == "documentation_only"}
         self._symbol_by_meaning = {item.meaning: item for item in self.symbol_definitions}
         self._shortcut_to_symbol = self._build_symbol_shortcut_map(self.symbol_definitions)
-        self._grid_visible_symbols = self._normalize_grid_visible_symbols(
-            list(self._controller.state.settings.grid_visible_symbols), self.symbol_catalog
-        )
+        self.effective_documentation_symbols: list[EffectiveSymbol] = []
+        self._effective_symbol_by_key: dict[str, EffectiveSymbol] = {}
+        # None (nicht {}) als "noch nie berechnet"-Sentinel -- sonst wuerde der
+        # Aenderungs-Waechter unten den allerersten Aufruf mit {} faelschlich
+        # als "unveraendert" ueberspringen.
+        self._last_custom_symbols_snapshot: dict[str, CustomSymbolDefinition] | None = None
+        self._grid_visible_symbols: set[str] = set()
+        self._rebuild_effective_documentation_symbols_if_changed({})
         self.pdf_exporter = PdfSeatingPlanExporter(self.symbol_definitions, color_palette=self.color_palette)
         if warning:
             self.status_var.set(warning)
@@ -436,6 +442,9 @@ class KartographMainWindow(
         old_plan = self.current_plan
         self.current_plan = state.current_plan
         self.current_plan_path = state.current_plan_path
+        self._rebuild_effective_documentation_symbols_if_changed(
+            self.current_plan.custom_symbols if self.current_plan else {}
+        )
 
         if state.settings.theme != self.theme_key:
             new_theme = normalize_theme_key(state.settings.theme)
@@ -504,6 +513,49 @@ class KartographMainWindow(
                 self._apply_doc_column_heading_highlight()
 
         self._notify_sitzplan_popup(state.current_plan, self.theme_key, self.name_format)
+
+    def _rebuild_effective_documentation_symbols_if_changed(
+        self, custom_symbols: dict[str, CustomSymbolDefinition]
+    ) -> None:
+        """Baut ``self.effective_documentation_symbols`` neu, falls sich die eigenen Symbole geändert haben.
+
+        Vergleicht *custom_symbols* gegen den zuletzt gesehenen Stand
+        (``self._last_custom_symbols_snapshot``) und überspringt den Neubau,
+        wenn sich nichts geändert hat — ein einfacher Dict-Vergleich (kleine
+        Map, keine I/O), bewusst kein Caching-Subsystem für eine kleine
+        Liste. Wird sowohl im Konstruktor (mit ``{}``, vor jedem geöffneten
+        Plan) als auch bei jedem ``apply_state()``-Aufruf aufgerufen, sodass
+        Planwechsel und Symbol-CRUD die Liste automatisch aktuell halten,
+        ohne dass jede unabhängige Sitzplatz-/Dokumentationsmutation sie
+        pauschal neu berechnet.
+
+        Args:
+            custom_symbols: Die eigenen Symbole des aktuell betrachteten
+                Plans (``SeatingPlan.custom_symbols``), oder ``{}`` bei
+                keinem offenen Plan.
+        """
+        if custom_symbols == self._last_custom_symbols_snapshot:
+            return
+        self.effective_documentation_symbols = build_effective_documentation_symbols(
+            self.symbol_definitions, custom_symbols
+        )
+        self._effective_symbol_by_key = {s.key: s for s in self.effective_documentation_symbols}
+        self._last_custom_symbols_snapshot = dict(custom_symbols)
+
+        # self._grid_visible_symbols muss dieselbe Referenzmenge kennen wie der
+        # Symbolfilter-Dialog (_mixin_export.py::open_grid_symbol_filter_dialog):
+        # self.symbol_catalog allein enthaelt nur eingebaute Symbole -- ohne diese
+        # Erweiterung waeren eigene Symbole selbst im unveraenderten "alles
+        # sichtbar"-Standardzustand nie sichtbar (_normalize_grid_visible_symbols()
+        # faellt bei leerer/ungueltiger Einstellung auf "alle aus der Referenzmenge"
+        # zurueck -- ohne eigene Symbole in dieser Menge blieben sie dauerhaft
+        # ausgeblendet, kein reiner Randfall).
+        reference_catalog = self.symbol_catalog + [
+            s.key for s in self.effective_documentation_symbols if s.is_custom
+        ]
+        self._grid_visible_symbols = self._normalize_grid_visible_symbols(
+            list(self._controller.state.settings.grid_visible_symbols), reference_catalog
+        )
 
     def _replace_current_plan(self, plan) -> None:
         """Ersetzt den aktuellen Plan im AppState und im GUI-Zustand synchron.
