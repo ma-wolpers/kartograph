@@ -29,6 +29,11 @@ from app.core.intents.symbol_intents import (
 )
 from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.color_intents import ToggleColorIntent
+from app.core.intents.custom_symbol_intents import (
+    AddCustomSymbolIntent,
+    DeleteCustomSymbolIntent,
+    UpdateCustomSymbolIntent,
+)
 from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
     DeleteGradeColumnIntent,
@@ -93,6 +98,9 @@ __all__ = [
     "SetParticipationRatingIntent",
     # Color
     "ToggleColorIntent",
+    "AddCustomSymbolIntent",
+    "UpdateCustomSymbolIntent",
+    "DeleteCustomSymbolIntent",
     # Grade
     "AddGradeColumnIntent",
     "DeleteGradeColumnIntent",

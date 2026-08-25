@@ -27,6 +27,11 @@ from app.infrastructure.symbol_config_loader import load_symbol_definitions
 # --- Handler-Imports --------------------------------------------------------
 from app.application.handlers.accommodation_handlers import handle_set_accommodations
 from app.application.handlers.color_handlers import handle_toggle_color
+from app.application.handlers.custom_symbol_handlers import (
+    handle_add_custom_symbol,
+    handle_delete_custom_symbol,
+    handle_update_custom_symbol,
+)
 from app.application.handlers.edit_handlers import (
     handle_copy_selection,
     handle_cut_selection,
@@ -91,6 +96,11 @@ from app.application.handlers.view_handlers import (
 # --- Intent-Imports ---------------------------------------------------------
 from app.core.intents.accommodation_intents import SetAccommodationsIntent
 from app.core.intents.color_intents import ToggleColorIntent
+from app.core.intents.custom_symbol_intents import (
+    AddCustomSymbolIntent,
+    DeleteCustomSymbolIntent,
+    UpdateCustomSymbolIntent,
+)
 from app.core.intents.edit_intents import (
     CopySelectionIntent,
     CutSelectionIntent,
@@ -284,6 +294,11 @@ class KartographAppController:
 
         # Color
         r.register(ToggleColorIntent, lambda i, s: handle_toggle_color(i, s, ctx))
+
+        # Custom Symbol
+        r.register(AddCustomSymbolIntent, lambda i, s: handle_add_custom_symbol(i, s, ctx))
+        r.register(UpdateCustomSymbolIntent, lambda i, s: handle_update_custom_symbol(i, s, ctx))
+        r.register(DeleteCustomSymbolIntent, lambda i, s: handle_delete_custom_symbol(i, s, ctx))
 
         # Accommodation
         r.register(SetAccommodationsIntent, lambda i, s: handle_set_accommodations(i, s, ctx))

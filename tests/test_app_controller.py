@@ -26,6 +26,11 @@ from app.application.handlers.edit_handlers import (
     handle_redo,
     handle_undo,
 )
+from app.application.handlers.custom_symbol_handlers import (
+    handle_add_custom_symbol,
+    handle_delete_custom_symbol,
+    handle_update_custom_symbol,
+)
 from app.application.handlers.grade_handlers import handle_add_grade_column, handle_delete_grade_column
 from app.application.handlers.participation_handlers import handle_set_participation_rating
 from app.application.handlers.navigation_handlers import (
@@ -72,6 +77,11 @@ from app.core.intents.edit_intents import (
     PasteSelectionIntent,
     RedoIntent,
     UndoIntent,
+)
+from app.core.intents.custom_symbol_intents import (
+    AddCustomSymbolIntent,
+    DeleteCustomSymbolIntent,
+    UpdateCustomSymbolIntent,
 )
 from app.core.intents.grade_intents import AddGradeColumnIntent, DeleteGradeColumnIntent
 from app.core.intents.participation_intents import SetParticipationRatingIntent
@@ -1123,6 +1133,98 @@ class TestHandleGradeColumnHandlers:
         state = AppState()
 
         result = handle_delete_grade_column(DeleteGradeColumnIntent(column_id="missing"), state, ctx)
+
+        assert result is state
+
+
+# ---------------------------------------------------------------------------
+# Handler-Isolation: Custom-Symbol-Handler
+# ---------------------------------------------------------------------------
+
+class TestHandleCustomSymbolHandlers:
+    def test_add_custom_symbol_appends_entry(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        result = handle_add_custom_symbol(
+            AddCustomSymbolIntent(glyph="☕", meaning="Kaffee vergessen", shortcut="Ctrl+Shift+K"), state, ctx
+        )
+
+        assert len(result.current_plan.custom_symbols) == 1
+        symbol = next(iter(result.current_plan.custom_symbols.values()))
+        assert symbol.meaning == "Kaffee vergessen"
+        assert symbol.shortcut == "Ctrl+Shift+K"
+
+    def test_add_custom_symbol_without_plan_is_noop(self):
+        ctx = make_ctx()
+        state = AppState()
+
+        result = handle_add_custom_symbol(
+            AddCustomSymbolIntent(glyph="☕", meaning="X", shortcut="Ctrl+Shift+K"), state, ctx
+        )
+
+        assert result is state
+
+    def test_update_custom_symbol_changes_fields(self):
+        plan = make_plan()
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+        state = handle_add_custom_symbol(
+            AddCustomSymbolIntent(glyph="☕", meaning="Kaffee vergessen", shortcut="Ctrl+Shift+K"), state, ctx
+        )
+        symbol_id = next(iter(state.current_plan.custom_symbols))
+
+        result = handle_update_custom_symbol(
+            UpdateCustomSymbolIntent(symbol_id=symbol_id, glyph="🍪", meaning="Keks vergessen", shortcut="Ctrl+Shift+L"),
+            state,
+            ctx,
+        )
+
+        symbol = result.current_plan.custom_symbols[symbol_id]
+        assert symbol.glyph == "🍪"
+        assert symbol.meaning == "Keks vergessen"
+        assert symbol.shortcut == "Ctrl+Shift+L"
+
+    def test_update_custom_symbol_without_plan_is_noop(self):
+        ctx = make_ctx()
+        state = AppState()
+
+        result = handle_update_custom_symbol(
+            UpdateCustomSymbolIntent(symbol_id="missing", glyph="☕", meaning="X", shortcut="Ctrl+Shift+K"),
+            state,
+            ctx,
+        )
+
+        assert result is state
+
+    def test_delete_custom_symbol_removes_entry_but_keeps_history(self):
+        student = make_student(x=1, y=0)
+        plan = make_plan(students=[student])
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+        state = handle_add_custom_symbol(
+            AddCustomSymbolIntent(glyph="☕", meaning="Kaffee vergessen", shortcut="Ctrl+Shift+K"), state, ctx
+        )
+        symbol_id = next(iter(state.current_plan.custom_symbols))
+        state.current_plan.documentation.sessions.append(
+            Session(date="2025-09-01", entries={student.student_id: SessionEntry(symbols={symbol_id: 1})})
+        )
+
+        result = handle_delete_custom_symbol(DeleteCustomSymbolIntent(symbol_id=symbol_id), state, ctx)
+
+        assert symbol_id not in result.current_plan.custom_symbols
+        session = result.current_plan.documentation.session_for_date("2025-09-01")
+        assert session.entry_for(student.student_id).symbols[symbol_id] == 1
+
+    def test_delete_custom_symbol_without_plan_is_noop(self):
+        ctx = make_ctx()
+        state = AppState()
+
+        result = handle_delete_custom_symbol(DeleteCustomSymbolIntent(symbol_id="missing"), state, ctx)
 
         assert result is state
 
