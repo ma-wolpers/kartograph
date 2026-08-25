@@ -121,6 +121,17 @@
         "two": "wiederholt abwesend",
         "one": "am Termin abwesend"
       }
+    },
+    {
+      "codepoint": "2610",
+      "meaning": "Aufgaben nicht gemacht",
+      "shortcut": "t",
+      "role": "documentation_only",
+      "legend": {
+        "three": "wiederholt Aufgaben nicht gemacht",
+        "two": "mehrfach Aufgaben nicht gemacht",
+        "one": "einmalig Aufgabe(n) nicht gemacht"
+      }
     }
   ]
 }
