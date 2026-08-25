@@ -52,6 +52,7 @@ class ShortcutMixin:
             UiIntent.ADD_SYMBOL: lambda: self.add_symbol_to_selected_desk_dialog(),
             UiIntent.OPEN_TABLEGROUP_SETTINGS: lambda: self.open_tablegroup_settings_overlay(),
             UiIntent.GRID_SYMBOL_FILTER: lambda: self.open_grid_symbol_filter_dialog(),
+            UiIntent.MANAGE_SYMBOLS: lambda: self.open_symbol_management_dialog(),
             UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG: lambda: self.open_shortcut_runtime_debug_dialog(),
             UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE: lambda: self.toggle_shortcut_runtime_offline(),
             UiIntent.ESCAPE: lambda: self.handle_escape(),

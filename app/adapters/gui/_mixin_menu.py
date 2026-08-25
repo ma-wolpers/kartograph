@@ -111,6 +111,7 @@ class MenuMixin:
 
         return [
             SharedMenuItem(type="command", label="Sitzplan-Vorschau oeffnen", command=self.open_sitzplan_popup),
+            SharedMenuItem(type="command", label="Symbol-Verwaltung oeffnen", command=lambda: self._handle_intent(UiIntent.MANAGE_SYMBOLS)),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="radio", label="Archivierte Sitzplaene anzeigen", checked=show_archived, command=lambda: self._set_show_archived_plans(not show_archived)),
             SharedMenuItem(type="separator"),

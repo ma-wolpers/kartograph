@@ -9,8 +9,10 @@ import pytest
 
 from app.core.domain.custom_symbol_validation import (
     InvalidGlyphError,
+    InvalidMeaningError,
     InvalidShortcutError,
     validate_custom_symbol_glyph,
+    validate_custom_symbol_meaning,
     validate_custom_symbol_shortcut,
 )
 
@@ -113,3 +115,18 @@ class TestValidateCustomSymbolGlyph:
     def test_control_character_is_rejected(self):
         with pytest.raises(InvalidGlyphError):
             validate_custom_symbol_glyph("A\x01")
+
+
+class TestValidateCustomSymbolMeaning:
+    def test_non_empty_meaning_is_trimmed(self):
+        assert validate_custom_symbol_meaning("  Kaffee vergessen  ") == "Kaffee vergessen"
+
+    @pytest.mark.parametrize("raw", ["", "   "])
+    def test_empty_meaning_is_rejected(self, raw):
+        with pytest.raises(InvalidMeaningError):
+            validate_custom_symbol_meaning(raw)
+
+    def test_duplicate_meaning_across_symbols_is_not_rejected(self):
+        """Keine Eindeutigkeitspruefung -- die Identitaet laeuft ueber die ID,
+        nicht den Bedeutungstext (siehe CustomSymbolDefinition-Docstring)."""
+        assert validate_custom_symbol_meaning("Kaffee vergessen") == "Kaffee vergessen"

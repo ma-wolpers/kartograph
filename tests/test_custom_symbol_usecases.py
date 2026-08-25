@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.domain.custom_symbol_validation import InvalidGlyphError, InvalidShortcutError
+from app.core.domain.custom_symbol_validation import InvalidGlyphError, InvalidMeaningError, InvalidShortcutError
 from app.core.usecases.v4.custom_symbol_usecases import (
     add_custom_symbol,
     delete_custom_symbol,
@@ -56,6 +56,11 @@ class TestAddCustomSymbol:
         with pytest.raises(InvalidShortcutError):
             add_custom_symbol(plan, "💻", "Laptop vergessen", "Ctrl+Shift+K")
 
+    def test_empty_meaning_raises(self):
+        plan = make_plan()
+        with pytest.raises(InvalidMeaningError):
+            add_custom_symbol(plan, "☕", "   ", "Ctrl+Shift+K")
+
 
 class TestUpdateCustomSymbol:
     def test_changes_glyph_meaning_and_shortcut(self):
@@ -89,6 +94,12 @@ class TestUpdateCustomSymbol:
         plan = make_plan()
         next_plan = update_custom_symbol(plan, "does-not-exist", "☕", "X", "Ctrl+Shift+K")
         assert next_plan.custom_symbols == {}
+
+    def test_empty_meaning_raises(self):
+        plan = make_plan()
+        plan, symbol_id = add_custom_symbol(plan, "☕", "Kaffee vergessen", "Ctrl+Shift+K")
+        with pytest.raises(InvalidMeaningError):
+            update_custom_symbol(plan, symbol_id, "☕", "   ", "Ctrl+Shift+K")
 
     def test_referencing_history_survives_a_meaning_change(self):
         """Beweis, dass die Referenz ueber die ID laeuft: eine Bedeutungsaenderung

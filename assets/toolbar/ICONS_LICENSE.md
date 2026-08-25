@@ -33,6 +33,7 @@ auf die jeweilige Theme-Vordergrundfarbe passiert danach zur Laufzeit durch
 | tb_zoom_in.png                  | zoom-in                |
 | tb_export_student_pngs.png      | photo                  |
 | tb_archive_plan.png             | archive                |
+| tb_manage_symbols.png           | tags                   |
 
 ## MIT-Lizenztext (Tabler Icons)
 

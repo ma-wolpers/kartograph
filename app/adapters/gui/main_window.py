@@ -31,6 +31,8 @@ from app.adapters.gui._mixin_menu import MenuMixin
 from app.adapters.gui._mixin_namenfit_export import NamenfitExportMixin
 from app.adapters.gui._mixin_pdf import PdfMixin
 from app.adapters.gui._mixin_student_png_export import StudentPngExportMixin
+from app.adapters.gui._mixin_symbol_management import SymbolManagementMixin
+from app.adapters.gui._mixin_symbol_management_form import SymbolManagementFormMixin
 from app.adapters.gui._mixin_plan_crud import PlanCrudMixin
 from app.adapters.gui._mixin_plan_list import PlanListMixin
 from app.adapters.gui._mixin_popup import PopupMixin
@@ -87,6 +89,8 @@ class KartographMainWindow(
     PdfMixin,
     NamenfitExportMixin,
     StudentPngExportMixin,
+    SymbolManagementMixin,
+    SymbolManagementFormMixin,
     ExportMixin,
     SettingsMixin,
     UndoRedoMixin,
@@ -229,6 +233,10 @@ class KartographMainWindow(
         self._shortcut_runtime_offline = False
         self._shortcut_runtime_debug_window: ui.Toplevel | None = None
         self._shortcut_runtime_debug_table: tui.Treeview | None = None
+        self._symbol_management_window: ui.Toplevel | None = None
+        self._symbol_management_table: tui.Treeview | None = None
+        self._symbol_management_edit_button: tui.Button | None = None
+        self._symbol_management_delete_button: tui.Button | None = None
         self._shortcut_runtime_debug_context_var = ui.StringVar(value="")
         self._shortcut_runtime_debug_summary_var = ui.StringVar(value="")
         self._shortcut_runtime_debug_offline_var = ui.BooleanVar(value=False)

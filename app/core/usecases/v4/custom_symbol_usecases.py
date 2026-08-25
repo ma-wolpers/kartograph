@@ -15,6 +15,7 @@ from copy import deepcopy
 
 from app.core.domain.custom_symbol_validation import (
     validate_custom_symbol_glyph,
+    validate_custom_symbol_meaning,
     validate_custom_symbol_shortcut,
 )
 from app.core.domain.models_v4 import CustomSymbolDefinition, SeatingPlan
@@ -45,12 +46,13 @@ def add_custom_symbol(plan: SeatingPlan, glyph: str, meaning: str, shortcut: str
 
     Raises:
         InvalidGlyphError: Bei ungültigem Glyph.
+        InvalidMeaningError: Bei leerer Bedeutung.
         InvalidShortcutError: Bei ungültigem oder bereits belegtem Shortcut.
     """
     clean_glyph = validate_custom_symbol_glyph(glyph)
+    clean_meaning = validate_custom_symbol_meaning(meaning)
     other_shortcuts = [cs.shortcut for cs in plan.custom_symbols.values()]
     clean_shortcut = validate_custom_symbol_shortcut(shortcut, other_shortcuts)
-    clean_meaning = str(meaning or "").strip()
 
     next_plan = deepcopy(plan)
     symbol_id = uuid.uuid4().hex[:8]
@@ -84,15 +86,16 @@ def update_custom_symbol(plan: SeatingPlan, symbol_id: str, glyph: str, meaning:
 
     Raises:
         InvalidGlyphError: Bei ungültigem Glyph.
+        InvalidMeaningError: Bei leerer Bedeutung.
         InvalidShortcutError: Bei ungültigem oder anderweitig bereits belegtem Shortcut.
     """
     if symbol_id not in plan.custom_symbols:
         return deepcopy(plan)
 
     clean_glyph = validate_custom_symbol_glyph(glyph)
+    clean_meaning = validate_custom_symbol_meaning(meaning)
     other_shortcuts = [cs.shortcut for sid, cs in plan.custom_symbols.items() if sid != symbol_id]
     clean_shortcut = validate_custom_symbol_shortcut(shortcut, other_shortcuts)
-    clean_meaning = str(meaning or "").strip()
 
     next_plan = deepcopy(plan)
     next_plan.custom_symbols[symbol_id] = CustomSymbolDefinition(

@@ -27,6 +27,10 @@ class InvalidGlyphError(CustomSymbolValidationError):
     """Der angegebene Glyph ist kein einzelnes sichtbares Zeichen/Grapheme-Cluster."""
 
 
+class InvalidMeaningError(CustomSymbolValidationError):
+    """Die angegebene Bedeutung ist (nach dem Trimmen) leer."""
+
+
 # Bereits in app/adapters/gui/_mixin_shortcuts.py fest gebundene
 # Ctrl+Shift+<Buchstabe>-Systemshortcuts (Dokuansicht-Toggle [D], Runtime-Debug
 # [R], Offline-Toggle [O], Doku-Symbol setzen [S], Dokudatum umbenennen [U],
@@ -174,4 +178,28 @@ def validate_custom_symbol_glyph(raw: str) -> str:
     if pending_zwj:
         raise InvalidGlyphError(f"'{raw}' endet mit einem unvollständigen Zeichen-Verbund (offenes ZWJ).")
 
+    return text
+
+
+def validate_custom_symbol_meaning(raw: str) -> str:
+    """Prüft, dass *raw* nach dem Trimmen nicht leer ist.
+
+    Bewusst minimal: keine Längenbeschränkung, keine Eindeutigkeitsprüfung
+    gegen andere Symbole — die Identität eines eigenen Symbols ist seine
+    ``id`` (siehe ``CustomSymbolDefinition``-Docstring), nicht der
+    Bedeutungstext, daher müssen zwei Symbole nicht unterschiedlich heißen.
+    Eine leere Bedeutung ist aber kein sinnvoll anzeigbares Symbol.
+
+    Args:
+        raw: Rohe Nutzereingabe für das Bedeutungsfeld.
+
+    Returns:
+        Die getrimmte Bedeutung.
+
+    Raises:
+        InvalidMeaningError: Wenn *raw* nach dem Trimmen leer ist.
+    """
+    text = str(raw or "").strip()
+    if not text:
+        raise InvalidMeaningError("Bitte eine Bedeutung angeben.")
     return text

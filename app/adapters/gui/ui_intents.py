@@ -11,6 +11,7 @@ class UiIntent:
     ADD_SYMBOL = "desk.add_symbol"
     OPEN_TABLEGROUP_SETTINGS = "tablegroup.settings.open"
     GRID_SYMBOL_FILTER = "grid.symbol_filter.open"
+    MANAGE_SYMBOLS = "symbols.manage"
     OPEN_SHORTCUT_RUNTIME_DEBUG = "debug.shortcut.runtime.open"
     TOGGLE_SHORTCUT_RUNTIME_OFFLINE = "debug.shortcut.runtime.offline.toggle"
     ESCAPE = "selection.clear"

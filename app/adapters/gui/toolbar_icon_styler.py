@@ -31,6 +31,7 @@ _ICON_FILE_BY_KEY: dict[str, str] = {
     "export_namenfit_csv": "tb_export_namenfit_csv.png",
     "export_student_pngs": "tb_export_student_pngs.png",
     "archive_plan": "tb_archive_plan.png",
+    "manage_symbols": "tb_manage_symbols.png",
     "teacher_desk": "tb_teacher_desk.png",
     "toggle_documentation": "tb_toggle_docs.png",
     "symbol_filter": "tb_symbol_filter.png",
