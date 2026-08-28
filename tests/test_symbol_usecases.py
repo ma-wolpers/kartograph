@@ -4,6 +4,7 @@ from app.core.domain.student_id import StudentId
 from app.core.usecases.v4.symbol_usecases import (
     record_symbol,
     summarize_latest_symbols,
+    summarize_latest_symbols_by_student,
     toggle_diagnostic_symbol,
 )
 from tests.conftest import make_plan, make_student
@@ -73,3 +74,29 @@ class TestSummarizeLatestSymbols:
         sid = StudentId.new()
         plan = make_plan(students=[make_student(first_name="", student_id=sid)])
         assert summarize_latest_symbols(plan, sid) == {}
+
+
+class TestSummarizeLatestSymbolsByStudent:
+    """Regressionstest für den Doku-Tabellen-Perf-Fix (2026-08-28): die Bulk-
+
+    Variante muss für jeden Schüler dasselbe liefern wie ein Aufruf von
+    ``summarize_latest_symbols`` pro Schüler.
+    """
+
+    def test_matches_single_student_function_for_multiple_students(self):
+        sid_a, sid_b = StudentId.new(), StudentId.new()
+        plan = make_plan(students=[
+            make_student(student_id=sid_a, x=0),
+            make_student(student_id=sid_b, x=1),
+        ])
+        plan = record_symbol(plan, sid_a, DATE, SYM, 1)
+        plan = record_symbol(plan, sid_a, DATE2, SYM, 3)
+        plan = record_symbol(plan, sid_b, DATE, "Anderes", 2)
+
+        bulk = summarize_latest_symbols_by_student(plan)
+
+        assert bulk.get(sid_a, {}) == summarize_latest_symbols(plan, sid_a) == {SYM: 3}
+        assert bulk.get(sid_b, {}) == summarize_latest_symbols(plan, sid_b) == {"Anderes": 2}
+
+    def test_student_without_symbols_missing_from_result(self, anna_id, plan_with_anna):
+        assert anna_id not in summarize_latest_symbols_by_student(plan_with_anna)

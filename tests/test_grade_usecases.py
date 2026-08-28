@@ -3,8 +3,12 @@
 from app.core.domain.student_id import StudentId
 from app.core.usecases.v4.grade_usecases import (
     add_grade_column,
+    collect_grade_value_lists_by_student,
     compute_grade_display,
+    compute_grade_display_by_student,
     compute_grade_subtotal_display,
+    compute_grade_subtotal_display_by_student,
+    compute_latest_grades_by_student,
     record_grade,
     set_grade_weighting,
 )
@@ -129,3 +133,104 @@ class TestComputeGradeDisplay:
         plan, sid = self._plan_with_grades(written=3.0, sonstige=None)
         display = compute_grade_display(plan, sid, allow_provisional=False)
         assert display == ""
+
+
+class TestComputeLatestGradesByStudent:
+    """Regressionstest für den Doku-Tabellen-Perf-Fix (2026-08-28).
+
+    ``compute_latest_grades_by_student`` ersetzt eine pro (Schüler, Spalte)
+    neu sortierende Berechnung durch einen einzigen Durchlauf über alle
+    Sessions. Muss für jede (Schüler, Spalte)-Kombination denselben Wert
+    liefern wie die (bewusst langsame) Referenzimplementierung unten.
+    """
+
+    @staticmethod
+    def _reference_latest(plan, student_id, column_id) -> float | None:
+        latest = None
+        for session in sorted(plan.documentation.sessions, key=lambda s: s.date):
+            entry = session.entry_for(student_id)
+            if entry is None:
+                continue
+            value = entry.grades.get(column_id)
+            if value is None:
+                continue
+            latest = float(value)
+        return latest
+
+    def test_matches_reference_for_multiple_students(self):
+        sid_a, sid_b = StudentId.new(), StudentId.new()
+        plan = make_plan(students=[
+            make_student(student_id=sid_a, x=0),
+            make_student(student_id=sid_b, x=1),
+        ])
+        plan, col = add_grade_column(plan, "schriftlich", "Arbeit")
+        plan = record_grade(plan, sid_a, "2025-09-01", col, 2.0)
+        plan = record_grade(plan, sid_a, "2025-09-05", col, 4.0)
+        plan = record_grade(plan, sid_b, "2025-09-03", col, 1.0)
+
+        result = compute_latest_grades_by_student(plan)
+
+        assert result[sid_a][col] == self._reference_latest(plan, sid_a, col) == 4.0
+        assert result[sid_b][col] == self._reference_latest(plan, sid_b, col) == 1.0
+
+    def test_sorts_by_date_not_insertion_order(self):
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(student_id=sid)])
+        plan, col = add_grade_column(plan, "schriftlich", "Arbeit")
+        plan = record_grade(plan, sid, "2025-09-10", col, 5.0)
+        plan = record_grade(plan, sid, "2025-09-02", col, 1.0)  # später eingefügt, aber früheres Datum
+        assert compute_latest_grades_by_student(plan)[sid][col] == 5.0
+
+    def test_student_without_grades_missing_from_result(self, anna_id, plan_with_anna):
+        assert anna_id not in compute_latest_grades_by_student(plan_with_anna)
+
+
+class TestBulkGradeDisplay:
+    """Regressionstest: Bulk-Varianten müssen dieselben Werte liefern wie die
+
+    Einzelschüler-Funktionen, sowohl mit als auch ohne vorberechnete
+    ``value_lists`` (geteilte Sessions-Sammlung).
+    """
+
+    def test_matches_single_student_functions_across_multiple_students(self):
+        sid_a, sid_b, sid_c = StudentId.new(), StudentId.new(), StudentId.new()
+        plan = make_plan(students=[
+            make_student(student_id=sid_a, x=0),
+            make_student(student_id=sid_b, x=1),
+            make_student(student_id=sid_c, x=2),
+        ])
+        plan, col_w = add_grade_column(plan, "schriftlich", "W")
+        plan, col_s = add_grade_column(plan, "sonstig", "S")
+        plan = record_grade(plan, sid_a, "2025-09-01", col_w, 2.0)
+        plan = record_grade(plan, sid_a, "2025-09-02", col_s, 3.0)
+        plan = record_grade(plan, sid_b, "2025-09-01", col_w, 5.0)
+        # sid_c bekommt bewusst keine Note.
+        plan = set_grade_weighting(plan, 60, 40)
+
+        overall = compute_grade_display_by_student(plan)
+        written = compute_grade_subtotal_display_by_student(plan, "schriftlich")
+        sonstig = compute_grade_subtotal_display_by_student(plan, "sonstig")
+
+        for sid in (sid_a, sid_b, sid_c):
+            assert overall.get(sid, "") == compute_grade_display(plan, sid)
+            assert written.get(sid, "") == compute_grade_subtotal_display(plan, sid, "schriftlich")
+            assert sonstig.get(sid, "") == compute_grade_subtotal_display(plan, sid, "sonstig")
+
+    def test_shared_value_lists_gives_identical_results(self):
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(student_id=sid)])
+        plan, col = add_grade_column(plan, "schriftlich", "W")
+        plan = record_grade(plan, sid, DATE, col, 3.0)
+
+        without_shared = compute_grade_display_by_student(plan)
+        value_lists = collect_grade_value_lists_by_student(plan)
+        with_shared = compute_grade_display_by_student(plan, value_lists=value_lists)
+
+        assert without_shared == with_shared
+
+    def test_unnamed_student_excluded(self):
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(first_name="", last_name="", student_id=sid)])
+        plan, col = add_grade_column(plan, "schriftlich", "W")
+        plan = record_grade(plan, sid, DATE, col, 3.0)
+        assert compute_grade_display_by_student(plan).get(sid, "") == ""

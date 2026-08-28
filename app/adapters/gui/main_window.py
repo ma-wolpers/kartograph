@@ -260,6 +260,7 @@ class KartographMainWindow(
         self._doc_dates: list[str] = []
         self._doc_tree_iid_by_student_index: dict[int, str] = {}
         self._doc_student_index_by_iid: dict[str, int] = {}
+        self._doc_row_values_cache: dict[str, tuple[str, tuple, tuple]] = {}
         self._doc_date_column_ids: list[str] = []
         self._doc_fixed_column_ids: list[str] = []
         self._doc_selected_fixed_column_id: str | None = None
