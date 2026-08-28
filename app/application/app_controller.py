@@ -196,6 +196,7 @@ class KartographAppController:
         initial_settings = KartographSettings.from_dict(settings_repository.load_settings())
         symbol_definitions, self.symbol_catalog_warning = load_symbol_definitions(symbols_path)
         self._state: AppState = AppState(settings=initial_settings, symbol_catalog=tuple(symbol_definitions))
+        self._state_version = 0
         self._on_state_changed = on_state_changed
         self._registry = IntentRegistry()
         self._register_handlers()
@@ -208,6 +209,21 @@ class KartographAppController:
     def state(self) -> AppState:
         """Aktueller, unveränderlicher Anwendungszustand."""
         return self._state
+
+    @property
+    def state_version(self) -> int:
+        """Monoton steigender Zähler, hochgezählt bei jeder tatsächlichen Zustandsänderung.
+
+        Dient GUI-seitigen Caches (z. B. Redraw-/Tabellen-Memoization) als billiger
+        Invalidierungs-Schlüssel, da die Domänenobjekte in ``current_plan`` selbst
+        mutierbar sind (``@dataclass(slots=True)`` ohne ``frozen=True``) und ihre
+        ``id()`` deshalb kein verlässlicher Cache-Schlüssel wäre. Bewusst grobgranular:
+        unterscheidet nicht nach Art der Änderung, invalidiert also auch Caches, die
+        von einer konkreten Änderung gar nicht betroffen wären. Eine feinere,
+        fachlich differenzierte Invalidierung ist eine mögliche spätere Optimierung,
+        aber kein Bestandteil dieses einfachen Zählers.
+        """
+        return self._state_version
 
     @property
     def plan_repository(self) -> Any:
@@ -230,11 +246,17 @@ class KartographAppController:
         Nur für GUI-seitige Vor-Mutations-Anpassungen (z. B. Farbpaletten-Bedeutung
         vor einem Toggle). Löst keinen on_state_changed-Callback aus.
 
+        Bumpt trotzdem ``state_version``: ``current_plan`` ändert sich hier auf
+        demselben Weg wie bei einem Dispatch, nur ohne Callback — jeder Cache, der
+        zwischen diesem Aufruf und dem folgenden Dispatch anhand von
+        ``state_version`` gelesen wird, muss den neuen Plan sehen, nicht den alten.
+
         Args:
             plan: Plan, der den aktuellen ``current_plan`` im State ersetzt.
         """
         import dataclasses
         self._state = dataclasses.replace(self._state, current_plan=plan)
+        self._state_version += 1
 
     def dispatch(self, intent: Intent) -> None:
         """Dispatcht *intent*, aktualisiert ``state`` und ruft den Callback.
@@ -249,6 +271,7 @@ class KartographAppController:
         new_state = self._registry.dispatch(intent, self._state)
         if new_state is not self._state:
             self._state = new_state
+            self._state_version += 1
             try:
                 self._on_state_changed(new_state)
             except Exception:
