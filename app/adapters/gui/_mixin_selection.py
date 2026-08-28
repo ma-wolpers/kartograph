@@ -107,8 +107,8 @@ class SelectionMixin:
         x, y = self.selection.active_cell()
         cx, cy = self._clamp_cell(x + dx, y + dy)
         self._controller.dispatch(MoveSelectionIntent(dx=cx - x, dy=cy - y))
-        self._follow_selection_viewport(*self.selection.active_cell())
-        self.redraw_grid()
+        if self._follow_selection_viewport(*self.selection.active_cell()):
+            self.redraw_grid()
         self._update_selection_no_open()
 
     def expand_selection(self, dx: int, dy: int) -> None:
@@ -123,21 +123,27 @@ class SelectionMixin:
         x, y = self.selection.active_cell()
         cx, cy = self._clamp_cell(x + dx, y + dy)
         self._controller.dispatch(MoveSelectionIntent(dx=cx - x, dy=cy - y, expand=True))
-        self._follow_selection_viewport(*self.selection.active_cell())
-        self.redraw_grid()
+        if self._follow_selection_viewport(*self.selection.active_cell()):
+            self.redraw_grid()
         self._update_selection_no_open()
 
-    def _follow_selection_viewport(self, x: int, y: int) -> None:
+    def _follow_selection_viewport(self, x: int, y: int) -> bool:
         """Verschiebt den Viewport so, dass die Zelle im Puffer-Bereich sichtbar bleibt.
 
         Args:
             x: Raster-x-Koordinate der zu zeigenden Zelle.
             y: Raster-y-Koordinate der zu zeigenden Zelle.
+
+        Returns:
+            True, wenn der Viewport tatsächlich verschoben wurde. ``redraw_grid()``
+            cullt Zellen anhand der Scroll-Position zum Aufrufzeitpunkt (siehe
+            ``_mixin_grid_render.py``) — nach einer Verschiebung ist ein erneutes
+            Redraw nötig, sonst bleiben neu sichtbare Bereiche ungezeichnet.
         """
         buffer_cells = self.viewport_follow_buffer
         if buffer_cells <= 0:
             self.center_on_cell(x, y)
-            return
+            return True
         self.update_idletasks()
         width = max(1, self.canvas.winfo_width())
         height = max(1, self.canvas.winfo_height())
@@ -147,9 +153,11 @@ class SelectionMixin:
         bottom_cell = int(self.canvas.canvasy(height - 1) // self.cell_size)
         if right_cell - left_cell < buffer_cells * 2 or bottom_cell - top_cell < buffer_cells * 2:
             self.center_on_cell(x, y)
-            return
+            return True
         if x < left_cell + buffer_cells or x > right_cell - buffer_cells or y < top_cell + buffer_cells or y > bottom_cell - buffer_cells:
             self.center_on_cell(x, y)
+            return True
+        return False
 
     def _on_return_key(self, _event) -> str | None:
         """Handler für Return/KP_Enter: kontextabhängige Bestätigungs-Aktion.
