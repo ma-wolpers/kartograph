@@ -37,6 +37,14 @@ MAX_SITZPLAN_POPUP_DELAY = 30
 DEFAULT_NAME_SAVE_DELAY = 2
 MIN_NAME_SAVE_DELAY = 0
 MAX_NAME_SAVE_DELAY = 15
+# Debounce-Verzoegerung fuer das Schreiben von Symbol-/Noten-/Farb-Edits auf
+# die Festplatte (s. _mixin_plan_save.py). Bewusst kurz und nicht nutzerseitig
+# konfigurierbar (anders als DEFAULT_NAME_SAVE_DELAY): jede einzelne Aktion ist
+# hier schon eine vollstaendige, abgeschlossene Aenderung (kein Tastatur-
+# Fragment wie bei Namensfeldern) - der Zweck ist nur, eine schnelle Serie
+# solcher Aktionen (z. B. eine Notenspalte durchgehen) zu einem Schreibvorgang
+# zu buendeln, nicht eine spuerbare Wartezeit einzufuehren.
+DEFAULT_PLAN_SAVE_DELAY_MS = 400
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"

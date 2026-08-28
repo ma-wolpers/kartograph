@@ -38,6 +38,13 @@ def _record_and_save(
 ) -> None:
     """Schreibt *plan* in die History (unter *action_kind*) und persistiert ihn unter *path*.
 
+    Die History-Aufzeichnung ist immer synchron (unverändert) — sie ist die
+    Grundlage für Undo/Redo und muss bei jedem Edit sofort aktuell sein.
+    Das eigentliche Schreiben auf die Festplatte kann dagegen über
+    ``ctx.plan_save_scheduler`` an einen debounced GUI-Hook delegiert werden
+    (s. ``HandlerContext.plan_save_scheduler``, ``_mixin_plan_save.py``) —
+    ohne GUI (z. B. in Tests) bleibt das Verhalten unverändert synchron.
+
     Args:
         plan: Neuer Planzustand.
         path: Zieldatei für die Persistenz.
@@ -45,7 +52,10 @@ def _record_and_save(
         ctx: Handler-Kontext mit Zugriff auf History und Repository.
     """
     ctx.history.record(plan, action_kind)
-    ctx.plan_repository.save_plan(plan, path)
+    if ctx.plan_save_scheduler is not None:
+        ctx.plan_save_scheduler(plan, path)
+    else:
+        ctx.plan_repository.save_plan(plan, path)
 
 
 def _with_plan(

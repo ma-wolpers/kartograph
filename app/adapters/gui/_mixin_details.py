@@ -314,6 +314,7 @@ class DetailsMixin:
         EDITING-Zustand zurückbleibt. Fokus geht nur zum Canvas, wenn der Editor
         tatsächlich sichtbar ist."""
         self._flush_pending_name_save()
+        self._flush_pending_plan_save()
         self._downgrade_desk_detail_editing_to_revealed()
         if not self.editor_view.winfo_ismapped():
             return
@@ -328,6 +329,7 @@ class DetailsMixin:
         Darf mehrfach bzw. zusammen mit ``exit_name_edit_mode()`` feuern, ohne
         inkonsistenten Zustand zu erzeugen (beide Downgrade-Pfade sind idempotent)."""
         self._flush_pending_name_save()
+        self._flush_pending_plan_save()
         self._downgrade_desk_detail_editing_to_revealed()
 
     def confirm_selected_cell(self) -> None:

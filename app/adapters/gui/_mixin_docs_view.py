@@ -101,6 +101,7 @@ class DocsViewMixin:
         lassen, obwohl der Editor gar nicht mehr zu sehen ist.
         """
         self._flush_pending_name_save()
+        self._flush_pending_plan_save()
         self.show_plan_list_view()
         self._hide_details()
         self._controller.dispatch(ClearSelectionIntent())

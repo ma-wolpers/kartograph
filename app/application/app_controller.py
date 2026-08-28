@@ -19,6 +19,7 @@ from typing import Any, Callable
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
 from app.application.intent_registry import IntentRegistry
+from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.plan_history import PlanHistory
 from app.core.domain.settings import KartographSettings
 from app.core.intents.base import Intent
@@ -234,6 +235,24 @@ class KartographAppController:
     def settings_repository(self) -> Any:
         """Das verwendete ``SettingsRepository`` (für GUI-Mixins, die noch nicht migriert sind)."""
         return self._ctx.settings_repository
+
+    def set_plan_save_scheduler(self, scheduler: Callable[[SeatingPlan, Path], None] | None) -> None:
+        """Setzt (oder entfernt) den GUI-seitigen Hook für debounced Speichern.
+
+        Wird von der GUI einmalig nach dem Aufbau des Hauptfensters aufgerufen
+        (analog zu ``self._controller._on_state_changed = self.apply_state``
+        in ``main_window.py``), damit ``_record_and_save()`` in den Handlern
+        Schreibvorgänge an einen Tk-``after()``-basierten Debouncer delegieren
+        kann, statt bei jedem Edit sofort synchron zu speichern. Ohne Aufruf
+        (z. B. in Tests) bleibt ``ctx.plan_save_scheduler`` ``None`` und das
+        Verhalten unverändert synchron.
+
+        Args:
+            scheduler: Callable ``(plan, path) -> None``, das den eigentlichen
+                Schreibvorgang verzögert auslöst; ``None`` deaktiviert das
+                Debouncing wieder.
+        """
+        self._ctx.plan_save_scheduler = scheduler
 
     @property
     def default_plans_dir(self) -> Path:

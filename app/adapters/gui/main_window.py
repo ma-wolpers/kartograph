@@ -35,6 +35,7 @@ from app.adapters.gui._mixin_symbol_management import SymbolManagementMixin
 from app.adapters.gui._mixin_symbol_management_form import SymbolManagementFormMixin
 from app.adapters.gui._mixin_plan_crud import PlanCrudMixin
 from app.adapters.gui._mixin_plan_list import PlanListMixin
+from app.adapters.gui._mixin_plan_save import PlanSaveMixin
 from app.adapters.gui._mixin_popup import PopupMixin
 from app.adapters.gui._mixin_sitzplan_popup import SitzplanPopupMixin
 from app.adapters.gui._mixin_selection import SelectionMixin
@@ -98,6 +99,7 @@ class KartographMainWindow(
     DocsEditMixin,
     PlanCrudMixin,
     PlanListMixin,
+    PlanSaveMixin,
     DocsDialogsMixin,
     DocsEventsMixin,
     DocsTableMixin,
@@ -151,6 +153,13 @@ class KartographMainWindow(
         # Expose repo for unmigrated mixins (pdf, export, plan-list, undo-redo)
         self.plan_repository = controller.plan_repository
         self.default_plans_dir = controller.default_plans_dir
+
+        # Debounced Speichern (_mixin_plan_save.py): State muss vor dem
+        # ersten möglichen Dispatch stehen, da set_plan_save_scheduler()
+        # unten ctx.plan_save_scheduler sofort scharf schaltet.
+        self._pending_plan_save: tuple[SeatingPlan, Path] | None = None
+        self._plan_save_after_id: str | None = None
+        self._controller.set_plan_save_scheduler(self._schedule_plan_save)
 
         # AppState.settings ist beim Controller-Start bereits aus dem
         # Settings-Repository geladen und normalisiert (Phase D1) — die GUI
@@ -342,6 +351,10 @@ class KartographMainWindow(
         """Schließt Overlay-Fenster bevor die Shell das Root-Fenster zerstört."""
         try:
             self._flush_pending_name_save()
+        except Exception:
+            pass
+        try:
+            self._flush_pending_plan_save()
         except Exception:
             pass
         try:
