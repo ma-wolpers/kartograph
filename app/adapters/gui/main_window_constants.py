@@ -34,17 +34,21 @@ DEFAULT_NAME_FORMAT = "Vorname Nachname"
 DEFAULT_SITZPLAN_POPUP_DELAY = 3
 MIN_SITZPLAN_POPUP_DELAY = 1
 MAX_SITZPLAN_POPUP_DELAY = 30
-DEFAULT_NAME_SAVE_DELAY = 2
-MIN_NAME_SAVE_DELAY = 0
-MAX_NAME_SAVE_DELAY = 15
-# Debounce-Verzoegerung fuer das Schreiben von Symbol-/Noten-/Farb-Edits auf
-# die Festplatte (s. _mixin_plan_save.py). Bewusst kurz und nicht nutzerseitig
-# konfigurierbar (anders als DEFAULT_NAME_SAVE_DELAY): jede einzelne Aktion ist
-# hier schon eine vollstaendige, abgeschlossene Aenderung (kein Tastatur-
-# Fragment wie bei Namensfeldern) - der Zweck ist nur, eine schnelle Serie
-# solcher Aktionen (z. B. eine Notenspalte durchgehen) zu einem Schreibvorgang
-# zu buendeln, nicht eine spuerbare Wartezeit einzufuehren.
-DEFAULT_PLAN_SAVE_DELAY_MS = 400
+# Debounce-Verzoegerung fuers Speichern -- gilt sowohl fuer Namensfelder
+# (Tippruhe) als auch fuer Noten-/Symbol-/Farb-Edits (buendelt eine schnelle
+# Serie von Aktionen, z. B. eine Notenspalte durchgehen, zu einem einzigen
+# Schreibvorgang statt vielen). MIN_SAVE_DELAY ist hart erzwungen (0.3s) --
+# darunter waere der Debounce faktisch wirkungslos. Ueber MAX_SAVE_DELAY
+# hinaus (harte Obergrenze) ist nichts sinnvoll konfigurierbar;
+# RECOMMENDED_MAX_SAVE_DELAY ist nur eine Empfehlung im Einstellungsdialog,
+# kein Hard-Cap -- laenger bedeutet ein groesseres Zeitfenster, in dem bei
+# einem harten Absturz noch nicht gespeicherte Aenderungen verloren gehen
+# koennten (Fensterschliessen/Planwechsel/Feld verlassen flushen weiterhin
+# sofort, unabhaengig von dieser Verzoegerung).
+DEFAULT_SAVE_DELAY = 2.0
+MIN_SAVE_DELAY = 0.3
+MAX_SAVE_DELAY = 30.0
+RECOMMENDED_MAX_SAVE_DELAY = 10.0
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"

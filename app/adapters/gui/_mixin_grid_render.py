@@ -15,10 +15,31 @@ from app.core.domain.table_groups import (
     list_tablegroup_numbers_v4,
     selection_bounds_from_geometries_v4,
 )
+from app.core.usecases.v4.grade_usecases import compute_grade_display_by_student
+from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols_by_student
 
 
 class GridRenderMixin:
-    """Mixin: Rasterzeichnung und Auswahl-Indikatoren (v4)."""
+    """Mixin: Rasterzeichnung und Auswahl-Indikatoren (v4).
+
+    ``redraw_grid()`` läuft auf jeder Cursor-Navigation, jedem Drag-Tick und
+    jedem Scroll/Zoom — mit Abstand der höchstfrequenteste Hot Path der App.
+    Zwei getrennte Optimierungsebenen greifen hier ineinander:
+
+    1. Pro-Aufruf-Redundanz beseitigt: früher rief ``_draw_student_desk_content()``
+       pro sichtbarem Schüler einzeln ``summarize_latest_symbols()``/
+       ``compute_grade_display()`` auf (je ein eigener Sessions-Resort) und
+       ``session_for_date(heute)`` mehrfach mit demselben Datum. Jetzt werden
+       diese drei Werte einmal pro ``redraw_grid()``-Aufruf für ALLE Schüler
+       vorberechnet (Bulk-Funktionen aus Item 1 des Perf-Fixes) und nur noch
+       per Dict-Lookup weitergereicht.
+    2. Cache über mehrere Aufrufe hinweg: ``compute_display_names()``,
+       ``build_seat_geometries_v4()`` und die Schriftgrößen-Berechnung hängen
+       nur von ``state_version`` (s. ``KartographAppController``) plus wenigen
+       GUI-Einstellungen ab, nicht vom konkreten Navigations-/Drag-Ereignis —
+       bei reiner Cursor-Bewegung ändert sich keiner dieser Werte, das
+       Neuberechnen war reine Verschwendung.
+    """
 
     def redraw_grid(self) -> None:
         """Zeichnet das gesamte Raster neu auf dem Canvas."""
@@ -27,9 +48,32 @@ class GridRenderMixin:
             return
 
         theme = kartograph_theme(self.theme_key)
-        self._display_names = compute_display_names(
-            self.current_plan.classroom.students, self.name_format, self.disambiguate_colliding_names
-        )
+        state_version = self._controller.state_version
+
+        names_key = (state_version, self.name_format, self.disambiguate_colliding_names)
+        if names_key != self._grid_names_cache_key:
+            self._grid_names_cache_value = compute_display_names(
+                self.current_plan.classroom.students, self.name_format, self.disambiguate_colliding_names
+            )
+            self._grid_names_cache_key = names_key
+        self._display_names = self._grid_names_cache_value
+
+        if state_version != self._grid_geometry_cache_key:
+            self._grid_geometry_cache_value = build_seat_geometries_v4(self.current_plan)
+            self._grid_geometry_cache_key = state_version
+        geometries = self._grid_geometry_cache_value
+
+        font_key = (names_key, self.cell_size)
+        if font_key != self._grid_font_size_cache_key:
+            self._grid_font_size_cache_value = self._compute_uniform_student_name_font_size()
+            self._grid_font_size_cache_key = font_key
+        student_name_font_size = self._grid_font_size_cache_value
+
+        # Pro Aufruf einmal für alle Schüler vorberechnen statt pro sichtbarem
+        # Schüler einzeln (siehe Klassendocstring, Punkt 1).
+        today_session = self.current_plan.documentation.session_for_date(self._today_doc_date())
+        latest_symbols_by_student = summarize_latest_symbols_by_student(self.current_plan)
+        overall_grade_by_student = compute_grade_display_by_student(self.current_plan)
 
         left = self.canvas.canvasx(0)
         top = self.canvas.canvasy(0)
@@ -41,7 +85,6 @@ class GridRenderMixin:
         start_y = max(self._grid_min(), int(top // self.cell_size) - 1)
         end_y = min(self._grid_max(), int(bottom // self.cell_size) + 1)
 
-        geometries = build_seat_geometries_v4(self.current_plan)
         geometry_by_coord = {(g.x, g.y): g for g in geometries if not g.is_teacher}
         selected_cells = set(self.selection.cells())
         selected_tablegroups: set[int] = {
@@ -50,11 +93,10 @@ class GridRenderMixin:
             if not g.is_teacher and (g.x, g.y) in selected_cells and g.group_id is not None
         }
 
-        student_name_font_size = self._compute_uniform_student_name_font_size()
-
         self._draw_desk_cells(
             start_x, end_x, start_y, end_y, theme,
             (left, top, right, bottom), geometry_by_coord, student_name_font_size,
+            today_session, latest_symbols_by_student, overall_grade_by_student,
         )
         self._draw_selection_indicators(geometries, selected_cells, selected_tablegroups, theme)
 
@@ -65,6 +107,9 @@ class GridRenderMixin:
         viewport: tuple[float, float, float, float],
         geometry_by_coord: dict,
         student_name_font_size: int,
+        today_session,
+        latest_symbols_by_student: dict,
+        overall_grade_by_student: dict,
     ) -> None:
         """Zeichnet alle leeren Rasterzellen sowie Lehrer- und Schülertische.
 
@@ -77,6 +122,9 @@ class GridRenderMixin:
             viewport: Sichtbarer Canvas-Ausschnitt als (left, top, right, bottom).
             geometry_by_coord: Sitzgeometrien je (x, y)-Koordinate.
             student_name_font_size: Einheitliche Schriftgröße für Schülernamen.
+            today_session: Einmalig vorberechnete heutige Session (oder None).
+            latest_symbols_by_student: Einmalig vorberechnete neueste Symbole je Schüler.
+            overall_grade_by_student: Einmalig vorberechnete Gesamtnoten-Anzeige je Schüler.
         """
         left, top, right, bottom = viewport
         plan = self.current_plan
@@ -138,7 +186,10 @@ class GridRenderMixin:
                 fill=theme["accent_soft"], outline=theme["border"], width=1, tags=("grid",),
             )
             center_px = geometry.center_x * self.cell_size
-            self._draw_student_desk_content(student, center_px, min_px, min_py, theme, student_name_font_size)
+            self._draw_student_desk_content(
+                student, center_px, min_px, min_py, theme, student_name_font_size,
+                today_session, latest_symbols_by_student, overall_grade_by_student,
+            )
 
     def _draw_selection_indicators(
         self,

@@ -16,8 +16,13 @@ from pathlib import Path
 import pytest
 
 from app.adapters.gui._mixin_plan_save import PlanSaveMixin
-from app.adapters.gui.main_window_constants import DEFAULT_PLAN_SAVE_DELAY_MS
 from tests.conftest import make_plan
+
+# Kurz gehalten, um den echten-Timer-Test schnell zu halten -- die eigentliche
+# MIN_SAVE_DELAY-Untergrenze (0.3s) wird an der Settings-Schicht erzwungen
+# (KartographSettings.from_dict, _mixin_settings.py), nicht hier im Mixin
+# selbst, das nur liest, was self.save_delay gerade enthält.
+_TEST_SAVE_DELAY_SECONDS = 0.1
 
 
 class _FakeRepository:
@@ -51,6 +56,7 @@ class _PlanSaveTestWindow(tk.Frame, PlanSaveMixin):
         super().__init__(root)
         self._controller = _FakeController(repo)
         self.status_var = _FakeStatusVar()
+        self.save_delay = _TEST_SAVE_DELAY_SECONDS
         self._pending_plan_save: tuple | None = None
         self._plan_save_after_id: str | None = None
 
@@ -111,7 +117,7 @@ def test_real_timer_fires_and_saves_after_delay(window):
     win._schedule_plan_save(plan, path)
     assert repo.calls == []
 
-    deadline = DEFAULT_PLAN_SAVE_DELAY_MS + 500
+    deadline = int(_TEST_SAVE_DELAY_SECONDS * 1000) + 500
     waited = 0
     while not repo.calls and waited < deadline:
         win.update()

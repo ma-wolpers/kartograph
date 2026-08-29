@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import ParticipationRating, SeatingPlan, Student
-from app.core.usecases.v4.grade_usecases import compute_grade_display
-from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -28,6 +26,9 @@ class GridHelpersMixin:
         min_py: float,
         theme: dict,
         student_name_font_size: int,
+        today_session,
+        latest_symbols_by_student: dict,
+        overall_grade_by_student: dict,
     ) -> None:
         """Zeichnet Farbpunkte, Gesamtnote, Schülername und Symbole in einen Schülertisch.
 
@@ -38,10 +39,16 @@ class GridHelpersMixin:
             min_py: Obere Pixel-Kante des Tisches.
             theme: Aktuelles Farb-/Theme-Dictionary für das Zeichnen.
             student_name_font_size: Schriftgröße für den Schülernamen.
+            today_session: Vorberechnete heutige Session (einmal pro Redraw
+                statt pro Schüler neu gesucht, s. ``_mixin_grid_render.py``).
+            latest_symbols_by_student: Vorberechnete neueste Symbole je Schüler.
+            overall_grade_by_student: Vorberechnete Gesamtnoten-Anzeige je Schüler.
         """
         main_text = self._display_names.get(student.student_id, "")
-        effective_symbols = self._effective_grid_symbols_v4(student)
-        participation_today = self._participation_rating_today(student)
+        effective_symbols = self._effective_grid_symbols_v4(
+            student, latest_symbols_by_student.get(student.student_id, {}), today_session,
+        )
+        participation_today = self._participation_rating_today(student, today_session)
         symbol_lines = self._symbol_grid_lines(effective_symbols, participation_today)
         desk_color_markers = self._ordered_color_markers(student.diagnostic.color_tags)
 
@@ -58,7 +65,7 @@ class GridHelpersMixin:
                     fill=hex_color, outline=theme["border"], width=1, tags=("grid",),
                 )
 
-        overall_grade = compute_grade_display(self.current_plan, student.student_id)
+        overall_grade = overall_grade_by_student.get(student.student_id, "")
         if overall_grade:
             self.canvas.create_text(
                 min_px + self.cell_size * 0.08, min_py + self.cell_size * 0.09,
@@ -254,11 +261,19 @@ class GridHelpersMixin:
         """Gibt die maximale Textbreite für Legende-Labels im Details-Panel zurück."""
         return 500 if self.details_overlay_position in {"left", "right"} else 980
 
-    def _effective_grid_symbols_v4(self, student: Student) -> dict[str, int]:
+    def _effective_grid_symbols_v4(
+        self, student: Student, latest_symbols: dict[str, int], today_session,
+    ) -> dict[str, int]:
         """Gibt die für das Raster relevanten Symbole eines Schülers zurück (v4).
 
         Args:
             student: Schüler, dessen Raster-Symbole ermittelt werden.
+            latest_symbols: Neueste Symbole dieses Schülers, vorberechnet für
+                ALLE Schüler in einem Durchlauf (``summarize_latest_symbols_by_student``,
+                s. ``_mixin_grid_render.py``) statt hier erneut pro Schüler
+                die Sessions neu zu sortieren. Leeres Dict, wenn keine vorliegen.
+            today_session: Die heutige Session (einmal pro Redraw vorberechnet
+                statt pro Schüler erneut per Datum gesucht), oder ``None``.
         """
         if not self.current_plan:
             return {
@@ -266,8 +281,7 @@ class GridHelpersMixin:
                 if k in self._grid_visible_symbols
             }
 
-        summary = summarize_latest_symbols(self.current_plan, student.student_id)
-        source = summary if summary else dict(student.diagnostic.symbols)
+        source = latest_symbols if latest_symbols else dict(student.diagnostic.symbols)
         effective = {
             k: v for k, v in source.items()
             if k not in self._documentation_only_symbols
@@ -275,10 +289,8 @@ class GridHelpersMixin:
         }
 
         # Add today's documentation-only symbols
-        today = self._today_doc_date()
-        session = self.current_plan.documentation.session_for_date(today)
-        if session and student.is_named():
-            today_entry = session.entry_for(student.student_id)
+        if today_session and student.is_named():
+            today_entry = today_session.entry_for(student.student_id)
             if today_entry:
                 for k, v in today_entry.symbols.items():
                     if k not in self._documentation_only_symbols:
@@ -289,7 +301,7 @@ class GridHelpersMixin:
 
         return effective
 
-    def _participation_rating_today(self, student: Student) -> ParticipationRating | None:
+    def _participation_rating_today(self, student: Student, today_session) -> ParticipationRating | None:
         """Gibt die heutige Mitarbeit-Bewertung eines Schülers zurück, falls gesetzt.
 
         Bewusst über ``entry.participation`` statt ``entry.symbols`` -- kein
@@ -297,11 +309,10 @@ class GridHelpersMixin:
 
         Args:
             student: Schüler, dessen heutige Bewertung ermittelt wird.
+            today_session: Die heutige Session (einmal pro Redraw vorberechnet,
+                s. ``_effective_grid_symbols_v4``), oder ``None``.
         """
-        if not self.current_plan or not student.is_named():
+        if not student.is_named() or today_session is None:
             return None
-        session = self.current_plan.documentation.session_for_date(self._today_doc_date())
-        if session is None:
-            return None
-        entry = session.entry_for(student.student_id)
+        entry = today_session.entry_for(student.student_id)
         return entry.participation if entry else None

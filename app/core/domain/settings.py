@@ -21,7 +21,9 @@ DEFAULT_DETAILS_OVERLAY_POSITION = "bottom"
 DEFAULT_TABLEGROUP_OVERLAY_POSITION = "right"
 DEFAULT_THEME_KEY = "mono_day"
 DEFAULT_SITZPLAN_POPUP_DELAY = 3
-DEFAULT_NAME_SAVE_DELAY = 2
+DEFAULT_SAVE_DELAY = 2.0
+MIN_SAVE_DELAY = 0.3
+MAX_SAVE_DELAY = 30.0
 
 
 @dataclass(frozen=True)
@@ -42,7 +44,7 @@ class KartographSettings:
     details_overlay_position: str = DEFAULT_DETAILS_OVERLAY_POSITION
     tablegroup_overlay_position: str = DEFAULT_TABLEGROUP_OVERLAY_POSITION
     sitzplan_popup_delay: int = DEFAULT_SITZPLAN_POPUP_DELAY
-    name_save_delay: int = DEFAULT_NAME_SAVE_DELAY
+    save_delay: float = DEFAULT_SAVE_DELAY
     show_archived_plans: bool = False
 
     @classmethod
@@ -65,6 +67,13 @@ class KartographSettings:
         def _int(value: object, default: int, *, minimum: int, maximum: int) -> int:
             try:
                 parsed = int(value)  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                parsed = default
+            return max(minimum, min(maximum, parsed))
+
+        def _float(value: object, default: float, *, minimum: float, maximum: float) -> float:
+            try:
+                parsed = float(value)  # type: ignore[arg-type]
             except (TypeError, ValueError):
                 parsed = default
             return max(minimum, min(maximum, parsed))
@@ -107,7 +116,16 @@ class KartographSettings:
             details_overlay_position=_str(payload.get("details_overlay_position"), DEFAULT_DETAILS_OVERLAY_POSITION, options=("left", "right", "bottom")),
             tablegroup_overlay_position=_str(payload.get("tablegroup_overlay_position"), DEFAULT_TABLEGROUP_OVERLAY_POSITION, options=("left", "right", "bottom")),
             sitzplan_popup_delay=_int(payload.get("sitzplan_popup_delay"), DEFAULT_SITZPLAN_POPUP_DELAY, minimum=1, maximum=30),
-            name_save_delay=_int(payload.get("name_save_delay"), DEFAULT_NAME_SAVE_DELAY, minimum=0, maximum=15),
+            # "save_delay" ersetzt das fruehere, nur namensbezogene "name_save_delay"
+            # (jetzt auch fuer Noten-/Symbol-/Farb-Edits genutzt, s. _mixin_plan_save.py) —
+            # alte Settings-Dateien lesen den frueheren Schluessel als Fallback, damit ein
+            # bereits gesetzter Wert nicht stillschweigend auf den Standard zurueckfaellt.
+            save_delay=_float(
+                payload.get("save_delay", payload.get("name_save_delay")),
+                DEFAULT_SAVE_DELAY,
+                minimum=MIN_SAVE_DELAY,
+                maximum=MAX_SAVE_DELAY,
+            ),
             show_archived_plans=_bool(payload.get("show_archived_plans"), False),
         )
 
@@ -129,7 +147,7 @@ class KartographSettings:
             "details_overlay_position": self.details_overlay_position,
             "tablegroup_overlay_position": self.tablegroup_overlay_position,
             "sitzplan_popup_delay": self.sitzplan_popup_delay,
-            "name_save_delay": self.name_save_delay,
+            "save_delay": self.save_delay,
             "show_archived_plans": self.show_archived_plans,
         }
 

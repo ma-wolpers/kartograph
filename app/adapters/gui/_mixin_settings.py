@@ -13,18 +13,19 @@ from app.adapters.gui.main_window_constants import (
     DEFAULT_CANVAS_RADIUS,
     DEFAULT_DETAILS_OVERLAY_POSITION,
     DEFAULT_NAME_FORMAT,
-    DEFAULT_NAME_SAVE_DELAY,
+    DEFAULT_SAVE_DELAY,
     DEFAULT_SITZPLAN_POPUP_DELAY,
     DEFAULT_SYMBOL_STRENGTH,
     DEFAULT_TABLEGROUP_OVERLAY_POSITION,
     DEFAULT_VIEWPORT_FOLLOW_BUFFER,
     NAME_FORMAT_OPTIONS,
     MAX_CANVAS_RADIUS,
-    MAX_NAME_SAVE_DELAY,
+    MAX_SAVE_DELAY,
     MAX_SITZPLAN_POPUP_DELAY,
     MIN_CANVAS_RADIUS,
-    MIN_NAME_SAVE_DELAY,
+    MIN_SAVE_DELAY,
     MIN_SITZPLAN_POPUP_DELAY,
+    RECOMMENDED_MAX_SAVE_DELAY,
 )
 from app.core.domain.settings import resolve_plans_dir
 from app.core.intents.view_intents import OpenSettingsIntent, UpdateSettingsIntent
@@ -204,13 +205,18 @@ class SettingsMixin:
                             hint="Sekunden Ruhe bis zur Aktualisierung der Vorschau",
                         ),
                         SharedSettingsFieldSpec(
-                            key="name_save_delay",
-                            label="Namen speichern: Verzögerung (Sek.)",
-                            field_type="int",
-                            default=self.name_save_delay,
-                            min_value=MIN_NAME_SAVE_DELAY,
-                            max_value=MAX_NAME_SAVE_DELAY,
-                            hint="Sekunden Tippruhe bis Vorname/Nachname/Spitzname gespeichert werden (0 = sofort); beim Verlassen des Feldes wird immer sofort gespeichert",
+                            key="save_delay",
+                            label="Änderungen speichern: Verzögerung (Sek.)",
+                            field_type="float",
+                            default=self.save_delay,
+                            min_value=MIN_SAVE_DELAY,
+                            max_value=MAX_SAVE_DELAY,
+                            hint=(
+                                f"Ruhezeit bis Namen/Noten/Symbole/Farbmarkierungen gespeichert werden "
+                                f"(Dezimalwerte erlaubt, z. B. 1.5); beim Verlassen des Feldes/Plans wird "
+                                f"immer sofort gespeichert. Empfehlung: nicht höher als {RECOMMENDED_MAX_SAVE_DELAY:g}s, "
+                                f"sonst bleiben bei einem Absturz mehr Änderungen ungespeichert"
+                            ),
                         ),
                     ),
                 ),
@@ -228,7 +234,7 @@ class SettingsMixin:
             "name_format": self.name_format,
             "disambiguate_colliding_names": self.disambiguate_colliding_names,
             "sitzplan_popup_delay": self.sitzplan_popup_delay,
-            "name_save_delay": self.name_save_delay,
+            "save_delay": self.save_delay,
         }
 
     def _apply_settings_dialog_payload(self, payload: dict[str, object], *, parent=None) -> bool:
@@ -278,9 +284,9 @@ class SettingsMixin:
         except (TypeError, ValueError):
             self.sitzplan_popup_delay = DEFAULT_SITZPLAN_POPUP_DELAY
         try:
-            self.name_save_delay = max(MIN_NAME_SAVE_DELAY, min(MAX_NAME_SAVE_DELAY, int(payload.get("name_save_delay", DEFAULT_NAME_SAVE_DELAY))))
+            self.save_delay = max(MIN_SAVE_DELAY, min(MAX_SAVE_DELAY, float(payload.get("save_delay", DEFAULT_SAVE_DELAY))))
         except (TypeError, ValueError):
-            self.name_save_delay = DEFAULT_NAME_SAVE_DELAY
+            self.save_delay = DEFAULT_SAVE_DELAY
         self._controller.dispatch(UpdateSettingsIntent(settings=dataclasses.replace(
             self._controller.state.settings,
             plans_dir=str(self.plans_dir),
@@ -290,7 +296,7 @@ class SettingsMixin:
             name_format=self.name_format,
             disambiguate_colliding_names=self.disambiguate_colliding_names,
             sitzplan_popup_delay=self.sitzplan_popup_delay,
-            name_save_delay=self.name_save_delay,
+            save_delay=self.save_delay,
         )))
         self._update_scroll_region()
         self._set_selection_single(*self.selection.active_cell())

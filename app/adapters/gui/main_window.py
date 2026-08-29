@@ -154,6 +154,20 @@ class KartographMainWindow(
         self.plan_repository = controller.plan_repository
         self.default_plans_dir = controller.default_plans_dir
 
+        # Redraw-Memoization (_mixin_grid_render.py): über state_version +
+        # relevante Einstellungen gekeyte Caches, damit reine Cursor-
+        # Navigation/Drag/Scroll nicht bei jedem Tick Namen/Geometrie/
+        # Schriftgröße neu berechnet. Cache-Wert ist erst nach dem ersten
+        # redraw_grid()-Aufruf gültig; der Key-Vergleich schlägt beim
+        # allerersten Aufruf immer fehl (None != echter Schlüssel), das
+        # erzwingt korrekt eine initiale Berechnung.
+        self._grid_names_cache_key: tuple | None = None
+        self._grid_names_cache_value: dict | None = None
+        self._grid_geometry_cache_key: int | None = None
+        self._grid_geometry_cache_value: list | None = None
+        self._grid_font_size_cache_key: tuple | None = None
+        self._grid_font_size_cache_value: int | None = None
+
         # Debounced Speichern (_mixin_plan_save.py): State muss vor dem
         # ersten möglichen Dispatch stehen, da set_plan_save_scheduler()
         # unten ctx.plan_save_scheduler sofort scharf schaltet.
@@ -175,7 +189,7 @@ class KartographMainWindow(
         self.name_format = settings.name_format
         self.disambiguate_colliding_names = settings.disambiguate_colliding_names
         self.sitzplan_popup_delay = settings.sitzplan_popup_delay
-        self.name_save_delay = settings.name_save_delay
+        self.save_delay = settings.save_delay
 
         resolved_shell_config = shell_config or AppShellConfig(
             title=APP_INFO.window_title, geometry="1320x860", min_width=MIN_WINDOW_WIDTH, min_height=MIN_WINDOW_HEIGHT
@@ -482,7 +496,7 @@ class KartographMainWindow(
         self.name_format = settings.name_format
         self.disambiguate_colliding_names = settings.disambiguate_colliding_names
         self.sitzplan_popup_delay = settings.sitzplan_popup_delay
-        self.name_save_delay = settings.name_save_delay
+        self.save_delay = settings.save_delay
         self.details_overlay_position = settings.details_overlay_position
         self.tablegroup_overlay_position = settings.tablegroup_overlay_position
         self.plans_dir = resolve_plans_dir(settings.plans_dir, self.default_plans_dir)
