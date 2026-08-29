@@ -61,6 +61,7 @@ class _GridTestWindow(tk.Frame, GridRenderMixin, GridHelpersMixin):
         self._grid_geometry_cache_value = None
         self._grid_font_size_cache_key = None
         self._grid_font_size_cache_value = None
+        self._grid_tile_pool: list = []
 
         # Minimale Symbol-/Farb-Infrastruktur — der Synthetik-Plan nutzt keine.
         self._grid_visible_symbols: set[str] = set()

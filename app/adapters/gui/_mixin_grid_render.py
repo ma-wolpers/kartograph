@@ -39,12 +39,26 @@ class GridRenderMixin:
        GUI-Einstellungen ab, nicht vom konkreten Navigations-/Drag-Ereignis —
        bei reiner Cursor-Bewegung ändert sich keiner dieser Werte, das
        Neuberechnen war reine Verschwendung.
+    3. Canvas-Item-Wiederverwendung (Item 5, Stufe A, bislang nur Kacheln):
+       ``canvas.delete("grid")`` + Neuerzeugung ALLER sichtbaren Items bei
+       jedem Aufruf war selbst bei reinem Scrollen/Zoomen teuer. Die
+       Hintergrundkacheln (dominante Item-Anzahl, bis zu ~1500 bei starkem
+       Auszoomen) werden jetzt über ``_grid_tile_pool`` wiederverwendet
+       (``coords()``/``itemconfigure()`` statt ``create_rectangle()``);
+       überzählige Kacheln werden versteckt (``state="hidden"``), nie
+       gelöscht. Andere Canvas-Items (Pulte, Auswahl-Indikatoren) tragen
+       zusätzlich den Tag ``"grid_transient"`` und werden weiterhin bei jedem
+       Aufruf gelöscht+neu erzeugt -- das ist eine bewusste Zwischenstufe,
+       kein Versehen; ob sich die Wiederverwendung auch dafür lohnt, wird
+       erst nach Messung dieser Stufe entschieden (s. ``perf_bench_redraw_grid.py``).
     """
 
     def redraw_grid(self) -> None:
         """Zeichnet das gesamte Raster neu auf dem Canvas."""
-        self.canvas.delete("grid")
+        self.canvas.delete("grid_transient")
         if not self.current_plan:
+            for item_id in self._grid_tile_pool:
+                self.canvas.itemconfigure(item_id, state="hidden")
             return
 
         theme = kartograph_theme(self.theme_key)
@@ -129,14 +143,12 @@ class GridRenderMixin:
         left, top, right, bottom = viewport
         plan = self.current_plan
 
-        for cy in range(start_y, end_y + 1):
-            for cx in range(start_x, end_x + 1):
-                x1 = cx * self.cell_size
-                y1 = cy * self.cell_size
-                self.canvas.create_rectangle(
-                    x1, y1, x1 + self.cell_size, y1 + self.cell_size,
-                    fill=theme["bg_surface"], outline=theme["border"], width=1, tags=("grid",),
-                )
+        cell_positions = [
+            (cx * self.cell_size, cy * self.cell_size)
+            for cy in range(start_y, end_y + 1)
+            for cx in range(start_x, end_x + 1)
+        ]
+        self._sync_tile_pool(cell_positions, theme)
 
         # Teacher seat
         ts = plan.classroom.teacher_seat
@@ -148,12 +160,14 @@ class GridRenderMixin:
                 or ty2 < top - self.cell_size or ty1 > bottom + self.cell_size):
             self.canvas.create_rectangle(
                 tx1, ty1, tx2, ty2,
-                fill=theme["teacher_fill"], outline=theme["border"], width=1, tags=("grid",),
+                fill=theme["teacher_fill"], outline=theme["border"], width=1,
+                tags=("grid", "grid_transient"),
             )
             self.canvas.create_text(
                 tx1 + self.cell_size / 2, ty1 + self.cell_size / 2,
                 text="Lehrertisch", fill=theme["teacher_text"],
-                font=("Segoe UI", max(8, int(self.cell_size * 0.12)), "bold"), tags=("grid",),
+                font=("Segoe UI", max(8, int(self.cell_size * 0.12)), "bold"),
+                tags=("grid", "grid_transient"),
             )
 
         # Student seats
@@ -183,7 +197,8 @@ class GridRenderMixin:
 
             self.canvas.create_polygon(
                 polygon_points,
-                fill=theme["accent_soft"], outline=theme["border"], width=1, tags=("grid",),
+                fill=theme["accent_soft"], outline=theme["border"], width=1,
+                tags=("grid", "grid_transient"),
             )
             center_px = geometry.center_x * self.cell_size
             self._draw_student_desk_content(
@@ -214,7 +229,8 @@ class GridRenderMixin:
             self.canvas.create_rectangle(
                 min_x * self.cell_size, min_y * self.cell_size,
                 max_x * self.cell_size, max_y * self.cell_size,
-                outline=theme["fg_muted"], width=1, dash=(4, 2), tags=("grid",),
+                outline=theme["fg_muted"], width=1, dash=(4, 2),
+                tags=("grid", "grid_transient"),
             )
 
         for group_id in list_tablegroup_numbers_v4(self.current_plan):
@@ -227,7 +243,8 @@ class GridRenderMixin:
             self.canvas.create_text(
                 label_x * self.cell_size, label_y * self.cell_size,
                 text=f"TG {group_id}", fill=theme["fg_muted"],
-                font=("Segoe UI", max(7, int(self.cell_size * 0.09)), "bold"), tags=("grid",),
+                font=("Segoe UI", max(7, int(self.cell_size * 0.09)), "bold"),
+                tags=("grid", "grid_transient"),
             )
 
         selection_bounds = selection_bounds_from_geometries_v4(geometries, selected_cells)
@@ -244,4 +261,48 @@ class GridRenderMixin:
             x2 = (max_sel_x + 1) * self.cell_size
             y2 = (max_sel_y + 1) * self.cell_size
 
-        self.canvas.create_rectangle(x1, y1, x2, y2, outline=theme["focus_ring"], width=3, tags=("grid",))
+        self.canvas.create_rectangle(
+            x1, y1, x2, y2, outline=theme["focus_ring"], width=3,
+            tags=("grid", "grid_transient"),
+        )
+
+    def _sync_tile_pool(self, cell_positions: list[tuple[float, float]], theme: dict) -> None:
+        """Erzeugt/aktualisiert die Hintergrundkacheln über einen wiederverwendbaren Item-Pool.
+
+        Kachel-Slots sind anonym und austauschbar -- keine Kachel "gehört"
+        über mehrere Aufrufe hinweg zu einer bestimmten Rasterzelle. Slot
+        ``i`` wird pro Aufruf positional mit der i-ten sichtbaren
+        Kachelposition befüllt (``coords()``/``itemconfigure()`` bei
+        Wiederverwendung). Überzählige Slots werden versteckt
+        (``state="hidden"``), nie gelöscht -- das ist bewusst, damit
+        Schrumpfen (z.B. Reinzoomen) keine Waisen hinterlässt und kein
+        erneutes ``create_rectangle()`` beim nächsten Wachstum nötig ist.
+
+        Neu erzeugte Kacheln werden explizit an den Boden des Canvas-Stapels
+        gelegt (``tag_lower()``), statt sich implizit darauf zu verlassen,
+        dass alle anderen Items ohnehin nach dieser Methode neu gezeichnet
+        werden -- die Stapelreihenfolge der Kacheln soll eine explizite
+        Invariante sein, kein Nebenprodukt der Aufrufreihenfolge.
+        """
+        pool = self._grid_tile_pool
+        needed = len(cell_positions)
+
+        for index, (x1, y1) in enumerate(cell_positions):
+            x2 = x1 + self.cell_size
+            y2 = y1 + self.cell_size
+            if index < len(pool):
+                item_id = pool[index]
+                self.canvas.coords(item_id, x1, y1, x2, y2)
+                self.canvas.itemconfigure(
+                    item_id, fill=theme["bg_surface"], outline=theme["border"], state="normal"
+                )
+            else:
+                item_id = self.canvas.create_rectangle(
+                    x1, y1, x2, y2,
+                    fill=theme["bg_surface"], outline=theme["border"], width=1, tags=("grid",),
+                )
+                self.canvas.tag_lower(item_id)
+                pool.append(item_id)
+
+        for index in range(needed, len(pool)):
+            self.canvas.itemconfigure(pool[index], state="hidden")

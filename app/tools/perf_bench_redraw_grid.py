@@ -1,4 +1,5 @@
-"""Perf-Benchmark für die Redraw-Memoization (Kartograph Item 4).
+"""Perf-Benchmark für die Redraw-Memoization (Kartograph Item 4) und die
+Kachel-Pool-Wiederverwendung (Item 5, Stufe A).
 
 Vergleicht wiederholte ``redraw_grid()``-Aufrufe bei UNVERÄNDERTEM Plan
 (der Normalfall bei reiner Cursor-Navigation/Drag/Scroll) mit und ohne
@@ -7,6 +8,16 @@ Vorher-Verhalten, indem die Cache-Schlüssel vor jedem Aufruf zurückgesetzt
 werden, sodass jeder Aufruf zwangsläufig neu rechnet (dieselbe Methode,
 nicht eine zweite Implementierung — siehe ``perf_bench_docs_table.py`` für
 dasselbe Prinzip bei Item 1).
+
+Der zweite Teil misst denselben Trick für die Kachel-Pool-Wiederverwendung:
+"ohne Pool" leert ``_grid_tile_pool`` (und löscht die zugehörigen
+Canvas-Items) vor jedem Aufruf, was ``_sync_tile_pool()`` zwingt, jede
+Kachel komplett neu zu erzeugen — exakt das Vorher-Verhalten von Item 5
+Stufe A, wieder über dieselbe Methode simuliert statt über eine zweite
+Implementierung. Läuft bei Standard- UND Worst-Case-Zoom (kleine
+Zellgröße → deutlich mehr sichtbare Kacheln) und misst neben der Zeit auch
+die Canvas-Item-Zahl als Speicher-Proxy (Ziel: bleibt über wiederholte
+Zoom-Wechsel begrenzt, wächst nicht monoton).
 
 Nutzt ausschließlich synthetische Testdaten — niemals echte Plandateien.
 
@@ -72,6 +83,7 @@ class _GridBenchWindow(tk.Frame, GridRenderMixin, GridHelpersMixin):
         self._grid_geometry_cache_value = None
         self._grid_font_size_cache_key = None
         self._grid_font_size_cache_value = None
+        self._grid_tile_pool: list = []
 
         self._grid_visible_symbols: set[str] = set()
         self._documentation_only_symbols: set[str] = set()
@@ -96,6 +108,13 @@ class _GridBenchWindow(tk.Frame, GridRenderMixin, GridHelpersMixin):
         self._grid_names_cache_key = None
         self._grid_geometry_cache_key = None
         self._grid_font_size_cache_key = None
+
+    def simulate_no_tile_pool(self) -> None:
+        """Simuliert den Vorher-Zustand von Item 5 Stufe A: erzwingt vollständige
+        Kachel-Neuerzeugung bei jedem Aufruf statt Wiederverwendung."""
+        for item_id in self._grid_tile_pool:
+            self.canvas.delete(item_id)
+        self._grid_tile_pool.clear()
 
 
 def build_synthetic_plan(num_students: int, num_sessions: int) -> SeatingPlan:
@@ -134,6 +153,64 @@ def build_synthetic_plan(num_students: int, num_sessions: int) -> SeatingPlan:
     )
 
 
+def _bench_tile_pool(win: _GridBenchWindow, redraws: int, label: str) -> None:
+    """Vergleicht gepoolte gegen simuliert ungepoolte Kachel-Erzeugung bei
+    fester ``state_version`` (isoliert Item 5 Stufe A von Item 4 — dessen
+    Caches bleiben in beiden Zweigen unverändert getroffen)."""
+    win.redraw_grid()  # Kalt-Aufruf: baut den Kachel-Pool erstmalig auf.
+    pool_size_after_warmup = len(win._grid_tile_pool)
+
+    start = time.perf_counter()
+    for _ in range(redraws):
+        win.redraw_grid()  # Pool bereits gefüllt -> reine coords()/itemconfigure()-Wiederverwendung
+    pooled_time = (time.perf_counter() - start) / redraws
+
+    start = time.perf_counter()
+    for _ in range(redraws):
+        win.simulate_no_tile_pool()  # simuliert den Vorher-Zustand: jeder Aufruf erzeugt neu
+        win.redraw_grid()
+    unpooled_time = (time.perf_counter() - start) / redraws
+
+    # Pool muss nach den ungepoolten Aufrufen wieder auf dieselbe Größe
+    # zurückwachsen -- sonst wäre das kein fairer Vergleich.
+    win.redraw_grid()
+    pool_size_after_rebuild = len(win._grid_tile_pool)
+
+    speedup = unpooled_time / pooled_time if pooled_time > 0 else float("inf")
+    print(
+        f"[{label}] Kacheln pro Aufruf: {pool_size_after_warmup}  "
+        f"ohne Pool: {unpooled_time * 1000:.2f} ms  mit Pool: {pooled_time * 1000:.2f} ms  "
+        f"(×{speedup:.1f})  Canvas-Items gesamt: {len(win.canvas.find_all())}"
+    )
+    assert pool_size_after_rebuild == pool_size_after_warmup, (
+        "Pool-Größe nach Wiederaufbau weicht ab -- Kachelzahl sollte bei gleichem "
+        "Viewport/Zoom stabil sein."
+    )
+
+
+def _bench_tile_pool_soak(win: _GridBenchWindow, cell_sizes: list[int], cycles: int) -> None:
+    """Wechselt wiederholt zwischen mehreren Zoomstufen (Zellgrößen) und prüft,
+    dass die Canvas-Item-Zahl auf das für die größte Stufe nötige Maximum
+    konvergiert statt über die Zyklen hinweg unbegrenzt zu wachsen (Nachweis
+    gegen einen Memory-Smell durch das Pooling, s. Plan-Leitplanken)."""
+    max_items_seen = 0
+    for _ in range(cycles):
+        for cell_size in cell_sizes:
+            win.cell_size = cell_size
+            win.redraw_grid()
+            max_items_seen = max(max_items_seen, len(win.canvas.find_all()))
+
+    final_items = len(win.canvas.find_all())
+    print(
+        f"[Soak: {cycles} Zyklen über Zellgrößen {cell_sizes}] "
+        f"max. gesehene Canvas-Items: {max_items_seen}  finale Canvas-Items: {final_items}"
+    )
+    assert final_items <= max_items_seen, (
+        "Canvas-Item-Zahl nach dem Soak-Durchlauf übersteigt das jemals beobachtete "
+        "Maximum -- deutet auf unbegrenztes Wachstum hin."
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--students", type=int, default=30)
@@ -166,6 +243,17 @@ def main() -> None:
             f"redraw_grid() bei unveränderter state_version (z. B. reine Navigation) — "
             f"ohne Cache: {uncached_time * 1000:.2f} ms  mit Cache: {cached_time * 1000:.2f} ms  (×{speedup:.1f})"
         )
+
+        print()
+        print("Item 5 Stufe A (Kachel-Pool) — CPU:")
+        win.cell_size = 92
+        _bench_tile_pool(win, args.redraws, "typisch, cell_size=92")
+        win.cell_size = 44
+        _bench_tile_pool(win, args.redraws, "Worst-Case-Zoom, cell_size=44")
+
+        print()
+        print("Item 5 Stufe A (Kachel-Pool) — Memory-Stabilität über wiederholten Zoom-Wechsel:")
+        _bench_tile_pool_soak(win, cell_sizes=[92, 44, 92, 160, 44], cycles=10)
     finally:
         root.destroy()
 

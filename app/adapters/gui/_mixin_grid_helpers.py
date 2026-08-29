@@ -62,7 +62,8 @@ class GridHelpersMixin:
                 cx = start_x_dot + idx * spacing
                 self.canvas.create_oval(
                     cx - radius, circles_y - radius, cx + radius, circles_y + radius,
-                    fill=hex_color, outline=theme["border"], width=1, tags=("grid",),
+                    fill=hex_color, outline=theme["border"], width=1,
+                    tags=("grid", "grid_transient"),
                 )
 
         overall_grade = overall_grade_by_student.get(student.student_id, "")
@@ -71,14 +72,15 @@ class GridHelpersMixin:
                 min_px + self.cell_size * 0.08, min_py + self.cell_size * 0.09,
                 text=overall_grade, fill=theme["fg_muted"],
                 font=("Segoe UI", max(6, int(self.cell_size * 0.085)), "bold"),
-                anchor="nw", tags=("grid",),
+                anchor="nw", tags=("grid", "grid_transient"),
             )
 
         if main_text:
             self.canvas.create_text(
                 center_px, min_py + self.cell_size * 0.24,
                 text=main_text, fill=theme["fg_primary"],
-                font=("Segoe UI", student_name_font_size, "bold"), tags=("grid",),
+                font=("Segoe UI", student_name_font_size, "bold"),
+                tags=("grid", "grid_transient"),
             )
 
         if symbol_lines:
@@ -92,7 +94,8 @@ class GridHelpersMixin:
                 self.canvas.create_text(
                     center_px, symbols_start_y + idx * line_height,
                     text=line, fill=theme["fg_muted"],
-                    font=("Segoe UI", symbol_size, symbol_weight), tags=("grid",),
+                    font=("Segoe UI", symbol_size, symbol_weight),
+                    tags=("grid", "grid_transient"),
                 )
 
     def _symbol_font_style(self, base_size: int) -> tuple[int, str]:

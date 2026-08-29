@@ -168,6 +168,13 @@ class KartographMainWindow(
         self._grid_font_size_cache_key: tuple | None = None
         self._grid_font_size_cache_value: int | None = None
 
+        # Canvas-Item-Pool für Hintergrundkacheln (Item 5, Stufe A): Kacheln
+        # werden über Aufrufe hinweg wiederverwendet (coords()/itemconfigure())
+        # statt bei jedem redraw_grid() gelöscht und neu erzeugt. Andere
+        # Canvas-Items (Pulte, Auswahl-Indikatoren) sind noch nicht gepoolt --
+        # deren Tag "grid_transient" wird weiterhin bei jedem Aufruf gelöscht.
+        self._grid_tile_pool: list[int] = []
+
         # Debounced Speichern (_mixin_plan_save.py): State muss vor dem
         # ersten möglichen Dispatch stehen, da set_plan_save_scheduler()
         # unten ctx.plan_save_scheduler sofort scharf schaltet.
