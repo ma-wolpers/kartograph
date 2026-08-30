@@ -82,6 +82,23 @@ Regel:
     Testdouble-Muster (kein echtes Tk nötig) — eine bewusste Erweiterung der bisherigen
     "GUI-Mixins nur manuell getestet"-Konvention, weil sich hier eine echte fachliche Invariante
     (Datumskontext Raster vs. Dokuansicht) automatisiert klar beweisen lässt.
+  - **Nachtrag (Nutzerbeobachtung: "Leertaste funktioniert nicht"), noch im selben Unreleased-
+    Zyklus behoben**: Die obige Umstellung übersah `symbol_config_loader.py::_parse_shortcut()`
+    — diese Funktion normalisierte JEDEN Shortcut-Wert mit mehr als einem Zeichen auf `None`
+    (Kommentar/Docstring sprach explizit nur von "Ein-Zeichen-Tastaturkürzel"), wodurch `"space"`
+    beim Laden von `config/symbols.json` verworfen wurde, bevor `_shortcut_to_symbol` es je zu
+    sehen bekam — die Leertaste-Bindung existierte, löste aber immer `None` auf. Behoben durch
+    eine explizite Ausnahme für den Sentinel-Wert. Layering-Feinheit dabei: `SPACE_SHORTCUT`
+    wanderte von `main_window_constants.py` (Adapters/GUI) nach
+    `app/core/domain/custom_symbol_validation.py` (Core), weil sowohl Infrastructure
+    (`symbol_config_loader.py`, das Parsing) als auch Adapters (die Tastenbindung/-anzeige) den
+    Wert kennen müssen und Infrastructure nicht rückwärts von Adapters importieren darf —
+    `main_window_constants.py` re-exportiert ihn jetzt nur noch, keine doppelte String-Literal
+    mehr. Neue Tests in `tests/test_symbol_config_loader.py`
+    (`test_symbol_loader_preserves_space_shortcut_sentinel`,
+    `test_symbol_loader_rejects_other_multi_character_shortcuts`); manuell gegen die echte
+    `config/symbols.json` verifiziert (`load_symbol_definitions()` liefert jetzt tatsächlich
+    `shortcut == "space"` für "Abwesend").
 - Fünf Bugs rund um Dokumodus und eigene Doku-Symbole behoben (Nutzeranfrage), zwei davon mit kleiner, gezielter Architektur-Bereinigung statt reinem Lokal-Fix (Review-Feedback: Fachlogik gehört in den Domain-Layer, kein zweiter synchron zu haltender Zustand, keine verstreut duplizierte Shortcut-Sperrliste):
   - **Dokumodus wählte ältestes statt neuestes Datum**: `_refresh_documentation_table()` (`_mixin_docs_table.py`) sortierte `_doc_dates` aufsteigend, `_doc_selected_date_index` blieb aber bei seinem Initialwert `0` — kein Code setzte ihn je explizit auf "neuestes Datum". Fix in `show_documentation_surface()` (`_mixin_docs_view.py`), NICHT in `_refresh_documentation_table()` selbst: Letztere läuft bei jedem Rebuild während einer laufenden Doku-Sitzung (z. B. nach einer Eingabe) erneut und darf eine manuell gewählte ältere Spalte nicht zurücksetzen; nur der tatsächliche Grid→Doku-Wechsel soll auf das neueste Datum springen.
   - **Doku-Symbole zykelten wie Diagnosesymbole (0-1-2-3) statt binär zu togglen**: neue reine Domain-Funktion `app/core/domain/symbol_toggle.py::next_symbol_toggle_strength(current, *, is_diagnostic)` — einzige Stelle, die die Sequenzregel kennt (Diagnose zykelt, Doku ist 0↔1). `_toggle_documentation_symbol()` (`_mixin_docs_edit.py`) klassifiziert nur noch mit dem bereits vorhandenen `self.diagnostic_symbol_catalog` und ruft die Regel auf, statt sie selbst zusammenzubauen. `_toggle_attendance_for_student()` (Leertaste-Sonderpfad im Raster, `_mixin_edit.py`) und `toggle_diagnostic_symbol()` (`symbol_usecases.py`, Raster-Diagnose-Pfad) nutzen jetzt dieselbe Funktion statt die Formel zweimal inline zu duplizieren. Betrifft auch die eingebauten Doku-Symbole "Nicht abgegeben / verweigert" und "Aufgaben nicht gemacht", die bisher denselben 4-Stufen-Zyklus wie Diagnosesymbole hatten.

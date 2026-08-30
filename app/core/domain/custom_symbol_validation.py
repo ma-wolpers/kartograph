@@ -42,6 +42,16 @@ class _HasShortcut(Protocol):
     shortcut: str | None
 
 
+# Technischer Tk-Keysym-Sentinel für die Leertaste, kein Symbolname. Einziger
+# erlaubter Mehrzeichen-Shortcut-Wert im eingebauten Katalog (config/symbols.json) --
+# app/infrastructure/symbol_config_loader.py::_parse_shortcut() lässt ihn neben
+# echten Einzelbuchstaben durch, app/adapters/gui/main_window_constants.py
+# re-exportiert ihn für die GUI-Bindung/-Anzeige. Hier definiert (statt in der
+# GUI-Schicht dupliziert), weil sowohl Infrastructure (Katalog-Parsing) als auch
+# Adapters (Tastenbindung) ihn kennen müssen und Infrastructure nicht von
+# Adapters/GUI importieren darf.
+SPACE_SHORTCUT = "space"
+
 # Fest verdrahtete Einzelbuchstaben-Shortcuts, die NICHT Teil des konfigurierbaren
 # Symbolkatalogs sind (Mitarbeit-Bewertung "o"/"s", Tischsymbol-Dialog "d" — alle in
 # app/adapters/gui/_mixin_shortcuts.py). Einzige Quelle der Wahrheit für diese drei

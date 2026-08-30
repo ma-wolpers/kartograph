@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Literal
 
 from app.adapters.gui.ui_intents import UiIntent
+from app.core.domain.custom_symbol_validation import SPACE_SHORTCUT  # noqa: F401 -- re-export für GUI-Mixins
 
 MIN_WINDOW_WIDTH = 600
 MIN_WINDOW_HEIGHT = 400
@@ -52,11 +53,10 @@ RECOMMENDED_MAX_SAVE_DELAY = 10.0
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
-# Technischer Tk-Keysym-Sentinel, kein Symbolname: welches Katalogsymbol (falls
-# ueberhaupt eines) die Leertaste bedient, wird zur Laufzeit ueber
-# self._shortcut_to_symbol[SPACE_SHORTCUT] aufgeloest (main_window.py) -- keine
-# Hardcodierung eines konkreten Symbolnamens mehr.
-SPACE_SHORTCUT = "space"
+# SPACE_SHORTCUT: siehe Import oben -- welches Katalogsymbol (falls ueberhaupt
+# eines) die Leertaste bedient, wird zur Laufzeit ueber
+# self._shortcut_to_symbol[SPACE_SHORTCUT] aufgeloest (main_window.py), keine
+# Hardcodierung eines konkreten Symbolnamens.
 
 DeskDetailMode = Literal["desk_detail_revealed", "desk_detail_editing"]
 DESK_DETAIL_REVEALED: DeskDetailMode = "desk_detail_revealed"

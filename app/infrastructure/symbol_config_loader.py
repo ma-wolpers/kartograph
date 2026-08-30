@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from app.core.domain.custom_symbol_validation import SPACE_SHORTCUT
 from bw_libs.app_paths import atomic_write_json
 
 
@@ -129,7 +130,13 @@ def _parse_codepoint(raw_value: object) -> str | None:
 
 
 def _parse_shortcut(raw_value: object) -> str | None:
-    """Validiert *raw_value* als Ein-Zeichen-Tastaturkürzel; ``None`` bei leerem oder mehrstelligem Wert.
+    """Validiert *raw_value* als Ein-Zeichen-Tastaturkürzel oder den Leertaste-Sentinel.
+
+    Erlaubt genau zwei Formen: ein einzelnes Zeichen (normaler Buchstaben-
+    Shortcut) oder den technischen Mehrzeichen-Sentinel ``SPACE_SHORTCUT``
+    (``"space"``, s. ``custom_symbol_validation.py``) für Symbole, die über
+    die Leertaste getoggelt werden. Alles andere (leer, mehrstellig und kein
+    bekannter Sentinel) ergibt ``None``.
 
     Args:
         raw_value: Roher Shortcut-Wert aus der Konfigurationsdatei.
@@ -137,6 +144,8 @@ def _parse_shortcut(raw_value: object) -> str | None:
     text = str(raw_value or "").strip().lower()
     if not text:
         return None
+    if text == SPACE_SHORTCUT:
+        return text
     if len(text) != 1:
         return None
     return text
