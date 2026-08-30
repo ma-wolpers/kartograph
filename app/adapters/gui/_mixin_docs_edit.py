@@ -5,6 +5,7 @@ Stellt Methoden zum Umschalten und Löschen von Dokumentationssymbolen bereit.
 
 from __future__ import annotations
 
+from app.core.domain.symbol_toggle import next_symbol_toggle_strength
 from app.core.intents.session_intents import ClearDocEntryIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
 
@@ -15,11 +16,15 @@ class DocsEditMixin:
     def _toggle_documentation_symbol(self, symbol: str) -> None:
         """Schaltet ein Dokumentationssymbol für die aktuelle Doku-Zellenauswahl um.
 
-        Schaltet zyklisch durch die Stärken 0, 1, 2, 3 und wieder zurück auf 0.
-        Aktualisiert danach die Doku-Tabelle.
+        Diagnosesymbole zyklen 0→1→2→3→0, Doku-Symbole (eingebaut wie eigen)
+        togglen binär 0↔1 (siehe ``next_symbol_toggle_strength``). Gilt
+        unabhängig davon, ob *symbol* per Tastenkürzel oder über den
+        "Symbol setzen"-Dialog gewählt wurde. Aktualisiert danach die
+        Doku-Tabelle.
 
         Args:
-            symbol: Bezeichner des Dokumentationssymbols, das umgeschaltet wird.
+            symbol: Bezeichner des umzuschaltenden Symbols (eingebauter
+                Meaning-Text oder eigene Symbol-ID).
         """
         if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
             return
@@ -36,7 +41,9 @@ class DocsEditMixin:
             entry = session.entry_for(student.student_id)
             if entry is not None:
                 current_strength = int(entry.symbols.get(symbol, 0))
-        next_strength = (current_strength + 1) % 4
+        next_strength = next_symbol_toggle_strength(
+            current_strength, is_diagnostic=symbol in self.diagnostic_symbol_catalog
+        )
         self._controller.dispatch(
             RecordDocumentationSymbolIntent(
                 student_id=student.student_id,

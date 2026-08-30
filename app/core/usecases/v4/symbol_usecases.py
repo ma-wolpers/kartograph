@@ -10,6 +10,7 @@ from copy import deepcopy
 
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.student_id import StudentId
+from app.core.domain.symbol_toggle import next_symbol_toggle_strength
 from app.core.usecases.v4._shared import _normalize_doc_date
 from app.core.usecases.v4.session_usecases import ensure_session
 
@@ -34,7 +35,7 @@ def toggle_diagnostic_symbol(
     if student is None:
         return next_plan
     current = int(student.diagnostic.symbols.get(symbol, 0))
-    next_count = (current + 1) % 4
+    next_count = next_symbol_toggle_strength(current, is_diagnostic=True)
     if next_count == 0:
         student.diagnostic.symbols.pop(symbol, None)
     else:

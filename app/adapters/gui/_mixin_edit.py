@@ -9,6 +9,7 @@ from __future__ import annotations
 from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.adapters.gui.main_window_constants import ATTENDANCE_SYMBOL_NAME, NAME_EDITING
 from app.core.domain.models_v4 import ParticipationRating
+from app.core.domain.symbol_toggle import next_symbol_toggle_strength
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.student_intents import (
@@ -149,7 +150,7 @@ class EditMixin:
             entry = session.entry_for(student.student_id)
             if entry is not None:
                 current_strength = int(entry.symbols.get(ATTENDANCE_SYMBOL_NAME, 0))
-        next_strength = 0 if current_strength > 0 else 1
+        next_strength = next_symbol_toggle_strength(current_strength, is_diagnostic=False)
         self._controller.dispatch(
             RecordDocumentationSymbolIntent(
                 student_id=student.student_id,

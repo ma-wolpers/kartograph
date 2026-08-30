@@ -143,6 +143,8 @@ class DocsViewMixin:
         self.details_container.pack_forget()
         self.docs_container.pack(fill="both", expand=True)
         self._refresh_documentation_table()
+        if self._doc_dates:
+            self._select_doc_date_column(len(self._doc_dates) - 1)
         if self.selected_cell is not None:
             self._sync_doc_selection_from_grid(*self.selected_cell)
         self.docs_tree.focus_set()
