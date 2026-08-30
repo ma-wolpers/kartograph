@@ -12,7 +12,7 @@ from typing import Callable
 
 from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS, LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
-from app.core.domain.custom_symbol_validation import RESERVED_CTRL_SHIFT_LETTERS
+from app.core.domain.custom_symbol_validation import reserved_symbol_letters
 from app.core.intents.view_intents import SetEditorSurfaceIntent, ToggleEditorSurfaceIntent
 from bw_libs.ui_contract.keybinding import (
     UI_MODE_DIALOG,
@@ -147,17 +147,31 @@ class ShortcutMixin:
             self.bind_all(f"<KeyPress-{shortcut}>", lambda event, s=symbol_name: self._on_symbol_shortcut(event, s), add="+")
             self.bind_all(f"<KeyPress-{shortcut.upper()}>", lambda event, s=symbol_name: self._on_symbol_shortcut(event, s), add="+")
 
-        # Eigene Doku-Symbole: EINMALIG der gesamte freie Ctrl+Shift+<Buchstabe>-
-        # Tastenraum gebunden (26 Buchstaben minus die 6 fest belegten Systemkuerzel,
-        # RESERVED_CTRL_SHIFT_LETTERS aus custom_symbol_validation.py -- einzige
-        # Quelle der Wahrheit fuer beide Seiten). Der Handler loest pro Tastendruck
-        # live gegen den AKTUELL offenen Plan auf (resolve_custom_symbol_shortcut()),
-        # kein Rebind bei Planwechsel noetig.
-        for letter in sorted(set(string.ascii_uppercase) - RESERVED_CTRL_SHIFT_LETTERS):
+        # Eigene Doku-Symbole: EINMALIG der gesamte freie Einzelbuchstaben-Tastenraum
+        # gebunden (26 Buchstaben minus der ueber reserved_symbol_letters() ermittelten
+        # Sperrliste -- eingebaute Symbol-Shortcuts aus config/symbols.json plus feste
+        # Systemkuerzel, RESERVED_SYMBOL_LETTERS in custom_symbol_validation.py; dieselbe
+        # Funktion wird auch von der Validierung und vom Anlage-Formular aufgerufen,
+        # keine zweite, abweichend zusammengesetzte Liste). Beide Gross-/Kleinschreib-
+        # Varianten werden gebunden, analog zu den eingebauten Symbol-Shortcuts oben.
+        # Der Handler loest pro Tastendruck live gegen den AKTUELL offenen Plan auf
+        # (resolve_custom_symbol_shortcut()), kein Rebind bei Planwechsel noetig. Der
+        # normale runtime-Schutz (_bind_runtime_shortcut: UI_MODE_PREVIEW,
+        # allow_when_text_input=False) verhindert, dass Buchstaben-Tippen in Textfeldern
+        # oder waehrend ein Dialog offen ist versehentlich einen Symbol-Toggle ausloest.
+        for letter in sorted(set(string.ascii_uppercase) - reserved_symbol_letters(self.symbol_definitions)):
             self._bind_runtime_shortcut(
-                f"<Control-Shift-{letter}>",
+                f"<KeyPress-{letter}>",
                 lambda _e, l=letter: self._on_custom_symbol_shortcut(l),
                 binding_id=f"custom_symbol.{letter.lower()}",
+                intent=UiIntent.CUSTOM_SYMBOL_SHORTCUT,
+                modes=(UI_MODE_PREVIEW,),
+                allow_when_text_input=False,
+            )
+            self._bind_runtime_shortcut(
+                f"<KeyPress-{letter.lower()}>",
+                lambda _e, l=letter: self._on_custom_symbol_shortcut(l),
+                binding_id=f"custom_symbol.{letter.lower()}.lower",
                 intent=UiIntent.CUSTOM_SYMBOL_SHORTCUT,
                 modes=(UI_MODE_PREVIEW,),
                 allow_when_text_input=False,

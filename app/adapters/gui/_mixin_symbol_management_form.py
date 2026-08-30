@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from app.core.domain.custom_symbol_validation import (
     CustomSymbolValidationError,
+    reserved_symbol_letters,
     validate_custom_symbol_glyph,
     validate_custom_symbol_meaning,
     validate_custom_symbol_shortcut,
@@ -93,7 +94,7 @@ class SymbolManagementFormMixin:
         )
         meaning_entry.grid(row=1, column=1, sticky="w", pady=(0, 4))
 
-        tui.Label(frame, text="Tastenkürzel (z. B. Ctrl+Shift+T)").grid(row=2, column=0, sticky="w", pady=(0, 4))
+        tui.Label(frame, text="Tastenkürzel (ein Buchstabe, z. B. L)").grid(row=2, column=0, sticky="w", pady=(0, 4))
         shortcut_entry = tui.Entry(frame, textvariable=shortcut_var, width=22)
         shortcut_entry.grid(row=2, column=1, sticky="w", pady=(0, 4))
 
@@ -116,7 +117,9 @@ class SymbolManagementFormMixin:
             try:
                 clean_glyph = validate_custom_symbol_glyph(glyph_var.get())
                 clean_meaning = validate_custom_symbol_meaning(meaning_var.get())
-                clean_shortcut = validate_custom_symbol_shortcut(shortcut_var.get(), other_shortcuts)
+                clean_shortcut = validate_custom_symbol_shortcut(
+                    shortcut_var.get(), other_shortcuts, reserved_symbol_letters(self.symbol_definitions)
+                )
             except CustomSymbolValidationError as exc:
                 status_var.set(str(exc))
                 return

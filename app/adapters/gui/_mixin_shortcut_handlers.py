@@ -124,12 +124,13 @@ class ShortcutHandlersMixin:
         return "break"
 
     def _on_custom_symbol_shortcut(self, letter: str) -> str | None:
-        """Handler für ``Ctrl+Shift+<Buchstabe>``: eigenes Doku-Symbol togglen.
+        """Handler für einen einzelnen Buchstaben: eigenes Doku-Symbol togglen.
 
         Löst *letter* live gegen die eigenen Symbole des AKTUELL offenen Plans
         auf (``resolve_custom_symbol_shortcut()``) — kein Rebind bei
         Planwechsel nötig, derselbe physische Tastenraum wird einmalig in
-        ``_mixin_shortcuts.py::_bind_shortcuts()`` gebunden. Nur in der
+        ``_mixin_shortcuts.py::_bind_shortcuts()`` gebunden (nur die aktuell
+        freien Buchstaben, s. ``reserved_symbol_letters()``). Nur in der
         Dokuansicht aktiv, analog zu eingebauten ``documentation_only``-
         Symbolen, die im Raster per Tastenkürzel ebenfalls nicht auslösbar
         sind (``_on_symbol_shortcut`` in ``_mixin_edit.py``) — eigene Symbole

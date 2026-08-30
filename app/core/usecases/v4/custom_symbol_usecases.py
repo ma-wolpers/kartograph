@@ -21,7 +21,9 @@ from app.core.domain.custom_symbol_validation import (
 from app.core.domain.models_v4 import CustomSymbolDefinition, SeatingPlan
 
 
-def add_custom_symbol(plan: SeatingPlan, glyph: str, meaning: str, shortcut: str) -> tuple[SeatingPlan, str]:
+def add_custom_symbol(
+    plan: SeatingPlan, glyph: str, meaning: str, shortcut: str, reserved_letters: frozenset[str] = frozenset()
+) -> tuple[SeatingPlan, str]:
     """Legt ein neues eigenes Doku-Symbol an.
 
     Validiert Glyph und Tastenkürzel hart (wirft bei Verstoß, s. Modul-
@@ -39,6 +41,10 @@ def add_custom_symbol(plan: SeatingPlan, glyph: str, meaning: str, shortcut: str
             ``validate_custom_symbol_shortcut`` geprüft/normalisiert; geprüft
             gegen die Shortcuts aller bereits vorhandenen eigenen Symbole
             dieses Plans).
+        reserved_letters: Aktuell gesperrte Einzelbuchstaben (System- plus
+            eingebaute Symbol-Shortcuts), typischerweise via
+            ``custom_symbol_validation.reserved_symbol_letters()`` ermittelt
+            und vom Handler durchgereicht.
 
     Returns:
         Tupel aus (neuer Plan, ``id`` des neu angelegten Symbols) — analog
@@ -52,7 +58,7 @@ def add_custom_symbol(plan: SeatingPlan, glyph: str, meaning: str, shortcut: str
     clean_glyph = validate_custom_symbol_glyph(glyph)
     clean_meaning = validate_custom_symbol_meaning(meaning)
     other_shortcuts = [cs.shortcut for cs in plan.custom_symbols.values()]
-    clean_shortcut = validate_custom_symbol_shortcut(shortcut, other_shortcuts)
+    clean_shortcut = validate_custom_symbol_shortcut(shortcut, other_shortcuts, reserved_letters)
 
     next_plan = deepcopy(plan)
     symbol_id = uuid.uuid4().hex[:8]
@@ -62,7 +68,14 @@ def add_custom_symbol(plan: SeatingPlan, glyph: str, meaning: str, shortcut: str
     return next_plan, symbol_id
 
 
-def update_custom_symbol(plan: SeatingPlan, symbol_id: str, glyph: str, meaning: str, shortcut: str) -> SeatingPlan:
+def update_custom_symbol(
+    plan: SeatingPlan,
+    symbol_id: str,
+    glyph: str,
+    meaning: str,
+    shortcut: str,
+    reserved_letters: frozenset[str] = frozenset(),
+) -> SeatingPlan:
     """Ändert Glyph, Bedeutung und/oder Tastenkürzel eines bestehenden eigenen Symbols.
 
     Alle drei Felder sind änderbar — die ``id`` (nicht der Bedeutungstext)
@@ -80,6 +93,10 @@ def update_custom_symbol(plan: SeatingPlan, symbol_id: str, glyph: str, meaning:
             Symbols wird von der Kollisionsprüfung ausgenommen (sonst würde
             ein unverändert übernommener Shortcut fälschlich als Kollision
             mit sich selbst gelten).
+        reserved_letters: Aktuell gesperrte Einzelbuchstaben (System- plus
+            eingebaute Symbol-Shortcuts), typischerweise via
+            ``custom_symbol_validation.reserved_symbol_letters()`` ermittelt
+            und vom Handler durchgereicht.
 
     Returns:
         Neuer Plan mit dem aktualisierten Symbol.
@@ -95,7 +112,7 @@ def update_custom_symbol(plan: SeatingPlan, symbol_id: str, glyph: str, meaning:
     clean_glyph = validate_custom_symbol_glyph(glyph)
     clean_meaning = validate_custom_symbol_meaning(meaning)
     other_shortcuts = [cs.shortcut for sid, cs in plan.custom_symbols.items() if sid != symbol_id]
-    clean_shortcut = validate_custom_symbol_shortcut(shortcut, other_shortcuts)
+    clean_shortcut = validate_custom_symbol_shortcut(shortcut, other_shortcuts, reserved_letters)
 
     next_plan = deepcopy(plan)
     next_plan.custom_symbols[symbol_id] = CustomSymbolDefinition(
@@ -127,16 +144,18 @@ def delete_custom_symbol(plan: SeatingPlan, symbol_id: str) -> SeatingPlan:
 
 
 def resolve_custom_symbol_shortcut(plan: SeatingPlan | None, letter: str) -> CustomSymbolDefinition | None:
-    """Sucht das eigene Symbol von *plan*, dessen Tastenkürzel ``"Ctrl+Shift+<letter>"`` entspricht.
+    """Sucht das eigene Symbol von *plan*, dessen Tastenkürzel *letter* entspricht.
 
     Reine Lookup-Funktion ohne Seiteneffekt. Zentral für die GUI-
     Tastaturbindung (ein einziges, beim Start einmalig gebundenes
-    ``Ctrl+Shift+<Buchstabe>``-Tastenraum-Binding pro Buchstabe löst pro
-    Tastendruck über diese Funktion live auf, welches Symbol im *aktuell*
-    offenen Plan gemeint ist — kein Rebind bei Planwechsel nötig) UND direkt
-    unit-testbar für den Plan-Isolations-Nachweis: zwei verschiedene Pläne
-    mit je einem eigenen Symbol auf demselben Buchstaben liefern
-    unabhängige Ergebnisse.
+    Buchstaben-Tastenraum-Binding pro freiem Buchstaben löst pro Tastendruck
+    über diese Funktion live auf, welches Symbol im *aktuell* offenen Plan
+    gemeint ist — kein Rebind bei Planwechsel nötig) UND direkt unit-testbar
+    für den Plan-Isolations-Nachweis: zwei verschiedene Pläne mit je einem
+    eigenen Symbol auf demselben Buchstaben liefern unabhängige Ergebnisse.
+    Ein historischer Shortcut-Wert im alten ``"Ctrl+Shift+<Buchstabe>"``-
+    Format (vor der Umstellung auf einfache Buchstaben) kann strukturell nie
+    matchen — *letter* ist immer ein bloßer Einzelbuchstabe.
 
     Args:
         plan: Der zu durchsuchende Plan, oder ``None`` (kein offener Plan).
@@ -149,7 +168,7 @@ def resolve_custom_symbol_shortcut(plan: SeatingPlan | None, letter: str) -> Cus
     """
     if plan is None:
         return None
-    target = f"Ctrl+Shift+{letter.strip().upper()}"
+    target = letter.strip().upper()
     for custom in plan.custom_symbols.values():
         if custom.shortcut == target:
             return custom

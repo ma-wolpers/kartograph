@@ -8,55 +8,83 @@ from __future__ import annotations
 import pytest
 
 from app.core.domain.custom_symbol_validation import (
+    RESERVED_SYMBOL_LETTERS,
     InvalidGlyphError,
     InvalidMeaningError,
     InvalidShortcutError,
+    reserved_symbol_letters,
     validate_custom_symbol_glyph,
     validate_custom_symbol_meaning,
     validate_custom_symbol_shortcut,
 )
 
 
+class _Definition:
+    """Minimales Double für ``_HasShortcut`` -- nur ``.shortcut`` wird gebraucht."""
+
+    def __init__(self, shortcut: str | None) -> None:
+        self.shortcut = shortcut
+
+
 class TestValidateCustomSymbolShortcut:
-    @pytest.mark.parametrize(
-        "raw",
-        ["ctrl+shift+t", "CTRL+SHIFT+T", "Ctrl+Shift+T", " Ctrl+Shift+T ", "Ctrl + Shift + T"],
-    )
-    def test_valid_forms_normalize_to_canonical(self, raw):
-        assert validate_custom_symbol_shortcut(raw) == "Ctrl+Shift+T"
+    @pytest.mark.parametrize("raw", ["l", "L", " L ", "l "])
+    def test_valid_forms_normalize_to_canonical_uppercase_letter(self, raw):
+        assert validate_custom_symbol_shortcut(raw) == "L"
 
     @pytest.mark.parametrize(
         "raw",
         [
-            "t",
+            "Ctrl+Shift+T",
             "Ctrl+T",
-            "Ctrl+Alt+T",
-            "Ctrl+Shift+12",
-            "Ctrl+Shift+!",
-            "Ctrl+Shift+Tt",
+            "12",
+            "!",
+            "LL",
             "",
             "   ",
-            "Shift+T",
         ],
     )
     def test_invalid_forms_are_rejected(self, raw):
         with pytest.raises(InvalidShortcutError):
             validate_custom_symbol_shortcut(raw)
 
-    @pytest.mark.parametrize("letter", ["D", "R", "O", "S", "U", "N"])
-    def test_reserved_system_letters_are_rejected(self, letter):
+    def test_old_ctrl_shift_format_is_rejected_not_reinterpreted(self):
+        """Ein Wert im frueheren Ctrl+Shift+<Buchstabe>-Format darf nach der
+        Umstellung nicht stillschweigend als neuer Einzelbuchstaben-Shortcut
+        durchgehen."""
         with pytest.raises(InvalidShortcutError):
-            validate_custom_symbol_shortcut(f"Ctrl+Shift+{letter}")
+            validate_custom_symbol_shortcut("Ctrl+Shift+L")
+
+    def test_reserved_letter_is_rejected(self):
+        with pytest.raises(InvalidShortcutError):
+            validate_custom_symbol_shortcut("K", reserved_letters=frozenset({"K"}))
 
     def test_free_letter_is_accepted(self):
-        assert validate_custom_symbol_shortcut("Ctrl+Shift+K") == "Ctrl+Shift+K"
+        assert validate_custom_symbol_shortcut("K", reserved_letters=frozenset({"O", "S", "D"})) == "K"
 
     def test_collision_with_other_shortcut_is_rejected(self):
         with pytest.raises(InvalidShortcutError):
-            validate_custom_symbol_shortcut("Ctrl+Shift+K", other_shortcuts=["Ctrl+Shift+K"])
+            validate_custom_symbol_shortcut("K", other_shortcuts=["K"])
 
     def test_no_collision_when_other_shortcuts_differ(self):
-        assert validate_custom_symbol_shortcut("Ctrl+Shift+K", other_shortcuts=["Ctrl+Shift+L"]) == "Ctrl+Shift+K"
+        assert validate_custom_symbol_shortcut("K", other_shortcuts=["L"]) == "K"
+
+
+class TestReservedSymbolLetters:
+    def test_fixed_system_letters_always_included(self):
+        assert RESERVED_SYMBOL_LETTERS <= reserved_symbol_letters([])
+
+    def test_builtin_symbol_shortcuts_are_included(self):
+        letters = reserved_symbol_letters([_Definition("b"), _Definition("k")])
+        assert "B" in letters
+        assert "K" in letters
+
+    def test_definitions_without_shortcut_are_ignored(self):
+        letters = reserved_symbol_letters([_Definition(None), _Definition("")])
+        assert letters == RESERVED_SYMBOL_LETTERS
+
+    def test_letter_not_in_catalog_or_fixed_set_stays_free(self):
+        letters = reserved_symbol_letters([_Definition("b")])
+        assert "L" not in letters
 
 
 class TestValidateCustomSymbolGlyph:

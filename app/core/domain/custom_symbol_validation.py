@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Iterable
+from typing import Iterable, Protocol
 
 
 class CustomSymbolValidationError(Exception):
@@ -31,35 +31,68 @@ class InvalidMeaningError(CustomSymbolValidationError):
     """Die angegebene Bedeutung ist (nach dem Trimmen) leer."""
 
 
-# Bereits in app/adapters/gui/_mixin_shortcuts.py fest gebundene
-# Ctrl+Shift+<Buchstabe>-Systemshortcuts (Dokuansicht-Toggle [D], Runtime-Debug
-# [R], Offline-Toggle [O], Doku-Symbol setzen [S], Dokudatum umbenennen [U],
-# Notenspalte hinzufügen [N]). Einzige Quelle der Wahrheit für diese sechs
-# Buchstaben -- _mixin_shortcuts.py importiert dieselbe Konstante, statt sie
-# zu duplizieren, sowohl für die Validierung hier als auch um daraus den
-# freien Buchstabenraum für die generische Custom-Symbol-Bindung abzuleiten.
-RESERVED_CTRL_SHIFT_LETTERS = frozenset({"D", "R", "O", "S", "U", "N"})
+class _HasShortcut(Protocol):
+    """Struktureller Vertrag für ``reserved_symbol_letters()`` — nur ``.shortcut`` wird gebraucht.
 
-_SHORTCUT_PATTERN = re.compile(r"^Ctrl\+Shift\+([A-Za-z])$")
+    Erfüllt sowohl von ``app.infrastructure.symbol_config_loader.SymbolDefinition``
+    als auch von jedem anderen Objekt mit einem ``shortcut``-Attribut, ohne
+    dass ``app/core`` von ``app/infrastructure`` importieren muss.
+    """
+
+    shortcut: str | None
 
 
-def validate_custom_symbol_shortcut(raw: str, other_shortcuts: Iterable[str] = ()) -> str:
-    """Validiert und normalisiert *raw* auf die kanonische Form ``"Ctrl+Shift+<GROSSBUCHSTABE>"``.
+# Fest verdrahtete Einzelbuchstaben-Shortcuts, die NICHT Teil des konfigurierbaren
+# Symbolkatalogs sind (Mitarbeit-Bewertung "o"/"s", Tischsymbol-Dialog "d" — alle in
+# app/adapters/gui/_mixin_shortcuts.py). Einzige Quelle der Wahrheit für diese drei
+# Buchstaben; reserved_symbol_letters() vereinigt sie mit den (konfigurierbaren)
+# eingebauten Symbol-Shortcuts aus config/symbols.json zur vollständigen Sperrliste.
+RESERVED_SYMBOL_LETTERS = frozenset({"O", "S", "D"})
+
+_SHORTCUT_PATTERN = re.compile(r"^[A-Za-z]$")
+
+
+def reserved_symbol_letters(symbol_definitions: Iterable[_HasShortcut]) -> frozenset[str]:
+    """Vereinigt konfigurierbare eingebaute Symbol-Shortcuts mit den festen System-Buchstaben.
+
+    Einzige Stelle im gesamten Projekt, an der beide Quellen zusammengeführt
+    werden — Validierung (über den ``reserved_letters``-Parameter unten),
+    GUI-Bindung (``app/adapters/gui/_mixin_shortcuts.py::_bind_shortcuts()``)
+    und das Anlage-/Bearbeiten-Formular
+    (``app/adapters/gui/_mixin_symbol_management_form.py``) rufen
+    ausschließlich diese Funktion auf, statt die Vereinigung jeweils selbst
+    zu bilden. Da eingebaute Shortcuts über ``config/symbols.json``
+    konfigurierbar sind, kann diese Menge nicht als feste Konstante
+    vorgehalten werden — sie muss bei jedem Aufruf aus dem aktuellen Katalog
+    neu gebildet werden.
+
+    Args:
+        symbol_definitions: Der aktuelle, app-weite Symbolkatalog (aus
+            ``AppState.symbol_catalog``).
+
+    Returns:
+        Menge aller für eigene Symbol-Shortcuts gesperrten Großbuchstaben.
+    """
+    return {d.shortcut.upper() for d in symbol_definitions if d.shortcut} | RESERVED_SYMBOL_LETTERS
+
+
+def validate_custom_symbol_shortcut(
+    raw: str,
+    other_shortcuts: Iterable[str] = (),
+    reserved_letters: Iterable[str] = frozenset(),
+) -> str:
+    """Validiert und normalisiert *raw* auf einen einzelnen kanonischen Großbuchstaben.
 
     Bewusst sehr eng gefasst (Nutzerwunsch: lieber zu streng als zu lax) —
-    erlaubt ausschließlich exakt "Ctrl+Shift+" gefolgt von genau einem
-    Buchstaben, unabhängig von Groß-/Kleinschreibung und umgebenden/inneren
-    Leerzeichen (z. B. ``"ctrl+shift+t"``, ``"CTRL + SHIFT + T"`` und
-    ``" Ctrl+Shift+T "`` normalisieren alle zu ``"Ctrl+Shift+T"``). Ctrl+Alt
-    wird bewusst NICHT unterstützt, weil es auf deutschen Tastaturen physisch
-    AltGr entspricht und dadurch konfliktanfällig ist (siehe
-    ``docs/DEVELOPMENT_LOG.md``, Eintrag zum Symbolfilter-Shortcut). Ziffern,
-    Sonderzeichen und mehrstellige Tastenfolgen werden ebenfalls abgelehnt.
+    erlaubt ausschließlich genau einen Buchstaben, unabhängig von
+    Groß-/Kleinschreibung und umgebenden Leerzeichen (z. B. ``"l"``,
+    ``" L "`` normalisieren beide zu ``"L"``). Ziffern, Sonderzeichen und
+    mehrstellige Eingaben werden abgelehnt.
 
-    Prüft danach gegen ``RESERVED_CTRL_SHIFT_LETTERS`` (fest im Code
-    gebundene System-Tastenkürzel) sowie gegen *other_shortcuts* (bereits
-    vergebene Shortcuts anderer eigener Symbole desselben Plans, in
-    kanonischer Form erwartet).
+    Prüft danach gegen *reserved_letters* (typischerweise das Ergebnis von
+    ``reserved_symbol_letters()`` — System- und eingebaute Symbol-Buchstaben)
+    sowie gegen *other_shortcuts* (bereits vergebene Shortcuts anderer
+    eigener Symbole desselben Plans, in kanonischer Form erwartet).
 
     Args:
         raw: Rohe Nutzereingabe.
@@ -67,31 +100,32 @@ def validate_custom_symbol_shortcut(raw: str, other_shortcuts: Iterable[str] = (
             die zusätzlich auf Kollision geprüft wird — beim Bearbeiten eines
             bestehenden Symbols schließt der Aufrufer dessen eigenen
             aktuellen Shortcut aus dieser Menge aus.
+        reserved_letters: Aktuell gesperrte Buchstaben (System-Shortcuts plus
+            eingebaute Symbol-Shortcuts), typischerweise via
+            ``reserved_symbol_letters()`` ermittelt.
 
     Returns:
-        Kanonische Form, z. B. ``"Ctrl+Shift+T"``.
+        Kanonische Form: ein einzelner Großbuchstabe, z. B. ``"L"``.
 
     Raises:
         InvalidShortcutError: Bei jeder Abweichung von der geforderten Form
             oder bei einer Kollision, mit einem konkreten Grund im Fehlertext.
     """
-    normalized = re.sub(r"\s+", "", str(raw or "")).title()
+    normalized = re.sub(r"\s+", "", str(raw or "")).upper()
     match = _SHORTCUT_PATTERN.fullmatch(normalized)
     if match is None:
         raise InvalidShortcutError(
-            f"Ungültiges Tastaturkürzel: '{raw}'. Erlaubt ist ausschließlich die Form "
-            f"'Ctrl+Shift+<Buchstabe>' (z. B. 'Ctrl+Shift+T')."
+            f"Ungültiges Tastaturkürzel: '{raw}'. Erlaubt ist ausschließlich ein einzelner Buchstabe (z. B. 'L')."
         )
 
-    letter = match.group(1).upper()
-    canonical = f"Ctrl+Shift+{letter}"
+    letter = normalized
+    reserved = frozenset(reserved_letters)
+    if letter in reserved:
+        raise InvalidShortcutError(f"'{letter}' ist bereits als Tastenkürzel belegt.")
+    if letter in set(other_shortcuts):
+        raise InvalidShortcutError(f"'{letter}' wird bereits von einem anderen eigenen Symbol dieses Plans verwendet.")
 
-    if letter in RESERVED_CTRL_SHIFT_LETTERS:
-        raise InvalidShortcutError(f"'{canonical}' ist bereits als System-Tastenkürzel belegt.")
-    if canonical in set(other_shortcuts):
-        raise InvalidShortcutError(f"'{canonical}' wird bereits von einem anderen eigenen Symbol dieses Plans verwendet.")
-
-    return canonical
+    return letter
 
 
 _ZWJ = chr(0x200D)  # ZERO WIDTH JOINER

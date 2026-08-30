@@ -1179,20 +1179,20 @@ class TestHandleCustomSymbolHandlers:
         state = make_state_with_plan(plan, path)
 
         result = handle_add_custom_symbol(
-            AddCustomSymbolIntent(glyph="☕", meaning="Kaffee vergessen", shortcut="Ctrl+Shift+K"), state, ctx
+            AddCustomSymbolIntent(glyph="☕", meaning="Kaffee vergessen", shortcut="K"), state, ctx
         )
 
         assert len(result.current_plan.custom_symbols) == 1
         symbol = next(iter(result.current_plan.custom_symbols.values()))
         assert symbol.meaning == "Kaffee vergessen"
-        assert symbol.shortcut == "Ctrl+Shift+K"
+        assert symbol.shortcut == "K"
 
     def test_add_custom_symbol_without_plan_is_noop(self):
         ctx = make_ctx()
         state = AppState()
 
         result = handle_add_custom_symbol(
-            AddCustomSymbolIntent(glyph="☕", meaning="X", shortcut="Ctrl+Shift+K"), state, ctx
+            AddCustomSymbolIntent(glyph="☕", meaning="X", shortcut="K"), state, ctx
         )
 
         assert result is state
@@ -1203,12 +1203,12 @@ class TestHandleCustomSymbolHandlers:
         ctx = make_ctx({path: plan})
         state = make_state_with_plan(plan, path)
         state = handle_add_custom_symbol(
-            AddCustomSymbolIntent(glyph="☕", meaning="Kaffee vergessen", shortcut="Ctrl+Shift+K"), state, ctx
+            AddCustomSymbolIntent(glyph="☕", meaning="Kaffee vergessen", shortcut="K"), state, ctx
         )
         symbol_id = next(iter(state.current_plan.custom_symbols))
 
         result = handle_update_custom_symbol(
-            UpdateCustomSymbolIntent(symbol_id=symbol_id, glyph="🍪", meaning="Keks vergessen", shortcut="Ctrl+Shift+L"),
+            UpdateCustomSymbolIntent(symbol_id=symbol_id, glyph="🍪", meaning="Keks vergessen", shortcut="L"),
             state,
             ctx,
         )
@@ -1216,14 +1216,14 @@ class TestHandleCustomSymbolHandlers:
         symbol = result.current_plan.custom_symbols[symbol_id]
         assert symbol.glyph == "🍪"
         assert symbol.meaning == "Keks vergessen"
-        assert symbol.shortcut == "Ctrl+Shift+L"
+        assert symbol.shortcut == "L"
 
     def test_update_custom_symbol_without_plan_is_noop(self):
         ctx = make_ctx()
         state = AppState()
 
         result = handle_update_custom_symbol(
-            UpdateCustomSymbolIntent(symbol_id="missing", glyph="☕", meaning="X", shortcut="Ctrl+Shift+K"),
+            UpdateCustomSymbolIntent(symbol_id="missing", glyph="☕", meaning="X", shortcut="K"),
             state,
             ctx,
         )
@@ -1237,7 +1237,7 @@ class TestHandleCustomSymbolHandlers:
         ctx = make_ctx({path: plan})
         state = make_state_with_plan(plan, path)
         state = handle_add_custom_symbol(
-            AddCustomSymbolIntent(glyph="☕", meaning="Kaffee vergessen", shortcut="Ctrl+Shift+K"), state, ctx
+            AddCustomSymbolIntent(glyph="☕", meaning="Kaffee vergessen", shortcut="K"), state, ctx
         )
         symbol_id = next(iter(state.current_plan.custom_symbols))
         state.current_plan.documentation.sessions.append(

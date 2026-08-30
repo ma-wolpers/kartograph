@@ -12,6 +12,7 @@ from __future__ import annotations
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import _record_and_save, _with_plan
+from app.core.domain.custom_symbol_validation import reserved_symbol_letters
 from app.core.intents.custom_symbol_intents import (
     AddCustomSymbolIntent,
     DeleteCustomSymbolIntent,
@@ -34,7 +35,13 @@ def handle_add_custom_symbol(intent: AddCustomSymbolIntent, state: AppState, ctx
     """
     if state.current_plan is None or state.current_plan_path is None:
         return state
-    next_plan, _symbol_id = add_custom_symbol(state.current_plan, intent.glyph, intent.meaning, intent.shortcut)
+    next_plan, _symbol_id = add_custom_symbol(
+        state.current_plan,
+        intent.glyph,
+        intent.meaning,
+        intent.shortcut,
+        reserved_symbol_letters(state.symbol_catalog),
+    )
     _record_and_save(next_plan, state.current_plan_path, "custom_symbol.add", ctx)
     return _with_plan(state, next_plan, ctx)
 
@@ -50,7 +57,12 @@ def handle_update_custom_symbol(intent: UpdateCustomSymbolIntent, state: AppStat
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = update_custom_symbol(
-        state.current_plan, intent.symbol_id, intent.glyph, intent.meaning, intent.shortcut
+        state.current_plan,
+        intent.symbol_id,
+        intent.glyph,
+        intent.meaning,
+        intent.shortcut,
+        reserved_symbol_letters(state.symbol_catalog),
     )
     _record_and_save(next_plan, state.current_plan_path, "custom_symbol.update", ctx)
     return _with_plan(state, next_plan, ctx)
