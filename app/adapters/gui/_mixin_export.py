@@ -111,20 +111,29 @@ class ExportMixin:
         save_button.pack(side="right")
         self._attach_hover_help(save_button, label="Sichtbarkeitsauswahl speichern", shortcut="Enter")
 
-    def _create_overlay_dialog(self, title: str, geometry: str) -> ui.Toplevel:
+    def _create_overlay_dialog(self, title: str, geometry: str, *, parent: ui.Toplevel | None = None) -> ui.Toplevel:
         """Erstellt ein modales Toplevel-Fenster mit Popup-Tracking und Escape-Binding.
 
         Args:
             title: Fenstertitel.
             geometry: Geometrie-String im Format ``"BREITExHÖHE"``.
+            parent: Fenster, dem der Dialog als ``transient`` untergeordnet
+                wird (bestimmt die Fenstermanager-Z-Order-Gruppierung, u. a.
+                wer beim Schließen des Dialogs den Vordergrund zurückerhält).
+                ``None`` (Default) fällt auf das Hauptfenster (``self``)
+                zurück — deckt alle bisherigen Aufrufer unverändert ab. Nur
+                Aufrufer, die selbst aus einem eigenen Toplevel heraus
+                (z. B. der Symbol-Verwaltung) einen weiteren Dialog öffnen,
+                übergeben explizit dieses Toplevel als ``parent``.
 
         Returns:
             Das neue, fokussierte Toplevel-Fenster.
         """
-        dialog = ui.Toplevel(self)
+        resolved_parent = parent if parent is not None else self
+        dialog = ui.Toplevel(resolved_parent)
         dialog.title(title)
         dialog.geometry(geometry)
-        dialog.transient(self)
+        dialog.transient(resolved_parent)
         self._track_popup_window(dialog)
         dialog.grab_set()
         dialog.bind("<Escape>", lambda _event: self._destroy_tracked_dialog(dialog))

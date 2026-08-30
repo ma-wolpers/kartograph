@@ -75,7 +75,7 @@ class SymbolManagementFormMixin:
         """
         is_edit = symbol_id is not None
         title = "Symbol bearbeiten" if is_edit else "Symbol anlegen"
-        dialog = self._create_overlay_dialog(title, "440x320")
+        dialog = self._create_overlay_dialog(title, "440x320", parent=self._symbol_management_window)
         frame = tui.Frame(dialog)
         frame.pack(fill="both", expand=True, padx=12, pady=12)
 
