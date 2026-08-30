@@ -286,7 +286,6 @@ class KartographMainWindow(
         warning = self._controller.symbol_catalog_warning
         self.symbol_catalog = [item.meaning for item in self.symbol_definitions]
         self.diagnostic_symbol_catalog = [item.meaning for item in self.symbol_definitions if item.role == "diagnostic"]
-        self._documentation_only_symbols = {item.meaning for item in self.symbol_definitions if item.role == "documentation_only"}
         self._symbol_by_meaning = {item.meaning: item for item in self.symbol_definitions}
         self._shortcut_to_symbol = self._build_symbol_shortcut_map(self.symbol_definitions)
         self.effective_documentation_symbols: list[EffectiveSymbol] = []
@@ -410,6 +409,17 @@ class KartographMainWindow(
         if self._controller.state.interaction_mode == InteractionMode.GRID:
             return GRID_SELECTED
         return LIST_ACTIVE
+
+    @property
+    def _documentation_only_symbols(self) -> set[str]:
+        """Live abgeleitete Menge aller Doku-Symbol-Schlüssel (eingebaut + eigen).
+
+        Reine Ableitung aus ``self.effective_documentation_symbols`` (das über
+        ``_rebuild_effective_documentation_symbols_if_changed()`` bei jedem
+        Planwechsel und jeder Symbol-Änderung aktuell gehalten wird) — bewusst
+        kein eigener, potenziell veraltender Zustand.
+        """
+        return {s.key for s in self.effective_documentation_symbols}
 
     def _center_window_on_screen(self) -> None:
         """Zentriert das Fenster auf dem Bildschirm nach dem ersten Layout-Durchgang."""
