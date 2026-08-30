@@ -9,6 +9,22 @@ Regel:
 ## [Unreleased]
 
 ### Added
+- Klick-Spaltenauflösung im linken Doku-Treeview korrigiert (Nutzerbeobachtung: Klick auf eine
+  Datumsspalte markierte immer die Spalte rechts daneben). Ursache: `_on_docs_tree_click()`
+  (`_mixin_docs_events.py`) berechnete den Spaltenindex als `int(col_id[1:]) - 1` — korrekt nur,
+  wenn `"#1"` bereits die erste Datenspalte wäre. Der linke Treeview hat aber `show="tree headings"`
+  und eine führende `"vorname"`-Spalte vor den Datumsspalten (`columns=["vorname"] + date_ids`,
+  `_mixin_docs_table.py`), sodass Datumsspalten erst bei `"#2"` beginnen — ein reiner
+  `-2`-statt-`-1`-Fix hätte nur denselben Fehlklassentyp mit einer anderen Zahl reproduziert. Statt
+  eines zweiten hart codierten Offsets löst die neue `_resolve_clicked_column_name(tree, event_x)`
+  (statische Methode, `DocsEventsMixin`) `"#N"` über das Widget-eigene `tree["columns"]`-Tupel auf
+  die tatsächliche Spalten-ID auf — funktioniert unabhängig davon, wie viele/welche Spalten vor den
+  Datenspalten liegen. Dieselbe Fragilität lag identisch (aber bislang zufällig korrekt, da der
+  rechte Treeview `show="headings"` ohne führende Extra-Spalte nutzt) auch in
+  `_on_docs_right_tree_click()`/`_on_docs_right_tree_double_click()` vor — beide auf denselben
+  Resolver umgestellt, drei near-duplizierte Blöcke wurden zu einer gemeinsamen Stelle. Neue Tests
+  in `tests/test_docs_events_column_resolution.py` (Fake-Treeview-Double, kein echtes Tk nötig),
+  inkl. explizitem Regressionsfall für die erste Datumsspalte.
 - Attendance-Sonderpfad deprecated, Doku-Symbole im Raster togglebar gemacht (Nutzeranfrage,
   Nachfolge zur Symbol-Verwaltung/Dokumodus-Bugfix-Runde s. u.): Auslöser war die Frage, warum
   die Symbol-Verwaltung für "Abwesend" `u` statt "Leertaste" als Kürzel zeigte — Ursache war ein

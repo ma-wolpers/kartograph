@@ -62,6 +62,7 @@ The format is based on Keep a Changelog.
 - Doku-Symbole (eingebaut wie eigene, z. B. "Nicht abgegeben / verweigert", "Aufgaben nicht gemacht" und selbst angelegte) schalteten wie Diagnosesymbole zyklisch durch die vier Stärken 0, 1, 2, 3 statt einfach nur ein-/auszuschalten. Sie togglen jetzt einheitlich binär (Ein/Aus); Diagnosesymbole zyklen weiterhin wie gewohnt.
 - Ein neu angelegtes eigenes Doku-Symbol erschien nach dem Setzen am aktuellen Tag nicht auf dem Tisch im Sitzplan-Raster (nur eingebaute Doku-Symbole erschienen dort).
 - Beim Anlegen oder Bearbeiten eines eigenen Symbols verschwand das Symbol-Verwaltung-Fenster hinter dem Hauptfenster, sobald das Formular geschlossen wurde.
+- Ein Klick auf eine Zelle in der Dokutabelle (linke Tabelle: Vorname/Datumsspalten) wählte immer die Datumsspalte rechts daneben aus statt der tatsächlich angeklickten.
 
 ### Changed
 - Die Dokumentationsansicht ist jetzt in kleinen Fenstern deutlich besser bedienbar: der Mitteltrenner zwischen Datumstabelle und Notentabelle ist per Drag&Drop verschiebbar, und horizontales Scrollen per Shift+Mausrad reagiert mit groesserer Schrittweite.

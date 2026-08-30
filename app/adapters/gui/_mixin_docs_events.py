@@ -10,6 +10,40 @@ from __future__ import annotations
 class DocsEventsMixin:
     """Mixin: Treeview-Ereignisse und Tastaturnavigation in der Dokumentations-Ansicht."""
 
+    @staticmethod
+    def _resolve_clicked_column_name(tree, event_x: int) -> str | None:
+        """Löst ``identify_column()``s ``"#N"`` über das Widget-eigene ``columns``-Tupel auf.
+
+        Robuster als reine Index-Arithmetik (z. B. ``int(col_id[1:]) - 1``):
+        ``"#N"`` zählt 1-basiert über *alle* konfigurierten Spalten, auch
+        führende Nicht-Datenspalten wie "vorname" im linken Treeview — ein
+        hart codierter Offset muss von Hand synchron gehalten werden und
+        bricht lautlos, sobald sich die Spaltenreihenfolge/-anzahl ändert
+        (genau das war die Ursache des "eine Spalte zu weit rechts"-Bugs).
+        Diese Funktion fragt stattdessen direkt ``tree["columns"]`` ab, die
+        einzige Quelle der Wahrheit für die tatsächliche Spaltenreihenfolge.
+
+        Args:
+            tree: Der Treeview, auf dem geklickt wurde.
+            event_x: X-Koordinate des Klick-Ereignisses.
+
+        Returns:
+            Die Spalten-ID (wie in ``columns=(...)`` übergeben), oder
+            ``None`` bei Klick außerhalb einer Datenspalte (z. B. auf die
+            Baum-Spalte "#0" oder daneben).
+        """
+        col_id = tree.identify_column(event_x)
+        if not col_id.startswith("#"):
+            return None
+        try:
+            raw_index = int(col_id[1:]) - 1
+        except ValueError:
+            return None
+        columns = tree["columns"]
+        if 0 <= raw_index < len(columns):
+            return columns[raw_index]
+        return None
+
     def _on_docs_tree_click(self, event) -> None:
         """Behandelt Klick auf den linken Doku-Treeview (Kopf: sortieren; Zeile: selektieren).
 
@@ -23,15 +57,10 @@ class DocsEventsMixin:
         if row_id:
             self._set_docs_row_selection(row_id, source="main")
         self._select_doc_fixed_column(None)
-        col_id = self.docs_tree.identify_column(event.x)
-        if col_id.startswith("#"):
-            try:
-                col_index = int(col_id[1:]) - 1
-            except ValueError:
-                col_index = -1
-            if 0 <= col_index < len(self._doc_dates):
-                self._select_doc_date_column(col_index)
-                self._apply_doc_column_heading_highlight()
+        column_name = self._resolve_clicked_column_name(self.docs_tree, event.x)
+        if column_name in self._doc_date_column_ids:
+            self._select_doc_date_column(self._doc_date_column_ids.index(column_name))
+            self._apply_doc_column_heading_highlight()
 
     def _on_docs_tree_select(self) -> None:
         """Behandelt programmgesteuerte Zeilenauswahl im linken Treeview."""
@@ -68,19 +97,13 @@ class DocsEventsMixin:
         row_id = self.docs_right_tree.identify_row(event.y)
         if row_id:
             self._set_docs_row_selection(row_id, source="right")
-        col_id = self.docs_right_tree.identify_column(event.x)
-        if col_id.startswith("#"):
-            try:
-                col_index = int(col_id[1:]) - 1
-            except ValueError:
-                col_index = -1
-            if 0 <= col_index < len(self._doc_fixed_column_ids):
-                selected_column_id = self._doc_fixed_column_ids[col_index]
-                if selected_column_id == "summary":
-                    self._select_doc_fixed_column(self._first_selectable_doc_fixed_column())
-                else:
-                    self._select_doc_fixed_column(selected_column_id)
-                self._apply_doc_column_heading_highlight()
+        column_name = self._resolve_clicked_column_name(self.docs_right_tree, event.x)
+        if column_name in self._doc_fixed_column_ids:
+            if column_name == "summary":
+                self._select_doc_fixed_column(self._first_selectable_doc_fixed_column())
+            else:
+                self._select_doc_fixed_column(column_name)
+            self._apply_doc_column_heading_highlight()
 
     def _on_docs_right_tree_double_click(self, event) -> None:
         """Öffnet den Inline-Editor bei Doppelklick auf eine Noten-Zelle im rechten Treeview.
@@ -92,17 +115,8 @@ class DocsEventsMixin:
         if not row_id:
             return
         self._set_docs_row_selection(row_id, source="right")
-        col_id = self.docs_right_tree.identify_column(event.x)
-        if not col_id.startswith("#"):
-            return
-        try:
-            col_index = int(col_id[1:]) - 1
-        except ValueError:
-            return
-        if not (0 <= col_index < len(self._doc_fixed_column_ids)):
-            return
-        fixed_column_id = self._doc_fixed_column_ids[col_index]
-        if fixed_column_id == "summary":
+        fixed_column_id = self._resolve_clicked_column_name(self.docs_right_tree, event.x)
+        if fixed_column_id not in self._doc_fixed_column_ids or fixed_column_id == "summary":
             return
         self._select_doc_fixed_column(fixed_column_id)
         self._apply_doc_column_heading_highlight()
