@@ -7,9 +7,8 @@ Lehrertisch setzen, Escape-Handler sowie zugehörige Tastatur-Shortcut-Handler.
 from __future__ import annotations
 
 from app.adapters.gui.dialog_services import messagebox, simpledialog
-from app.adapters.gui.main_window_constants import ATTENDANCE_SYMBOL_NAME, NAME_EDITING
+from app.adapters.gui.main_window_constants import NAME_EDITING, SPACE_SHORTCUT
 from app.core.domain.models_v4 import ParticipationRating
-from app.core.domain.symbol_toggle import next_symbol_toggle_strength
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.student_intents import (
@@ -33,13 +32,26 @@ from bw_gui.runtime import widgets as tui
 class EditMixin:
     """Mixin: Bearbeitungsoperationen für Schülertische, Symbole, Farbpunkte und Escape (v4)."""
 
-    def _on_symbol_shortcut(self, _event, symbol_name: str) -> str | None:
+    def _on_symbol_shortcut(self, _event, symbol_name: str | None) -> str | None:
         """Tastatur-Shortcut-Handler für Symbole.
+
+        In der Dokuansicht wirkt jedes Symbol auf die dort gewählte
+        Datumsspalte (``_toggle_documentation_symbol``). Im Raster gibt es
+        keinen Datums-Wähler: Diagnosesymbole togglen wie bisher am Schüler
+        selbst (``_toggle_selected_symbol``), Doku-Symbole (eingebaut wie
+        eigen) togglen für das heutige Datum
+        (``_toggle_documentation_symbol_today_grid``) — beide Symbolarten
+        sind damit im Raster per Kürzel nutzbar, nicht mehr nur Diagnose.
+        Wird auch vom Leertaste-Resolver (``_on_space_symbol_shortcut``)
+        aufgerufen, der *symbol_name* dynamisch aus dem Katalog auflöst.
 
         Args:
             _event: Tkinter-Tastaturereignis (für Modifier-Prüfung, sonst unbenutzt).
-            symbol_name: Bezeichner des umzuschaltenden Symbols.
+            symbol_name: Bezeichner des umzuschaltenden Symbols, oder ``None``
+                wenn kein Katalogeintrag dieses Kürzel trägt (dann No-Op).
         """
+        if symbol_name is None:
+            return None
         if not self._shortcut_scope_allows("docs") and not self._shortcut_scope_allows("grid"):
             return None
         if _event.state & 0x0004 or _event.state & 0x0008:
@@ -53,10 +65,13 @@ class EditMixin:
             return "break"
         if self._editor_surface != "grid":
             return None
-        if symbol_name not in self.diagnostic_symbol_catalog:
-            return None
-        self._toggle_selected_symbol(symbol_name)
-        return "break"
+        if symbol_name in self.diagnostic_symbol_catalog:
+            self._toggle_selected_symbol(symbol_name)
+            return "break"
+        if symbol_name in self._documentation_only_symbols:
+            self._toggle_documentation_symbol_today_grid(symbol_name)
+            return "break"
+        return None
 
     def _on_color_shortcut(self, event, color_key: str) -> str | None:
         """Tastatur-Shortcut-Handler für Farbpunkte im Raster.
@@ -112,79 +127,43 @@ class EditMixin:
             )
         )
 
-    def _on_attendance_shortcut(self, event) -> str | None:
-        """Tastatur-Shortcut-Handler (Leertaste): Anwesenheit für heute umschalten.
+    def _on_space_symbol_shortcut(self, event) -> str | None:
+        """Tastatur-Shortcut-Handler (Leertaste): löst das Katalogsymbol dynamisch auf und delegiert.
+
+        Kein eigener Guard, keine eigene Datums- oder Oberflächenlogik mehr —
+        welches Symbol (falls überhaupt eines) die Leertaste bedient, ergibt
+        sich rein aus dem Katalog (``config/symbols.json``, Kürzel
+        ``SPACE_SHORTCUT``), genau wie bei jedem anderen Kürzel. Die gesamte
+        Verzweigung (Textfeld-Schutz, Oberfläche, Diagnose- vs. Doku-Symbol)
+        läuft in ``_on_symbol_shortcut()``.
 
         Args:
-            event: Tkinter-Tastaturereignis (für Modifier-Prüfung, sonst unbenutzt).
+            event: Tkinter-Tastaturereignis, unverändert an ``_on_symbol_shortcut`` gereicht.
         """
-        if not self._shortcut_scope_allows("docs") and not self._shortcut_scope_allows("grid"):
-            return None
-        if event.state & 0x0004 or event.state & 0x0008:
-            return None
-        if not self.editor_view.winfo_ismapped():
-            return None
-        if not self.current_plan or not self.current_plan_path:
-            return None
-        if ATTENDANCE_SYMBOL_NAME not in self._documentation_only_symbols:
-            self.status_var.set("Anwesenheits-Symbol ist nicht konfiguriert")
-            return "break"
-        if self._editor_surface == "grid":
-            self._toggle_attendance_today_grid()
-        elif self._editor_surface == "docs":
-            self._toggle_attendance_today_docs()
-        else:
-            return None
-        return "break"
+        return self._on_symbol_shortcut(event, self._shortcut_to_symbol.get(SPACE_SHORTCUT))
 
-    def _toggle_attendance_for_student(self, student) -> None:
-        """Schaltet das Anwesenheitssymbol für *student* am heutigen Datum um (v4).
+    def _toggle_documentation_symbol_today_grid(self, symbol: str) -> None:
+        """Schaltet ein Doku-Symbol für den ausgewählten Schülertisch im Raster für heute um (v4).
+
+        Raster-Pendant zu ``_toggle_documentation_symbol()`` (Dokuansicht):
+        das Raster hat keinen Datums-Wähler, daher wirkt der Toggle immer auf
+        das heutige Datum. Nutzt denselben Toggle-Kern
+        (``_toggle_documentation_symbol_for_student``, ``_mixin_docs_edit.py``)
+        wie die Dokuansicht — kein zweiter Toggle-Pfad.
 
         Args:
-            student: Schüler, dessen Anwesenheit heute umgeschaltet wird.
+            symbol: Bezeichner des umzuschaltenden Doku-Symbols (eingebauter
+                Meaning-Text oder eigene Symbol-ID).
         """
-        today = self._today_doc_date()
-        current_strength = 0
-        session = self.current_plan.documentation.session_for_date(today)
-        if session is not None:
-            entry = session.entry_for(student.student_id)
-            if entry is not None:
-                current_strength = int(entry.symbols.get(ATTENDANCE_SYMBOL_NAME, 0))
-        next_strength = next_symbol_toggle_strength(current_strength, is_diagnostic=False)
-        self._controller.dispatch(
-            RecordDocumentationSymbolIntent(
-                student_id=student.student_id,
-                date=today,
-                symbol=ATTENDANCE_SYMBOL_NAME,
-                strength=next_strength,
-            )
-        )
-        state_label = "anwesend" if next_strength == 0 else "abwesend"
-        self.status_var.set(f"{student.first_name} {student.last_name}: heute {state_label}")
-
-    def _toggle_attendance_today_grid(self) -> None:
-        """Schaltet die Anwesenheit heute für den ausgewählten Schülertisch im Raster um."""
         if not self.selection.is_single():
-            self.status_var.set("Anwesenheit nur bei Einzelauswahl")
+            self.status_var.set("Symbole nur bei Einzelauswahl")
             return
         x, y = self.selected_cell
         student = self.current_plan.student_at(x, y)
         if not student or not student.is_named():
-            self.status_var.set("Anwesenheit nur fuer Schuelertische")
+            self.status_var.set("Symbol nur für Schülertische")
             return
-        self._toggle_attendance_for_student(student)
-
-    def _toggle_attendance_today_docs(self) -> None:
-        """Schaltet die Anwesenheit heute für den ausgewählten Schüler in der Dokutabelle um."""
-        if not self._doc_student_coords:
-            return
-        idx = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-        x, y = self._doc_student_coords[idx]
-        student = self.current_plan.student_at(x, y)
-        if not student or not student.is_named():
-            return
-        self._toggle_attendance_for_student(student)
-        self._refresh_documentation_table()
+        self._toggle_documentation_symbol_for_student(student, symbol, self._today_doc_date())
 
     def _set_participation_rating_today_grid(self, rating: ParticipationRating) -> None:
         """Setzt/löscht die Mitarbeit-Bewertung heute für den ausgewählten Schülertisch im Raster (v4).

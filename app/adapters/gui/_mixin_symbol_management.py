@@ -10,6 +10,7 @@ Das Add/Edit-Formular liegt in ``_mixin_symbol_management_form.py``.
 from __future__ import annotations
 
 from app.adapters.gui.dialog_services import messagebox
+from app.adapters.gui.main_window_constants import SPACE_SHORTCUT
 from app.core.intents.custom_symbol_intents import DeleteCustomSymbolIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -108,7 +109,7 @@ class SymbolManagementMixin:
                     definition.glyph,
                     f"{definition.meaning} — {legend}",
                     _ROLE_LABELS.get(definition.role, definition.role),
-                    definition.shortcut or "",
+                    "Leertaste" if definition.shortcut == SPACE_SHORTCUT else (definition.shortcut or ""),
                 ),
             )
         for effective in self.effective_documentation_symbols:

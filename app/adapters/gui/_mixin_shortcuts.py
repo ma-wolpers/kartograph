@@ -10,7 +10,7 @@ from __future__ import annotations
 import string
 from typing import Callable
 
-from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS, LIST_ACTIVE
+from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS, LIST_ACTIVE, SPACE_SHORTCUT
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.domain.custom_symbol_validation import reserved_symbol_letters
 from app.core.intents.view_intents import SetEditorSurfaceIntent, ToggleEditorSurfaceIntent
@@ -144,6 +144,11 @@ class ShortcutMixin:
         self.canvas.bind("<Shift-Right>", lambda _e: self._handle_intent(UiIntent.EXPAND_RIGHT))
 
         for shortcut, symbol_name in self._shortcut_to_symbol.items():
+            if shortcut == SPACE_SHORTCUT:
+                # Kein gueltiges <KeyPress-{shortcut}>-Literal -- dieses Symbol bleibt
+                # ausschliesslich ueber die eigene <KeyPress-space>-Bindung unten
+                # erreichbar (_on_space_symbol_shortcut loest es dynamisch auf).
+                continue
             self.bind_all(f"<KeyPress-{shortcut}>", lambda event, s=symbol_name: self._on_symbol_shortcut(event, s), add="+")
             self.bind_all(f"<KeyPress-{shortcut.upper()}>", lambda event, s=symbol_name: self._on_symbol_shortcut(event, s), add="+")
 
@@ -180,7 +185,7 @@ class ShortcutMixin:
         for key, _color_key, _label, _hex_color in self.color_palette:
             self.bind_all(f"<KeyPress-{key}>", lambda event, ck=_color_key: self._on_color_shortcut(event, ck), add="+")
 
-        self.bind_all("<KeyPress-space>", self._on_attendance_shortcut, add="+")
+        self.bind_all("<KeyPress-space>", self._on_space_symbol_shortcut, add="+")
 
         self.bind_all("<KeyPress-plus>", lambda e: self._on_participation_rating_shortcut(e, "+"), add="+")
         self.bind_all("<KeyPress-KP_Add>", lambda e: self._on_participation_rating_shortcut(e, "+"), add="+")

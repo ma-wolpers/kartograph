@@ -86,6 +86,13 @@ class TestReservedSymbolLetters:
         letters = reserved_symbol_letters([_Definition("b")])
         assert "L" not in letters
 
+    def test_multi_character_technical_shortcut_like_space_is_excluded(self):
+        """Ein technischer Sondertasten-Shortcut wie "space" (main_window_constants.SPACE_SHORTCUT)
+        ist kein Buchstabe und darf nicht in der Buchstaben-Sperrliste landen."""
+        letters = reserved_symbol_letters([_Definition("space"), _Definition("b")])
+        assert "SPACE" not in letters
+        assert letters == RESERVED_SYMBOL_LETTERS | {"B"}
+
 
 class TestValidateCustomSymbolGlyph:
     def test_single_letter_is_valid(self):

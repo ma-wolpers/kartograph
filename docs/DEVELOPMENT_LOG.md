@@ -9,6 +9,63 @@ Regel:
 ## [Unreleased]
 
 ### Added
+- Attendance-Sonderpfad deprecated, Doku-Symbole im Raster togglebar gemacht (Nutzeranfrage,
+  Nachfolge zur Symbol-Verwaltung/Dokumodus-Bugfix-Runde s. u.): Auslöser war die Frage, warum
+  die Symbol-Verwaltung für "Abwesend" `u` statt "Leertaste" als Kürzel zeigte — Ursache war ein
+  komplett separater, hart auf den Symbolnamen `"Abwesend"` verdrahteter Pfad
+  (`ATTENDANCE_SYMBOL_NAME`, vier Methoden in `_mixin_edit.py`), unabhängig vom generischen,
+  katalogbasierten Kürzel-Mechanismus.
+  - **Gemeinsamer Toggle-Kern statt vier Attendance-Methoden**: neue
+    `_toggle_documentation_symbol_for_student(student, symbol, date)` (`_mixin_docs_edit.py`)
+    enthält die eigentliche Setzen/Entfernen-Logik (Stärke lesen, `next_symbol_toggle_strength()`,
+    Intent dispatchen) — extrahiert aus dem bisherigen `_toggle_documentation_symbol()`, das jetzt
+    nur noch Schüler + gewählte Datumsspalte auflöst und delegiert. Neue
+    `_toggle_documentation_symbol_today_grid(symbol)` (`_mixin_edit.py`, neben
+    `_toggle_selected_symbol()`) ruft denselben Kern mit `date=self._today_doc_date()` und dem
+    Raster-selektierten Schüler auf. `_toggle_attendance_for_student`/`_toggle_attendance_today_grid`/
+    `_toggle_attendance_today_docs` entfallen ersatzlos — Letztere hat kein Äquivalent mehr, ihr
+    einziger Zweck war die jetzt korrigierte "Leertaste = immer heute"-Annahme (s. u.).
+  - **Korrigierte Datumssemantik der Leertaste** (wichtigste Klarstellung aus einer Review-Runde,
+    ursprünglicher Plan ging fälschlich von "Leertaste wirkt immer auf heute, in beiden
+    Oberflächen" aus): die Leertaste hat keine eigene Datumslogik mehr. Im Raster (kein
+    Datums-Wähler) wirkt sie auf heute; in der Dokuansicht wirkt sie — wie jedes andere Kürzel
+    auch — auf die dort gerade ausgewählte Datumsspalte, ausdrücklich auch ein Datum in der
+    Vergangenheit. Regressionstest dafür: `tests/test_documentation_symbol_toggle_grid_vs_docs.py::
+    TestToggleDocumentationSymbolDocsUsesSelectedColumn::test_uses_selected_past_date_column_not_today`.
+  - **Technischer Sentinel statt Symbolnamen-Konstante**: `ATTENDANCE_SYMBOL_NAME = "Abwesend"` →
+    `SPACE_SHORTCUT = "space"` (`main_window_constants.py`) — beschreibt die Taste (Tk-Keysym),
+    nicht ein Symbol. Welches Symbol (falls überhaupt eines) die Leertaste bedient, wird zur
+    Laufzeit dynamisch über die bereits bestehende `self._shortcut_to_symbol`-Map aufgelöst.
+    `_on_attendance_shortcut` → `_on_space_symbol_shortcut`, reduziert auf
+    `self._on_symbol_shortcut(event, self._shortcut_to_symbol.get(SPACE_SHORTCUT))` — keine eigene
+    Fachlogik mehr, reiner Resolver+Delegator. `_on_symbol_shortcut()` selbst bekommt dafür einen
+    `None`-Guard und im Raster-Zweig eine zweite Verzweigung (Diagnosesymbol → unverändert
+    `_toggle_selected_symbol()`; Doku-Symbol → neu `_toggle_documentation_symbol_today_grid()`) —
+    macht gleichzeitig alle eingebauten Doku-Symbole im Raster togglebar, nicht mehr nur
+    "Abwesend". `_on_custom_symbol_shortcut()` (`_mixin_shortcut_handlers.py`) analog erweitert:
+    Raster war zuvor komplett blockiert (`if not self._shortcut_scope_allows("docs"): return None`),
+    jetzt auch dort nutzbar über denselben `_toggle_documentation_symbol_today_grid()`-Kern.
+  - **Katalog-Daten**: `config/symbols.json` und der Bootstrap-Default in
+    `symbol_config_loader.py::_DEFAULT_SYMBOLS_PAYLOAD` setzen "Abwesend" jetzt auf
+    `"shortcut": "space"` statt `"u"` — `u` ist dadurch automatisch wieder frei
+    (`reserved_symbol_letters()` liest live aus dem Katalog). `reserved_symbol_letters()` filtert
+    jetzt zusätzlich auf `len(shortcut) == 1`, damit ein mehrstelliger technischer Shortcut wie
+    `"space"` nicht in der als "gesperrte Buchstaben" dokumentierten Menge landet.
+  - **Anzeige**: `"space"` bleibt reiner Datenwert; nur die beiden Stellen, die ein Kürzel dem
+    Menschen zeigen (`_mixin_symbol_management.py`, `_mixin_docs_dialogs.py`), übersetzen ihn zu
+    "Leertaste" — jeweils vor der dort bereits bestehenden (unterschiedlichen)
+    Groß-/Kleinschreibungs-Behandlung, um kein bestehendes Anzeigeverhalten für andere Symbole
+    anzufassen.
+  - **Bewusst nicht behoben**: keine neue Uniqueness-Validierung für eingebaute Katalog-Kürzel
+    (`_build_symbol_shortcut_map()` löst Duplikate schon heute still nach "erste Definition
+    gewinnt" — vorbestehendes Verhalten, gilt identisch für `"space"`, hier nur benannt).
+  - **Tests**: `tests/test_documentation_symbol_toggle_grid_vs_docs.py` (neu) — Toggle-Kern binär
+    vs. zyklisch, Raster-vs-Docs-Datumsauflösung inkl. Vergangenheits-Regression,
+    Leertaste-Resolver-Delegation, `None`-Guard. `tests/test_custom_symbol_validation.py` um den
+    `"space"`-Ausschluss-Fall ergänzt. Nutzt das etablierte `KartographMainWindow.__new__(...)`-
+    Testdouble-Muster (kein echtes Tk nötig) — eine bewusste Erweiterung der bisherigen
+    "GUI-Mixins nur manuell getestet"-Konvention, weil sich hier eine echte fachliche Invariante
+    (Datumskontext Raster vs. Dokuansicht) automatisiert klar beweisen lässt.
 - Fünf Bugs rund um Dokumodus und eigene Doku-Symbole behoben (Nutzeranfrage), zwei davon mit kleiner, gezielter Architektur-Bereinigung statt reinem Lokal-Fix (Review-Feedback: Fachlogik gehört in den Domain-Layer, kein zweiter synchron zu haltender Zustand, keine verstreut duplizierte Shortcut-Sperrliste):
   - **Dokumodus wählte ältestes statt neuestes Datum**: `_refresh_documentation_table()` (`_mixin_docs_table.py`) sortierte `_doc_dates` aufsteigend, `_doc_selected_date_index` blieb aber bei seinem Initialwert `0` — kein Code setzte ihn je explizit auf "neuestes Datum". Fix in `show_documentation_surface()` (`_mixin_docs_view.py`), NICHT in `_refresh_documentation_table()` selbst: Letztere läuft bei jedem Rebuild während einer laufenden Doku-Sitzung (z. B. nach einer Eingabe) erneut und darf eine manuell gewählte ältere Spalte nicht zurücksetzen; nur der tatsächliche Grid→Doku-Wechsel soll auf das neueste Datum springen.
   - **Doku-Symbole zykelten wie Diagnosesymbole (0-1-2-3) statt binär zu togglen**: neue reine Domain-Funktion `app/core/domain/symbol_toggle.py::next_symbol_toggle_strength(current, *, is_diagnostic)` — einzige Stelle, die die Sequenzregel kennt (Diagnose zykelt, Doku ist 0↔1). `_toggle_documentation_symbol()` (`_mixin_docs_edit.py`) klassifiziert nur noch mit dem bereits vorhandenen `self.diagnostic_symbol_catalog` und ruft die Regel auf, statt sie selbst zusammenzubauen. `_toggle_attendance_for_student()` (Leertaste-Sonderpfad im Raster, `_mixin_edit.py`) und `toggle_diagnostic_symbol()` (`symbol_usecases.py`, Raster-Diagnose-Pfad) nutzen jetzt dieselbe Funktion statt die Formel zweimal inline zu duplizieren. Betrifft auch die eingebauten Doku-Symbole "Nicht abgegeben / verweigert" und "Aufgaben nicht gemacht", die bisher denselben 4-Stufen-Zyklus wie Diagnosesymbole hatten.

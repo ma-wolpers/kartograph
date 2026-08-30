@@ -7,6 +7,7 @@ Symbol-Auswahl und Gewichtungskonfiguration bereit.
 from __future__ import annotations
 
 from app.adapters.gui.dialog_services import messagebox, simpledialog
+from app.adapters.gui.main_window_constants import SPACE_SHORTCUT
 from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import GradeColumn
 from app.core.intents.grade_intents import (
@@ -325,7 +326,10 @@ class DocsDialogsMixin:
         for symbol in all_symbol_keys:
             definition = self._symbol_by_meaning.get(symbol)
             if definition is not None:
-                shortcut = definition.shortcut.upper() if definition.shortcut else None
+                if definition.shortcut == SPACE_SHORTCUT:
+                    shortcut = "Leertaste"
+                else:
+                    shortcut = definition.shortcut.upper() if definition.shortcut else None
             else:
                 effective = self._effective_symbol_by_key.get(symbol)
                 shortcut = effective.shortcut if effective is not None else None

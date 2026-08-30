@@ -88,7 +88,7 @@ _DEFAULT_SYMBOLS_PAYLOAD = {
         {
             "codepoint": "2205",
             "meaning": "Abwesend",
-            "shortcut": "u",
+            "shortcut": "space",
             "role": "documentation_only",
             "legend": {
                 "three": "an mehreren Terminen abwesend",

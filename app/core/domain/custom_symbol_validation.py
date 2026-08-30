@@ -66,6 +66,13 @@ def reserved_symbol_letters(symbol_definitions: Iterable[_HasShortcut]) -> froze
     vorgehalten werden — sie muss bei jedem Aufruf aus dem aktuellen Katalog
     neu gebildet werden.
 
+    Berücksichtigt nur echte Einzelbuchstaben-Kürzel — ein eingebautes Symbol
+    kann auch einen technischen Mehrzeichen-Shortcut wie ``"space"`` tragen
+    (Sondertasten, s. ``main_window_constants.SPACE_SHORTCUT``); ein solcher
+    String würde ohnehin nie mit dem Einzelbuchstaben-Regex eines eigenen
+    Symbol-Kürzels kollidieren, soll aber erst gar nicht in einer als
+    "gesperrte Buchstaben" dokumentierten Menge auftauchen.
+
     Args:
         symbol_definitions: Der aktuelle, app-weite Symbolkatalog (aus
             ``AppState.symbol_catalog``).
@@ -73,7 +80,9 @@ def reserved_symbol_letters(symbol_definitions: Iterable[_HasShortcut]) -> froze
     Returns:
         Menge aller für eigene Symbol-Shortcuts gesperrten Großbuchstaben.
     """
-    return frozenset(d.shortcut.upper() for d in symbol_definitions if d.shortcut) | RESERVED_SYMBOL_LETTERS
+    return frozenset(
+        d.shortcut.upper() for d in symbol_definitions if d.shortcut and len(d.shortcut) == 1
+    ) | RESERVED_SYMBOL_LETTERS
 
 
 def validate_custom_symbol_shortcut(

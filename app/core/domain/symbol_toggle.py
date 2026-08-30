@@ -3,9 +3,11 @@
 Reine, GUI-unabhängige Funktion — der einzige Ort, an dem definiert ist,
 welche Symbolstärken-Sequenz für welche Symbolrolle gilt. Sowohl der
 Raster-Diagnose-Pfad (``symbol_usecases.py::toggle_diagnostic_symbol``) als
-auch die Doku-Toggle-Pfade in der GUI (generischer Doku-Symbol-Toggle und
-der Anwesenheits-Sonderpfad) rufen ausschließlich diese Funktion auf, statt
-die Sequenz-Logik jeweils selbst zusammenzubauen.
+auch der gemeinsame Doku-Symbol-Toggle-Kern in der GUI
+(``_toggle_documentation_symbol_for_student()``, genutzt von Dokuansicht,
+Raster und dem katalogbasierten Leertaste-Kürzel gleichermaßen) rufen
+ausschließlich diese Funktion auf, statt die Sequenz-Logik jeweils selbst
+zusammenzubauen.
 """
 
 from __future__ import annotations
