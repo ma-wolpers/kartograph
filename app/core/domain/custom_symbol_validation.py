@@ -73,7 +73,7 @@ def reserved_symbol_letters(symbol_definitions: Iterable[_HasShortcut]) -> froze
     Returns:
         Menge aller für eigene Symbol-Shortcuts gesperrten Großbuchstaben.
     """
-    return {d.shortcut.upper() for d in symbol_definitions if d.shortcut} | RESERVED_SYMBOL_LETTERS
+    return frozenset(d.shortcut.upper() for d in symbol_definitions if d.shortcut) | RESERVED_SYMBOL_LETTERS
 
 
 def validate_custom_symbol_shortcut(
