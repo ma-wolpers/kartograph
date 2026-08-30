@@ -8,7 +8,7 @@ Die Widget-Konstruktion liegt in ``_mixin_details_layout.py``.
 from __future__ import annotations
 
 from app.adapters.gui.main_window_constants import (
-    DEFAULT_NAME_SAVE_DELAY,
+    DEFAULT_SAVE_DELAY,
     DESK_DETAIL_EDITING,
     DESK_DETAIL_REVEALED,
     DeskDetailMode,
@@ -314,6 +314,7 @@ class DetailsMixin:
         EDITING-Zustand zurückbleibt. Fokus geht nur zum Canvas, wenn der Editor
         tatsächlich sichtbar ist."""
         self._flush_pending_name_save()
+        self._flush_pending_plan_save()
         self._downgrade_desk_detail_editing_to_revealed()
         if not self.editor_view.winfo_ismapped():
             return
@@ -328,6 +329,7 @@ class DetailsMixin:
         Darf mehrfach bzw. zusammen mit ``exit_name_edit_mode()`` feuern, ohne
         inkonsistenten Zustand zu erzeugen (beide Downgrade-Pfade sind idempotent)."""
         self._flush_pending_name_save()
+        self._flush_pending_plan_save()
         self._downgrade_desk_detail_editing_to_revealed()
 
     def confirm_selected_cell(self) -> None:
@@ -346,7 +348,7 @@ class DetailsMixin:
 
         Merkt sich die aktuell eingegebenen Werte sofort (unabhängig davon, ob spätere
         Auswahlwechsel die Eingabefelder wieder leeren) und plant eine debounced
-        Speicherung: gespeichert wird erst, wenn `name_save_delay` Sekunden lang keine
+        Speicherung: gespeichert wird erst, wenn `save_delay` Sekunden lang keine
         weitere Eingabe kam. ``exit_name_edit_mode`` bzw. FocusOut auf den Feldern lösen
         eine sofortige Speicherung aus, sodass beim Verlassen nichts verloren geht.
         """
@@ -376,7 +378,7 @@ class DetailsMixin:
                 pass
             self._name_save_after_id = None
 
-        delay_ms = int(getattr(self, "name_save_delay", DEFAULT_NAME_SAVE_DELAY) * 1000)
+        delay_ms = int(getattr(self, "save_delay", DEFAULT_SAVE_DELAY) * 1000)
         if delay_ms <= 0:
             self._flush_pending_name_save()
             return

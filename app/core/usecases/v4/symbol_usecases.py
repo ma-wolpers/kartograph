@@ -119,3 +119,29 @@ def summarize_latest_symbols(plan: SeatingPlan, student_id: StudentId) -> dict[s
         if entry is not None:
             summary.update(entry.symbols)
     return summary
+
+
+def summarize_latest_symbols_by_student(plan: SeatingPlan) -> dict[StudentId, dict[str, int]]:
+    """Berechnet für alle Schüler gleichzeitig die jeweils neuesten Symbol-Stärken.
+
+    Iteriert alle Sessions genau einmal in Datumsreihenfolge, statt (wie ein
+    naiver pro-Schüler-Aufruf von :func:`summarize_latest_symbols` es täte)
+    für jeden Schüler erneut zu sortieren und zu scannen. Für Hot Paths, die
+    die Zusammenfassung mehrerer/aller Schüler gleichzeitig brauchen
+    (Doku-Tabelle, Raster-Redraw) — Einzelabfragen bleiben bei
+    :func:`summarize_latest_symbols`.
+
+    Args:
+        plan: Plan, aus dem gelesen wird.
+
+    Returns:
+        Dict von StudentId → (Dict von Symbolname → neueste Stärke). Schüler
+        ohne jegliche Symbol-Einträge fehlen im Ergebnis.
+    """
+    summaries: dict[StudentId, dict[str, int]] = {}
+    for session in sorted(plan.documentation.sessions, key=lambda s: s.date):
+        for student_id, entry in session.entries.items():
+            if not entry.symbols:
+                continue
+            summaries.setdefault(student_id, {}).update(entry.symbols)
+    return summaries

@@ -10,8 +10,13 @@ from __future__ import annotations
 import time
 
 from app.adapters.gui.main_window_constants import LOGGER
-from app.core.domain.student_id import StudentId
-from app.core.usecases.v4.grade_usecases import compute_grade_display, compute_grade_subtotal_display
+from app.core.usecases.v4.grade_usecases import (
+    collect_grade_value_lists_by_student,
+    compute_grade_display_by_student,
+    compute_grade_subtotal_display_by_student,
+    compute_latest_grades_by_student,
+)
+from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols_by_student
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -21,28 +26,6 @@ from bw_gui.runtime import widgets as tui
 
 class DocsTableMixin:
     """Mixin: Dokumentations-Tabellenaufbau und Inline-Noten-Editor (v4)."""
-
-    def _latest_grade_value_for_column(self, student_id: StudentId, column_id: str) -> str:
-        """Gibt den zuletzt eingetragenen Notenwert für eine Spalte als formatierten String zurück.
-
-        Args:
-            student_id: ID des Schülers, dessen Notenverlauf durchsucht wird.
-            column_id: ID der Notenspalte innerhalb der Dokumentationseinträge.
-        """
-        if not self.current_plan:
-            return ""
-        latest: float | None = None
-        for session in sorted(self.current_plan.documentation.sessions, key=lambda s: s.date):
-            entry = session.entry_for(student_id)
-            if entry is None:
-                continue
-            value = entry.grades.get(column_id)
-            if value is None:
-                continue
-            latest = float(value)
-        if latest is None:
-            return ""
-        return f"{latest:.2f}"
 
     def _open_docs_inline_grade_editor(self, row_id: str, fixed_column_id: str) -> None:
         """Öffnet einen Entry-Inline-Editor in der Noten-Zelle des rechten Treeviews.
@@ -156,42 +139,102 @@ class DocsTableMixin:
         self.docs_right_tree.column("overall", width=120, anchor="center", stretch=False)
         self.docs_right_tree.heading("overall", text="Gesamtnote")
 
-        for row_id in self.docs_tree.get_children():
-            self.docs_tree.delete(row_id)
-        for row_id in self.docs_right_tree.get_children():
-            self.docs_right_tree.delete(row_id)
-        self._doc_tree_iid_by_student_index = {}
-        self._doc_student_index_by_iid = {}
+        # Einmalig vorberechnen statt (wie zuvor) pro Schüler x Spalte erneut zu
+        # sortieren/scannen: session_for_date() als Dict, sowie die jeweils
+        # neuesten Noten/Symbole für ALLE Schüler in einem Durchlauf. Das ist
+        # der Kern des O(Schüler x Sessions²)-Fixes — siehe compute_latest_grades_by_student
+        # und summarize_latest_symbols_by_student.
+        sessions_by_date = {s.date: s for s in self.current_plan.documentation.sessions}
+        students_by_coord = {(s.seat.x, s.seat.y): s for s in self.current_plan.classroom.students}
+        latest_grades_by_student = compute_latest_grades_by_student(self.current_plan)
+        latest_symbols_by_student = summarize_latest_symbols_by_student(self.current_plan)
+        # Einmal sammeln, an alle drei Anzeige-Funktionen weiterreichen — sonst
+        # würde jede für sich nochmal alle Sessions scannen (siehe Docstring
+        # von collect_grade_value_lists_by_student).
+        grade_value_lists = collect_grade_value_lists_by_student(self.current_plan)
+        overall_display_by_student = compute_grade_display_by_student(
+            self.current_plan, value_lists=grade_value_lists
+        )
+        written_subtotal_by_student = (
+            compute_grade_subtotal_display_by_student(self.current_plan, "schriftlich", value_lists=grade_value_lists)
+            if "written_total" in fixed_columns else {}
+        )
+        sonstige_subtotal_by_student = (
+            compute_grade_subtotal_display_by_student(self.current_plan, "sonstig", value_lists=grade_value_lists)
+            if "sonstige_total" in fixed_columns else {}
+        )
 
-        for student_idx, (x, y) in enumerate(self._doc_student_coords):
-            student = self.current_plan.student_at(x, y)
+        desired_iids: list[str] = []
+        tree_row_by_iid: dict[str, tuple[str, list[str]]] = {}
+        right_row_by_iid: dict[str, list[str]] = {}
+        iid_by_coord_index: dict[int, str] = {}
+
+        for coord_index, (x, y) in enumerate(self._doc_student_coords):
+            student = students_by_coord.get((x, y))
             if student is None:
                 continue
             date_values: list[str] = []
             for date_key in all_dates:
-                session = self.current_plan.documentation.session_for_date(date_key)
+                session = sessions_by_date.get(date_key)
                 entry = session.entry_for(student.student_id) if session else None
                 date_values.append(
                     self._documentation_cell_text(entry.symbols, entry.participation) if entry else ""
                 )
-            fixed_values: list[str] = [self._documentation_summary_text(x, y)]
-            fixed_values.extend(
-                self._latest_grade_value_for_column(student.student_id, grade.column_id)
-                for grade in grade_columns
-            )
+            summary_symbols = latest_symbols_by_student.get(student.student_id, {})
+            fixed_values: list[str] = [self._documentation_cell_text(summary_symbols)]
+            student_latest_grades = latest_grades_by_student.get(student.student_id, {})
+            for grade in grade_columns:
+                raw_grade = student_latest_grades.get(grade.column_id)
+                fixed_values.append(f"{raw_grade:.2f}" if raw_grade is not None else "")
             if "written_total" in fixed_columns:
-                fixed_values.append(compute_grade_subtotal_display(self.current_plan, student.student_id, "schriftlich"))
+                fixed_values.append(written_subtotal_by_student.get(student.student_id, ""))
             if "sonstige_total" in fixed_columns:
-                fixed_values.append(compute_grade_subtotal_display(self.current_plan, student.student_id, "sonstig"))
-            fixed_values.append(compute_grade_display(self.current_plan, student.student_id))
+                fixed_values.append(sonstige_subtotal_by_student.get(student.student_id, ""))
+            fixed_values.append(overall_display_by_student.get(student.student_id, ""))
 
-            iid = f"student_{student_idx}"
+            iid = str(student.student_id)
             first_n = student.first_name.strip()
             last_n = student.last_name.strip()
-            self.docs_tree.insert("", "end", iid=iid, text=last_n or f"({x},{y})", values=[first_n] + date_values)
-            self.docs_right_tree.insert("", "end", iid=iid, values=fixed_values)
-            self._doc_tree_iid_by_student_index[student_idx] = iid
-            self._doc_student_index_by_iid[iid] = student_idx
+            desired_iids.append(iid)
+            tree_row_by_iid[iid] = (last_n or f"({x},{y})", [first_n] + date_values)
+            right_row_by_iid[iid] = fixed_values
+            iid_by_coord_index[coord_index] = iid
+
+        # Fast Path: gleiche Schüler-Menge wie beim letzten Rebuild (der
+        # Normalfall bei einem einzelnen Symbol-/Noten-Edit) — dann nur die
+        # tatsächlich geänderten Zeilenwerte pushen statt alle Zeilen zu
+        # löschen und neu einzufügen. Die Reihenfolge in der Treeview selbst
+        # ist hier egal: _apply_doc_sort_order() am Ende dieser Methode ordnet
+        # ohnehin immer gemäß dem aktiven Sortierstatus neu an (oder ist ein
+        # No-Op, falls kein Sortierstatus aktiv ist).
+        existing_iid_set = set(self.docs_tree.get_children())
+        same_student_set = (
+            existing_iid_set == set(desired_iids)
+            and set(self.docs_right_tree.get_children()) == existing_iid_set
+        )
+        if same_student_set:
+            for iid in desired_iids:
+                text, values = tree_row_by_iid[iid]
+                right_values = right_row_by_iid[iid]
+                if self._doc_row_values_cache.get(iid) != (text, tuple(values), tuple(right_values)):
+                    self.docs_tree.item(iid, text=text, values=values)
+                    self.docs_right_tree.item(iid, values=right_values)
+        else:
+            for row_id in self.docs_tree.get_children():
+                self.docs_tree.delete(row_id)
+            for row_id in self.docs_right_tree.get_children():
+                self.docs_right_tree.delete(row_id)
+            for iid in desired_iids:
+                text, values = tree_row_by_iid[iid]
+                self.docs_tree.insert("", "end", iid=iid, text=text, values=values)
+                self.docs_right_tree.insert("", "end", iid=iid, values=right_row_by_iid[iid])
+
+        self._doc_row_values_cache = {
+            iid: (tree_row_by_iid[iid][0], tuple(tree_row_by_iid[iid][1]), tuple(right_row_by_iid[iid]))
+            for iid in desired_iids
+        }
+        self._doc_tree_iid_by_student_index = iid_by_coord_index
+        self._doc_student_index_by_iid = {iid: idx for idx, iid in iid_by_coord_index.items()}
 
         if self._doc_student_coords:
             self._doc_selected_student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))

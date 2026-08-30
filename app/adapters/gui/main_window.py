@@ -35,6 +35,7 @@ from app.adapters.gui._mixin_symbol_management import SymbolManagementMixin
 from app.adapters.gui._mixin_symbol_management_form import SymbolManagementFormMixin
 from app.adapters.gui._mixin_plan_crud import PlanCrudMixin
 from app.adapters.gui._mixin_plan_list import PlanListMixin
+from app.adapters.gui._mixin_plan_save import PlanSaveMixin
 from app.adapters.gui._mixin_popup import PopupMixin
 from app.adapters.gui._mixin_sitzplan_popup import SitzplanPopupMixin
 from app.adapters.gui._mixin_selection import SelectionMixin
@@ -98,6 +99,7 @@ class KartographMainWindow(
     DocsEditMixin,
     PlanCrudMixin,
     PlanListMixin,
+    PlanSaveMixin,
     DocsDialogsMixin,
     DocsEventsMixin,
     DocsTableMixin,
@@ -152,6 +154,34 @@ class KartographMainWindow(
         self.plan_repository = controller.plan_repository
         self.default_plans_dir = controller.default_plans_dir
 
+        # Redraw-Memoization (_mixin_grid_render.py): über state_version +
+        # relevante Einstellungen gekeyte Caches, damit reine Cursor-
+        # Navigation/Drag/Scroll nicht bei jedem Tick Namen/Geometrie/
+        # Schriftgröße neu berechnet. Cache-Wert ist erst nach dem ersten
+        # redraw_grid()-Aufruf gültig; der Key-Vergleich schlägt beim
+        # allerersten Aufruf immer fehl (None != echter Schlüssel), das
+        # erzwingt korrekt eine initiale Berechnung.
+        self._grid_names_cache_key: tuple | None = None
+        self._grid_names_cache_value: dict | None = None
+        self._grid_geometry_cache_key: int | None = None
+        self._grid_geometry_cache_value: list | None = None
+        self._grid_font_size_cache_key: tuple | None = None
+        self._grid_font_size_cache_value: int | None = None
+
+        # Canvas-Item-Pool für Hintergrundkacheln (Item 5, Stufe A): Kacheln
+        # werden über Aufrufe hinweg wiederverwendet (coords()/itemconfigure())
+        # statt bei jedem redraw_grid() gelöscht und neu erzeugt. Andere
+        # Canvas-Items (Pulte, Auswahl-Indikatoren) sind noch nicht gepoolt --
+        # deren Tag "grid_transient" wird weiterhin bei jedem Aufruf gelöscht.
+        self._grid_tile_pool: list[int] = []
+
+        # Debounced Speichern (_mixin_plan_save.py): State muss vor dem
+        # ersten möglichen Dispatch stehen, da set_plan_save_scheduler()
+        # unten ctx.plan_save_scheduler sofort scharf schaltet.
+        self._pending_plan_save: tuple[SeatingPlan, Path] | None = None
+        self._plan_save_after_id: str | None = None
+        self._controller.set_plan_save_scheduler(self._schedule_plan_save)
+
         # AppState.settings ist beim Controller-Start bereits aus dem
         # Settings-Repository geladen und normalisiert (Phase D1) — die GUI
         # übernimmt nur noch die Werte, statt sie selbst erneut zu laden.
@@ -166,7 +196,7 @@ class KartographMainWindow(
         self.name_format = settings.name_format
         self.disambiguate_colliding_names = settings.disambiguate_colliding_names
         self.sitzplan_popup_delay = settings.sitzplan_popup_delay
-        self.name_save_delay = settings.name_save_delay
+        self.save_delay = settings.save_delay
 
         resolved_shell_config = shell_config or AppShellConfig(
             title=APP_INFO.window_title, geometry="1320x860", min_width=MIN_WINDOW_WIDTH, min_height=MIN_WINDOW_HEIGHT
@@ -260,6 +290,7 @@ class KartographMainWindow(
         self._doc_dates: list[str] = []
         self._doc_tree_iid_by_student_index: dict[int, str] = {}
         self._doc_student_index_by_iid: dict[str, int] = {}
+        self._doc_row_values_cache: dict[str, tuple[str, tuple, tuple]] = {}
         self._doc_date_column_ids: list[str] = []
         self._doc_fixed_column_ids: list[str] = []
         self._doc_selected_fixed_column_id: str | None = None
@@ -340,6 +371,10 @@ class KartographMainWindow(
         """Schließt Overlay-Fenster bevor die Shell das Root-Fenster zerstört."""
         try:
             self._flush_pending_name_save()
+        except Exception:
+            pass
+        try:
+            self._flush_pending_plan_save()
         except Exception:
             pass
         try:
@@ -478,7 +513,7 @@ class KartographMainWindow(
         self.name_format = settings.name_format
         self.disambiguate_colliding_names = settings.disambiguate_colliding_names
         self.sitzplan_popup_delay = settings.sitzplan_popup_delay
-        self.name_save_delay = settings.name_save_delay
+        self.save_delay = settings.save_delay
         self.details_overlay_position = settings.details_overlay_position
         self.tablegroup_overlay_position = settings.tablegroup_overlay_position
         self.plans_dir = resolve_plans_dir(settings.plans_dir, self.default_plans_dir)

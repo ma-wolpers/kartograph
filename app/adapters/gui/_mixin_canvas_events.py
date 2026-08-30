@@ -2,6 +2,15 @@
 
 Behandelt Mausklicks, Drag, Doppelklick, MouseWheel und Zoom auf dem
 Raster-Canvas sowie die zugehörigen Viewport-Operationen.
+
+Die Klick-/Drag-/Release-Handler rufen nach ``dispatch()`` bewusst kein
+eigenes ``redraw_grid()`` mehr auf: ``KartographAppController.dispatch()``
+löst über ``apply_state`` (main_window.py) bereits ein Redraw aus, sobald
+sich der State ändert und der Editor sichtbar ist — ein zweiter Aufruf war
+hier reine Verdopplung, da sich der Viewport zwischen Dispatch und Handler-
+Ende nicht verschiebt (anders als bei ``move_selection``/``expand_selection``
+in ``_mixin_selection.py``, wo ``_follow_selection_viewport`` den Viewport
+verschieben kann und ein zweites Redraw dafür weiterhin nötig ist).
 """
 
 from __future__ import annotations
@@ -34,7 +43,6 @@ class CanvasEventsMixin:
         self._set_selection_single(x, y)
         self._drag_active = True
         self.canvas.focus_set()
-        self.redraw_grid()
         self._update_selection_no_open()
 
     def _on_canvas_drag(self, event) -> None:
@@ -47,7 +55,6 @@ class CanvasEventsMixin:
             return
         x, y = self._event_to_cell(event)
         self._set_selection_focus(x, y)
-        self.redraw_grid()
         self._update_selection_no_open()
 
     def _on_canvas_release(self, event) -> None:
@@ -61,7 +68,6 @@ class CanvasEventsMixin:
         self._drag_active = False
         x, y = self._event_to_cell(event)
         self._set_selection_focus(x, y)
-        self.redraw_grid()
         self._update_selection_no_open()
 
     def _update_selection_no_open(self) -> None:

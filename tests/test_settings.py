@@ -66,6 +66,38 @@ class TestFromDict:
         settings = KartographSettings.from_dict({"grid_visible_symbols": ["Laptop", "  ", "Tablet"]})
         assert settings.grid_visible_symbols == ("Laptop", "Tablet")
 
+    def test_save_delay_defaults_when_missing(self):
+        settings = KartographSettings.from_dict({})
+        assert settings.save_delay == 2.0
+
+    def test_save_delay_accepts_fractional_seconds(self):
+        settings = KartographSettings.from_dict({"save_delay": 1.5})
+        assert settings.save_delay == 1.5
+
+    def test_legacy_name_save_delay_key_still_read(self):
+        """Alte Settings-Dateien (vor der Zusammenlegung mit dem Plan-Save-Debounce,
+
+        s. Performance-Fix 2026-08-29) nutzten ``name_save_delay``.
+        """
+        settings = KartographSettings.from_dict({"name_save_delay": 5})
+        assert settings.save_delay == 5.0
+
+    def test_save_delay_key_wins_over_legacy_key(self):
+        settings = KartographSettings.from_dict({"save_delay": 1.0, "name_save_delay": 5})
+        assert settings.save_delay == 1.0
+
+    def test_save_delay_clamps_below_minimum(self):
+        settings = KartographSettings.from_dict({"save_delay": 0.01})
+        assert settings.save_delay == 0.3
+
+    def test_save_delay_clamps_above_maximum(self):
+        settings = KartographSettings.from_dict({"save_delay": 999})
+        assert settings.save_delay == 30.0
+
+    def test_save_delay_invalid_value_falls_back_to_default(self):
+        settings = KartographSettings.from_dict({"save_delay": "not-a-number"})
+        assert settings.save_delay == 2.0
+
 
 class TestToDictRoundtrip:
     def test_roundtrip_preserves_values(self):
@@ -80,7 +112,14 @@ class TestToDictRoundtrip:
             grid_visible_symbols=("Laptop",),
             details_overlay_position="left",
             tablegroup_overlay_position="bottom",
+            save_delay=3.5,
             show_archived_plans=True,
         )
         restored = KartographSettings.from_dict(settings.to_dict())
         assert restored == settings
+
+    def test_roundtrip_writes_new_key_not_legacy_key(self):
+        settings = KartographSettings(save_delay=4.0)
+        payload = settings.to_dict()
+        assert payload["save_delay"] == 4.0
+        assert "name_save_delay" not in payload
