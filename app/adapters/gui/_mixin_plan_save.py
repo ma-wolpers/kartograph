@@ -8,14 +8,15 @@ Verlauf (``PlanHistory.record()``) bleibt davon unberührt — der bleibt
 synchron, nur das eigentliche ``save_plan()`` wird verzögert (siehe
 ``HandlerContext.plan_save_scheduler`` und ``_shared.py::_record_and_save``).
 
-Nutzt dieselbe Einstellung wie der bestehende Namens-Debounce
+Nutzt dieselbe Einstellung wie der bestehende Feld-Edit-Debounce
 (``self.save_delay``, vormals ``name_save_delay`` — auf Nutzerwunsch
 zusammengelegt, damit es nicht zwei unabhängige "wie lange warten bis
-Speichern"-Werte gibt) und exakt dasselbe Muster
-(``_mixin_details.py::_schedule_name_save``/``_flush_pending_name_save``):
+Speichern"-Werte gibt) und ein sehr ähnliches Muster wie
+``app/adapters/gui/_pending_field_save.py``/``_mixin_details.py::_commit_pending_edits``:
 ein einzelner ausstehender Save-Slot, `after()`/`after_cancel()` für die
 Verzögerung, und ein `flush()`, der an denselben Stellen aufgerufen wird wie
-der Namens-Flush (Fensterschließen, Planwechsel, Verlassen des Editors).
+``_commit_pending_edits()`` (Fensterschließen, Planwechsel, Verlassen des
+Editors).
 ``MIN_SAVE_DELAY`` (0.3s) ist hart erzwungen; darüber ist der Wert frei
 einstellbar, mit einer im Einstellungsdialog nur empfohlenen (nicht
 erzwungenen) Obergrenze von ``RECOMMENDED_MAX_SAVE_DELAY`` (10s) — länger
@@ -80,12 +81,12 @@ class PlanSaveMixin:
         """Schreibt einen ausstehenden Speichervorgang sofort, falls vorhanden.
 
         Wird vom Debounce-Timer selbst sowie von allen Stellen aufgerufen, an
-        denen auch der Namens-Flush (``_flush_pending_name_save``) ausgelöst
-        wird (Fensterschließen, Planwechsel/-neuanlage, Verlassen des
-        Editors) — dieselben Momente, in denen ein ausstehender Schreib-
-        vorgang nicht verloren gehen darf. Fehler werden geloggt und über die
-        Statuszeile sichtbar gemacht, statt in einem Tk-``after()``-Callback
-        still zu verschwinden.
+        denen auch ``_commit_pending_edits()`` ausgelöst wird (Fenster-
+        schließen, Planwechsel/-neuanlage, Verlassen des Editors) —
+        dieselben Momente, in denen ein ausstehender Schreibvorgang nicht
+        verloren gehen darf. Fehler werden geloggt und über die Statuszeile
+        sichtbar gemacht, statt in einem Tk-``after()``-Callback still zu
+        verschwinden.
         """
         if self._plan_save_after_id is not None:
             try:

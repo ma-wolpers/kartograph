@@ -8,12 +8,12 @@ Die Widget-Konstruktion liegt in ``_mixin_details_layout.py``.
 from __future__ import annotations
 
 from app.adapters.gui.main_window_constants import (
-    DEFAULT_SAVE_DELAY,
     DESK_DETAIL_EDITING,
     DESK_DETAIL_REVEALED,
     DeskDetailMode,
     NAME_EDITING,
 )
+from app.core.domain.student_id import StudentId
 from app.core.intents.accommodation_intents import SetAccommodationsIntent
 from app.core.intents.student_intents import CreateStudentIntent, RenameStudentIntent, SetNicknameIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -212,18 +212,36 @@ class DetailsMixin:
             self.canvas.focus_set()
 
     def _reconcile_desk_detail_state(self, x: int, y: int, is_student_single: bool) -> None:
-        """Verwirft einen veralteten Detail-Zustand (Zellwechsel, Mehrfachauswahl oder
-        Zelle nicht mehr einzeln von einem benannten Schüler belegt).
+        """Passt einen veralteten Detail-Zustand an einen Zellwechsel an.
 
         Teil des State-Funnels, NICHT des Renderers: wird von ``_refresh_details_panel()``
         einmalig VOR dem eigentlichen Rendern aufgerufen und ruft selbst kein
         ``_refresh_details_panel()`` auf (keine Rekursion) -- der anschließende Refresh
-        passiert im Aufrufer.
+        passiert im Aufrufer. Bewusst dispatch-frei (reine Zustands-Buchhaltung): ein
+        etwaiges ausstehendes Pending Edit ist zu diesem Zeitpunkt bereits geflusht --
+        die zentralen Selektions-Setter in ``_mixin_selection.py`` rufen
+        ``_commit_pending_edits()`` VOR ihrem jeweiligen Dispatch auf, nicht diese
+        Methode. Würde hier stattdessen geflusht, liefe der Dispatch verschachtelt
+        innerhalb des noch laufenden ``apply_state()``-Aufrufs, der diese Methode
+        aufgerufen hat.
+
+        Bei Wechsel zu einer anderen einzeln belegten Schülerzelle bleibt der
+        Detail-Zustand erhalten (nur die Koordinaten folgen) statt zu schließen --
+        ``EDITING`` wird dabei auf ``REVEALED`` heruntergestuft, damit die Navigation
+        nicht automatisch den Namenseditor des neuen Schülers aktiviert. Nur bei
+        leerer Zelle/Lehrertisch/Mehrfachauswahl wird der Zustand vollständig verworfen.
         """
         if self._desk_detail_state is None:
             return
-        if not is_student_single or self._desk_detail_state[:2] != (x, y):
+        if not is_student_single:
             self._desk_detail_state = None
+            return
+        old_x, old_y, mode = self._desk_detail_state
+        if (old_x, old_y) == (x, y):
+            return
+        if mode == DESK_DETAIL_EDITING:
+            mode = DESK_DETAIL_REVEALED
+        self._desk_detail_state = (x, y, mode)
 
     def _downgrade_desk_detail_editing_to_revealed(self) -> bool:
         """Fällt von EDITING auf REVEALED für dieselbe Zelle zurück, falls aktuell
@@ -313,7 +331,7 @@ class DetailsMixin:
         unabhängig davon, ob der Editor gerade sichtbar ist, damit nie ein stale
         EDITING-Zustand zurückbleibt. Fokus geht nur zum Canvas, wenn der Editor
         tatsächlich sichtbar ist."""
-        self._flush_pending_name_save()
+        self._commit_pending_edits()
         self._flush_pending_plan_save()
         self._downgrade_desk_detail_editing_to_revealed()
         if not self.editor_view.winfo_ismapped():
@@ -328,7 +346,7 @@ class DetailsMixin:
         läuft (Klick auf Farbpunkt/Button, andere/dieselbe Tischzelle, Tab, Planliste, ...).
         Darf mehrfach bzw. zusammen mit ``exit_name_edit_mode()`` feuern, ohne
         inkonsistenten Zustand zu erzeugen (beide Downgrade-Pfade sind idempotent)."""
-        self._flush_pending_name_save()
+        self._commit_pending_edits()
         self._flush_pending_plan_save()
         self._downgrade_desk_detail_editing_to_revealed()
 
@@ -343,82 +361,58 @@ class DetailsMixin:
         x, y = self.selected_cell
         self._controller.dispatch(CreateStudentIntent(x=x, y=y))
 
-    def _schedule_name_save(self) -> None:
-        """Callback für Tastatureingabe in Vorname-/Nachname-/Spitzname-Feld.
+    def _commit_pending_edits(self) -> None:
+        """Flusht alle ausstehenden Feld-Edits (Namen, Nachteilsausgleiche), bevor
+        der Bearbeitungskontext wechselt (anderer Tisch, Panel schließen, Plan
+        wechseln, App schließen). Zentraler Ersatz für vormals verstreute
+        Einzel-Flush-Aufrufe -- s. ``app/adapters/gui/_pending_field_save.py``.
+        """
+        for pending in self._pending_edits:
+            pending.flush()
 
-        Merkt sich die aktuell eingegebenen Werte sofort (unabhängig davon, ob spätere
-        Auswahlwechsel die Eingabefelder wieder leeren) und plant eine debounced
-        Speicherung: gespeichert wird erst, wenn `save_delay` Sekunden lang keine
-        weitere Eingabe kam. ``exit_name_edit_mode`` bzw. FocusOut auf den Feldern lösen
-        eine sofortige Speicherung aus, sodass beim Verlassen nichts verloren geht.
+    def _capture_name_fields(self) -> tuple[StudentId, dict] | None:
+        """Liest den aktuell editierten Schüler und die aktuellen Namensfeld-Werte.
+
+        Callback für ``self._name_pending_save`` (``PendingFieldSave``). Gibt ``None``
+        zurück, wenn kein Plan offen ist, die Auswahl kein Einzel-Tisch ist, oder die
+        Zelle keinen Schüler enthält -- ``note_change()`` no-opt dann.
         """
         if not self.current_plan or not self.current_plan_path:
-            return
+            return None
         if not self.selection.is_single():
-            return
+            return None
         x, y = self.selected_cell
         student = self.current_plan.student_at(x, y)
         if not student:
-            return
-
-        if self._pending_name_save is not None and self._pending_name_save["student_id"] != student.student_id:
-            self._flush_pending_name_save()
-
-        self._pending_name_save = {
-            "student_id": student.student_id,
+            return None
+        return student.student_id, {
             "first_name": self._name_var.get(),
             "last_name": self._last_name_var.get(),
             "nickname": self._nickname_var.get(),
         }
 
-        if self._name_save_after_id is not None:
-            try:
-                self.after_cancel(self._name_save_after_id)
-            except Exception:
-                pass
-            self._name_save_after_id = None
+    def _apply_name_fields(self, student_id: StudentId, values: dict) -> None:
+        """Speichert eine ausstehende Namens-/Spitznamenänderung für *student_id*.
 
-        delay_ms = int(getattr(self, "save_delay", DEFAULT_SAVE_DELAY) * 1000)
-        if delay_ms <= 0:
-            self._flush_pending_name_save()
-            return
-        self._name_save_after_id = self.after(delay_ms, self._flush_pending_name_save)
-
-    def _flush_pending_name_save(self) -> None:
-        """Speichert eine ausstehende Namens-/Spitznamenänderung sofort.
-
-        Wird vom debounce-Timer, von ``exit_name_edit_mode`` (Escape/Return/Auswahlwechsel)
-        sowie von FocusOut auf den Namensfeldern aufgerufen. Nutzt die bei der Eingabe
-        gemerkten Werte statt der aktuellen Feldinhalte, damit ein zwischenzeitlich vom
-        Auswahlwechsel geleertes Eingabefeld keine Daten verwerfen kann.
+        Sucht den Schüler über seine stabile ID (nicht über die aktuell selektierte
+        Zelle) -- unabhängig davon, wohin die Auswahl inzwischen gewandert ist.
+        Dispatcht nur bei tatsächlicher Änderung.
         """
-        if self._name_save_after_id is not None:
-            try:
-                self.after_cancel(self._name_save_after_id)
-            except Exception:
-                pass
-            self._name_save_after_id = None
-        pending = self._pending_name_save
-        self._pending_name_save = None
-        if pending is None:
-            return
         if not self.current_plan or not self.current_plan_path:
             return
-        student = self.current_plan.student_by_id(pending["student_id"])
+        student = self.current_plan.student_by_id(student_id)
         if not student:
             return
-        if student.first_name_official != pending["first_name"] or student.last_name != pending["last_name"]:
+        if student.first_name_official != values["first_name"] or student.last_name != values["last_name"]:
             self._controller.dispatch(
                 RenameStudentIntent(
-                    student_id=pending["student_id"],
-                    first_name=pending["first_name"],
-                    last_name=pending["last_name"],
+                    student_id=student_id,
+                    first_name=values["first_name"],
+                    last_name=values["last_name"],
                 )
             )
-        if student.nickname != pending["nickname"]:
-            self._controller.dispatch(
-                SetNicknameIntent(student_id=pending["student_id"], nickname=pending["nickname"])
-            )
+        if student.nickname != values["nickname"]:
+            self._controller.dispatch(SetNicknameIntent(student_id=student_id, nickname=values["nickname"]))
 
     def _set_accommodations_field(self, student) -> None:
         """Befüllt das Nachteilsausgleiche-Textfeld oder deaktiviert es bei *student* = None.
@@ -428,20 +422,53 @@ class DetailsMixin:
         """
         self.accommodations_field.text.configure(state="normal")
         self.accommodations_field.set("\n".join(student.diagnostic.accommodations) if student else "")
+        self.accommodations_field.text.edit_modified(False)
         if student is None:
             self.accommodations_field.text.configure(state="disabled")
 
-    def _on_accommodations_changed(self) -> None:
-        """Callback für FocusOut im Nachteilsausgleiche-Feld: speichert die Zeilenliste."""
+    def _on_accommodations_text_modified(self, _event=None) -> None:
+        """``<<Modified>>``-Callback des Nachteilsausgleiche-Feldes.
+
+        Feuert sowohl bei echter Tastatureingabe/Paste als auch beim programmatischen
+        Neubefüllen in ``_set_accommodations_field()`` (harmlos, s. ``_apply_accommodations_field``).
+        ``edit_modified(False)`` ist Pflicht-Reset -- ohne ihn löst Tk das Event kein
+        zweites Mal aus.
+        """
+        self.accommodations_field.text.edit_modified(False)
+        self._accommodations_pending_save.note_change()
+
+    def _capture_accommodations_field(self) -> tuple[StudentId, list[str]] | None:
+        """Liest den aktuell angezeigten Schüler und den aktuellen Feldinhalt.
+
+        Callback für ``self._accommodations_pending_save`` (``PendingFieldSave``).
+        """
         if not self.current_plan or not self.current_plan_path:
-            return
+            return None
         if not self.selection.is_single():
-            return
+            return None
         x, y = self.selected_cell
         student = self.current_plan.student_at(x, y)
         if not student:
+            return None
+        return student.student_id, self.accommodations_field.get().splitlines()
+
+    def _apply_accommodations_field(self, student_id: StudentId, lines: list[str]) -> None:
+        """Speichert eine ausstehende Nachteilsausgleiche-Änderung für *student_id*.
+
+        Normalisiert genau einmal (Leerzeilen entfernt, getrimmt) und verwendet
+        denselben normalisierten Wert für Vergleich UND Dispatch -- kein Unterschied
+        zwischen dem Wert, gegen den geprüft wird, und dem tatsächlich gespeicherten.
+        Dispatcht nur bei tatsächlicher Änderung: da ``<<Modified>>`` (anders als das
+        frühere reine ``<FocusOut>``) auch beim programmatischen Neubefüllen für den
+        neu selektierten Schüler feuert, würde sonst jeder Tischwechsel einen
+        unnötigen Schreibvorgang auslösen.
+        """
+        if not self.current_plan or not self.current_plan_path:
             return
-        lines = self.accommodations_field.get().splitlines()
-        self._controller.dispatch(
-            SetAccommodationsIntent(student_id=student.student_id, accommodations=lines)
-        )
+        student = self.current_plan.student_by_id(student_id)
+        if not student:
+            return
+        normalized = [line.strip() for line in lines if line.strip()]
+        if student.diagnostic.accommodations == normalized:
+            return
+        self._controller.dispatch(SetAccommodationsIntent(student_id=student_id, accommodations=normalized))

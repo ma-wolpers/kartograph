@@ -47,6 +47,7 @@ from app.adapters.gui._mixin_tablegroup_logic import TablegroupLogicMixin
 from app.adapters.gui._mixin_theme import ThemeMixin
 from app.adapters.gui._mixin_undo_redo import UndoRedoMixin
 from app.adapters.gui._mixin_viewport import ViewportMixin
+from app.adapters.gui._pending_field_save import PendingFieldSave
 from app.adapters.gui.main_window_constants import (
     COLOR_MARKER_PALETTE,
     DEFAULT_CANVAS_RADIUS,
@@ -247,8 +248,23 @@ class KartographMainWindow(
         self._name_var = ui.StringVar(value="")
         self._last_name_var = ui.StringVar(value="")
         self._nickname_var = ui.StringVar(value="")
-        self._name_save_after_id: str | None = None
-        self._pending_name_save: dict | None = None
+        # Entitätsgebundene (StudentId) Pending Saves fürs Detail-Panel --
+        # s. app/adapters/gui/_pending_field_save.py. Beide landen in
+        # self._pending_edits, damit ein Kontextwechsel (Tischwechsel,
+        # Panel schließen, Plan wechseln, App schließen) sie über den
+        # einzigen zentralen Hook self._commit_pending_edits() (s.
+        # _mixin_details.py) gebündelt und garantiert VOR dem eigentlichen
+        # Kontextwechsel flushen kann, statt einzeln aufgezählt zu werden.
+        self._name_pending_save = PendingFieldSave(
+            self, capture=self._capture_name_fields, apply=self._apply_name_fields
+        )
+        self._accommodations_pending_save = PendingFieldSave(
+            self, capture=self._capture_accommodations_field, apply=self._apply_accommodations_field
+        )
+        self._pending_edits: list[PendingFieldSave] = [
+            self._name_pending_save,
+            self._accommodations_pending_save,
+        ]
         self._selected_marker_var = ui.StringVar(value="")
         self._doc_selection_status_var = ui.StringVar(value="Doku-Zelle: -")
         self.status_var = ui.StringVar(value="Bereit")
@@ -370,7 +386,7 @@ class KartographMainWindow(
     def _on_shell_close(self) -> bool:
         """Schließt Overlay-Fenster bevor die Shell das Root-Fenster zerstört."""
         try:
-            self._flush_pending_name_save()
+            self._commit_pending_edits()
         except Exception:
             pass
         try:

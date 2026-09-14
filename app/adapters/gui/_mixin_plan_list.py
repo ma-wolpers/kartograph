@@ -65,7 +65,7 @@ class PlanListMixin:
         started = time.perf_counter()
         LOGGER.info("open_plan started: %s", plan_path)
 
-        self._flush_pending_name_save()
+        self._commit_pending_edits()
         self._flush_pending_plan_save()
 
         # Pre-load for out-of-bounds check
@@ -93,7 +93,7 @@ class PlanListMixin:
             plan_name = simpledialog.askstring("Neuer Sitzplan", "Name der Lerngruppe:", parent=self)
             if plan_name is None:
                 return
-            self._flush_pending_name_save()
+            self._commit_pending_edits()
             self._flush_pending_plan_save()
             try:
                 self._controller.dispatch(CreatePlanIntent(name=plan_name))

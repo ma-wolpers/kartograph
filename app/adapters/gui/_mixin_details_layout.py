@@ -43,10 +43,18 @@ class DetailsLayoutMixin:
         self.details_form = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.details_form.pack(fill="x", pady=(4, 0))
 
+        # Änderungserkennung über trace_add auf den StringVars statt <KeyRelease>:
+        # deckt Tippen, Paste und Kontextmenü einheitlich ab, da alle Eingabewege
+        # am Ende über die Variable laufen (<KeyRelease> reagiert nicht auf Paste
+        # per Kontextmenü/Maus). Feuert auch beim programmatischen Neubefüllen in
+        # _refresh_details_panel() -- harmlos, s. _apply_name_fields().
+        self._name_var.trace_add("write", lambda *_args: self._name_pending_save.note_change())
+        self._last_name_var.trace_add("write", lambda *_args: self._name_pending_save.note_change())
+        self._nickname_var.trace_add("write", lambda *_args: self._name_pending_save.note_change())
+
         tui.Label(self.details_form, text="Vorname", style="Panel.TLabel").pack(side="left")
         self.name_entry = tui.Entry(self.details_form, textvariable=self._name_var, width=20)
         self.name_entry.pack(side="left", padx=(8, 16))
-        self.name_entry.bind("<KeyRelease>", lambda _event: self._schedule_name_save())
         self.name_entry.bind("<FocusOut>", lambda _event: self._on_name_field_focus_out())
         self.name_entry.bind("<Escape>", self._on_name_entry_escape)
         self.name_entry.bind("<Return>", self._on_name_entry_return)
@@ -54,7 +62,6 @@ class DetailsLayoutMixin:
         tui.Label(self.details_form, text="Nachname", style="Panel.TLabel").pack(side="left")
         self.last_name_entry = tui.Entry(self.details_form, textvariable=self._last_name_var, width=20)
         self.last_name_entry.pack(side="left", padx=(8, 16))
-        self.last_name_entry.bind("<KeyRelease>", lambda _event: self._schedule_name_save())
         self.last_name_entry.bind("<FocusOut>", lambda _event: self._on_name_field_focus_out())
         self.last_name_entry.bind("<Escape>", self._on_name_entry_escape)
         self.last_name_entry.bind("<Return>", self._on_name_entry_return)
@@ -62,7 +69,6 @@ class DetailsLayoutMixin:
         tui.Label(self.details_form, text="Spitzname", style="Panel.TLabel").pack(side="left")
         self.nickname_entry = tui.Entry(self.details_form, textvariable=self._nickname_var, width=20)
         self.nickname_entry.pack(side="left", padx=(8, 0))
-        self.nickname_entry.bind("<KeyRelease>", lambda _event: self._schedule_name_save())
         self.nickname_entry.bind("<FocusOut>", lambda _event: self._on_name_field_focus_out())
         self.nickname_entry.bind("<Escape>", self._on_name_entry_escape)
         self.nickname_entry.bind("<Return>", self._on_name_entry_return)
@@ -84,7 +90,11 @@ class DetailsLayoutMixin:
         tui.Label(self.accommodations_frame, text="Nachteilsausgleiche", style="Panel.TLabel").pack(anchor="w")
         self.accommodations_field = WrappedTextField(self.accommodations_frame, height=3)
         self.accommodations_field.pack(fill="x")
-        self.accommodations_field.bind("<FocusOut>", lambda _event: self._on_accommodations_changed())
+        # <<Modified>> statt <KeyRelease>: einheitliche Tk-Änderungserkennung für
+        # Text-Widgets (deckt auch Paste/Kontextmenü ab). Bindung wird korrekt an
+        # das interne tk.Text-Widget weitergereicht, s. WrappedTextField.bind().
+        self.accommodations_field.bind("<<Modified>>", lambda _event: self._on_accommodations_text_modified(), add="+")
+        self.accommodations_field.bind("<FocusOut>", lambda _event: self._commit_pending_edits())
 
         self._details_panel_visible = True
 

@@ -71,12 +71,20 @@ class SelectionMixin:
         """Setzt die Auswahl auf eine einzelne geklemmte Zelle (v4: SelectCellIntent).
 
         ``apply_state`` synct das Ergebnis zurück in ``self.selection``/``self.selected_cell``.
+        Flusht zuerst ausstehende Feld-Edits (s. ``_commit_pending_edits()``) -- VOR dem
+        Dispatch, nicht als Nebeneffekt mitten in dessen ``apply_state()``-Aufruf, damit
+        kein verschachtelter Dispatch entsteht (s. ``_mixin_details.py::_reconcile_desk_detail_state``).
+        Diese Methode ist (zusammen mit ``_set_selection_focus``, ``_collapse_selection_to_anchor``,
+        ``move_selection``, ``expand_selection``) der einzige Weg, wie die Selektion im
+        gesamten Projekt geändert wird -- ``self.selection`` wird sonst nur einmalig bei
+        Konstruktion und in ``apply_state()`` zugewiesen.
 
         Args:
             x: Raster-x-Koordinate der Zielzelle.
             y: Raster-y-Koordinate der Zielzelle.
         """
         cx, cy = self._clamp_cell(x, y)
+        self._commit_pending_edits()
         self._controller.dispatch(SelectCellIntent(x=cx, y=cy))
 
     def _set_selection_focus(self, x: int, y: int) -> None:
@@ -87,12 +95,14 @@ class SelectionMixin:
             y: Raster-y-Koordinate der Zielzelle.
         """
         cx, cy = self._clamp_cell(x, y)
+        self._commit_pending_edits()
         focus_x, focus_y = self.selection.active_cell()
         self._controller.dispatch(MoveSelectionIntent(dx=cx - focus_x, dy=cy - focus_y, expand=True))
 
     def _collapse_selection_to_anchor(self) -> None:
         """Reduziert eine Bereichsauswahl auf die Ankerzelle (v4: SelectCellIntent)."""
         ax, ay = self.selection.anchor_cell()
+        self._commit_pending_edits()
         self._controller.dispatch(SelectCellIntent(x=ax, y=ay))
 
     def move_selection(self, dx: int, dy: int) -> None:
@@ -106,6 +116,7 @@ class SelectionMixin:
             return
         x, y = self.selection.active_cell()
         cx, cy = self._clamp_cell(x + dx, y + dy)
+        self._commit_pending_edits()
         self._controller.dispatch(MoveSelectionIntent(dx=cx - x, dy=cy - y))
         if self._follow_selection_viewport(*self.selection.active_cell()):
             self.redraw_grid()
@@ -122,6 +133,7 @@ class SelectionMixin:
             return
         x, y = self.selection.active_cell()
         cx, cy = self._clamp_cell(x + dx, y + dy)
+        self._commit_pending_edits()
         self._controller.dispatch(MoveSelectionIntent(dx=cx - x, dy=cy - y, expand=True))
         if self._follow_selection_viewport(*self.selection.active_cell()):
             self.redraw_grid()
