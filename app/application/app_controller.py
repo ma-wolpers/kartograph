@@ -60,6 +60,12 @@ from app.application.handlers.plan_handlers import (
     handle_rename_plan,
     handle_restore_plan,
 )
+from app.application.handlers.snapshot_handlers import (
+    handle_create_snapshot,
+    handle_delete_snapshot,
+    handle_rename_snapshot,
+    handle_restore_snapshot,
+)
 from app.application.handlers.session_handlers import (
     handle_add_session,
     handle_clear_doc_entry,
@@ -129,6 +135,12 @@ from app.core.intents.plan_intents import (
     OpenPlanIntent,
     RenamePlanIntent,
     RestorePlanIntent,
+)
+from app.core.intents.snapshot_intents import (
+    CreateSnapshotIntent,
+    DeleteSnapshotIntent,
+    RenameSnapshotIntent,
+    RestoreSnapshotIntent,
 )
 from app.core.intents.session_intents import (
     AddSessionIntent,
@@ -344,6 +356,12 @@ class KartographAppController:
 
         # Accommodation
         r.register(SetAccommodationsIntent, lambda i, s: handle_set_accommodations(i, s, ctx))
+
+        # Snapshot
+        r.register(CreateSnapshotIntent,  lambda i, s: handle_create_snapshot(i, s, ctx))
+        r.register(DeleteSnapshotIntent,  lambda i, s: handle_delete_snapshot(i, s, ctx))
+        r.register(RenameSnapshotIntent,  lambda i, s: handle_rename_snapshot(i, s, ctx))
+        r.register(RestoreSnapshotIntent, lambda i, s: handle_restore_snapshot(i, s, ctx))
 
         # Grade
         r.register(AddGradeColumnIntent,       lambda i, s: handle_add_grade_column(i, s, ctx))

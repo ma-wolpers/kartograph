@@ -240,3 +240,34 @@ class TestDocumentationRoundtrip:
         assert entry is not None
         assert entry.participation is None
         assert entry.note == "Gut"
+
+
+class TestSnapshotRoundtrip:
+    def test_snapshot_fields_preserved(self, anna_id, plan_with_anna):
+        from app.core.domain.models_v4 import Seat, SeatingSnapshot
+
+        plan_with_anna.snapshots = [
+            SeatingSnapshot(
+                snapshot_id="deadbeef" * 4,
+                name="Montag",
+                created_at="2026-01-01T09:00:00",
+                last_used_at="2026-01-02T10:00:00",
+                teacher_seat=Seat(x=0, y=-1),
+                seats={anna_id: Seat(x=1, y=0)},
+            )
+        ]
+        restored = _roundtrip(plan_with_anna)
+        assert len(restored.snapshots) == 1
+        snap = restored.snapshots[0]
+        assert snap.snapshot_id == "deadbeef" * 4
+        assert snap.name == "Montag"
+        assert snap.created_at == "2026-01-01T09:00:00"
+        assert snap.last_used_at == "2026-01-02T10:00:00"
+        assert snap.teacher_seat.x == 0 and snap.teacher_seat.y == -1
+        assert snap.seats[anna_id].x == 1 and snap.seats[anna_id].y == 0
+
+    def test_old_plan_without_snapshots_field_loads_empty(self, plan_with_anna):
+        payload = serialize_plan(plan_with_anna)
+        del payload["snapshots"]
+        restored = deserialize_plan(payload)
+        assert restored.snapshots == []

@@ -22,8 +22,12 @@ from app.core.domain.models_v4 import (
     TeacherSeat,
 )
 from app.infrastructure.repositories.plan_backup import PlanBackupWriter
-from app.infrastructure.repositories.v4.deserializer_v4 import deserialize_plan
+from app.infrastructure.repositories.v4.deserializer_v4 import (
+    deserialize_plan,
+    deserialize_snapshot_load_issues,
+)
 from app.infrastructure.repositories.v4.serializer_v4 import serialize_plan
+from app.infrastructure.repositories.v4.snapshot_load_issue import SnapshotLoadIssue
 
 
 def _now_iso() -> str:
@@ -130,6 +134,31 @@ class JsonSeatingPlanRepositoryV4:
                 f"(gefunden: {payload.get('format_version')!r})"
             )
         return deserialize_plan(payload)
+
+    def load_snapshot_load_issues(self, plan_path: Path) -> dict[str, list[SnapshotLoadIssue]]:
+        """Ermittelt Snapshot-Deserialisierungs-Hinweise für *plan_path*, gruppiert nach ``snapshot_id``.
+
+        Bewusst getrennt von ``load_plan()`` (Architekturkompromiss, s.
+        ``docs/DEVELOPMENT_LOG.md``): *Vorteil* -- der ``SeatingPlanRepository``-
+        Port (``load_plan(...) -> SeatingPlan``) bleibt unverändert, keiner
+        der zahlreichen ``plan_repository.load_plan()``-Aufrufer muss
+        angepasst werden. *Nachteil* -- dieselbe JSON-Datei kann bei Bedarf
+        zweimal gelesen werden. Für eine kleine Datei und einen seltenen,
+        ausschließlich beim Restore-Klick benutzerausgelösten Aufruf (bewusst
+        kein Cache, s. ``_mixin_snapshots.py``) ist das akzeptabel.
+
+        Args:
+            plan_path: Pfad zur JSON-Plandatei.
+
+        Returns:
+            Dict von ``snapshot_id`` auf die Liste ihrer Lade-Hinweise; leer,
+            wenn die Datei nicht gelesen werden kann oder keine Hinweise anfallen.
+        """
+        try:
+            payload = json.loads(plan_path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+        return deserialize_snapshot_load_issues(payload)
 
     # ------------------------------------------------------------------
     # Schreiben

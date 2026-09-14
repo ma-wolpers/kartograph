@@ -301,6 +301,37 @@ class DocumentationBlock:
 
 
 # ---------------------------------------------------------------------------
+# Snapshots: Momentaufnahmen der Tischkoordinaten
+# ---------------------------------------------------------------------------
+
+@dataclass(slots=True)
+class SeatingSnapshot:
+    """Momentaufnahme der Tischkoordinaten (Schüler + Lehrertisch) eines Plans.
+
+    Bewusst OHNE Diagnose-/Dokumentations-/Accommodation-Daten -- ein Snapshot
+    ist rein "wer sitzt wo", keine Momentaufnahme des Diagnoseprofils.
+    Indiziert Schüler über :class:`StudentId` (stabil gegen Umbenennen und
+    Sitzwechsel), analog zu ``Session.entries``. Enthält bewusst KEINE
+    Lade-/UI-Fehlerinformation -- diese ist reine Infrastruktur-Information
+    (s. ``app/infrastructure/repositories/v4/snapshot_load_issue.py``), kein
+    Bestandteil dieses Domainobjekts.
+
+    ``last_used_at`` ist getrennt von ``created_at`` (unveränderlich):
+    ``create_snapshot()`` setzt beide initial gleich, ``restore_snapshot()``
+    aktualisiert nur ``last_used_at``, ``rename_snapshot()`` lässt es
+    unverändert -- Grundlage für die "zuletzt verwendet"-Sortierung in der
+    GUI.
+    """
+
+    snapshot_id: str
+    name: str
+    created_at: str    # ISO-8601, unveränderlich
+    last_used_at: str  # ISO-8601, s. Docstring oben
+    teacher_seat: Seat
+    seats: dict[StudentId, Seat] = field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
 # Aggregat-Root
 # ---------------------------------------------------------------------------
 
@@ -321,6 +352,7 @@ class SeatingPlan:
     color_palette: dict[str, PaletteEntry] = field(default_factory=dict)
     custom_symbols: dict[str, CustomSymbolDefinition] = field(default_factory=dict)
     documentation: DocumentationBlock = field(default_factory=DocumentationBlock)
+    snapshots: list[SeatingSnapshot] = field(default_factory=list)
 
     # --- Convenience-Shortcuts auf Classroom-Methoden --------------------
 
@@ -352,4 +384,15 @@ class SeatingPlan:
             for seat in group.seats:
                 if seat.x == x and seat.y == y:
                     return group
+        return None
+
+    def snapshot_by_id(self, snapshot_id: str) -> SeatingSnapshot | None:
+        """Gibt den Snapshot mit *snapshot_id* zurück, oder None.
+
+        Args:
+            snapshot_id: ID des gesuchten Snapshots.
+        """
+        for snapshot in self.snapshots:
+            if snapshot.snapshot_id == snapshot_id:
+                return snapshot
         return None

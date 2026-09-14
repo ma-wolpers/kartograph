@@ -20,6 +20,7 @@ from app.core.domain.models_v4 import (
     PaletteEntry,
     PlanMeta,
     SeatingPlan,
+    SeatingSnapshot,
     Seat,
     Session,
     SessionEntry,
@@ -28,6 +29,7 @@ from app.core.domain.models_v4 import (
     TeacherSeat,
 )
 from app.core.domain.student_id import StudentId
+from app.infrastructure.repositories.v4.snapshot_load_issue import SnapshotLoadIssue
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +57,7 @@ def deserialize_plan(payload: dict) -> SeatingPlan:
     color_palette = _deserialize_color_palette(payload.get("color_palette") or {})
     custom_symbols = _deserialize_custom_symbols(payload.get("custom_symbols") or {})
     documentation = _deserialize_documentation(payload.get("documentation") or {})
+    snapshots, _issues = _deserialize_snapshots(payload.get("snapshots") or [])
 
     return SeatingPlan(
         format_version=format_version,
@@ -65,7 +68,31 @@ def deserialize_plan(payload: dict) -> SeatingPlan:
         color_palette=color_palette,
         custom_symbols=custom_symbols,
         documentation=documentation,
+        snapshots=snapshots,
     )
+
+
+def deserialize_snapshot_load_issues(payload: dict) -> dict[str, list[SnapshotLoadIssue]]:
+    """Ermittelt, unabhängig von ``deserialize_plan()``, welche Snapshot-Rohdaten
+    beim Laden übersprungen/repariert würden, gruppiert nach ``snapshot_id``.
+
+    Nutzt denselben internen Parser wie ``deserialize_plan()``
+    (``_deserialize_snapshots``), daher keine doppelte Parsing-Logik -- nur
+    ein zweiter (billiger, reiner) Durchlauf über denselben bereits im
+    Speicher vorliegenden Payload. Separate Funktion statt Erweiterung der
+    Rückgabe von ``deserialize_plan()``, um dessen Signatur (und die ihrer
+    zahlreichen Aufrufer) unverändert zu lassen -- die Warnungen werden erst
+    beim späteren Laden *eines konkreten Snapshots* gebraucht, nicht beim
+    Öffnen des Plans.
+
+    Args:
+        payload: Geparster JSON-Inhalt der Plandatei.
+    """
+    _snapshots, issues = _deserialize_snapshots(payload.get("snapshots") or [])
+    grouped: dict[str, list[SnapshotLoadIssue]] = {}
+    for issue in issues:
+        grouped.setdefault(issue.snapshot_id, []).append(issue)
+    return grouped
 
 
 # ---------------------------------------------------------------------------
@@ -405,6 +432,95 @@ def _deserialize_entries(raw: dict) -> dict[StudentId, SessionEntry]:
         if entry.has_content():
             entries[sid] = entry
     return entries
+
+
+# ---------------------------------------------------------------------------
+# Snapshots
+# ---------------------------------------------------------------------------
+
+def _deserialize_snapshots(raw_list: list) -> tuple[list[SeatingSnapshot], list[SnapshotLoadIssue]]:
+    """Liest die Snapshot-Liste aus *raw_list*; sammelt strukturierte Hinweise zu
+    übersprungenen ``seats``-Einträgen.
+
+    Abgrenzung, welcher fehlerhafte Rohwert wie behandelt wird (s. auch
+    ``snapshot_load_issue.py``):
+
+    - fehlende/leere ``snapshot_id``, oder ein zweites Vorkommen derselben ID:
+      ganzer Snapshot-Eintrag still verworfen (wie ``_deserialize_sessions``/
+      ``_deserialize_grade_columns`` es für Datum/Spalten-ID tun) -- kein
+      ``SnapshotLoadIssue``, da kein aufhebbarer Wert ohne Identität übrig bleibt.
+    - fehlender/leerer ``name``: Fallback ``"Unbenannter Snapshot"`` (wie
+      ``_deserialize_meta`` es für den Plan-Namen tut) -- kein Issue.
+    - fehlende/ungültige ``created_at``/``last_used_at``: Fallback ``""`` (wie
+      ``_deserialize_meta``) -- kein Issue.
+    - fehlender/ungültiger ``teacher_seat``: ``x``/``y`` je einzeln auf ``0``
+      defaultet (wie ``_deserialize_classroom`` es für den Klassenraum-
+      Lehrertisch tut) -- kein Issue.
+    - einzelner ``seats``-Eintrag mit ungültiger StudentId: dieser eine
+      Eintrag übersprungen, Rest des Snapshots bleibt nutzbar -- **ein**
+      ``SnapshotLoadIssue`` mit ``reason="invalid_student_id"``.
+    - einzelner ``seats``-Eintrag mit fehlendem/nicht parsebarem ``x``/``y``:
+      dieser eine Eintrag übersprungen -- **ein** ``SnapshotLoadIssue`` mit
+      ``reason="invalid_seat"``.
+
+    Args:
+        raw_list: Roh-Liste des ``snapshots``-Feldes aus der Plandatei.
+    """
+    snapshots: list[SeatingSnapshot] = []
+    issues: list[SnapshotLoadIssue] = []
+    seen_ids: set[str] = set()
+    for item in raw_list:
+        if not isinstance(item, dict):
+            continue
+        snapshot_id = str(item.get("snapshot_id") or "").strip()
+        if not snapshot_id or snapshot_id in seen_ids:
+            continue
+        seen_ids.add(snapshot_id)
+
+        raw_ts = item.get("teacher_seat") or {}
+        teacher_seat = Seat(x=_coerce_int(raw_ts.get("x"), 0), y=_coerce_int(raw_ts.get("y"), 0))
+
+        seats: dict[StudentId, Seat] = {}
+        raw_seats = item.get("seats") or {}
+        if isinstance(raw_seats, dict):
+            for raw_student_id, raw_seat in raw_seats.items():
+                try:
+                    sid = StudentId.of(str(raw_student_id))
+                except ValueError:
+                    issues.append(SnapshotLoadIssue(
+                        snapshot_id=snapshot_id,
+                        reason="invalid_student_id",
+                        detail=f"Ungültige Schüler-ID {raw_student_id!r} übersprungen.",
+                    ))
+                    continue
+                if not isinstance(raw_seat, dict):
+                    issues.append(SnapshotLoadIssue(
+                        snapshot_id=snapshot_id,
+                        reason="invalid_seat",
+                        detail=f"Ungültiger Sitzplatz für Schüler-ID {raw_student_id!r} übersprungen.",
+                    ))
+                    continue
+                raw_x, raw_y = raw_seat.get("x"), raw_seat.get("y")
+                try:
+                    x, y = int(raw_x), int(raw_y)
+                except (TypeError, ValueError):
+                    issues.append(SnapshotLoadIssue(
+                        snapshot_id=snapshot_id,
+                        reason="invalid_seat",
+                        detail=f"Ungültige Koordinaten für Schüler-ID {raw_student_id!r} übersprungen.",
+                    ))
+                    continue
+                seats[sid] = Seat(x=x, y=y)
+
+        snapshots.append(SeatingSnapshot(
+            snapshot_id=snapshot_id,
+            name=str(item.get("name") or "Unbenannter Snapshot").strip() or "Unbenannter Snapshot",
+            created_at=str(item.get("created_at") or "").strip(),
+            last_used_at=str(item.get("last_used_at") or "").strip(),
+            teacher_seat=teacher_seat,
+            seats=seats,
+        ))
+    return snapshots, issues
 
 
 # ---------------------------------------------------------------------------

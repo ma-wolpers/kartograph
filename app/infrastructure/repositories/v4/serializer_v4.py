@@ -28,6 +28,7 @@ def serialize_plan(plan: SeatingPlan) -> dict:
         "color_palette": _serialize_color_palette(plan),
         "custom_symbols": _serialize_custom_symbols(plan),
         "documentation": _serialize_documentation(plan),
+        "snapshots": _serialize_snapshots(plan),
     }
 
 
@@ -153,6 +154,28 @@ def _serialize_documentation(plan: SeatingPlan) -> dict:
         },
         "sessions": _serialize_sessions(doc),
     }
+
+
+def _serialize_snapshots(plan: SeatingPlan) -> list:
+    """Wandelt alle Snapshots von *plan* in eine JSON-Liste um.
+
+    Args:
+        plan: Sitzplan, dessen Snapshots serialisiert werden.
+    """
+    result = []
+    for snapshot in plan.snapshots:
+        result.append({
+            "snapshot_id": snapshot.snapshot_id,
+            "name": snapshot.name,
+            "created_at": snapshot.created_at,
+            "last_used_at": snapshot.last_used_at,
+            "teacher_seat": {"x": snapshot.teacher_seat.x, "y": snapshot.teacher_seat.y},
+            "seats": {
+                str(student_id): {"x": seat.x, "y": seat.y}
+                for student_id, seat in snapshot.seats.items()
+            },
+        })
+    return result
 
 
 def _serialize_sessions(doc) -> list:

@@ -11,6 +11,7 @@ from app.core.domain.models_v4 import (
     GradeColumn,
     PlanMeta,
     SeatingPlan,
+    SeatingSnapshot,
     Seat,
     Student,
     TeacherSeat,
@@ -52,6 +53,26 @@ def make_student(
         seat=Seat(x=x, y=y),
         nickname=nickname,
         diagnostic=DiagnosticProfile(),
+    )
+
+
+def make_snapshot(
+    *,
+    snapshot_id: str = "snap0000000000000000000000000001",
+    name: str = "Testsnapshot",
+    created_at: str = "2026-01-01T09:00:00",
+    last_used_at: str | None = None,
+    teacher_seat: Seat | None = None,
+    seats: dict[StudentId, Seat] | None = None,
+) -> SeatingSnapshot:
+    """Erzeugt einen minimalen ``SeatingSnapshot`` für Tests."""
+    return SeatingSnapshot(
+        snapshot_id=snapshot_id,
+        name=name,
+        created_at=created_at,
+        last_used_at=last_used_at if last_used_at is not None else created_at,
+        teacher_seat=teacher_seat or Seat(x=0, y=0),
+        seats=seats or {},
     )
 
 
