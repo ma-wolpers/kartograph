@@ -19,6 +19,12 @@ from app.application.app_controller import KartographAppController
 from app.application.app_state import AppState, EditorSurface, InteractionMode
 from app.application.handler_context import HandlerContext
 from app.application.handlers.accommodation_handlers import handle_set_accommodations
+from app.application.handlers.snapshot_handlers import (
+    handle_create_snapshot,
+    handle_delete_snapshot,
+    handle_rename_snapshot,
+    handle_restore_snapshot,
+)
 from app.application.handlers.edit_handlers import (
     handle_copy_selection,
     handle_cut_selection,
@@ -65,12 +71,18 @@ from app.application.handlers.view_handlers import (
     handle_zoom_in,
     handle_zoom_out,
 )
-from app.core.domain.models_v4 import Session, SessionEntry
+from app.core.domain.models_v4 import Seat, Session, SessionEntry
 from app.core.domain.plan_history import PlanHistory
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import KartographSettings
 from app.core.domain.student_id import StudentId
 from app.core.intents.accommodation_intents import SetAccommodationsIntent
+from app.core.intents.snapshot_intents import (
+    CreateSnapshotIntent,
+    DeleteSnapshotIntent,
+    RenameSnapshotIntent,
+    RestoreSnapshotIntent,
+)
 from app.core.intents.edit_intents import (
     CopySelectionIntent,
     CutSelectionIntent,
@@ -103,6 +115,7 @@ from app.core.intents.session_intents import AddSessionIntent, GoToTodayIntent, 
 from app.core.intents.student_intents import (
     CreateStudentIntent,
     DeleteStudentIntent,
+    MoveStudentIntent,
     RenameStudentIntent,
     SetNicknameIntent,
 )
@@ -114,7 +127,7 @@ from app.core.intents.view_intents import (
     ZoomInIntent,
     ZoomOutIntent,
 )
-from tests.conftest import make_plan, make_student
+from tests.conftest import make_plan, make_snapshot, make_student
 
 
 # ---------------------------------------------------------------------------
@@ -1294,6 +1307,90 @@ class TestHandleAccommodationHandlers:
 
 
 # ---------------------------------------------------------------------------
+# Handler-Isolation: Snapshot-Handler
+# ---------------------------------------------------------------------------
+
+class TestHandleSnapshotHandlers:
+    def test_create_snapshot_adds_to_plan_and_saves(self):
+        student = make_student()
+        plan = make_plan(students=[student])
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        result = handle_create_snapshot(CreateSnapshotIntent(name="Montag"), state, ctx)
+
+        assert len(result.current_plan.snapshots) == 1
+        assert result.current_plan.snapshots[0].name == "Montag"
+
+    def test_create_snapshot_blocked_on_full_match_sets_status_no_save(self):
+        student = make_student()
+        plan = make_plan(students=[student])
+        existing = make_snapshot(seats={student.student_id: student.seat})
+        plan.snapshots = [existing]
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        result = handle_create_snapshot(CreateSnapshotIntent(name="Duplikat"), state, ctx)
+
+        assert len(result.current_plan.snapshots) == 1
+        assert result.status_message != ""
+        assert result.can_undo is False
+
+    def test_restore_snapshot_moves_students_and_saves(self):
+        student = make_student(x=1, y=0)
+        moved_seat = Seat(x=5, y=5)
+        snapshot = make_snapshot(seats={student.student_id: moved_seat})
+        plan = make_plan(students=[student])
+        plan.snapshots = [snapshot]
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        result = handle_restore_snapshot(RestoreSnapshotIntent(snapshot_id=snapshot.snapshot_id), state, ctx)
+
+        assert result.current_plan.student_by_id(student.student_id).seat == moved_seat
+
+    def test_restore_snapshot_unknown_id_is_noop(self):
+        student = make_student()
+        plan = make_plan(students=[student])
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        result = handle_restore_snapshot(RestoreSnapshotIntent(snapshot_id="unknown"), state, ctx)
+
+        assert result is state
+
+    def test_delete_snapshot_removes_from_plan(self):
+        student = make_student()
+        plan = make_plan(students=[student])
+        snapshot = make_snapshot()
+        plan.snapshots = [snapshot]
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        result = handle_delete_snapshot(DeleteSnapshotIntent(snapshot_id=snapshot.snapshot_id), state, ctx)
+
+        assert result.current_plan.snapshots == []
+
+    def test_rename_snapshot_updates_name(self):
+        student = make_student()
+        plan = make_plan(students=[student])
+        snapshot = make_snapshot(name="Alt")
+        plan.snapshots = [snapshot]
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = make_state_with_plan(plan, path)
+
+        result = handle_rename_snapshot(RenameSnapshotIntent(snapshot_id=snapshot.snapshot_id, new_name="Neu"), state, ctx)
+
+        assert result.current_plan.snapshot_by_id(snapshot.snapshot_id).name == "Neu"
+
+
+# ---------------------------------------------------------------------------
 # Handler-Isolation: Participation-Handler
 # ---------------------------------------------------------------------------
 
@@ -1733,6 +1830,23 @@ class TestKartographAppController:
         ctrl.dispatch(CreateStudentIntent(x=2, y=1))
 
         assert ctrl.state.current_plan.student_at(2, 1) is not None
+
+    def test_dispatch_create_and_restore_snapshot_roundtrip(self):
+        student = make_student(x=1, y=0)
+        plan = make_plan(students=[student])
+        path = PLANS_DIR / "test.json"
+        ctrl, _ = self._make_controller({path: plan})
+        ctrl.dispatch(OpenPlanIntent(plan_path=path))
+
+        ctrl.dispatch(CreateSnapshotIntent(name="Montag"))
+        assert len(ctrl.state.current_plan.snapshots) == 1
+        snapshot_id = ctrl.state.current_plan.snapshots[0].snapshot_id
+
+        ctrl.dispatch(MoveStudentIntent(student_id=student.student_id, new_x=7, new_y=7))
+        assert ctrl.state.current_plan.student_by_id(student.student_id).seat.x == 7
+
+        ctrl.dispatch(RestoreSnapshotIntent(snapshot_id=snapshot_id))
+        assert ctrl.state.current_plan.student_by_id(student.student_id).seat.x == 1
 
     def test_dispatch_select_cell_updates_state(self):
         ctrl, _ = self._make_controller()

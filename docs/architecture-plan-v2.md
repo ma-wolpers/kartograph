@@ -1796,6 +1796,217 @@ ab, die im Rahmen von T6/T7 in derselben Toolbar entstanden sind.
 
 ---
 
+## 16. Feature-Erweiterung: Pending-Edit-Infrastruktur (`PendingFieldSave`)
+
+Nutzerbeobachtung: Eingaben im Nachteilsausgleiche-Feld gingen verloren, wenn
+direkt nach dem Tippen (ohne das Feld explizit zu verlassen) zu einem anderen
+Tisch gewechselt wurde. Root Cause: `apply_state()` ruft nach jedem Dispatch
+synchron `_refresh_details_panel()` auf, die das Textfeld sofort mit den
+Daten des *neuen* Schülers überschreibt — das `<FocusOut>` des *alten*
+Widgets feuert danach und liest bereits den überschriebenen Inhalt. Das
+bestehende Namensfeld-Muster hatte dieses Risiko nicht (Werte werden dort
+schon bei jedem Tastenanschlag entitätsgebunden gemerkt, nicht erst bei
+Fokusverlust).
+
+### 16.1 `PendingFieldSave` (`app/adapters/gui/_pending_field_save.py`)
+
+Extrahiert das robuste Namensfeld-Muster als kleinen, wiederverwendbaren
+Baustein — entitätsgebunden (`StudentId`), nicht widgetgebunden:
+
+```python
+class PendingFieldSave:
+    def __init__(self, window, *, capture, apply): ...
+    def note_change(self) -> None: ...  # sofort erfassen; anderer Entity zuvor -> flush()
+    def flush(self) -> None: ...        # Debounce-Timer abbrechen, ggf. apply() aufrufen
+```
+
+Zwei Instanzen in `main_window.py` (`self._name_pending_save`,
+`self._accommodations_pending_save`), gesammelt in
+`self._pending_edits: list[PendingFieldSave]`.
+
+### 16.2 Änderungserkennung: kein `<KeyRelease>`
+
+- Namensfelder (`textvariable`-gebunden): `trace_add("write", ...)` auf die
+  `StringVar`s statt `<KeyRelease>` — deckt auch Paste/Kontextmenü ab.
+- Nachteilsausgleiche-Feld (`WrappedTextField`, kein `textvariable`):
+  `<<Modified>>` (Tk-Standardmechanismus für Text-Widget-Änderungen),
+  `edit_modified(False)` als Pflicht-Reset im Handler. `<<Modified>>` feuert
+  auch beim programmatischen Neubefüllen für einen neu selektierten
+  Schüler — `_apply_accommodations_field()` normalisiert deshalb einmalig
+  und vergleicht gegen den tatsächlichen Schülerwert, bevor dispatcht wird
+  (sonst würde jeder Tischwechsel einen No-op-Schreibvorgang auslösen).
+
+### 16.3 Zentraler Commit-Hook, Reentrancy-frei
+
+```python
+# _mixin_details.py
+def _commit_pending_edits(self) -> None:
+    for pending in self._pending_edits:
+        pending.flush()
+```
+
+Wichtige Architektur-Invariante: dieser Hook wird **nicht** von
+`_reconcile_desk_detail_state()` aufgerufen (das liefe innerhalb des noch
+laufenden `apply_state()`-Aufrufs, der diese Methode aufgerufen hat, und
+würde `dispatch()` verschachtelt auslösen). Stattdessen läuft er in den
+fünf zentralen Selektions-Settern in `_mixin_selection.py`
+(`_set_selection_single`, `_set_selection_focus`,
+`_collapse_selection_to_anchor`, `move_selection`, `expand_selection`),
+jeweils **vor** deren jeweiligem Dispatch — dadurch bleiben
+Feld-Flush-Dispatch und Selektions-Dispatch zwei aufeinanderfolgende,
+nicht verschachtelte `apply_state()`-Zyklen. Per Grep verifiziert, dass
+`self.selection` im gesamten Projekt ausschließlich über diese fünf
+Funktionen verändert wird (sonst nur bei Konstruktion und in
+`apply_state()` selbst zugewiesen) — diese Invariante muss bei künftigen
+Selektions-Änderungen erhalten bleiben, sonst kann ein neuer Pfad am
+Pending-Edit-Commit vorbeikommen.
+
+Als Nebeneffekt dieser Umstellung wurde `_reconcile_desk_detail_state()`
+(bisher: Detail-Zustand wurde bei *jeder* Koordinatenänderung verworfen)
+auch fachlich korrigiert — er bleibt jetzt beim Wechsel zu einem anderen
+Schüler-Tisch erhalten (nur die Koordinaten folgen, `EDITING` wird auf
+`REVEALED` heruntergestuft) und schließt nur noch bei leerer Zelle/
+Lehrertisch/Mehrfachauswahl vollständig.
+
+## 17. Feature-Erweiterung: Snapshots
+
+Nutzeranfrage: benannte Momentaufnahmen der Tischkoordinaten
+(Schülertische und Lehrertisch), bewusst ohne Diagnose-/Dokumentationsdaten,
+mit Erstellen/Laden/Umbenennen/Löschen über ein eigenes Popup.
+
+### 17.1 Datenmodell-Erweiterung (v4)
+
+`SeatingPlan` (in `app/core/domain/models_v4.py`) erhält ein neues Feld:
+
+```python
+@dataclass(slots=True)
+class SeatingSnapshot:
+    snapshot_id: str
+    name: str
+    created_at: str    # ISO-8601, unveränderlich
+    last_used_at: str  # ISO-8601, getrennt von created_at -- s. 17.4
+    teacher_seat: Seat
+    seats: dict[StudentId, Seat] = field(default_factory=dict)
+
+# SeatingPlan:
+snapshots: list[SeatingSnapshot] = field(default_factory=list)  # NEU
+```
+
+JSON-Schema-Ergänzung (Abschnitt 1.2, neues Top-Level-Feld neben `documentation`):
+
+```json
+"snapshots": [
+  {
+    "snapshot_id": "3f9a...",
+    "name": "Montag",
+    "created_at": "2026-01-01T09:00:00",
+    "last_used_at": "2026-01-02T10:00:00",
+    "teacher_seat": { "x": 0, "y": -1 },
+    "seats": { "<student_id>": { "x": 1, "y": 0 } }
+  }
+]
+```
+
+Additiv und rückwärtskompatibel (wie alle bisherigen v4-Erweiterungen) —
+kein Format-Versions-Bump nötig; alte Plandateien ohne `"snapshots"` laden
+mit leerer Liste.
+
+### 17.2 Matching: zwei getrennte Prädikate (`app/core/domain/snapshot_matching.py`)
+
+```python
+def positions_match(snapshot: SeatingSnapshot, plan: SeatingPlan) -> bool: ...
+def is_full_match(snapshot: SeatingSnapshot, plan: SeatingPlan) -> bool: ...
+```
+
+- `positions_match`: Lehrertisch + alle **gemeinsamen** Schüler:innen
+  stimmen überein; unterschiedliche Schüler:innenmengen sind erlaubt (ein
+  seitdem neu hinzugekommenes Kind bricht den Match nicht). Keine
+  gemeinsamen Schüler:innen zwischen zwei nichtleeren Zuständen → keine
+  belegbare Gleichheit.
+- `is_full_match`: zusätzlich exakt gleiche Schüler:innenmenge — Basis für
+  die "aktuell geladen"-Markierung in der GUI und die Duplikat-Sperre beim
+  Erstellen eines neuen Snapshots.
+
+Beide werden live berechnet, nicht gespeichert — mehrere Snapshots können
+dadurch gleichzeitig als "aktuell geladen" gelten (kein `loaded_snapshot_id`-
+Feld), und zwei gespeicherte Snapshots dürfen denselben Zustand beschreiben
+(keine Duplikaterkennung zwischen Snapshots, nur "ist der aktuelle Plan
+bereits als Snapshot vorhanden").
+
+### 17.3 Usecases mit expliziten Result-Objekten (`app/core/usecases/v4/snapshot_usecases.py`)
+
+```python
+@dataclass(frozen=True)
+class CreateSnapshotResult:
+    plan: SeatingPlan
+    created: bool
+    snapshot_id: str | None
+
+@dataclass(frozen=True)
+class SnapshotMutationResult:  # delete/rename/restore
+    plan: SeatingPlan
+    changed: bool
+```
+
+Handler (`app/application/handlers/snapshot_handlers.py`) werten
+ausschließlich `result.created`/`result.changed` aus — nicht Plan-Identität,
+Listenlänge oder Equality als verstecktes Protokoll. Wie
+`accommodation_usecases.py`: jeder Usecase startet mit
+`next_plan = deepcopy(plan)` und mutiert danach ausschließlich `next_plan`.
+
+`restore_snapshot()` platziert im Snapshot fehlende, aktuell vorhandene
+Schüler:innen nicht verworfen, sondern in einer horizontal um x=0
+zentrierten Reihe unterhalb aller Snapshot-Koordinaten
+(`SNAPSHOT_RESTORE_ROW_GAP = 1` Leerzeile Abstand) — keine bestehende
+Auto-Layout-Logik im Projekt gefunden, die dafür wiederverwendet werden
+könnte.
+
+### 17.4 `last_used_at` getrennt von `created_at`
+
+Grundlage für die Sortierung der Snapshot-Liste (zuletzt verwendet zuerst):
+`create_snapshot()` setzt `last_used_at = created_at`; `restore_snapshot()`
+aktualisiert `last_used_at` auf jetzt; `rename_snapshot()` lässt es
+unverändert.
+
+### 17.5 Strukturierter Fehlertransport, getrennt vom Domainmodell
+
+`SeatingSnapshot` enthält bewusst **keine** Lade-/UI-Fehlerinformation.
+Stattdessen `SnapshotLoadIssue` (`app/infrastructure/repositories/v4/
+snapshot_load_issue.py`, Felder `snapshot_id`,
+`reason: Literal["invalid_student_id", "invalid_seat"]`, `detail`) als
+reine Infrastruktur-Information. Erzeugt nur für einzelne kaputte
+`seats`-Einträge innerhalb eines ansonsten gültigen Snapshots (dieser eine
+Eintrag wird übersprungen, der Rest bleibt nutzbar); alle anderen
+fehlerhaften Snapshot-Rohdaten (fehlende/doppelte `snapshot_id`, leerer
+Name, kaputter Lehrertisch) folgen dem bereits etablierten
+Deserializer-Muster (still reparieren mit Default, oder ganzen Eintrag
+verwerfen) — vollständige Abgrenzung als Tabelle im Docstring von
+`deserializer_v4.py::_deserialize_snapshots()`.
+
+`JsonSeatingPlanRepositoryV4.load_snapshot_load_issues(plan_path)` ist eine
+bewusst **separate** Repository-Methode statt einer Erweiterung von
+`load_plan()`s Rückgabewert — der `SeatingPlanRepository`-Port
+(`load_plan(...) -> SeatingPlan`) und seine zahlreichen Aufrufer bleiben
+dadurch unverändert; Kosten ist ein möglicher zweiter Lesevorgang derselben
+Datei. Bewusst **ohne Cache**: die GUI ruft diese Methode ausschließlich im
+Moment des Restore-Klicks auf (`_mixin_snapshots.py`), nicht beim
+Planöffnen — ein GUI-seitiger Cache würde veralten, sobald *irgendeine*
+nachfolgende Plan-Speicherung (auch eine unabhängige) die Snapshots aus dem
+sauberen In-Memory-Modell neu schreibt und damit vormals kaputte Rohdaten
+aus der Datei entfernt.
+
+### 17.6 GUI: Snapshots-Popup (`app/adapters/gui/_mixin_snapshots.py`)
+
+Toplevel mit Treeview + Toolbar-Buttons, im Aufbau an
+`_mixin_symbol_management.py` angelehnt (Listen-CRUD-Popup), nicht an die
+Canvas-Vorschau aus `_sitzplan_popup.py`. Menüeintrag "Snapshots
+verwalten…" im Ansicht-Menü (`_mixin_menu.py`). Löschen-Bestätigung ist ein
+eigener kleiner Toplevel-Dialog mit "nicht mehr anzeigen"-Checkbox (Standard-
+`messagebox` hat keinen Checkbox-Slot), persistiert in neuer
+`KartographSettings.hide_snapshot_delete_confirm`.
+
+---
+
 *Erstellt: 2026-06-23 — Kartograph Architekturplan v2*
 *Erweitert: 2026-06-25 — Abschnitt 9a (PDF-Migration), Abschnitt 11 (Nachteilsausgleiche)*
 *Erweitert: 2026-06-25 — Abschnitt 12 (nächste Tasks: Backup-Rotation, Guardrail-Anpassung, add_symbol-Dialog)*
@@ -1807,4 +2018,5 @@ ab, die im Rahmen von T6/T7 in derselben Toolbar entstanden sind.
 *Erweitert: 2026-06-25 — Abschnitt 15 (neu: fehlende Tastatur-Shortcuts für die vier Doku-Toolbar-Aktionen RENAME_DOCUMENTATION_DATE/ADD_GRADE_COLUMN/DELETE_GRADE_COLUMN/DELETE_DOCUMENTATION_DATE als T14 nachgetragen)*
 *Erweitert: 2026-06-26 — Abschnitt 13: Bucket A abgearbeitet (alle fünf Architektur-Schulden-Gruppen — Selektion, Editor-Oberfläche, Plan duplizieren, Session-Navigation, Viewport/Theme/Export/Tablegroup/Settings — auf AppState/Intent-Dispatch umgestellt, je mit Handler-Tests und isoliertem Tk-Smoke-Test verifiziert; ToggleThemeIntent dabei analog zu T8/T9 ersatzlos entfernt; zwei vorbestehende Bugs nebenbei gefixt: DuplicatePlanIntent ignorierte den Nutzer-Namen, self.default_plans_dir war nie gesetzt)*
 *Erweitert: 2026-06-26 — Abschnitt 14: T10-T12 abgearbeitet (Domain-/Infrastruktur-Kern, alle Intent-Klassen und alle Handler-Funktionen dokumentiert, per AST-Scan auf 0 verbleibende fehlende Docstrings verifiziert)*
+*Erweitert: 2026-09-15 — Abschnitt 16 (neu: PendingFieldSave-Baustein, Fix für Nachteilsausgleiche-Datenverlust und schließende Detailansicht beim Tischwechsel), Abschnitt 17 (neu: Feature Snapshots — Datenmodell, Matching-Prädikate, Usecase-Result-Objekte, strukturierter Fehlertransport, GUI-Popup)*
 *Erweitert: 2026-06-26 — Abschnitt 14: T13 abgearbeitet ("dünne" Docstrings um Args:-Abschnitte ergänzt, 235 Treffer in 49 Dateien — fast doppelt so viele wie ursprünglich geschätzt, da T10-T12 selbst neue dünne Docstrings erzeugt hatten; per frischem AST-Scan auf 0 verbleibende Treffer verifiziert); Abschnitt 15: T14 abgearbeitet (Tastatur-Shortcuts für die vier Doku-Toolbar-Aktionen ergänzt, Kollisionsfreiheit über KeybindingRegistry.conflicts() verifiziert)*

@@ -46,6 +46,7 @@ class KartographSettings:
     sitzplan_popup_delay: int = DEFAULT_SITZPLAN_POPUP_DELAY
     save_delay: float = DEFAULT_SAVE_DELAY
     show_archived_plans: bool = False
+    hide_snapshot_delete_confirm: bool = False
 
     @classmethod
     def from_dict(cls, payload: dict) -> "KartographSettings":
@@ -127,6 +128,7 @@ class KartographSettings:
                 maximum=MAX_SAVE_DELAY,
             ),
             show_archived_plans=_bool(payload.get("show_archived_plans"), False),
+            hide_snapshot_delete_confirm=_bool(payload.get("hide_snapshot_delete_confirm"), False),
         )
 
     def to_dict(self) -> dict:
@@ -149,6 +151,7 @@ class KartographSettings:
             "sitzplan_popup_delay": self.sitzplan_popup_delay,
             "save_delay": self.save_delay,
             "show_archived_plans": self.show_archived_plans,
+            "hide_snapshot_delete_confirm": self.hide_snapshot_delete_confirm,
         }
 
 

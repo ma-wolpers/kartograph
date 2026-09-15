@@ -9,6 +9,94 @@ Regel:
 ## [Unreleased]
 
 ### Added
+- **Nachteilsausgleiche-Datenverlust beim Tischwechsel behoben** (Nutzerbeobachtung: Eingabe im
+  Nachteilsausgleiche-Feld verschwand, wenn direkt danach ein anderer Tisch angeklickt wurde).
+  Root Cause: `_on_canvas_click()` (`_mixin_canvas_events.py`) selektiert synchron den neuen Tisch
+  → `apply_state()` (`main_window.py`) ruft darin synchron `_refresh_details_panel()` auf, das den
+  Feldinhalt sofort mit den Daten des *neuen* Schülers überschreibt — erst danach löst
+  `canvas.focus_set()` das `<FocusOut>` des *alten* Widgets aus, das dann bereits den
+  überschriebenen Inhalt liest. Das bestehende Namensfeld-Muster
+  (`_schedule_name_save()`/`_flush_pending_name_save()`) hatte dieses Risiko nicht, weil es Werte
+  sofort bei jeder Änderung unter der `student_id` merkt statt sich auf `<FocusOut>` zu verlassen.
+  - **Neu: `app/adapters/gui/_pending_field_save.py`** (`PendingFieldSave`) — extrahiert dieses
+    Muster als kleinen, entitätsgebundenen Baustein (Debounce + Flush-bei-Entity-Wechsel + expliziter
+    Commit), verwendet jetzt für Namen UND Nachteilsausgleiche. `_mixin_details.py`:
+    `_schedule_name_save`/`_flush_pending_name_save` → `_capture_name_fields`/`_apply_name_fields`;
+    neu `_capture_accommodations_field`/`_apply_accommodations_field`.
+  - **Änderungserkennung**: `<KeyRelease>` ersetzt durch `trace_add("write", ...)` auf den
+    Namensfeld-`StringVar`s bzw. `<<Modified>>` auf dem Nachteilsausgleiche-`WrappedTextField`
+    (deckt auch Paste/Kontextmenü ab; `WrappedTextField.bind()` leitet `<<Modified>>` korrekt an
+    das interne `tk.Text`-Widget weiter, verifiziert an dessen Quelltext). Da `<<Modified>>` anders
+    als `<FocusOut>` auch beim programmatischen Neubefüllen für den neu selektierten Schüler feuert,
+    normalisiert/vergleicht `_apply_accommodations_field()` jetzt vor jedem Dispatch gegen den
+    tatsächlichen Schülerwert (sonst würde jeder Tischwechsel einen unnötigen Schreibvorgang für den
+    *neuen* Schüler auslösen).
+  - **Zentraler Commit-Hook**: `_commit_pending_edits()` (`_mixin_details.py`) ersetzt alle
+    verstreuten Einzel-Flush-Aufrufe (`main_window.py`, `_on_name_field_focus_out`,
+    `_mixin_docs_view.py`, `_mixin_plan_list.py`).
+- **Detailansicht schließt sich nicht mehr beim Tischwechsel** (Nutzeranfrage): `_desk_detail_state`
+  wurde bisher bei *jeder* Koordinatenänderung verworfen (`_reconcile_desk_detail_state()`), weil
+  `apply_state()` nach jedem Dispatch (Klick **und** Pfeiltaste) `_refresh_details_panel()` aufruft.
+  Bleibt jetzt beim Wechsel zu einem anderen einzeln belegten Schüler-Tisch erhalten (nur die
+  Koordinaten folgen); `EDITING` wird dabei auf `REVEALED` heruntergestuft, damit Navigation nicht
+  automatisch den Namenseditor des neuen Schülers aktiviert. Schließt weiterhin vollständig bei
+  leerer Zelle/Lehrertisch/Mehrfachauswahl.
+  - **Reentrancy-Fix (wichtig für beide Punkte oben zusammen)**: `_commit_pending_edits()` darf
+    NICHT innerhalb von `_reconcile_desk_detail_state()` laufen (das wird von `_refresh_details_panel()`
+    aufgerufen, die wiederum Teil von `apply_state()` ist) — ein dort ausgelöster Flush würde
+    `dispatch()` verschachtelt innerhalb eines noch laufenden `apply_state()`-Aufrufs auslösen.
+    Stattdessen wandert `_commit_pending_edits()` in die fünf zentralen Selektions-Setter
+    (`_mixin_selection.py`: `_set_selection_single`, `_set_selection_focus`,
+    `_collapse_selection_to_anchor`, `move_selection`, `expand_selection`), jeweils VOR deren
+    Dispatch. Verifiziert per Grep, dass dies tatsächlich der einzige Weg ist, wie `self.selection`
+    im Projekt geändert wird (nur zwei Zuweisungsstellen: Konstruktion und `apply_state()`) — eine
+    frühere Zwischenfassung hatte `move_selection`/`expand_selection` (die tatsächlichen
+    Pfeiltasten-Handler) fälschlich nicht als eigene Einhak-Punkte erkannt, da sie
+    `MoveSelectionIntent` direkt dispatchen statt über `_set_selection_focus()` zu laufen (das ist
+    stattdessen für Maus-Drag reserviert). `_reconcile_desk_detail_state()` ist dadurch wieder rein
+    dispatch-frei, wie ihr Docstring es ohnehin verlangt.
+- **Neues Feature: Snapshots** (Nutzeranfrage) — benannte Momentaufnahmen der Tischkoordinaten,
+  bewusst ohne Diagnose-/Dokumentationsdaten. Datenmodell-Entscheidungen und größere
+  Architekturfragen wurden vorab mit der Nutzerin über mehrere Review-Runden abgestimmt (Details s.
+  Git-Historie der Plan-Diskussion, hier nur die technischen Kernentscheidungen):
+  - **`SeatingSnapshot`** (`app/core/domain/models_v4.py`), additiv zu `SeatingPlan.snapshots` —
+    rein fachliche Daten (`snapshot_id`, `name`, `created_at`, `last_used_at`, `teacher_seat`,
+    `seats: dict[StudentId, Seat]`). Kein Format-Versions-Bump nötig (rückwärtskompatible
+    Deserialisierung wie überall sonst im v4-Format).
+  - **Zwei getrennte Matching-Prädikate** (`app/core/domain/snapshot_matching.py`) statt einer
+    universellen Funktion: `positions_match()` (Lehrertisch + alle *gemeinsamen* Schüler:innen
+    stimmen überein, unterschiedliche Rosters erlaubt) vs. `is_full_match()` (zusätzlich exakt
+    gleiche Schüler:innenmenge — Basis für "aktuell geladen" und die Duplikat-Sperre beim
+    Erstellen). Beide live berechnet, keine gespeicherten Felder — mehrere Snapshots können
+    dadurch gleichzeitig als "aktuell geladen" gelten, und gespeicherte Duplikate sind erlaubt
+    (keine Duplikaterkennung zwischen Snapshots, nur "ist der aktuelle Plan bereits gespeichert").
+  - **Usecases mit expliziten Result-Objekten** (`app/core/usecases/v4/snapshot_usecases.py`):
+    `CreateSnapshotResult`/`SnapshotMutationResult` statt impliziter Signale (Plan-Identität,
+    Listenlänge) — Handler werten ausschließlich `result.created`/`result.changed` aus. Restore
+    platziert im Snapshot fehlende Schüler:innen in einer horizontal zentrierten Spare-Row
+    unterhalb aller Snapshot-Koordinaten (`SNAPSHOT_RESTORE_ROW_GAP`), statt sie zu verwerfen.
+  - **Strukturierter Fehlertransport getrennt vom Domainmodell**: `SnapshotLoadIssue`
+    (`app/infrastructure/repositories/v4/snapshot_load_issue.py`) ist reine
+    Infrastruktur-/Feedback-Information, kein Feld auf `SeatingSnapshot`. Einzelne kaputte
+    `seats`-Einträge werden beim Deserialisieren übersprungen (Snapshot bleibt nutzbar) und
+    strukturiert gemeldet; alle anderen fehlerhaften Snapshot-Rohdaten (fehlende/doppelte
+    `snapshot_id`, leerer Name, kaputter Lehrertisch) folgen dem bereits etablierten
+    Deserializer-Muster (still reparieren mit Default, oder ganzen Eintrag verwerfen) — genaue
+    Abgrenzung als Tabelle im Docstring von `_deserialize_snapshots()`.
+  - **`load_snapshot_load_issues()` bewusst ohne Cache**: eine frühere Zwischenfassung cachte diese
+    Hinweise einmalig beim Planöffnen im GUI-State — das veraltet, weil *jede* nachfolgende
+    Plan-Speicherung (auch eine völlig unabhängige) alle Snapshots aus dem sauberen In-Memory-Modell
+    neu schreibt und damit vormals kaputte Rohdaten aus der Datei entfernt. Statt Invalidierungslogik
+    an mehreren Mutationsstellen: kein Cache, `_load_selected_snapshot()`
+    (`_mixin_snapshots.py`) liest die Datei frisch in dem Moment, in dem der Benutzer auf "Laden"
+    klickt. `JsonSeatingPlanRepositoryV4.load_snapshot_load_issues()` ist dafür bewusst eine
+    separate Repository-Methode statt einer Erweiterung von `load_plan()`s Rückgabewert — der
+    `SeatingPlanRepository`-Port und seine zahlreichen Aufrufer bleiben dadurch unverändert.
+  - **GUI**: `app/adapters/gui/_mixin_snapshots.py`, Toplevel-Popup mit Treeview (Muster:
+    `_mixin_symbol_management.py`, nicht die Canvas-Vorschau aus `_sitzplan_popup.py`) — Erstellen/
+    Laden/Umbenennen/Löschen. Löschen-Bestätigung ist ein eigener kleiner Toplevel-Dialog (Standard-
+    `messagebox` hat keinen Checkbox-Slot) mit "nicht mehr anzeigen"-Checkbox, persistiert in neuer
+    `KartographSettings.hide_snapshot_delete_confirm`.
 - Klick-Spaltenauflösung im linken Doku-Treeview korrigiert (Nutzerbeobachtung: Klick auf eine
   Datumsspalte markierte immer die Spalte rechts daneben). Ursache: `_on_docs_tree_click()`
   (`_mixin_docs_events.py`) berechnete den Spaltenindex als `int(col_id[1:]) - 1` — korrekt nur,

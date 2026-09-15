@@ -38,6 +38,7 @@ from app.adapters.gui._mixin_plan_list import PlanListMixin
 from app.adapters.gui._mixin_plan_save import PlanSaveMixin
 from app.adapters.gui._mixin_popup import PopupMixin
 from app.adapters.gui._mixin_sitzplan_popup import SitzplanPopupMixin
+from app.adapters.gui._mixin_snapshots import SnapshotsMixin
 from app.adapters.gui._mixin_selection import SelectionMixin
 from app.adapters.gui._mixin_settings import SettingsMixin
 from app.adapters.gui._mixin_shortcut_handlers import ShortcutHandlersMixin
@@ -119,6 +120,7 @@ class KartographMainWindow(
     LaufkernMixin,
     PopupMixin,
     SitzplanPopupMixin,
+    SnapshotsMixin,
     ShortcutHandlersMixin,
     ShortcutMixin,
     LayoutDocsMixin,
@@ -283,6 +285,12 @@ class KartographMainWindow(
         self._symbol_management_table: tui.Treeview | None = None
         self._symbol_management_edit_button: tui.Button | None = None
         self._symbol_management_delete_button: tui.Button | None = None
+        self._snapshot_window: ui.Toplevel | None = None
+        self._snapshot_table: tui.Treeview | None = None
+        self._snapshot_add_button: tui.Button | None = None
+        self._snapshot_load_button: tui.Button | None = None
+        self._snapshot_rename_button: tui.Button | None = None
+        self._snapshot_delete_button: tui.Button | None = None
         self._shortcut_runtime_debug_context_var = ui.StringVar(value="")
         self._shortcut_runtime_debug_summary_var = ui.StringVar(value="")
         self._shortcut_runtime_debug_offline_var = ui.BooleanVar(value=False)

@@ -7,6 +7,12 @@ via ``KartographAppController.dispatch(intent)`` verarbeitet.
 from app.core.intents.base import Intent
 
 from app.core.intents.accommodation_intents import SetAccommodationsIntent
+from app.core.intents.snapshot_intents import (
+    CreateSnapshotIntent,
+    DeleteSnapshotIntent,
+    RenameSnapshotIntent,
+    RestoreSnapshotIntent,
+)
 from app.core.intents.plan_intents import (
     OpenPlanIntent,
     CreatePlanIntent,
@@ -77,6 +83,11 @@ __all__ = [
     "Intent",
     # Accommodation
     "SetAccommodationsIntent",
+    # Snapshot
+    "CreateSnapshotIntent",
+    "DeleteSnapshotIntent",
+    "RenameSnapshotIntent",
+    "RestoreSnapshotIntent",
     # Plan
     "OpenPlanIntent",
     "CreatePlanIntent",
