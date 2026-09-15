@@ -9,6 +9,12 @@ Regel:
 ## [Unreleased]
 
 ### Added
+- **Stale v3-Import in `plan_history.py` korrigiert**: `SeatingPlan` kam aus `app.core.domain.models`
+  (v3) statt `models_v4` — bei aktivem `from __future__ import annotations` und ohne jede
+  `get_type_hints()`/`__annotations__`-Introspektion im Projekt (per Grep verifiziert) rein
+  kosmetisch, `deepcopy()`/`==` arbeiten ohnehin per Duck-Typing auf dem tatsächlich übergebenen
+  Objekt — trotzdem korrigiert, da der Import sonst einen falschen Eindruck über die tatsächlich
+  verwendete Modellversion vermittelt. Volle Testsuite (603 Tests) danach unverändert grün.
 - **Nachteilsausgleiche-Datenverlust beim Tischwechsel behoben** (Nutzerbeobachtung: Eingabe im
   Nachteilsausgleiche-Feld verschwand, wenn direkt danach ein anderer Tisch angeklickt wurde).
   Root Cause: `_on_canvas_click()` (`_mixin_canvas_events.py`) selektiert synchron den neuen Tisch

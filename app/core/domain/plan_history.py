@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from pathlib import Path
 
-from app.core.domain.models import SeatingPlan
+from app.core.domain.models_v4 import SeatingPlan
 
 
 class PlanHistory:
