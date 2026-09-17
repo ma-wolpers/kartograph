@@ -9,6 +9,18 @@ Regel:
 ## [Unreleased]
 
 ### Added
+- **Neu: `app/core/domain/seat_permutation.py`** (`resolve_cut_paste_moves`) — bestimmt die vollständige
+  Zielbelegung eines Ausschneiden-Einfügen-Vorgangs rein lesend aus dem unveränderten Ausgangszustand.
+  Fachliche Herleitung (siehe Moduldocstring): Ausgangs- und Zielplätze der ausgeschnittenen Schüler sind
+  je paarweise verschieden, daher zerfällt der gerichtete Graph "Ausgangsplatz → Zielplatz" pro Eintrag
+  zwingend in disjunkte einfache Ketten und Kreise. Ein fremder Schüler kann daraus beweisbar nur an
+  einem Kettenkopf (Zielzelle) sitzen und landet eindeutig am Kettenende (frei werdender Ausgangsplatz)
+  — verkettet über mehrere Stationen bei Mehrfachauswahl, aber nachweislich nie über die Auswahl und ihre
+  unmittelbaren Kettenenden hinaus. `StudentClipboard.paste_into_plan()` nutzt das im Ausschneiden-Modus
+  jetzt anstelle des bisherigen `delete_student()`-Aufrufs für fremde Belegungen an Zielzellen — betroffen
+  ist nur Cut, Kopieren räumt fremde Belegungen weiterhin wie bisher per Löschen. Neue Tests in
+  `tests/test_seat_permutation.py` (reine Fachsemantik) und ein Integrationstest in
+  `tests/test_student_clipboard.py` (`test_paste_after_cut_follows_displacement_chain_end_to_end`).
 - **Stale v3-Import in `plan_history.py` korrigiert**: `SeatingPlan` kam aus `app.core.domain.models`
   (v3) statt `models_v4` — bei aktivem `from __future__ import annotations` und ohne jede
   `get_type_hints()`/`__annotations__`-Introspektion im Projekt (per Grep verifiziert) rein
