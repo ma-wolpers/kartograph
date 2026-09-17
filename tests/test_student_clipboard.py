@@ -265,7 +265,9 @@ class TestPasteAfterCut:
         assert pasted == 0
         assert teacher_conflict is False
 
-    def test_paste_after_cut_overwrites_foreign_occupant(self):
+    def test_paste_after_cut_swaps_with_foreign_occupant(self):
+        """Einfügen auf eine belegte Zelle tauscht die Plätze, statt den dort
+        sitzenden Schüler zu löschen (StudentId und Historie bleiben erhalten)."""
         anna = make_student(x=1, y=0)
         ben = make_student(x=3, y=0)
         plan = make_plan(students=[anna, ben])
@@ -275,7 +277,9 @@ class TestPasteAfterCut:
         next_plan, pasted, _ = clip.paste_into_plan(plan, target_x=3, target_y=0)
 
         assert pasted == 1
-        assert next_plan.classroom.student_by_id(ben.student_id) is None
+        ben_after = next_plan.classroom.student_by_id(ben.student_id)
+        assert ben_after is not None
+        assert (ben_after.seat.x, ben_after.seat.y) == (1, 0)
         moved = next_plan.classroom.student_at(3, 0)
         assert moved.student_id == anna.student_id
 
@@ -304,6 +308,35 @@ class TestPasteAfterCut:
         coords_with_shift = {(s.x, s.y): s.shift_x for s in next_plan.tablegroups[0].seats}
         assert coords_with_shift[(1, 0)] == pytest.approx(0.1)
         assert coords_with_shift[(2, 0)] == pytest.approx(0.2)
+
+    def test_paste_after_cut_follows_displacement_chain_end_to_end(self):
+        """Integrationstest fuer die Verdrahtung mit seat_permutation: ein
+        verdraengter Fremder, dessen naheliegender Platz selbst Ziel eines
+        zweiten Batch-Schuelers ist, landet ueber paste_into_plan korrekt am
+        Kettenende - inklusive Tischgruppen-Koordinaten-Rewrite fuer ihn."""
+        anna = make_student(x=3, y=0)
+        ben = make_student(x=3, y=1)
+        foreigner = make_student(x=3, y=-1)
+        plan = make_plan(students=[anna, ben, foreigner])
+        plan.tablegroups.append(
+            TableGroup(group_id=1, seats=[GroupSeat(x=3, y=-1, shift_x=0.7)])
+        )
+        clip = StudentClipboard()
+        clip.mark_for_cut(plan, [(3, 0), (3, 1)])
+
+        next_plan, pasted, _ = clip.paste_into_plan(plan, target_x=3, target_y=-1)
+
+        assert pasted == 2
+        assert next_plan.classroom.student_by_id(foreigner.student_id) is not None
+        anna_seat = next_plan.classroom.student_by_id(anna.student_id).seat
+        ben_seat = next_plan.classroom.student_by_id(ben.student_id).seat
+        foreigner_seat = next_plan.classroom.student_by_id(foreigner.student_id).seat
+        assert (anna_seat.x, anna_seat.y) == (3, -1)
+        assert (ben_seat.x, ben_seat.y) == (3, 0)
+        assert (foreigner_seat.x, foreigner_seat.y) == (3, 1)
+
+        coords_with_shift = {(s.x, s.y): s.shift_x for s in next_plan.tablegroups[0].seats}
+        assert coords_with_shift[(3, 1)] == pytest.approx(0.7)
 
 
 # ---------------------------------------------------------------------------

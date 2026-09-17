@@ -21,7 +21,13 @@ Zwei Modi, die sich in ihrer Semantik beim Einfügen unterscheiden:
   sie, wobei ``StudentId`` und damit die gesamte Dokumentationshistorie
   erhalten bleiben. Wird ein markierter Schüler zwischen Markieren und
   Einfügen anderweitig aus dem Plan entfernt, wird sein Eintrag beim Einfügen
-  übersprungen statt einen Fehler zu werfen.
+  übersprungen statt einen Fehler zu werfen. Belegt am Zielplatz bereits ein
+  *fremder* Schüler (nicht Teil der Auswahl), wird dieser **nicht gelöscht**,
+  sondern über :func:`~app.core.domain.seat_permutation.resolve_cut_paste_moves`
+  auf den dadurch frei werdenden Platz umgesetzt — verkettet über mehrere
+  Stationen, falls auch dieser Platz Ziel eines anderen ausgeschnittenen
+  Schülers ist. Auch dabei bleiben ``StudentId``, Dokumentationshistorie und
+  Tischgruppen-Mitgliedschaft des Verdrängten erhalten.
 
 Beide Modi erlauben mehrfaches Einfügen aus demselben Puffer: Kopieren
 erzeugt dabei jedes Mal eine neue ID, Ausschneiden verschiebt dieselben
@@ -35,6 +41,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.core.domain.models_v4 import Seat, SeatingPlan
+from app.core.domain.seat_permutation import resolve_cut_paste_moves
 from app.core.domain.student_id import StudentId
 from app.core.usecases.v4.student_usecases import create_student, delete_student
 
@@ -144,19 +151,26 @@ class StudentClipboard:
 
         Bestimmt für jeden Eintrag die Zielzelle relativ zu seinem
         gespeicherten Versatz. Schüler, die seit dem Kopieren/Ausschneiden
-        aus dem Plan entfernt wurden, werden übersprungen. Belegt eine
-        Zielzelle bereits ein *fremder* Schüler (nicht Teil dieses
-        Puffer-Inhalts), wird dieser samt seiner Dokumentationshistorie
-        entfernt (analog zum bisherigen ``DeskClipboard``-Verhalten).
-        Der Lehrertisch kann nie überschrieben werden.
+        aus dem Plan entfernt wurden, werden übersprungen. Der Lehrertisch
+        kann nie überschrieben werden.
 
-        Beim Ausschneiden bleiben ``StudentId`` und Tischgruppen-Mitgliedschaft
-        erhalten (echte Verschiebung); beim Kopieren erhält jede eingefügte
-        Kopie eine frische ``StudentId`` ohne Tischgruppen-Mitgliedschaft und
-        ohne Dokumentationshistorie (analog zu ``create_student``). Trifft
-        eine Kopie auf eine noch unverschobene andere Quelle aus derselben
-        Auswahl (Selbstüberlappung beim Kopieren in den eigenen Auswahlbereich),
-        wird dieser einzelne Eintrag übersprungen statt Daten zu überschreiben.
+        Beim Ausschneiden wird die vollständige Zielbelegung über
+        :func:`~app.core.domain.seat_permutation.resolve_cut_paste_moves`
+        bestimmt: ``StudentId`` und Tischgruppen-Mitgliedschaft der
+        ausgeschnittenen Schüler bleiben erhalten (echte Verschiebung), und
+        belegt eine Zielzelle bereits ein *fremder* Schüler, wird dieser
+        **nicht gelöscht**, sondern auf den frei werdenden Platz umgesetzt
+        (siehe Moduldocstring dort für die fachliche Herleitung).
+
+        Beim Kopieren erhält jede eingefügte Kopie eine frische ``StudentId``
+        ohne Tischgruppen-Mitgliedschaft und ohne Dokumentationshistorie
+        (analog zu ``create_student``). Belegt eine Zielzelle bereits ein
+        *fremder* Schüler (nicht Teil dieses Puffer-Inhalts), wird dieser samt
+        seiner Dokumentationshistorie entfernt (analog zum bisherigen
+        ``DeskClipboard``-Verhalten). Trifft eine Kopie auf eine noch
+        unverschobene andere Quelle aus derselben Auswahl (Selbstüberlappung
+        beim Kopieren in den eigenen Auswahlbereich), wird dieser einzelne
+        Eintrag übersprungen statt Daten zu überschreiben.
 
         Args:
             plan: Zielplan.
@@ -185,25 +199,25 @@ class StudentClipboard:
                 continue
             targets.append((entry, x, y))
 
-        # Fremde Belegungen an Zielzellen raeumen. Eigene Batch-Mitglieder
-        # werden unten verschoben/dupliziert, nicht geloescht.
-        for _entry, x, y in targets:
-            existing = next_plan.classroom.student_at(x, y)
-            if existing is not None and existing.student_id not in batch_ids:
-                next_plan = delete_student(next_plan, existing.student_id)
-
         pasted = 0
         if self._mode == "cut":
-            # Alt->Neu-Koordinaten zuerst vollstaendig einsammeln, erst danach
-            # Tischgruppen-Sitze in einem Durchgang umschreiben. Vermeidet
-            # Koordinaten-Aliasing, wenn zwei verschobene Schueler innerhalb
-            # derselben Operation die Plaetze tauschen.
-            coord_moves: dict[tuple[int, int], tuple[int, int]] = {}
+            # Ausgangsplaetze werden vor jeder Mutation gelesen, damit die
+            # Zielbelegung (inkl. verdraengter Fremder) aus dem unveraenderten
+            # Zustand bestimmt wird; siehe seat_permutation.resolve_cut_paste_moves
+            # fuer die fachliche Herleitung, warum das immer eindeutig ist.
+            batch_moves: list[tuple[StudentId, tuple[int, int], tuple[int, int]]] = []
             for entry, x, y in targets:
                 student = next_plan.classroom.student_by_id(entry.student_id)
-                coord_moves[(student.seat.x, student.seat.y)] = (x, y)
-                student.seat = Seat(x=x, y=y)
-                pasted += 1
+                batch_moves.append((entry.student_id, (student.seat.x, student.seat.y), (x, y)))
+
+            moves = resolve_cut_paste_moves(next_plan.classroom, batch_moves)
+
+            coord_moves: dict[tuple[int, int], tuple[int, int]] = {}
+            for move in moves:
+                student = next_plan.classroom.student_by_id(move.student_id)
+                student.seat = Seat(x=move.to_seat[0], y=move.to_seat[1])
+                coord_moves[move.from_seat] = move.to_seat
+            pasted = len(batch_moves)
             if coord_moves:
                 for group in next_plan.tablegroups:
                     for seat in group.seats:
@@ -211,6 +225,13 @@ class StudentClipboard:
                         if new_coords is not None:
                             seat.x, seat.y = new_coords
         else:
+            # Fremde Belegungen an Zielzellen raeumen. Eigene Batch-Mitglieder
+            # werden unten dupliziert, nicht geloescht.
+            for _entry, x, y in targets:
+                existing = next_plan.classroom.student_at(x, y)
+                if existing is not None and existing.student_id not in batch_ids:
+                    next_plan = delete_student(next_plan, existing.student_id)
+
             for entry, x, y in targets:
                 if next_plan.classroom.student_at(x, y) is not None:
                     continue
