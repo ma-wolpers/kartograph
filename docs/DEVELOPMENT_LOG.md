@@ -8,6 +8,21 @@ Regel:
 
 ## [Unreleased]
 
+### Changed
+- **Shortcuts vollständig über den bw-gui-Keybinding-Contract (NumLock-Fix).**
+  - **Ursache:** `_mixin_edit.py` prüfte in drei Handlern `event.state & 0x0008` als „Alt“. Unter Windows-Tk ist das das NumLock-Bit (Alt = `0x20000`, live gemessen), deshalb waren Symbol-, Farb- und Mitarbeit-Kürzel bei NumLock wirkungslos.
+  - **Binder statt lokaler Kopie:** `_register_runtime_shortcut`/`_build_runtime_context` (lokale Binder-Kopie) sind entfernt. `_mixin_shortcuts.py` erzeugt genau einen bw-gui-`WindowShortcutBinder` (`_init_shortcut_binder`), `_bind_runtime_shortcut` delegiert nur noch. Das Debug-Overlay nutzt `self._shortcut_binder.build_context()`.
+  - **Neue Bindungstabelle:** `_mixin_shortcut_bindings.py` (`ShortcutBindingsMixin`). Symbol-, Leertasten-, Farb- und Mitarbeit-Kürzel liefen bisher per `bind_all` an der Registry vorbei. Jetzt laufen sie mit den neuen UiIntents `SYMBOL_SHORTCUT`, `COLOR_SHORTCUT` und `PARTICIPATION_RATING` über den Binder (Fenster-Bindtag, `modes=(PREVIEW,)`).
+  - **Modifier-Gating:** Das übernimmt jetzt die Registry (`allow_modifiers`). Die drei Bitmasken-Guards in `_mixin_edit.py` sind entfallen.
+  - **Doppelte Bindung entfernt:** `<Control-,>` war semantisch identisch zu `<Control-comma>`. Der Binder lehnt so etwas jetzt als Kollision ab.
+  - **Shortcut-Modus aus `AppState`:** Neu ist `app/application/shortcut_scope.py` (`is_preview_shortcut_scope`, explizite Mengen `PREVIEW_SHORTCUT_MODES`/`NON_PREVIEW_SHORTCUT_MODES`). Diese Funktion ersetzt `editor_view.winfo_ismapped()` im `mode_provider` und in `_shortcut_scope_allows`.
+  - **Ansichtswechsel aus `AppState`:** `_return_to_plan_list` wechselt die Ansicht nicht mehr selbst, sondern über `apply_state()`.
+  - **Guards:** `tools/ci/tk_state_guard.py` (AST-Check gegen `….state & …`) läuft über `tests/test_no_raw_tk_state_bitmasks.py` und `check_ai_guardrails.py`. Das Guardrail-Skript verlangt zusätzlich `WindowShortcutBinder(`, und seine Shortcut-Abdeckungsmarker zeigen auf `_mixin_shortcut_bindings.py`.
+  - **Tests:**
+    - `test_shortcut_bindings_headless.py`: echte Tabelle am echten Binder mit Fenster-Double, ohne Fenster und ohne Fokus-Übernahme.
+    - `test_shortcut_scope.py`
+    - `test_shortcut_bindings_window_tk.py`: echtes Hauptfenster, synthetischer Plan in `tmp_path`. Nur als Opt-in mit `TK_FOCUS_TESTS=1`, weil der Test den Tastaturfokus übernehmen muss.
+
 ### Added
 - **Dokuansicht: Namensspalten fixiert — logische Tabelle → drei Treeview-Projektionen.**
   - Zielbild: Die Dokutabelle ist fachlich *eine* logische Tabelle, projiziert in drei Treeviews
