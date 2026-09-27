@@ -12,6 +12,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # bw-gui (Keybinding-Contract, Test-Plugin) kommt als Submodul -- ohne
+          # recursive fehlte es in CI bzw. lief gegen einen fremden Stand.
+          submodules: recursive
 
       - name: Setup Python
         uses: actions/setup-python@v5
