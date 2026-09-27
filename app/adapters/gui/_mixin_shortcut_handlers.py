@@ -129,7 +129,7 @@ class ShortcutHandlersMixin:
         Löst *letter* live gegen die eigenen Symbole des AKTUELL offenen Plans
         auf (``resolve_custom_symbol_shortcut()``) — kein Rebind bei
         Planwechsel nötig, derselbe physische Tastenraum wird einmalig in
-        ``_mixin_shortcuts.py::_bind_shortcuts()`` gebunden (nur die aktuell
+        ``_mixin_shortcut_bindings.py::_bind_shortcuts()`` gebunden (nur die aktuell
         freien Buchstaben, s. ``reserved_symbol_letters()``). In der
         Dokuansicht wirkt der Toggle auf die dort gewählte Datumsspalte
         (``_toggle_documentation_symbol``); im Raster (kein Datums-Wähler)

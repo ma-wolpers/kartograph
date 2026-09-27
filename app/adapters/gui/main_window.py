@@ -42,6 +42,7 @@ from app.adapters.gui._mixin_snapshots import SnapshotsMixin
 from app.adapters.gui._mixin_selection import SelectionMixin
 from app.adapters.gui._mixin_settings import SettingsMixin
 from app.adapters.gui._mixin_shortcut_handlers import ShortcutHandlersMixin
+from app.adapters.gui._mixin_shortcut_bindings import ShortcutBindingsMixin
 from app.adapters.gui._mixin_shortcuts import ShortcutMixin
 from app.adapters.gui._mixin_tablegroup import TablegroupMixin
 from app.adapters.gui._mixin_tablegroup_logic import TablegroupLogicMixin
@@ -123,6 +124,7 @@ class KartographMainWindow(
     SitzplanPopupMixin,
     SnapshotsMixin,
     ShortcutHandlersMixin,
+    ShortcutBindingsMixin,
     ShortcutMixin,
     LayoutDocsMixin,
     LayoutMixin,

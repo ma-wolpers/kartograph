@@ -1,7 +1,7 @@
 """Tests: Custom-Symbol-Buchstaben-Shortcuts duerfen normale Texteingabe nicht abfangen.
 
 Die Bindungen entstehen jetzt fuer ~11 statt 1 Buchstaben (siehe
-_mixin_shortcuts.py::_bind_shortcuts()), daher wird der bestehende
+_mixin_shortcut_bindings.py::_bind_shortcuts()), daher wird der bestehende
 Laufzeit-Schutzmechanismus (bw_gui.contracts.keybinding) hier explizit fuer
 genau diese Bindungsform (modes=(UI_MODE_PREVIEW,),
 allow_when_text_input=False) abgesichert -- dieselbe Vertragsebene, mit der

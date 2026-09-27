@@ -67,7 +67,7 @@ def reserved_symbol_letters(symbol_definitions: Iterable[_HasShortcut]) -> froze
 
     Einzige Stelle im gesamten Projekt, an der beide Quellen zusammengeführt
     werden — Validierung (über den ``reserved_letters``-Parameter unten),
-    GUI-Bindung (``app/adapters/gui/_mixin_shortcuts.py::_bind_shortcuts()``)
+    GUI-Bindung (``app/adapters/gui/_mixin_shortcut_bindings.py::_bind_shortcuts()``)
     und das Anlage-/Bearbeiten-Formular
     (``app/adapters/gui/_mixin_symbol_management_form.py``) rufen
     ausschließlich diese Funktion auf, statt die Vereinigung jeweils selbst

@@ -178,7 +178,7 @@ class LaufkernMixin:
         if table is None:
             return
 
-        context = self._build_runtime_context()
+        context = self._shortcut_binder.build_context()
         self._shortcut_runtime_debug_context_var.set(
             f"mode={context.active_mode} | offline={context.offline} | dialog={context.dialog_open} | text-focus={context.text_input_focused}"
         )

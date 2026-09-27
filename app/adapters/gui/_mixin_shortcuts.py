@@ -1,28 +1,25 @@
 """Tastaturkürzel-Mixin für das Kartograph-Hauptfenster.
 
-Enthält Registrierung und Auswertung aller Runtime-Shortcuts sowie den
-zentralen Intent-Dispatcher. Symbol- und Farb-Shortcuts sind in
-``_mixin_edit.py`` implementiert; der Return-Key-Handler in ``_mixin_selection.py``.
+Enthält den bw-gui-``WindowShortcutBinder`` (Registrierung + Runtime-Gating),
+den fachlichen Shortcut-Modus und den zentralen Intent-Dispatcher. Die
+Bindungstabelle selbst steht in ``_mixin_shortcut_bindings.py``; Symbol-,
+Farb- und Mitarbeit-Handler in ``_mixin_edit.py``; der Return-Key-Handler in
+``_mixin_selection.py``.
 """
 
 from __future__ import annotations
 
-import string
 from typing import Callable
 
-from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS, LIST_ACTIVE, SPACE_SHORTCUT
+from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS, LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
-from app.core.domain.custom_symbol_validation import reserved_symbol_letters
+from app.application.shortcut_scope import is_preview_shortcut_scope
 from app.core.intents.view_intents import SetEditorSurfaceIntent, ToggleEditorSurfaceIntent
-from bw_libs.ui_contract.keybinding import (
-    UI_MODE_DIALOG,
-    UI_MODE_EDITOR,
-    UI_MODE_GLOBAL,
-    UI_MODE_OFFLINE,
-    UI_MODE_PREVIEW,
-    KeyBindingDefinition,
-    KeybindingRuntimeContext,
-)
+from bw_libs.shared_gui_core import ensure_bw_gui_on_path
+from bw_libs.ui_contract.keybinding import UI_MODE_GLOBAL, UI_MODE_PREVIEW, KeyBindingDefinition
+
+ensure_bw_gui_on_path()
+from bw_gui.runtime import WindowShortcutBinder
 
 
 class ShortcutMixin:
@@ -88,181 +85,33 @@ class ShortcutMixin:
             UiIntent.EXPAND_RIGHT: lambda: self.expand_selection(1, 0),
         }
 
-    def _bind_shortcuts(self) -> None:
-        """Bindet alle globalen und modus-spezifischen Tastaturkürzel an den Runtime-Resolver."""
-        self._bind_runtime_shortcut("<Control-n>", lambda _e: self._handle_intent(UiIntent.NEW_PLAN), binding_id="global.new", intent=UiIntent.NEW_PLAN, modes=(UI_MODE_GLOBAL, UI_MODE_DIALOG), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-d>", self._on_duplicate_shortcut, binding_id="global.duplicate", intent=UiIntent.DUPLICATE_SELECTED_PLAN, modes=(UI_MODE_GLOBAL,), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<F2>", self._on_rename_shortcut, binding_id="global.rename", intent=UiIntent.RENAME_SELECTED_PLAN, modes=(UI_MODE_GLOBAL,), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-e>", lambda _e: self._handle_intent(UiIntent.EXPORT_PDF), binding_id="global.export", intent=UiIntent.EXPORT_PDF, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-comma>", lambda _e: self._handle_intent(UiIntent.OPEN_SETTINGS), binding_id="global.settings.comma", intent=UiIntent.OPEN_SETTINGS, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-,>", lambda _e: self._handle_intent(UiIntent.OPEN_SETTINGS), binding_id="global.settings.comma.alt", intent=UiIntent.OPEN_SETTINGS, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-0>", lambda _e: self._handle_intent(UiIntent.RESET_VIEW), binding_id="viewport.reset", intent=UiIntent.RESET_VIEW, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Return>", lambda _e: self._handle_intent(UiIntent.SET_TEACHER_DESK), binding_id="desk.teacher", intent=UiIntent.SET_TEACHER_DESK, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-KP_Enter>", lambda _e: self._handle_intent(UiIntent.SET_TEACHER_DESK), binding_id="desk.teacher.numpad", intent=UiIntent.SET_TEACHER_DESK, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-plus>", lambda _e: self._handle_intent(UiIntent.ZOOM_IN), binding_id="viewport.zoom.in", intent=UiIntent.ZOOM_IN, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-equal>", lambda _e: self._handle_intent(UiIntent.ZOOM_IN), binding_id="viewport.zoom.in.equal", intent=UiIntent.ZOOM_IN, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-KP_Add>", lambda _e: self._handle_intent(UiIntent.ZOOM_IN), binding_id="viewport.zoom.in.numpad", intent=UiIntent.ZOOM_IN, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-minus>", lambda _e: self._handle_intent(UiIntent.ZOOM_OUT), binding_id="viewport.zoom.out", intent=UiIntent.ZOOM_OUT, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-KP_Subtract>", lambda _e: self._handle_intent(UiIntent.ZOOM_OUT), binding_id="viewport.zoom.out.numpad", intent=UiIntent.ZOOM_OUT, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-z>", lambda _e: self._handle_intent(UiIntent.UNDO), binding_id="edit.undo", intent=UiIntent.UNDO, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-y>", lambda _e: self._handle_intent(UiIntent.REDO), binding_id="edit.redo", intent=UiIntent.REDO, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-t>", lambda _e: self._handle_intent(UiIntent.OPEN_TABLEGROUP_SETTINGS), binding_id="tablegroup.settings", intent=UiIntent.OPEN_TABLEGROUP_SETTINGS, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-f>", lambda _e: self._handle_intent(UiIntent.GRID_SYMBOL_FILTER), binding_id="grid.symbol_filter", intent=UiIntent.GRID_SYMBOL_FILTER, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-D>", lambda _e: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION), binding_id="view.docs.toggle", intent=UiIntent.TOGGLE_DOCUMENTATION, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-d>", lambda _e: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION), binding_id="view.docs.toggle.lower", intent=UiIntent.TOGGLE_DOCUMENTATION, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-r>", lambda _e: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG), binding_id="debug.runtime.open", intent=UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-Shift-o>", lambda _e: self._handle_intent(UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE), binding_id="debug.runtime.offline", intent=UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-g>", self._on_set_grade_shortcut, binding_id="docs.grade", intent=UiIntent.DOCS_GRADE, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-S>", self._on_set_symbol_shortcut, binding_id="docs.symbol", intent=UiIntent.DOCS_SYMBOL, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-s>", self._on_set_symbol_shortcut, binding_id="docs.symbol.lower", intent=UiIntent.DOCS_SYMBOL_LOWER, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Delete>", self._on_clear_symbol_shortcut, binding_id="docs.clear", intent=UiIntent.DOCS_CLEAR, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-BackSpace>", self._on_clear_symbol_shortcut, binding_id="docs.clear.backspace", intent=UiIntent.DOCS_CLEAR_BACKSPACE, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-h>", self._on_docs_today_shortcut, binding_id="docs.today", intent=UiIntent.DOCS_TODAY, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Alt-Left>", self._on_docs_prev_date_shortcut, binding_id="docs.prev", intent=UiIntent.DOCS_PREV, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Alt-Right>", self._on_docs_next_date_shortcut, binding_id="docs.next", intent=UiIntent.DOCS_NEXT, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-U>", lambda _e: self._handle_intent(UiIntent.RENAME_DOCUMENTATION_DATE), binding_id="docs.date.rename", intent=UiIntent.RENAME_DOCUMENTATION_DATE, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-u>", lambda _e: self._handle_intent(UiIntent.RENAME_DOCUMENTATION_DATE), binding_id="docs.date.rename.lower", intent=UiIntent.RENAME_DOCUMENTATION_DATE, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-BackSpace>", lambda _e: self._handle_intent(UiIntent.DELETE_DOCUMENTATION_DATE), binding_id="docs.date.delete", intent=UiIntent.DELETE_DOCUMENTATION_DATE, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-N>", lambda _e: self._handle_intent(UiIntent.ADD_GRADE_COLUMN), binding_id="docs.grade_column.add", intent=UiIntent.ADD_GRADE_COLUMN, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-n>", lambda _e: self._handle_intent(UiIntent.ADD_GRADE_COLUMN), binding_id="docs.grade_column.add.lower", intent=UiIntent.ADD_GRADE_COLUMN, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-Shift-Delete>", lambda _e: self._handle_intent(UiIntent.DELETE_GRADE_COLUMN), binding_id="docs.grade_column.delete", intent=UiIntent.DELETE_GRADE_COLUMN, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Control-x>", lambda _e: self._handle_intent(UiIntent.CUT), binding_id="edit.cut", intent=UiIntent.CUT, modes=(UI_MODE_PREVIEW,), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-c>", lambda _e: self._handle_intent(UiIntent.COPY), binding_id="edit.copy", intent=UiIntent.COPY, modes=(UI_MODE_PREVIEW,), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Control-v>", lambda _e: self._handle_intent(UiIntent.PASTE), binding_id="edit.paste", intent=UiIntent.PASTE, modes=(UI_MODE_PREVIEW,), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Delete>", self._on_delete_key, binding_id="global.delete", intent=UiIntent.GLOBAL_DELETE, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW), allow_when_text_input=False)
-        self._bind_runtime_shortcut("<Escape>", lambda _e: self._handle_intent(UiIntent.ESCAPE), binding_id="global.escape", intent=UiIntent.ESCAPE, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<Return>", self._on_return_key, binding_id="global.return", intent=UiIntent.GLOBAL_RETURN, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)
-        self._bind_runtime_shortcut("<KP_Enter>", self._on_return_key, binding_id="global.return.numpad", intent=UiIntent.GLOBAL_RETURN_NUMPAD, modes=(UI_MODE_GLOBAL, UI_MODE_PREVIEW, UI_MODE_DIALOG), allow_when_text_input=True)
+    def _init_shortcut_binder(self) -> None:
+        """Erzeugt den einzigen ``WindowShortcutBinder`` dieses Fensters.
 
-        self.canvas.bind("<Up>", lambda _e: self._handle_intent(UiIntent.MOVE_UP))
-        self.canvas.bind("<Down>", lambda _e: self._handle_intent(UiIntent.MOVE_DOWN))
-        self.canvas.bind("<Left>", lambda _e: self._handle_intent(UiIntent.MOVE_LEFT))
-        self.canvas.bind("<Right>", lambda _e: self._handle_intent(UiIntent.MOVE_RIGHT))
-        self.canvas.bind("<Shift-Up>", lambda _e: self._handle_intent(UiIntent.EXPAND_UP))
-        self.canvas.bind("<Shift-Down>", lambda _e: self._handle_intent(UiIntent.EXPAND_DOWN))
-        self.canvas.bind("<Shift-Left>", lambda _e: self._handle_intent(UiIntent.EXPAND_LEFT))
-        self.canvas.bind("<Shift-Right>", lambda _e: self._handle_intent(UiIntent.EXPAND_RIGHT))
-
-        for shortcut, symbol_name in self._shortcut_to_symbol.items():
-            if shortcut == SPACE_SHORTCUT:
-                # Kein gueltiges <KeyPress-{shortcut}>-Literal -- dieses Symbol bleibt
-                # ausschliesslich ueber die eigene <KeyPress-space>-Bindung unten
-                # erreichbar (_on_space_symbol_shortcut loest es dynamisch auf).
-                continue
-            self.bind_all(f"<KeyPress-{shortcut}>", lambda event, s=symbol_name: self._on_symbol_shortcut(event, s), add="+")
-            self.bind_all(f"<KeyPress-{shortcut.upper()}>", lambda event, s=symbol_name: self._on_symbol_shortcut(event, s), add="+")
-
-        # Eigene Doku-Symbole: EINMALIG der gesamte freie Einzelbuchstaben-Tastenraum
-        # gebunden (26 Buchstaben minus der ueber reserved_symbol_letters() ermittelten
-        # Sperrliste -- eingebaute Symbol-Shortcuts aus config/symbols.json plus feste
-        # Systemkuerzel, RESERVED_SYMBOL_LETTERS in custom_symbol_validation.py; dieselbe
-        # Funktion wird auch von der Validierung und vom Anlage-Formular aufgerufen,
-        # keine zweite, abweichend zusammengesetzte Liste). Beide Gross-/Kleinschreib-
-        # Varianten werden gebunden, analog zu den eingebauten Symbol-Shortcuts oben.
-        # Der Handler loest pro Tastendruck live gegen den AKTUELL offenen Plan auf
-        # (resolve_custom_symbol_shortcut()), kein Rebind bei Planwechsel noetig. Der
-        # normale runtime-Schutz (_bind_runtime_shortcut: UI_MODE_PREVIEW,
-        # allow_when_text_input=False) verhindert, dass Buchstaben-Tippen in Textfeldern
-        # oder waehrend ein Dialog offen ist versehentlich einen Symbol-Toggle ausloest.
-        for letter in sorted(set(string.ascii_uppercase) - reserved_symbol_letters(self.symbol_definitions)):
-            self._bind_runtime_shortcut(
-                f"<KeyPress-{letter}>",
-                lambda _e, l=letter: self._on_custom_symbol_shortcut(l),
-                binding_id=f"custom_symbol.{letter.lower()}",
-                intent=UiIntent.CUSTOM_SYMBOL_SHORTCUT,
-                modes=(UI_MODE_PREVIEW,),
-                allow_when_text_input=False,
-            )
-            self._bind_runtime_shortcut(
-                f"<KeyPress-{letter.lower()}>",
-                lambda _e, l=letter: self._on_custom_symbol_shortcut(l),
-                binding_id=f"custom_symbol.{letter.lower()}.lower",
-                intent=UiIntent.CUSTOM_SYMBOL_SHORTCUT,
-                modes=(UI_MODE_PREVIEW,),
-                allow_when_text_input=False,
-            )
-
-        for key, _color_key, _label, _hex_color in self.color_palette:
-            self.bind_all(f"<KeyPress-{key}>", lambda event, ck=_color_key: self._on_color_shortcut(event, ck), add="+")
-
-        self.bind_all("<KeyPress-space>", self._on_space_symbol_shortcut, add="+")
-
-        self.bind_all("<KeyPress-plus>", lambda e: self._on_participation_rating_shortcut(e, "+"), add="+")
-        self.bind_all("<KeyPress-KP_Add>", lambda e: self._on_participation_rating_shortcut(e, "+"), add="+")
-        self.bind_all("<KeyPress-minus>", lambda e: self._on_participation_rating_shortcut(e, "-"), add="+")
-        self.bind_all("<KeyPress-KP_Subtract>", lambda e: self._on_participation_rating_shortcut(e, "-"), add="+")
-        self.bind_all("<KeyPress-o>", lambda e: self._on_participation_rating_shortcut(e, "o"), add="+")
-        self.bind_all("<KeyPress-s>", lambda e: self._on_participation_rating_shortcut(e, "☆"), add="+")
-        self._bind_runtime_shortcut("<KeyPress-d>", lambda _e: self._handle_intent(UiIntent.ADD_SYMBOL), binding_id="desk.add_symbol", intent=UiIntent.ADD_SYMBOL, modes=(UI_MODE_PREVIEW,), allow_when_text_input=False)
-
-    def _register_runtime_shortcut(
-        self,
-        *,
-        binding_id: str,
-        sequence: str,
-        intent: str,
-        modes: tuple[str, ...],
-        allow_when_text_input: bool = False,
-        allow_when_offline: bool = True,
-    ) -> KeyBindingDefinition:
-        """Validiert den Intent und registriert einen Runtime-Shortcut in der Registry.
-
-        Args:
-            binding_id: Eindeutige Binding-ID.
-            sequence: Tkinter-Event-Sequenz.
-            intent: UiIntent-String (muss im HSM-Vertrag bekannt sein).
-            modes: Erlaubte UI-Modi.
-            allow_when_text_input: Shortcut auch bei fokussiertem Texteingabe-Widget aktiv.
-            allow_when_offline: Shortcut auch im Offline-Simulationsmodus aktiv.
-
-        Returns:
-            Die registrierte KeyBindingDefinition.
+        Der Binder übernimmt Mode-, Text-, Dialog-, Offline- und Modifier-Gating
+        sowie die semantische Kollisionsprüfung (bw-gui-Keybinding-Contract);
+        Kartograph liefert nur seine Zustandsquellen. Der Grundmodus kommt
+        fachlich aus ``AppState`` (``_shortcut_base_mode``), nicht aus der
+        Tk-Sichtbarkeit eines Widgets.
         """
-        intent_ok, _intent_reason = self._hsm_contract.validate_intent(intent)
-        if not intent_ok:
-            raise ValueError(f"Unknown runtime shortcut intent: {intent}")
-        definition = KeyBindingDefinition(
-            binding_id=binding_id,
-            sequence=sequence,
-            intent=intent,
-            modes=modes,
-            allow_when_text_input=allow_when_text_input,
-            allow_when_offline=allow_when_offline,
+        self._shortcut_binder = WindowShortcutBinder(
+            self.tk_root,
+            registry=self._runtime_shortcuts,
+            hsm_contract=self._hsm_contract,
+            is_text_input=lambda _widget: self._is_text_input_focused(),
+            dialog_open=self._shortcut_dialog_open,
+            offline=lambda: bool(self._shortcut_runtime_offline),
+            mode_provider=self._shortcut_base_mode,
         )
-        self._runtime_shortcuts.register(definition)
-        return definition
 
-    def _build_runtime_context(self, event=None) -> KeybindingRuntimeContext:
-        """Ermittelt den aktuellen Runtime-Kontext für die Shortcut-Auswertung.
+    def _shortcut_base_mode(self) -> str:
+        """Fachlicher Grundmodus für den Binder: PREVIEW im Editor-Scope, sonst GLOBAL."""
+        return UI_MODE_PREVIEW if is_preview_shortcut_scope(self._controller.state) else UI_MODE_GLOBAL
 
-        Args:
-            event: Optionales Tkinter-Event (wird derzeit nicht ausgewertet).
-
-        Returns:
-            Aktueller KeybindingRuntimeContext.
-        """
+    def _shortcut_dialog_open(self) -> bool:
+        """Synchronisiert Popup-Sitzungen und meldet, ob ein modus-blockierendes Popup offen ist."""
         self._sync_popup_sessions_from_windows()
-        text_input_focused = self._is_text_input_focused()
-        dialog_open = self._popup_registry.has_mode_blocking_popup()
-        offline = bool(self._shortcut_runtime_offline)
-
-        if offline:
-            active_mode = UI_MODE_OFFLINE
-        elif dialog_open:
-            active_mode = UI_MODE_DIALOG
-        elif text_input_focused:
-            active_mode = UI_MODE_EDITOR
-        elif self.editor_view.winfo_ismapped():
-            active_mode = UI_MODE_PREVIEW
-        else:
-            active_mode = UI_MODE_GLOBAL
-
-        return KeybindingRuntimeContext(
-            active_mode=active_mode,
-            offline=offline,
-            text_input_focused=text_input_focused,
-            dialog_open=dialog_open,
-        )
+        return self._popup_registry.has_mode_blocking_popup()
 
     def _bind_runtime_shortcut(
         self,
@@ -274,35 +123,30 @@ class ShortcutMixin:
         modes: tuple[str, ...],
         allow_when_text_input: bool = False,
         allow_when_offline: bool = True,
-    ) -> None:
-        """Registriert einen Shortcut und umhüllt den Handler mit Runtime-Prüfung.
+    ) -> KeyBindingDefinition:
+        """Registriert ein Kürzel über den bw-gui-Binder (dünne Delegation).
 
         Args:
-            sequence: Tkinter-Event-Sequenz.
-            handler: Auszuführende Callback-Funktion.
+            sequence: Tk-Tastatursequenz (Keyboard-Contract von bw-gui).
+            handler: Callback, erhält das Tk-Event.
             binding_id: Eindeutige Binding-ID.
-            intent: UiIntent-String.
+            intent: UiIntent-String (muss im HSM-Vertrag bekannt sein).
             modes: Erlaubte UI-Modi.
-            allow_when_text_input: Shortcut auch bei fokussiertem Texteingabe-Widget aktiv.
-            allow_when_offline: Shortcut auch im Offline-Simulationsmodus aktiv.
+            allow_when_text_input: Kürzel auch bei fokussiertem Texteingabe-Widget aktiv.
+            allow_when_offline: Kürzel auch im Offline-Simulationsmodus aktiv.
+
+        Returns:
+            Die registrierte ``KeyBindingDefinition``.
         """
-        definition = self._register_runtime_shortcut(
+        return self._shortcut_binder.bind(
+            sequence,
+            handler,
             binding_id=binding_id,
-            sequence=sequence,
             intent=intent,
             modes=modes,
             allow_when_text_input=allow_when_text_input,
             allow_when_offline=allow_when_offline,
         )
-
-        def _wrapped(event):
-            context = self._build_runtime_context(event)
-            can_execute, _reason = self._runtime_shortcuts.evaluate_runtime(definition, context)
-            if not can_execute:
-                return None
-            return handler(event)
-
-        self.bind(sequence, _wrapped)
 
     def _handle_intent(self, intent: str) -> str | None:
         """Leitet einen Intent an den UiIntentController weiter und trackt das Ergebnis.
@@ -352,9 +196,11 @@ class ShortcutMixin:
             return True
         if scope == "list":
             return self.interaction_mode == LIST_ACTIVE
-        if scope == "grid":
-            return self.editor_view.winfo_ismapped() and self._editor_surface == "grid" and not self._is_text_input_focused()
-        if scope == "docs":
-            return self.editor_view.winfo_ismapped() and self._editor_surface == "docs" and not self._is_text_input_focused()
+        if scope in ("grid", "docs"):
+            return (
+                is_preview_shortcut_scope(self._controller.state)
+                and self._editor_surface == scope
+                and not self._is_text_input_focused()
+            )
         return False
 

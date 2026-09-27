@@ -46,17 +46,14 @@ class EditMixin:
         aufgerufen, der *symbol_name* dynamisch aus dem Katalog auflöst.
 
         Args:
-            _event: Tkinter-Tastaturereignis (für Modifier-Prüfung, sonst unbenutzt).
+            _event: Tkinter-Tastaturereignis (unbenutzt; Modifier-Gating übernimmt
+                der bw-gui-Binder vor dem Aufruf).
             symbol_name: Bezeichner des umzuschaltenden Symbols, oder ``None``
                 wenn kein Katalogeintrag dieses Kürzel trägt (dann No-Op).
         """
         if symbol_name is None:
             return None
         if not self._shortcut_scope_allows("docs") and not self._shortcut_scope_allows("grid"):
-            return None
-        if _event.state & 0x0004 or _event.state & 0x0008:
-            return None
-        if not self.editor_view.winfo_ismapped():
             return None
         if not self.current_plan or not self.current_plan_path:
             return None
@@ -77,16 +74,11 @@ class EditMixin:
         """Tastatur-Shortcut-Handler für Farbpunkte im Raster.
 
         Args:
-            event: Tkinter-Tastaturereignis (für Modifier-Prüfung, sonst unbenutzt).
+            event: Tkinter-Tastaturereignis (unbenutzt; Modifier-Gating übernimmt
+                der bw-gui-Binder vor dem Aufruf).
             color_key: Schlüssel des umzuschaltenden Farbpunkts.
         """
         if not self._shortcut_scope_allows("grid"):
-            return None
-        if event.state & 0x0004 or event.state & 0x0008:
-            return None
-        if not self.editor_view.winfo_ismapped():
-            return None
-        if self._editor_surface != "grid":
             return None
         if not self.current_plan or not self.current_plan_path:
             return None
@@ -203,14 +195,11 @@ class EditMixin:
         """Tastatur-Shortcut-Handler (+/-/0): Mitarbeit-Bewertung heute setzen/löschen.
 
         Args:
-            event: Tkinter-Tastaturereignis (für Modifier-Prüfung, sonst unbenutzt).
+            event: Tkinter-Tastaturereignis (unbenutzt; Modifier-Gating übernimmt
+                der bw-gui-Binder vor dem Aufruf).
             rating: Zu setzende Bewertung ("+"/"o"/"-").
         """
         if not self._shortcut_scope_allows("docs") and not self._shortcut_scope_allows("grid"):
-            return None
-        if event.state & 0x0004 or event.state & 0x0008:
-            return None
-        if not self.editor_view.winfo_ismapped():
             return None
         if not self.current_plan or not self.current_plan_path:
             return None
