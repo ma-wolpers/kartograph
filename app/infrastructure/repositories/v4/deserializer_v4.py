@@ -29,6 +29,7 @@ from app.core.domain.models_v4 import (
     TeacherSeat,
 )
 from app.core.domain.student_id import StudentId
+from app.core.domain.symbol_renames import merge_symbol_strength
 from app.infrastructure.repositories.v4.snapshot_load_issue import SnapshotLoadIssue
 
 
@@ -193,7 +194,7 @@ def _deserialize_diagnostic(raw: dict) -> DiagnosticProfile:
             except (TypeError, ValueError):
                 continue
             if 1 <= parsed <= 3:
-                symbols[name] = parsed
+                merge_symbol_strength(symbols, name, parsed)
 
     color_tags: list[str] = []
     raw_tags = raw.get("color_tags") or []
@@ -411,7 +412,7 @@ def _deserialize_entries(raw: dict) -> dict[StudentId, SessionEntry]:
             except (TypeError, ValueError):
                 continue
             if 1 <= parsed <= 3:
-                symbols[name] = parsed
+                merge_symbol_strength(symbols, name, parsed)
 
         grades: dict[str, float] = {}
         for col_id, grade in (raw_entry.get("grades") or {}).items():

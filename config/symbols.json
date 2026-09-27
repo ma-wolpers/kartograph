@@ -71,13 +71,13 @@
       }
     },
     {
-      "codepoint": "002B",
-      "meaning": "Mathem. Fachkompetenz",
+      "codepoint": "1F393",
+      "meaning": "Fachkompetenz",
       "shortcut": "f",
       "legend": {
-        "three": "erfüllt die fachlichen Anforderungen sicher und selbstständig. Rechenwege werden korrekt, strukturiert und nachvollziehbar dargestellt. Fachbegriffe und mathematische Darstellungen werden passend und präzise eingesetzt, auch bei komplexeren Aufgaben.",
-        "two": "erfüllt die fachlichen Anforderungen größtenteils. Rechenwege sind überwiegend korrekt und nachvollziehbar, teils mit Unterstützung (z. B. durch Hinweise, Beispiele oder Strukturierungshilfen). Fachbegriffe und Darstellungen werden im Wesentlichen passend verwendet.",
-        "one": "erfüllt die fachlichen Anforderungen in Ansätzen. Mit gezielter Unterstützung (z. B. durch Schritt-für-Schritt-Anleitungen, Beispiele oder gemeinsame Strukturierung) können grundlegende Rechenwege korrekt umgesetzt werden. Fachbegriffe und Darstellungen werden teilweise passend eingesetzt."
+        "three": "erfüllt die fachlichen Anforderungen des aktuellen Fachs sicher und selbstständig • stellt Lösungswege und Arbeitsergebnisse korrekt, strukturiert und nachvollziehbar dar • setzt Fachbegriffe, fachtypische Methoden und Darstellungsformen passend und präzise ein, auch bei komplexeren Aufgaben",
+        "two": "erfüllt die fachlichen Anforderungen des aktuellen Fachs größtenteils • stellt Lösungswege und Ergebnisse überwiegend korrekt und nachvollziehbar dar und nutzt dabei bei Bedarf Hinweise, Beispiele oder Strukturierungshilfen • setzt Fachbegriffe, Methoden und Darstellungsformen im Wesentlichen passend ein",
+        "one": "erfüllt grundlegende fachliche Anforderungen des aktuellen Fachs, wenn gezielte Unterstützung (z. B. Schritt-für-Schritt-Anleitungen, Beispiele, gemeinsame Strukturierung) zur Verfügung steht • setzt grundlegende Lösungswege damit korrekt um • verwendet vertraute Fachbegriffe und Darstellungsformen passend"
       }
     },
     {
@@ -85,9 +85,9 @@
       "meaning": "Algebra",
       "shortcut": "w",
       "legend": {
-        "three": "nutzt Variablen flexibel als Unbekannte, Veränderliche und zur Verallgemeinerung • erkennt die Struktur von Termen und Gleichungen und formt sie begründet um • beschreibt Zusammenhänge zwischen Größen funktional (\"je … desto\", Änderungsverhalten) und wechselt sicher zwischen Situation, Tabelle, Graph und Term",
-        "two": "nutzt Variablen in vertrauten Zusammenhängen als Unbekannte und Veränderliche • formt Terme und Gleichungen überwiegend sicher um und erkennt dabei wiederkehrende Strukturen • beschreibt Zusammenhänge zwischen Größen und wechselt zwischen Tabelle, Graph und Term, v. a. bei bekannten Funktionstypen",
-        "one": "nutzt Variablen als Platzhalter für Zahlen und setzt Werte in Terme ein • führt grundlegende Umformungen (z. B. Zusammenfassen, Äquivalenzumformung) sicher aus, wenn Strukturen sichtbar gemacht werden • beschreibt Zusammenhänge zwischen Größen anhand konkreter Werte (Wertetabelle, Ablesen am Graphen) und erschließt mit Beispielen und Darstellungsvorlagen weitere Darstellungsformen"
+        "three": "nutzt Variablen flexibel, formt Terme und Gleichungen sicher und begründet um • beschreibt Zusammenhänge zwischen Größen funktional und wechselt sicher zwischen Situation, Tabelle, Graph und Term",
+        "two": "nutzt Variablen in vertrauten Kontexten, formt einfache Terme und Gleichungen meist korrekt um • beschreibt Zusammenhänge zwischen Größen; wechselt bei bekannten Funktionstypen mit Hilfen zwischen Darstellungen",
+        "one": "setzt Zahlen in Terme ein und führt einfache Umformungen mit Anleitung aus • beschreibt Zusammenhänge anhand konkreter Werte (Wertetabelle, Ablesen am Graphen); braucht Unterstützung beim Wechsel der Darstellung"
       }
     },
     {

@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.core.domain.symbol_renames import canonical_symbol_name
+
 DEFAULT_CANVAS_RADIUS = 50
 MIN_CANVAS_RADIUS = 1
 MAX_CANVAS_RADIUS = 50
@@ -96,7 +98,11 @@ class KartographSettings:
 
         grid_visible_raw = payload.get("grid_visible_symbols")
         grid_visible_symbols = (
-            tuple(str(item).strip() for item in grid_visible_raw if str(item).strip())
+            tuple(
+                dict.fromkeys(
+                    canonical_symbol_name(str(item).strip()) for item in grid_visible_raw if str(item).strip()
+                )
+            )
             if isinstance(grid_visible_raw, list)
             else ()
         )

@@ -9,6 +9,15 @@ Regel:
 ## [Unreleased]
 
 ### Changed
+- **Neu: `app/core/domain/symbol_renames.py`** — Migrationstabelle für umbenannte eingebaute Symbole
+  (`LEGACY_SYMBOL_RENAMES`, erster Eintrag `"Mathem. Fachkompetenz"` → `"Fachkompetenz"`). Hintergrund:
+  eingebaute Symbole werden unter ihrem Bedeutungstext gespeichert (Diagnoseprofil, Doku-Einträge,
+  `KartographSettings.grid_visible_symbols`), eine Umbenennung in `config/symbols.json` würde erfasste
+  Einträge sonst verwaisen lassen. `deserializer_v4` (Diagnoseprofil + Session-Einträge) nutzt
+  `merge_symbol_strength()` — bei gleichzeitigem altem und neuem Schlüssel gewinnt die höhere Stärke —,
+  `KartographSettings.from_dict()` bildet den Symbolfilter über `canonical_symbol_name()` ab und
+  dedupliziert. Beim nächsten Speichern steht nur noch der neue Schlüssel in der Datei. Tests in
+  `tests/test_symbol_renames.py`.
 - **Dokuansicht: `tk.Scrollbar` statt `ttk.Scrollbar`.**
   - Alle vier Doku-Scrollbars (`docs_names_x_scroll`, `docs_main_x_scroll`, `docs_right_x_scroll`, `docs_y_scroll`) entstehen jetzt über `LayoutDocsMixin._create_docs_scrollbar` als flache `ui.Scrollbar` (tk) — identisch konfiguriert wie `x_scroll`/`y_scroll` der Rasteransicht. Unter Windows zeichnet tk die native, schlanke Scrollbar; die ttk-Scrollbar im `clam`-Theme hatte Pfeilknöpfe und Rahmen.
   - `ThemeMixin._apply_kartograph_theme` färbt die Doku-Scrollbars mit denselben `_scroll_kw` wie die Raster-Scrollbars.
