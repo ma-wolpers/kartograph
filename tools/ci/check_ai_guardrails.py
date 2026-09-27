@@ -740,15 +740,22 @@ def _check_ui_contract_bridge_decommission(errors: list[str]) -> None:
 
 
 def _check_no_raw_tk_state_bitmasks(errors: list[str]) -> None:
-    """Forbid app code from interpreting Tk ``event.state`` bits itself (see tk_state_guard.py).
+    """Forbid app code from interpreting Tk ``event.state`` bits itself.
+
+    Uses the central guard from bw-gui (``bw_gui.testing.tk_state_guard``) instead
+    of a local copy.
 
     Args:
         errors: Error list to append one entry per offending file to.
     """
     import sys
 
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from tk_state_guard import RULE, find_offenders
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from bw_libs.shared_gui_core import ensure_bw_gui_on_path
+
+    ensure_bw_gui_on_path()
+    from bw_gui.testing.tk_state_guard import RULE, find_offenders
 
     for rel_path, lines in find_offenders(ROOT / "app").items():
         errors.append(f"{rel_path}:{','.join(map(str, lines))}: {RULE}")

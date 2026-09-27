@@ -28,7 +28,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - KeyBindings laufen ausnahmslos ueber den bw-gui-Keybinding-Contract (bw-gui `docs/KEYBINDING_CONTRACT.md`):
   - **Ein Binder:** Genau ein `WindowShortcutBinder` (`_mixin_shortcuts.py::_init_shortcut_binder`) uebernimmt Mode-, Text-, Dialog-, Offline- und Modifier-Gating sowie die semantische Kollisionspruefung.
   - **Eine Tabelle:** Die gesamte Bindungstabelle steht in `_mixin_shortcut_bindings.py`.
-  - **Kein App-eigenes Tk-Wissen:** Kein `bind_all` fuer Kuerzel und keine eigene Auswertung von `event.state`. `tools/ci/tk_state_guard.py` prueft das per AST in Test-Suite und CI; unter Windows ist `0x0008` NumLock, nicht Alt.
+  - **Kein App-eigenes Tk-Wissen:** Kein `bind_all` fuer Kuerzel und keine eigene Auswertung von `event.state`. `bw_gui.testing.tk_state_guard` (zentral in bw-gui) prueft das per AST in Test-Suite und CI; unter Windows ist `0x0008` NumLock, nicht Alt.
   - **Modus aus `AppState`:** Der Shortcut-Modus kommt fachlich aus `AppState` (`app/application/shortcut_scope.py::is_preview_shortcut_scope`, explizite Menge von `InteractionMode`s), nicht aus der Widget-Sichtbarkeit.
   - **Sichtbarkeit aus `AppState`:** Auch die Sichtbarkeit von Liste und Editor folgt allein `AppState` ueber `apply_state()`.
   - **Offen:** Widget-lokale Navigation (Pfeiltasten am Raster-Canvas) ist noch direkt gebunden; das steht in bw-gui `docs/TK_USAGE_INVENTORY.md`.
