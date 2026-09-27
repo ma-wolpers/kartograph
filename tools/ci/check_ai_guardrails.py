@@ -44,7 +44,7 @@ SHORTCUT_COVERAGE_SOFT_CHECKS = (
         ),
         "shortcut_paths": (
             "app/adapters/gui/main_window.py",
-            "app/adapters/gui/_mixin_shortcuts.py",
+            "app/adapters/gui/_mixin_shortcut_bindings.py",
         ),
         "shortcut_markers": (
             "<Control-comma>",
@@ -56,77 +56,77 @@ SHORTCUT_COVERAGE_SOFT_CHECKS = (
         "label": "new-plan",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("NEW_PLAN", "plan.new"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.NEW_PLAN",),
     },
     {
         "label": "rename-selected-plan",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("RENAME_SELECTED_PLAN", "plan.rename_selected"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.RENAME_SELECTED_PLAN",),
     },
     {
         "label": "duplicate-selected-plan",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("DUPLICATE_SELECTED_PLAN", "plan.duplicate_selected"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.DUPLICATE_SELECTED_PLAN",),
     },
     {
         "label": "undo",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("UNDO", "edit.undo"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.UNDO",),
     },
     {
         "label": "redo",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("REDO", "edit.redo"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.REDO",),
     },
     {
         "label": "copy",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("COPY", "edit.copy"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.COPY",),
     },
     {
         "label": "cut",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("CUT", "edit.cut"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.CUT",),
     },
     {
         "label": "paste",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("PASTE", "edit.paste"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.PASTE",),
     },
     {
         "label": "escape",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("ESCAPE", "selection.clear"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.ESCAPE",),
     },
     {
         "label": "debug-runtime-overlay",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("OPEN_SHORTCUT_RUNTIME_DEBUG", "debug.shortcut.runtime.open"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG",),
     },
     {
         "label": "debug-runtime-offline",
         "intent_paths": ("app/adapters/gui/ui_intents.py",),
         "intent_markers": ("TOGGLE_SHORTCUT_RUNTIME_OFFLINE", "debug.shortcut.runtime.offline.toggle"),
-        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcuts.py"),
+        "shortcut_paths": ("app/adapters/gui/main_window.py", "app/adapters/gui/_mixin_shortcut_bindings.py"),
         "shortcut_markers": ("intent=UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE",),
     },
 )
@@ -543,6 +543,12 @@ def _check_runtime_shortcut_integration(errors: list[str]) -> None:
     )
     _require_substring(
         main_window,
+        "self._shortcut_binder = WindowShortcutBinder(",
+        source_label,
+        errors,
+    )
+    _require_substring(
+        main_window,
         "def open_shortcut_runtime_debug_dialog(self) -> None:",
         source_label,
         errors,
@@ -733,6 +739,21 @@ def _check_ui_contract_bridge_decommission(errors: list[str]) -> None:
             _forbid_substring(source, forbidden, rel_path, errors)
 
 
+def _check_no_raw_tk_state_bitmasks(errors: list[str]) -> None:
+    """Forbid app code from interpreting Tk ``event.state`` bits itself (see tk_state_guard.py).
+
+    Args:
+        errors: Error list to append one entry per offending file to.
+    """
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from tk_state_guard import RULE, find_offenders
+
+    for rel_path, lines in find_offenders(ROOT / "app").items():
+        errors.append(f"{rel_path}:{','.join(map(str, lines))}: {RULE}")
+
+
 def main() -> int:
     """Execute kartograph guardrail checks and return CI-compatible status code."""
     repo_root = _repo_root()
@@ -769,6 +790,7 @@ def main() -> int:
     _check_development_log_updated(staged, errors)
     _check_changelog_updated(staged, errors)
     _check_runtime_shortcut_integration(errors)
+    _check_no_raw_tk_state_bitmasks(errors)
     _check_shared_ui_contracts(errors)
     _check_laufkern_fallback_sunset(errors)
     _check_ui_contract_bridge_decommission(errors)
