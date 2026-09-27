@@ -81,6 +81,16 @@
       }
     },
     {
+      "codepoint": "221A",
+      "meaning": "Algebra",
+      "shortcut": "w",
+      "legend": {
+        "three": "arbeitet sicher und selbstständig mit Variablen, Termen und Gleichungen: formt zielgerichtet um, wählt passende Lösungsstrategien, überprüft Ergebnisse eigenständig und kann die einzelnen Rechenschritte begründen – auch bei mehrschrittigen oder neuen Aufgaben.",
+        "two": "arbeitet in vertrauten Aufgabenformaten weitgehend sicher mit Variablen, Termen und Gleichungen und formt überwiegend korrekt um; profitiert bei neuen oder mehrschrittigen Aufgaben von Hinweisen, Musterbeispielen oder Kontrollmöglichkeiten.",
+        "one": "setzt grundlegende algebraische Schritte (z. B. Terme zusammenfassen, einfache Gleichungen lösen) erfolgreich um, wenn Strukturierungshilfen wie Schritt-für-Schritt-Anleitungen, Musterbeispiele oder gemeinsames Vorrechnen zur Verfügung stehen; braucht Zeit und Übung, um Umformungsregeln zu festigen."
+      }
+    },
+    {
       "codepoint": "003F",
       "meaning": "Nachfragen",
       "shortcut": "n",
