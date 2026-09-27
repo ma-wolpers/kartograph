@@ -6,8 +6,8 @@
       "shortcut": "b",
       "legend": {
         "three": "beteiligt sich unaufgefordert, kontinuierlich und verlässlich am Lerngespräch, trägt durch Beiträge und Ergebnisse aktiv dazu bei, den Lernprozess weiter zu entwickeln.",
-        "two": "beteiligt sich gelegentlich, zeigt in Ansätzen Bereitschaft, das Lerngespräch als Lerngelegenheit zu nutzen, trägt gelegentlich durch Beiträge und Ergebnisse zur Weiterentwicklung des Lernprozesses bei.",
-        "one": "beteiligt sich gar nicht oder selten, ggf. nur nach Aufforderung; zeigt wenig Bereitschaft, den Lernprozess als Lerngelegenheit zu nutzen, benötigt Sicherheit/Unterstützung."
+        "two": "beteiligt sich gelegentlich am Lerngespräch und nutzt es zunehmend als Lerngelegenheit; trägt immer wieder mit eigenen Beiträgen und Ergebnissen zur Weiterentwicklung des Lernprozesses bei.",
+        "one": "beteiligt sich am Lerngespräch vor allem nach direkter Ansprache oder Ermutigung; bringt Beiträge ein, wenn ein sicherer Rahmen und Unterstützung gegeben sind (z. B. Vorbereitung in Partnerarbeit, Denkzeit, konkrete Impulse)."
       }
     },
     {
@@ -16,8 +16,8 @@
       "shortcut": "c",
       "legend": {
         "three": "arbeitet ziel-, teamorientiert und aufgabenbezogen mit den Gruppenpartner/innen bzw. mit der/m Partner/in • übernimmt Verantwortung für Rollen, Aufgaben und die Integration von Gruppenmitgliedern • bringt regelmäßig eigene Anregungen/Ideen in die Gruppe ein • trägt eigeninitiativ und aktiv zum gemeinsamen Gruppenergebnis bei • unterstützt andere eigeninitiativ",
-        "two": "arbeitet überwiegend zielorientiert und aufgabenbezogen in der Gruppe bzw. mit der/m Partner/in • übernimmt auf Aufforderung Verantwortung für Rollen, Aufgaben und die Gruppenmitglieder • bringt selten eigene Anregungen in die Gruppe ein • trägt aufgabengeleitet zum gemeinsamen Gruppenergebnis bei • unterstützt andere situationsbezogen",
-        "one": "arbeitet wenig zielorientiert und aufgabenbezogen in der Gruppe bzw. mit der/m Partner/in • übernimmt kaum Verantwortung für Rollen, Aufgaben und die Gruppenmitglieder, agiert fremdbestimmt • bringt keine eigenen Anregungen in die Gruppe ein • trägt nur aufgabenbezogen zum gemeinsamen Gruppenergebnis bei • arbeitet für sich / für eigene Ziele"
+        "two": "arbeitet überwiegend zielorientiert und aufgabenbezogen in der Gruppe bzw. mit der/m Partner/in • übernimmt auf Anregung Verantwortung für Rollen, Aufgaben und die Gruppenmitglieder • bringt gelegentlich eigene Anregungen in die Gruppe ein • trägt aufgabengeleitet zum gemeinsamen Gruppenergebnis bei • unterstützt andere situationsbezogen",
+        "one": "arbeitet in der Gruppe bzw. mit der/m Partner/in aufgabenbezogen mit, wenn Ziele und Rollen klar vorgegeben sind • übernimmt Aufgaben, die ihr/ihm konkret zugewiesen werden • bringt eigene Ideen ein, wenn sie/er gezielt danach gefragt wird • trägt mit dem eigenen Aufgabenteil zum Gruppenergebnis bei • profitiert von festen Strukturen (z. B. Rollenkarten, Arbeitsplan, kleine Gruppen)"
       }
     },
     {
@@ -27,7 +27,7 @@
       "legend": {
         "three": "kann sichtbar aktiv zuhören/lässt andere ausreden • geht sensibel auf Beiträge der/des Partnerin/s bzw. der Gruppenmitglieder ein • kommuniziert aktiv mit allen Gruppenmitgliedern • kann seine/ihre Meinung/Position aktiv und überzeugend vertreten • beachtet vereinbarte Gesprächsregeln konsequent • respektiert andere Positionen/Meinungen • zeigt Empathie/Perspektivübernahme • zeigt Wertschätzung",
         "two": "kann erkennbar aufmerksam zuhören/andere ausreden lassen • nimmt Beiträge der Gruppe bzw. der/des Partnerin/s wahr und reagiert angemessen • kann seine/ihre Meinung/Position anlassbezogen einbringen • beachtet fast durchgehend vereinbarte Gesprächsregeln • respektiert andere Positionen/Meinungen situations- und personenbezogen • agiert überwiegend wertschätzend",
-        "one": "hört phasenweise aktiv zu • nimmt Beiträge anderer ohne Reaktion hin • positioniert sich aufgabenbezogen nach Aufforderung • beachtet vereinbarte Gesprächsregeln nach Aufforderung • hält sich mit eigenen Beiträgen zurück, interagiert auf Aufforderung • zeigt wenig Wertschätzung"
+        "one": "hört phasenweise aktiv zu • nimmt Beiträge anderer wahr und reagiert darauf, wenn sie/er angesprochen wird • positioniert sich aufgabenbezogen, wenn sie/er dazu aufgefordert wird • beachtet vereinbarte Gesprächsregeln mit Erinnerung • interagiert auf Anregung und bringt dann eigene Beiträge ein • zeigt Wertschätzung, wenn wertschätzende Formulierungen vorgelebt oder angeboten werden"
       }
     },
     {
@@ -36,8 +36,8 @@
       "shortcut": "k",
       "legend": {
         "three": "nimmt Kritik offen auf und äußert Kritik konstruktiv • kann eigeninitiativ und situationsangemessen Missverständnisse klären und Positionen fair aushandeln • kann Konfliktlösungsstrategien anwenden • agiert konsensbezogen • zeigt Kompromissbereitschaft • thematisiert Konflikte selbstständig (Metaebene)",
-        "two": "akzeptiert Kritik mit Einschränkungen • beteiligt sich daran, Missverständnisse zu klären • regelt Konflikte spontan/intuitiv • agiert weitgehend konsensbezogen • zeigt ansatzweise Kompromissbereitschaft • kann Konflikte thematisieren",
-        "one": "nimmt Kritik wenig offen auf • regelt Konflikte nicht eigeninitiativ, bleibt passiv • zeigt keine Kompromissbereitschaft • vermeidet die Auseinandersetzung"
+        "two": "nimmt Kritik überwiegend an • beteiligt sich daran, Missverständnisse zu klären • regelt Konflikte spontan/intuitiv • agiert weitgehend konsensbezogen • zeigt zunehmend Kompromissbereitschaft • kann Konflikte thematisieren",
+        "one": "nimmt Kritik an, wenn sie konkret und in ruhigem Rahmen geäußert wird • klärt Konflikte mit Begleitung (z. B. durch Lehrkraft, Streitschlichtung, Gesprächsleitfaden) • findet mit Unterstützung Kompromisse • braucht Sicherheit und Zeit, um sich auf Auseinandersetzungen einzulassen"
       }
     },
     {
@@ -46,8 +46,8 @@
       "shortcut": "a",
       "legend": {
         "three": "kann Lernschritte selbständig planen und Ergebnisse mit Hilfe von Lösungen überprüfen, Fehler erkennen und korrigieren sowie den Lernweg erklären",
-        "two": "kann einzelne Lernschritte selbständig lösen, benötigt nur gelegentlich auf Anfrage Hilfestellung (durch Lehrkraft, Partner/Partnerin, Hilfekarten) Unterstützung",
-        "one": "kann eine Aufgabe mit personaler Hilfestellung (Lehrkraft, andere Lernende) schrittweise lösen"
+        "two": "kann einzelne Lernschritte selbständig lösen und holt sich bei Bedarf gezielt Hilfestellung (durch Lehrkraft, Partner/Partnerin, Hilfekarten)",
+        "one": "kann eine Aufgabe schrittweise lösen, wenn personale Hilfestellung (Lehrkraft, andere Lernende) zur Verfügung steht"
       }
     },
     {
@@ -57,7 +57,7 @@
       "legend": {
         "three": "erkennt eigeständig, welche Materialien wann erforderlich sind und kann diese selbständig organisieren, strukturieren und situativ passend bereit halten",
         "two": "kann Materialien in der Regel eigenständig organisieren, strukturieren und weitgehend ohne externe Aufforderung bereit halten",
-        "one": "kann nach genauen Vorgaben Arbeitsmaterialien organisieren, strukturieren und bereithalten"
+        "one": "kann Arbeitsmaterialien organisieren, strukturieren und bereithalten, wenn genaue Vorgaben (z. B. Materialliste, Checkliste, feste Ablage) zur Verfügung stehen"
       }
     },
     {
@@ -67,7 +67,7 @@
       "legend": {
         "three": "kann eigene Visualisierungen zur Darstellung komplexer Strukturen und Zusammenhängen erstellen sowie diese vortragen/ erklären/ begründen und reflektieren",
         "two": "kann komplexe Strukturen (Texte, Zusammenhänge) unter Anleitung (Aufgabenstellung) in einfache sowie teilweise auch komplexe Visualisierungen oder andere Darstellungsformen umsetzen und diese erklären",
-        "one": "kann nach Vorgaben/Modellen aus Texten einfache Visualisierungen (Tabelle, Mindmap, concept map) erstellen"
+        "one": "kann aus Texten einfache Visualisierungen (Tabelle, Mindmap, concept map) erstellen, wenn Vorgaben oder Modelle zur Verfügung stehen"
       }
     },
     {
@@ -85,9 +85,9 @@
       "meaning": "Algebra",
       "shortcut": "w",
       "legend": {
-        "three": "arbeitet sicher und selbstständig mit Variablen, Termen und Gleichungen: formt zielgerichtet um, wählt passende Lösungsstrategien, überprüft Ergebnisse eigenständig und kann die einzelnen Rechenschritte begründen – auch bei mehrschrittigen oder neuen Aufgaben.",
-        "two": "arbeitet in vertrauten Aufgabenformaten weitgehend sicher mit Variablen, Termen und Gleichungen und formt überwiegend korrekt um; profitiert bei neuen oder mehrschrittigen Aufgaben von Hinweisen, Musterbeispielen oder Kontrollmöglichkeiten.",
-        "one": "setzt grundlegende algebraische Schritte (z. B. Terme zusammenfassen, einfache Gleichungen lösen) erfolgreich um, wenn Strukturierungshilfen wie Schritt-für-Schritt-Anleitungen, Musterbeispiele oder gemeinsames Vorrechnen zur Verfügung stehen; braucht Zeit und Übung, um Umformungsregeln zu festigen."
+        "three": "nutzt Variablen flexibel als Unbekannte, Veränderliche und zur Verallgemeinerung • erkennt die Struktur von Termen und Gleichungen und formt sie begründet um • beschreibt Zusammenhänge zwischen Größen funktional (\"je … desto\", Änderungsverhalten) und wechselt sicher zwischen Situation, Tabelle, Graph und Term",
+        "two": "nutzt Variablen in vertrauten Zusammenhängen als Unbekannte und Veränderliche • formt Terme und Gleichungen überwiegend sicher um und erkennt dabei wiederkehrende Strukturen • beschreibt Zusammenhänge zwischen Größen und wechselt zwischen Tabelle, Graph und Term, v. a. bei bekannten Funktionstypen",
+        "one": "nutzt Variablen als Platzhalter für Zahlen und setzt Werte in Terme ein • führt grundlegende Umformungen (z. B. Zusammenfassen, Äquivalenzumformung) sicher aus, wenn Strukturen sichtbar gemacht werden • beschreibt Zusammenhänge zwischen Größen anhand konkreter Werte (Wertetabelle, Ablesen am Graphen) und erschließt mit Beispielen und Darstellungsvorlagen weitere Darstellungsformen"
       }
     },
     {
@@ -95,9 +95,9 @@
       "meaning": "Nachfragen",
       "shortcut": "n",
       "legend": {
-        "three": "versteht Fragen, Arbeitsaufträge oder Lernaufgaben problemlos, keine Nachfragen",
-        "two": "versteht Fragen, Arbeitsaufträge oder Lernaufgaben in der Regel gut, fragt gelegentlich nach",
-        "one": "versteht Fragen, Arbeitsaufträge, Lernaufgaben meist nur nach mehrfacher Wiederholung oder Nachfragen"
+        "three": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben selbstständig und sicher",
+        "two": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben in der Regel selbstständig und klärt offene Punkte gezielt durch Nachfragen",
+        "one": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben mithilfe von Wiederholung, Rückfragen oder zusätzlicher Erläuterung (z. B. Beispiel, Visualisierung, Umformulierung)"
       }
     },
     {
@@ -107,7 +107,7 @@
       "legend": {
         "three": "zerlegt komplexe Probleme in Teilschritte, kann Algorithmen entwickeln, umsetzen und erklären",
         "two": "kann einfache Probleme in Teilschritte zerlegen, kann einfache Algorithmen entwickeln, umsetzen und erklären",
-        "one": "kann einfache Probleme nur mit Hilfestellung in Teilschritte zerlegen, kann einfache Algorithmen nur mit Hilfestellung entwickeln, umsetzen und erklären "
+        "one": "kann einfache Probleme mit Hilfestellung in Teilschritte zerlegen sowie einfache Algorithmen mit Hilfestellung entwickeln, umsetzen und erklären"
       }
     },
     {
