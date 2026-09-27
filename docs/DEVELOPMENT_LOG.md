@@ -9,6 +9,55 @@ Regel:
 ## [Unreleased]
 
 ### Added
+- **Dokuansicht: Namensspalten fixiert — logische Tabelle → drei Treeview-Projektionen.**
+  - Zielbild: Die Dokutabelle ist fachlich *eine* logische Tabelle, projiziert in drei Treeviews
+    `docs_name_tree` (NAMES: Nachname `#0` + `vorname`), `docs_tree` (MAIN: nur noch Datumsspalten)
+    und `docs_right_tree` (RIGHT: Zusammenfassung/Noten/Summen). Das Namens-Pane liegt außerhalb des
+    Splitters und scrollt nie mit den Datumsspalten mit (Variante A: fixierte *Fläche*; ihr Inhalt ist
+    innerhalb der Pane-Breite über eine eigene horizontale Scrollbar verschiebbar, sobald die
+    Namensspalten per Spaltentrenner verbreitert werden).
+  - **Neu: `app/adapters/gui/docs_table_model.py`** (Tk-frei): `DocsPane` (zentrale, endliche
+    Pane-Menge statt `source="main"|"right"`-Strings), `DocRow` (Anzeige-Strings je Schüler inkl.
+    `*_projection()` je Pane), `DocColumnAxis` (rein strukturelle Spaltenachse
+    `nachname → vorname → date_* → summary → grade_* → totals → overall`: `pane_of`, `tree_column`
+    — einzige Stelle, die `#0` kennt —, `neighbor`, `resolve_clicked`, `value_of`, `sort_value`).
+    Grenze der Positionsdarstellung: nur `value_of`/`sort_value` und die `DocRow`-Projektionen ordnen
+    Tupelindizes in `date_cells`/`fixed_cells` Spalten zu; alles andere arbeitet mit Spaltenschlüsseln.
+  - **Neu: `app/adapters/gui/docs_table_rules.py`** (Tk-frei, zustandsabhängige Regeln): `sort_iids`
+    (stabil über die Basisreihenfolge = Sitzordnung), `next_sort_spec` (unveränderte Klickregel:
+    gleiche Spalte → Richtung umkehren, neue Spalte → aufsteigend) und `resolve_horizontal_target`
+    (←/→ entlang der Achse; einzige Sonderregel: erste auswählbare RIGHT-Spalte + ← → *aktueller*
+    Datumsanker statt `date_last`).
+  - Leitregel „Treeviews sind Projektionen, nicht die Domäne“: Sortierung, Zeileninhalt,
+    Zeilenreihenfolge (`_doc_row_order`) und Zellwerte der Markierung kommen aus `_doc_rows` +
+    Sortierspezifikation (`_doc_sort_column`/`_doc_sort_ascending`), nie aus Treeview-Werten.
+    `_project_doc_rows` ist die einzige Stelle für Insert/Update/Delete; Reihenfolge
+    (`_apply_doc_row_order`), Auswahl/Item-Fokus (`_set_docs_row_selection`), Überschriften und
+    Zellmarkierung sind getrennte Synchronisationsfunktionen. Die Sortiersemantik (Namen `lower()`,
+    Datum roh, Fixspalten `(0, float)` vor `(1, text)`, `"2,3"` bleibt Text) ist unverändert konserviert.
+  - Invarianten (getestet): gleiche iids, gleiche Reihenfolge, gleiche vertikale Position
+    (`_sync_docs_yscroll(source, …)` ersetzt `_on_docs_main_yscroll`/`_on_docs_right_yscroll`, mit
+    Rekursionsschutz; Voraussetzung: gleicher `Treeview`-Style/Zeilenhöhe und gleich hohe
+    X-Scrollbar in allen drei Panes), gleiche Zeilenauswahl/Item-Fokus; *Zeilenauswahl ≠
+    Treeview-Item-Fokus ≠ aktive Spalte ≠ Tk-Widget-Fokus* (Select-Handler setzen keine aktive
+    Spalte mehr zurück); nach jedem Rebuild ist die aktive Spalte gültig (Datumsanker geklemmt,
+    fehlende Nicht-Datum-Spalte → `None`; fehlende Sortierspalte → Basisreihenfolge).
+  - Umbenennung `_doc_selected_fixed_column_id` → `_doc_selected_nondate_column_id` (auch Namensspalten
+    können aktiv sein) und `_select_doc_fixed_column` → `_select_doc_nondate_column`; neue Helper
+    `_doc_active_column_key()`/`_set_doc_active_column()`. Entfernte Offset-Arithmetik:
+    `values[idx + 1]` (Sortierung, Zellmarkierung), `int(col_id[1:]) - 2` (Kopfklick),
+    `f"#{fixed_index + 1}"` (Inline-Editor); `_resolve_clicked_column_name` ist in
+    `DocColumnAxis.resolve_clicked` aufgegangen. Klick/Select/Keypress-Handler der Panes sind zu
+    pane-parametrisierten Handlern zusammengeführt (kein eigenes Namens-Mixin, da keine
+    namenspane-spezifische Interaktion übrig bleibt); `_open_docs_inline_grade_editor` liegt jetzt in
+    `_mixin_docs_edit.py`.
+  - Tests: `tests/test_docs_table_model.py` (Achse, Klick-Auflösung, Projektionen, Sortiersemantik je
+    Spaltenart inkl. parametrisierter Abdeckung aller sortierbaren Spalten, Klickregel),
+    `tests/test_docs_navigation.py` (Pane-Übergänge, Datumsanker-Rücksprung mit Anker 7/2, Rückfall bei
+    verschwundener Spalte), `tests/test_docs_three_pane_tk.py` (echte Tk-Widgets: Scroll-Sync aus jeder
+    Quelle, Zeilenauswahl vs. aktive Spalte, Fokuswechsel, Insert/Delete/Update, Sortierung über
+    Rebuilds, Kopfklick-Sortierung). `tests/test_docs_events_column_resolution.py` entfällt (Fälle in
+    `TestResolveClicked` übernommen).
 - **Neu: `app/core/domain/seat_permutation.py`** (`resolve_cut_paste_moves`) — bestimmt die vollständige
   Zielbelegung eines Ausschneiden-Einfügen-Vorgangs rein lesend aus dem unveränderten Ausgangszustand.
   Fachliche Herleitung (siehe Moduldocstring): Ausgangs- und Zielplätze der ausgeschnittenen Schüler sind

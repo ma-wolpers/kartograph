@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.adapters.gui.docs_table_model import NACHNAME_KEY, VORNAME_KEY
+from app.adapters.gui.docs_table_rules import next_sort_spec
 from app.core.domain.models_v4 import ParticipationRating
 from app.core.intents.navigation_intents import ClearSelectionIntent
 from app.core.intents.session_intents import GoToTodayIntent
@@ -99,10 +101,16 @@ class DocsViewMixin:
         "Zur Planliste") zusammenführt — hält so ``AppState.current_plan``
         mit der sichtbaren Ansicht synchron, statt es (wie zuvor) offen zu
         lassen, obwohl der Editor gar nicht mehr zu sehen ist.
+
+        Die Ansicht wechselt bewusst NICHT hier direkt, sondern über
+        ``apply_state()`` (Übergang "Plan offen" -> "kein Plan" ruft
+        ``show_plan_list_view()``): Sichtbarkeit folgt damit ausschließlich
+        ``AppState``, derselben Quelle wie der Shortcut-Scope
+        (``app/application/shortcut_scope.py``) -- kein Zwischenzustand mit
+        versteckter Editor-Ansicht bei noch offenem Plan.
         """
         self._commit_pending_edits()
         self._flush_pending_plan_save()
-        self.show_plan_list_view()
         self._hide_details()
         self._controller.dispatch(ClearSelectionIntent())
 
@@ -216,15 +224,22 @@ class DocsViewMixin:
         summary = summarize_latest_symbols(self.current_plan, student.student_id)
         return self._documentation_cell_text(summary)
 
-    def _doc_fixed_column_label(self, column_id: str) -> str:
-        """Gibt den Anzeigenamen einer festen Dokumentations-Spalte zurück.
+    def _doc_column_label(self, column_id: str) -> str:
+        """Gibt den Anzeigenamen einer logischen Dokumentations-Spalte zurück.
 
         Args:
-            column_id: Interne Spalten-ID (z. B. ``"summary"``, ``"overall"``, ``"grade_..."``)
+            column_id: Spaltenschlüssel (``"nachname"``, ``"date_3"``, ``"summary"``, ``"grade_..."`` …).
 
         Returns:
-            Lesbarer Spaltenname.
+            Lesbarer Spaltenname (bei Datumsspalten das Datum).
         """
+        if column_id == NACHNAME_KEY:
+            return "Nachname"
+        if column_id == VORNAME_KEY:
+            return "Vorname"
+        date_index = self._doc_axis.date_index_of(column_id)
+        if date_index is not None and date_index < len(self._doc_dates):
+            return self._doc_dates[date_index]
         if column_id == "summary":
             return "Zusammenfassung"
         if column_id == "overall":
@@ -248,7 +263,7 @@ class DocsViewMixin:
         """
         if not self._doc_dates:
             return
-        self._select_doc_fixed_column(None)
+        self._select_doc_nondate_column(None)
         self._controller.dispatch(GoToTodayIntent())
 
     def _refresh_doc_selection_status(self) -> None:
@@ -266,8 +281,8 @@ class DocsViewMixin:
             last = (student.last_name or "").strip()
             name = f"{last}, {first}" if last else first
         display_name = name or f"({x},{y})"
-        if self._doc_selected_fixed_column_id:
-            label = self._doc_fixed_column_label(self._doc_selected_fixed_column_id)
+        if self._doc_selected_nondate_column_id:
+            label = self._doc_column_label(self._doc_selected_nondate_column_id)
             self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {label}")
             self.after_idle(self._update_docs_cell_highlight)
             return
@@ -288,72 +303,38 @@ class DocsViewMixin:
         return x, y, self._doc_dates[date_index]
 
     def _apply_doc_column_heading_highlight(self) -> None:
-        """Aktualisiert alle Spaltenköpfe der Dokumentations-Tabelle (Sortierzeichen, Selektion)."""
-        if not hasattr(self, "docs_tree"):
+        """Aktualisiert alle Spaltenköpfe der drei Doku-Treeviews (Sortierpfeil, aktive Spalte).
+
+        Läuft über die logische Spaltenachse: ``> `` markiert die aktive
+        Spalte (Name, Datumsanker oder Fixspalte), ``▲``/``▼`` die Sortierspalte.
+        """
+        if not hasattr(self, "docs_name_tree"):
             return
         sort_arrow = "▲ " if self._doc_sort_ascending else "▼ "
-
-        nachname_title = "Nachname"
-        if self._doc_sort_column == "nachname":
-            nachname_title = f"{sort_arrow}{nachname_title}"
-        self.docs_tree.heading("#0", text=nachname_title)
-
-        vorname_title = "Vorname"
-        if self._doc_sort_column == "vorname":
-            vorname_title = f"{sort_arrow}{vorname_title}"
-        self.docs_tree.heading("vorname", text=vorname_title)
-
-        for idx, date_key in enumerate(self._doc_dates):
-            col_id = self._doc_date_column_ids[idx]
-            title = date_key
-            if idx == self._doc_selected_date_index and not self._doc_selected_fixed_column_id:
-                title = f"> {title}"
-            if self._doc_sort_column == col_id:
-                title = f"{sort_arrow}{title}"
-            self.docs_tree.heading(col_id, text=title)
-
-        if hasattr(self, "docs_right_tree") and hasattr(self, "_doc_fixed_column_ids"):
-            for fixed_col_id in self._doc_fixed_column_ids:
-                base_label = self._doc_fixed_column_label(fixed_col_id)
-                label = f"> {base_label}" if fixed_col_id == self._doc_selected_fixed_column_id else base_label
-                if self._doc_sort_column == fixed_col_id:
-                    label = f"{sort_arrow}{label}"
-                self.docs_right_tree.heading(fixed_col_id, text=label)
+        active_key = self._doc_active_column_key()
+        trees = self._docs_trees_by_pane()
+        for key in self._doc_axis.keys:
+            label = self._doc_column_label(key)
+            if key == active_key:
+                label = f"> {label}"
+            if self._doc_sort_column == key:
+                label = f"{sort_arrow}{label}"
+            trees[self._doc_axis.pane_of(key)].heading(self._doc_axis.tree_column(key), text=label)
 
         self._refresh_doc_selection_status()
 
-    def _sort_docs_table_by_column(self, col_id: str, *, source: str) -> None:
-        """Schaltet die Sortierrichtung für eine Spalte um und sortiert beide Treeviews.
+    def _sort_docs_table_by_key(self, key: str) -> None:
+        """Wendet die Sortier-Klickregel auf *key* an und ordnet alle drei Treeviews neu.
+
+        Ändert nur die Sortierspezifikation (``next_sort_spec``: gleiche Spalte
+        → Richtung umkehren, neue Spalte → aufsteigend); die Reihenfolge wird
+        daraus in ``_apply_doc_row_order`` berechnet.
 
         Args:
-            col_id: Tkinter-Spalten-ID (z. B. ``"#0"``, ``"#1"``, ``"#2"``).
-            source: ``"main"`` für den linken Treeview, ``"right"`` für den rechten.
+            key: Logischer Spaltenschlüssel der angeklickten Kopfzeile.
         """
-        if source == "main":
-            if col_id == "#0":
-                sort_key = "nachname"
-            elif col_id == "#1":
-                sort_key = "vorname"
-            else:
-                try:
-                    date_index = int(col_id[1:]) - 2
-                except (ValueError, TypeError):
-                    return
-                if not (0 <= date_index < len(self._doc_date_column_ids)):
-                    return
-                sort_key = self._doc_date_column_ids[date_index]
-        else:
-            try:
-                col_index = int(col_id[1:]) - 1
-            except (ValueError, TypeError):
-                return
-            if not (0 <= col_index < len(self._doc_fixed_column_ids)):
-                return
-            sort_key = self._doc_fixed_column_ids[col_index]
-        if self._doc_sort_column == sort_key:
-            self._doc_sort_ascending = not self._doc_sort_ascending
-        else:
-            self._doc_sort_column = sort_key
-            self._doc_sort_ascending = True
-        self._apply_doc_sort_order()
+        self._doc_sort_column, self._doc_sort_ascending = next_sort_spec(
+            self._doc_sort_column, self._doc_sort_ascending, key
+        )
+        self._apply_doc_row_order()
         self._apply_doc_column_heading_highlight()

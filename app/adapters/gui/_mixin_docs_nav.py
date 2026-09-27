@@ -1,7 +1,8 @@
 """Docs-Navigation-Mixin für das Kartograph-Hauptfenster (v4 intent-basiert).
 
-Stellt die Zell-Hervorhebung, Spaltenauswahl-Wiederherstellung, Inline-Editor-
-Schließung und Wert-Anwendung für die Dokumentations-Tabelle bereit.
+Stellt die Zell-Hervorhebung, die aktive logische Spalte (inkl. Datumsanker),
+Spaltenauswahl-Wiederherstellung, Inline-Editor-Schließung und Wert-Anwendung
+für die Dokumentations-Tabelle bereit.
 """
 
 from __future__ import annotations
@@ -18,10 +19,12 @@ class DocsNavMixin:
     """Mixin: Doku-Zell-Hervorhebung, Spaltenauswahl und Inline-Editor-Verwaltung (v4)."""
 
     def _update_docs_cell_highlight(self) -> None:
-        """Legt ein Overlay-Label auf die aktive Doku-Zelle im Treeview.
+        """Legt ein Overlay-Label auf die aktive Doku-Zelle (aktive Zeile × aktive Spalte).
 
-        Entfernt ggf. ein vorhandenes Overlay und platziert ein neues falls kein
-        Inline-Editor geöffnet ist. Die Farbe stammt aus dem aktiven Theme.
+        Entfernt ggf. ein vorhandenes Overlay und platziert ein neues, falls
+        kein Inline-Editor geöffnet ist. Treeview und Zellwert werden über die
+        Spaltenachse bzw. die logische Zeile (``self._doc_rows``) bestimmt,
+        nicht über Treeview-Werte. Die Farbe stammt aus dem aktiven Theme.
         """
         if self._docs_cell_overlay is not None:
             try:
@@ -38,32 +41,15 @@ class DocsNavMixin:
 
         student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
         row_iid = self._doc_tree_iid_by_student_index.get(student_index)
-        if row_iid is None:
+        row = self._doc_rows.get(row_iid) if row_iid is not None else None
+        column_key = self._doc_active_column_key()
+        if row is None or column_key is None or not self._doc_axis.has(column_key):
+            return
+        tree = self._docs_trees_by_pane()[self._doc_axis.pane_of(column_key)]
+        if row_iid not in tree.get_children():
             return
 
-        if self._doc_selected_fixed_column_id:
-            tree = self.docs_right_tree
-            try:
-                col_index = self._doc_fixed_column_ids.index(self._doc_selected_fixed_column_id)
-                tree_col = f"#{col_index + 1}"
-            except (ValueError, AttributeError):
-                return
-            if row_iid not in tree.get_children():
-                return
-            values = tree.item(row_iid, "values")
-            cell_text = str(values[col_index]) if values and col_index < len(values) else ""
-        else:
-            tree = self.docs_tree
-            date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
-            if date_index >= len(self._doc_date_column_ids):
-                return
-            tree_col = self._doc_date_column_ids[date_index]
-            if row_iid not in tree.get_children():
-                return
-            values = tree.item(row_iid, "values")
-            cell_text = str(values[date_index + 1]) if values and date_index + 1 < len(values) else ""
-
-        bbox = tree.bbox(row_iid, tree_col)
+        bbox = tree.bbox(row_iid, self._doc_axis.tree_column(column_key))
         if not bbox:
             return
         bx, by, bw, bh = bbox
@@ -71,6 +57,7 @@ class DocsNavMixin:
         theme = kartograph_theme(self.theme_key)
         cell_bg = theme["accent_soft"]
         cell_fg = theme["fg_primary"]
+        cell_text = self._doc_axis.value_of(row, column_key)
         label = ui.Label(tree, text=cell_text, background=cell_bg, foreground=cell_fg, bd=1, relief="solid", anchor="w", padx=4, pady=0)
         label.place(x=bx, y=by, width=bw, height=bh)
         self._docs_cell_overlay = label
@@ -164,98 +151,106 @@ class DocsNavMixin:
 
     def _open_selected_docs_grade_cell_editor(self) -> None:
         """Öffnet den Inline-Noten-Editor für die aktuell ausgewählte Doku-Zelle."""
-        if not self._doc_selected_fixed_column_id or not self._doc_selected_fixed_column_id.startswith("grade_"):
+        if not self._doc_selected_nondate_column_id or not self._doc_selected_nondate_column_id.startswith("grade_"):
             return
         selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
         if selected_iid is None:
             return
-        self._open_docs_inline_grade_editor(selected_iid, self._doc_selected_fixed_column_id)
+        self._open_docs_inline_grade_editor(selected_iid, self._doc_selected_nondate_column_id)
 
-    def _first_selectable_doc_fixed_column(self) -> str | None:
-        """Gibt die erste wählbare feste Spalte zurück (überspringt ``"summary"``).
+    def _doc_active_column_key(self) -> str | None:
+        """Liefert die aktive logische Spalte der Dokutabelle.
 
         Returns:
-            Spalten-ID oder ``None`` wenn keine wählbare Spalte vorhanden.
+            Die aktive Nicht-Datum-Spalte (Name/Fixspalte), sonst der Schlüssel
+            des Datumsankers; ``None`` nur ohne Datumsspalten.
         """
-        for column_id in self._doc_fixed_column_ids:
-            if column_id != "summary":
-                return column_id
-        return None
+        if self._doc_selected_nondate_column_id is not None:
+            return self._doc_selected_nondate_column_id
+        return self._doc_axis.date_key(self._doc_selected_date_index)
 
-    def _adjacent_selectable_doc_fixed_column(self, current_column_id: str, *, step: int) -> str | None:
-        """Gibt die benachbarte wählbare feste Spalte zurück.
+    def _set_doc_active_column(self, key: str) -> None:
+        """Macht *key* zur aktiven logischen Spalte.
+
+        Datumsspalte → Datumsanker auf diese Spalte, keine Nicht-Datum-Spalte
+        aktiv. Andere Spalte (Name/Fixspalte) → als Nicht-Datum-Spalte aktiv;
+        der Datumsanker bleibt als Ziel für Symbolaktionen und Rücksprung erhalten.
 
         Args:
-            current_column_id: Ausgangsspalte.
-            step: ``1`` für rechts, ``-1`` für links.
+            key: Existierender, auswählbarer Spaltenschlüssel.
+        """
+        date_index = self._doc_axis.date_index_of(key)
+        if date_index is not None:
+            self._select_doc_date_column(date_index)
+        else:
+            self._select_doc_nondate_column(key)
+
+    def _is_valid_doc_nondate_column(self, key: str | None) -> bool:
+        """Prüft, ob *key* als aktive Nicht-Datum-Spalte gültig ist.
+
+        Args:
+            key: Spaltenschlüssel oder ``None``.
 
         Returns:
-            Benachbarte Spalten-ID oder ``None``.
+            ``True`` für existierende, auswählbare Namens- oder Fixspalten.
         """
-        if step not in {-1, 1}:
-            return None
-        if current_column_id not in self._doc_fixed_column_ids:
-            return None
-        index = self._doc_fixed_column_ids.index(current_column_id) + step
-        while 0 <= index < len(self._doc_fixed_column_ids):
-            candidate = self._doc_fixed_column_ids[index]
-            if candidate != "summary":
-                return candidate
-            index += step
-        return None
+        return self._doc_axis.is_selectable(key) and not self._doc_axis.is_date(key)
 
     def _select_doc_date_column(self, date_index: int) -> None:
-        """Wählt eine Datumsspalte aus; hebt eine aktive Fixspalten-Auswahl auf.
+        """Wählt eine Datumsspalte aus (setzt den Datumsanker); hebt eine aktive Nicht-Datum-Spalte auf.
 
         Args:
             date_index: Index der Zieldatumsspalte in ``self._doc_dates``.
         """
         self._doc_selected_date_index = date_index
-        self._doc_selected_fixed_column_id = None
+        self._doc_selected_nondate_column_id = None
 
-    def _select_doc_fixed_column(self, column_id: str | None) -> None:
-        """Setzt die aktive Fixspalte (oder ``None`` für den Datumsmodus).
+    def _select_doc_nondate_column(self, column_id: str | None) -> None:
+        """Setzt die aktive Nicht-Datum-Spalte (Name/Fixspalte) oder ``None`` für den Datumsanker.
 
         Rührt bewusst nicht an ``_doc_selected_date_index`` — der Index
         bleibt als Rücksprungpunkt erhalten, falls der Nutzer zurück in den
         Datumsmodus wechselt.
 
         Args:
-            column_id: ID der Fixspalte (Noten/Zusammenfassung), oder ``None``.
+            column_id: Schlüssel der Namens-/Fixspalte oder ``None``.
         """
-        self._doc_selected_fixed_column_id = column_id
+        self._doc_selected_nondate_column_id = column_id
 
     def _clamp_doc_column_selection_after_rebuild(self, date_count: int) -> None:
-        """Hält Datums-/Fixspalten-Auswahl nach einem Tabellen-Rebuild in gültigen Grenzen.
+        """Hält Datumsanker und aktive Nicht-Datum-Spalte nach einem Rebuild gültig.
 
-        Unabhängige Gültigkeitsprüfung je Feld, keine Auswahl-Aktion — löscht
-        insbesondere keine noch gültige Fixspalten-Auswahl, im Unterschied zu
-        ``_select_doc_date_column``.
+        Deterministische Regel (Invariante: aktive Spalte ist danach gültig):
+        der Datumsanker wird auf ``[0, date_count - 1]`` geklemmt; eine nicht
+        mehr existierende Nicht-Datum-Spalte (z. B. gelöschte Notenspalte)
+        wird auf ``None`` gesetzt, womit der geklemmte Datumsanker aktiv wird.
+        Namensspalten existieren immer und bleiben gültig. Keine
+        Auswahl-Aktion, löscht insbesondere keine noch gültige Spalte.
 
         Args:
             date_count: Aktuelle Anzahl der Datumsspalten nach dem Rebuild.
         """
         self._doc_selected_date_index = max(0, min(self._doc_selected_date_index, max(0, date_count - 1)))
-        if self._doc_selected_fixed_column_id not in set(self._doc_fixed_column_ids):
-            self._doc_selected_fixed_column_id = None
+        if not self._is_valid_doc_nondate_column(self._doc_selected_nondate_column_id):
+            self._doc_selected_nondate_column_id = None
 
-    def _restore_docs_column_selection(self, fixed_column_id: str | None, date_index: int) -> None:
+    def _restore_docs_column_selection(self, nondate_column_id: str | None, date_index: int) -> None:
         """Stellt die gespeicherte Spaltenauswahl nach einer Treeview-Aktualisierung wieder her.
 
         Args:
-            fixed_column_id: Gespeicherte feste Spalten-ID (oder ``None`` für Datumsspalte).
-            date_index: Gespeicherter Datums-Spaltenindex.
+            nondate_column_id: Gespeicherte Nicht-Datum-Spalte (oder ``None`` für den Datumsanker).
+            date_index: Gespeicherter Datumsanker.
         """
-        if fixed_column_id is not None and fixed_column_id in self._doc_fixed_column_ids and fixed_column_id != "summary":
-            self._select_doc_fixed_column(fixed_column_id)
+        if self._is_valid_doc_nondate_column(nondate_column_id):
+            self._select_doc_nondate_column(nondate_column_id)
         else:
-            self._select_doc_fixed_column(None)
+            self._select_doc_nondate_column(None)
             if self._doc_dates:
                 self._select_doc_date_column(max(0, min(date_index, len(self._doc_dates) - 1)))
         self._apply_doc_column_heading_highlight()
 
     def _preserve_docs_column_selection_after_keypress(self) -> None:
         """Plant via ``after_idle`` die Wiederherstellung der Spaltenauswahl nach einer Tasteneingabe."""
-        fixed_column_id = self._doc_selected_fixed_column_id
+        nondate_column_id = self._doc_selected_nondate_column_id
         date_index = self._doc_selected_date_index
-        self.after_idle(lambda: self._restore_docs_column_selection(fixed_column_id, date_index))
+        self.after_idle(lambda: self._restore_docs_column_selection(nondate_column_id, date_index))

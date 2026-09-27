@@ -2,11 +2,13 @@
 
 Stellt alle Scroll-Handler für Canvas und Dokumentations-Treeviews bereit:
 horizontale und vertikale Scrollbefehle, synchronisiertes Docs-Scrolling
-sowie die Initialisierung des Docs-Splitters.
+(drei Treeviews, ein vertikaler Dokumentraum) sowie die Initialisierung des
+Docs-Splitters.
 """
 
 from __future__ import annotations
 
+from app.adapters.gui.docs_table_model import DocsPane
 from app.adapters.gui.main_window_constants import DOCS_HORIZONTAL_SCROLLBAR_UNITS, DOCS_HORIZONTAL_WHEEL_UNITS
 
 
@@ -32,13 +34,13 @@ class ViewportMixin:
         self.redraw_grid()
 
     def _docs_yview(self, *args) -> None:
-        """Synchronisiert vertikales Scrollen beider Docs-Treeviews.
+        """Leitet Befehle der gemeinsamen vertikalen Scrollbar an alle drei Docs-Treeviews weiter.
 
         Args:
             *args: Tkinter-Scrollbar-Kommando-Argumente (z. B. ``"scroll", n, "units"``).
         """
-        self.docs_tree.yview(*args)
-        self.docs_right_tree.yview(*args)
+        for tree in self._docs_trees_by_pane().values():
+            tree.yview(*args)
 
     def _position_docs_splitter_initial(self) -> None:
         """Setzt die Splitter-Position beim ersten Configure-Ereignis auf 68 % links."""
@@ -109,40 +111,36 @@ class ViewportMixin:
         Args:
             event: Tkinter-MouseWheel-Ereignis mit Ziel-Widget und Delta.
         """
-        target = self.docs_right_tree if event.widget == self.docs_right_tree else self.docs_tree
+        pane = self._pane_of_docs_widget(event.widget) or DocsPane.MAIN
+        target = self._docs_trees_by_pane()[pane]
         target.xview_scroll(self._docs_horizontal_wheel_units(getattr(event, "delta", 0)), "units")
         self.after_idle(self._update_docs_cell_highlight)
         return "break"
 
-    def _on_docs_main_yscroll(self, first: str, last: str) -> None:
-        """Synchronisiert den rechten Treeview wenn der linke vertikal gescrollt wird.
+    def _sync_docs_yscroll(self, source: DocsPane, first: str, last: str) -> None:
+        """Hält alle drei Docs-Treeviews auf derselben vertikalen Position.
+
+        Invariante: Die drei Treeviews repräsentieren denselben vertikalen
+        Dokumentraum (gleiche Zeilen, gleiche Zeilenhöhe) und müssen dieselbe
+        sichtbare Zeilenposition einnehmen. Wird *source* gescrollt, setzt
+        diese Methode die gemeinsame Scrollbar und zieht die beiden anderen
+        Trees per ``yview_moveto(first)`` nach. ``_syncing_docs_scroll``
+        verhindert, dass deren eigene ``yscrollcommand``-Rückmeldungen erneut
+        synchronisieren (Rekursionsschutz).
 
         Args:
-            first: Obere Scrollbar-Grenze.
-            last: Untere Scrollbar-Grenze.
+            source: Pane, dessen Treeview gescrollt wurde.
+            first: Obere Scrollbar-Grenze (Anteil 0..1).
+            last: Untere Scrollbar-Grenze (Anteil 0..1).
         """
         self.docs_y_scroll.set(first, last)
         if self._syncing_docs_scroll:
             return
         self._syncing_docs_scroll = True
         try:
-            self.docs_right_tree.yview_moveto(float(first))
-        finally:
-            self._syncing_docs_scroll = False
-
-    def _on_docs_right_yscroll(self, first: str, last: str) -> None:
-        """Synchronisiert den linken Treeview wenn der rechte vertikal gescrollt wird.
-
-        Args:
-            first: Obere Scrollbar-Grenze.
-            last: Untere Scrollbar-Grenze.
-        """
-        self.docs_y_scroll.set(first, last)
-        if self._syncing_docs_scroll:
-            return
-        self._syncing_docs_scroll = True
-        try:
-            self.docs_tree.yview_moveto(float(first))
+            for pane, tree in self._docs_trees_by_pane().items():
+                if pane is not source:
+                    tree.yview_moveto(float(first))
         finally:
             self._syncing_docs_scroll = False
 

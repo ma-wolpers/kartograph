@@ -1,14 +1,19 @@
 """Docs-Tabellen-Mixin für das Kartograph-Hauptfenster (v4-Modell).
 
-Stellt die Hauptmethode ``_refresh_documentation_table`` bereit, die alle
-Treeview-Spalten und -Zeilen neu aufbaut, sowie den Inline-Noten-Editor
-und die Hilfsmethode für den letzten Notenwert einer Spalte.
+Baut die logische Dokutabelle (``DocRow`` je Schüler + ``DocColumnAxis``)
+aus den Domänendaten auf und projiziert sie in die drei Treeviews
+(NAMES / MAIN / RIGHT). Treeviews sind dabei reine Projektionen: Zeileninhalt,
+Reihenfolge und Sortierung kommen ausschließlich aus ``self._doc_rows`` und der
+Sortierspezifikation (``_doc_sort_column`` / ``_doc_sort_ascending``), nie aus
+einem Treeview.
 """
 
 from __future__ import annotations
 
 import time
 
+from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow, DocsPane
+from app.adapters.gui.docs_table_rules import sort_iids
 from app.adapters.gui.main_window_constants import LOGGER
 from app.core.usecases.v4.grade_usecases import (
     collect_grade_value_lists_by_student,
@@ -17,74 +22,20 @@ from app.core.usecases.v4.grade_usecases import (
     compute_latest_grades_by_student,
 )
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols_by_student
-from bw_libs.shared_gui_core import ensure_bw_gui_on_path
-
-ensure_bw_gui_on_path()
-from bw_gui import ui
-from bw_gui.runtime import widgets as tui
 
 
 class DocsTableMixin:
-    """Mixin: Dokumentations-Tabellenaufbau und Inline-Noten-Editor (v4)."""
-
-    def _open_docs_inline_grade_editor(self, row_id: str, fixed_column_id: str) -> None:
-        """Öffnet einen Entry-Inline-Editor in der Noten-Zelle des rechten Treeviews.
-
-        Args:
-            row_id: Treeview-Zeilen-ID (iid) der Zielzeile im rechten Treeview.
-            fixed_column_id: ID der festen Spalte, z. B. ``"grade_<spalte>"``.
-        """
-        if not self.current_plan:
-            return
-        if not fixed_column_id.startswith("grade_"):
-            return
-        if row_id not in self.docs_right_tree.get_children():
-            return
-
-        self._close_docs_inline_editor(apply_changes=False)
-
-        fixed_index = self._doc_fixed_column_ids.index(fixed_column_id)
-        tree_column = f"#{fixed_index + 1}"
-        bbox = self.docs_right_tree.bbox(row_id, tree_column)
-        if not bbox:
-            return
-        x, y, width, height = bbox
-
-        selected = self._selected_docs_coordinates_and_date()
-        if selected is None:
-            return
-        coords_x, coords_y, date_key = selected
-        model_column_id = fixed_column_id[len("grade_"):]
-
-        current_text = ""
-        student = self.current_plan.student_at(coords_x, coords_y)
-        if student is not None and student.is_named():
-            session = self.current_plan.documentation.session_for_date(date_key)
-            if session is not None:
-                entry = session.entry_for(student.student_id)
-                if entry is not None:
-                    value = entry.grades.get(model_column_id)
-                    if value is not None:
-                        current_text = f"{float(value):.2f}".rstrip("0").rstrip(".")
-
-        editor = tui.Entry(self.docs_right_tree)
-        editor.insert(0, current_text)
-        editor.place(x=x, y=y, width=width, height=height)
-        editor.focus_set()
-        editor.selection_range(0, ui.END)
-        editor.bind("<Return>", self._on_docs_inline_editor_return)
-        editor.bind("<KP_Enter>", self._on_docs_inline_editor_return)
-        editor.bind("<Escape>", self._on_docs_inline_editor_escape)
-        editor.bind("<FocusOut>", lambda _event: self._close_docs_inline_editor(apply_changes=True))
-
-        self._docs_inline_editor = editor
-        self._docs_inline_editor_tree = self.docs_right_tree
-        self._docs_inline_editor_row_id = row_id
-        self._docs_inline_editor_kind = "grade"
-        self._docs_inline_editor_model_column = model_column_id
+    """Mixin: Aufbau der logischen Dokutabelle und ihre Projektion in drei Treeviews (v4)."""
 
     def _refresh_documentation_table(self) -> None:
-        """Baut die gesamte Dokumentations-Tabelle (beide Treeviews) vollständig neu auf (v4)."""
+        """Baut die logische Dokutabelle neu auf und projiziert sie in alle drei Treeviews (v4).
+
+        Ablauf: Domänendaten → ``DocRow``s (Basisreihenfolge = Sitzordnung) →
+        neue ``DocColumnAxis`` → Sortierspezifikation validieren →
+        ``_project_doc_rows`` (Insert/Update/Delete) → ``_apply_doc_row_order``
+        (Reihenfolge) → Zeilenauswahl, aktive Spalte und Überschriften
+        synchronisieren.
+        """
         started = time.perf_counter()
         if not self.current_plan:
             return
@@ -114,30 +65,17 @@ class DocsTableMixin:
             fixed_columns.append("sonstige_total")
         fixed_columns.append("overall")
         self._doc_fixed_column_ids = list(fixed_columns)
+        self._doc_axis = DocColumnAxis(self._doc_date_column_ids, fixed_columns)
+        self._validate_doc_sort_spec()
 
-        self.docs_tree.configure(columns=["vorname"] + self._doc_date_column_ids)
-        self.docs_right_tree.configure(columns=fixed_columns)
-
-        self.docs_tree.column("vorname", width=120, anchor="w", stretch=False)
-        self.docs_tree.heading("vorname", text="Vorname")
+        self.docs_tree.configure(columns=self._doc_axis.pane_columns(DocsPane.MAIN))
+        self.docs_right_tree.configure(columns=self._doc_axis.pane_columns(DocsPane.RIGHT))
         for idx, date_key in enumerate(all_dates):
             self.docs_tree.column(self._doc_date_column_ids[idx], width=120, anchor="center", stretch=False)
             self.docs_tree.heading(self._doc_date_column_ids[idx], text=date_key)
-
         self.docs_right_tree.column("summary", width=180, anchor="w", stretch=False)
-        self.docs_right_tree.heading("summary", text="Zusammenfassung")
-        for grade in grade_columns:
-            col_id = f"grade_{grade.column_id}"
-            self.docs_right_tree.column(col_id, width=120, anchor="center", stretch=False)
-            self.docs_right_tree.heading(col_id, text=grade.title)
-        if "written_total" in fixed_columns:
-            self.docs_right_tree.column("written_total", width=120, anchor="center", stretch=False)
-            self.docs_right_tree.heading("written_total", text="Schriftlich gesamt")
-        if "sonstige_total" in fixed_columns:
-            self.docs_right_tree.column("sonstige_total", width=120, anchor="center", stretch=False)
-            self.docs_right_tree.heading("sonstige_total", text="Sonstig gesamt")
-        self.docs_right_tree.column("overall", width=120, anchor="center", stretch=False)
-        self.docs_right_tree.heading("overall", text="Gesamtnote")
+        for fixed_col_id in fixed_columns[1:]:
+            self.docs_right_tree.column(fixed_col_id, width=120, anchor="center", stretch=False)
 
         # Einmalig vorberechnen statt (wie zuvor) pro Schüler x Spalte erneut zu
         # sortieren/scannen: session_for_date() als Dict, sowie die jeweils
@@ -164,9 +102,7 @@ class DocsTableMixin:
             if "sonstige_total" in fixed_columns else {}
         )
 
-        desired_iids: list[str] = []
-        tree_row_by_iid: dict[str, tuple[str, list[str]]] = {}
-        right_row_by_iid: dict[str, list[str]] = {}
+        rows: dict[str, DocRow] = {}
         iid_by_coord_index: dict[int, str] = {}
 
         for coord_index, (x, y) in enumerate(self._doc_student_coords):
@@ -193,48 +129,20 @@ class DocsTableMixin:
             fixed_values.append(overall_display_by_student.get(student.student_id, ""))
 
             iid = str(student.student_id)
-            first_n = student.first_name.strip()
-            last_n = student.last_name.strip()
-            desired_iids.append(iid)
-            tree_row_by_iid[iid] = (last_n or f"({x},{y})", [first_n] + date_values)
-            right_row_by_iid[iid] = fixed_values
+            rows[iid] = DocRow(
+                iid=iid,
+                nachname=student.last_name.strip() or f"({x},{y})",
+                vorname=student.first_name.strip(),
+                date_cells=tuple(date_values),
+                fixed_cells=tuple(fixed_values),
+            )
             iid_by_coord_index[coord_index] = iid
 
-        # Fast Path: gleiche Schüler-Menge wie beim letzten Rebuild (der
-        # Normalfall bei einem einzelnen Symbol-/Noten-Edit) — dann nur die
-        # tatsächlich geänderten Zeilenwerte pushen statt alle Zeilen zu
-        # löschen und neu einzufügen. Die Reihenfolge in der Treeview selbst
-        # ist hier egal: _apply_doc_sort_order() am Ende dieser Methode ordnet
-        # ohnehin immer gemäß dem aktiven Sortierstatus neu an (oder ist ein
-        # No-Op, falls kein Sortierstatus aktiv ist).
-        existing_iid_set = set(self.docs_tree.get_children())
-        same_student_set = (
-            existing_iid_set == set(desired_iids)
-            and set(self.docs_right_tree.get_children()) == existing_iid_set
-        )
-        if same_student_set:
-            for iid in desired_iids:
-                text, values = tree_row_by_iid[iid]
-                right_values = right_row_by_iid[iid]
-                if self._doc_row_values_cache.get(iid) != (text, tuple(values), tuple(right_values)):
-                    self.docs_tree.item(iid, text=text, values=values)
-                    self.docs_right_tree.item(iid, values=right_values)
-        else:
-            for row_id in self.docs_tree.get_children():
-                self.docs_tree.delete(row_id)
-            for row_id in self.docs_right_tree.get_children():
-                self.docs_right_tree.delete(row_id)
-            for iid in desired_iids:
-                text, values = tree_row_by_iid[iid]
-                self.docs_tree.insert("", "end", iid=iid, text=text, values=values)
-                self.docs_right_tree.insert("", "end", iid=iid, values=right_row_by_iid[iid])
-
-        self._doc_row_values_cache = {
-            iid: (tree_row_by_iid[iid][0], tuple(tree_row_by_iid[iid][1]), tuple(right_row_by_iid[iid]))
-            for iid in desired_iids
-        }
+        self._project_doc_rows(rows)
+        self._doc_rows = rows
         self._doc_tree_iid_by_student_index = iid_by_coord_index
         self._doc_student_index_by_iid = {iid: idx for idx, iid in iid_by_coord_index.items()}
+        self._apply_doc_row_order()
 
         if self._doc_student_coords:
             self._doc_selected_student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
@@ -246,10 +154,7 @@ class DocsTableMixin:
             self._doc_selected_date_index = 0
 
         self._clamp_doc_column_selection_after_rebuild(len(all_dates))
-
         self._apply_doc_column_heading_highlight()
-        self._apply_doc_sort_order()
-        self._refresh_doc_selection_status()
 
         elapsed = time.perf_counter() - started
         if elapsed >= 0.2:
@@ -260,35 +165,78 @@ class DocsTableMixin:
                 len(self._doc_dates),
             )
 
-    def _apply_doc_sort_order(self) -> None:
-        """Sortiert beide Treeview-Zeilen gemäß dem aktuellen Sortierstatus."""
-        if self._doc_sort_column is None:
+    def _validate_doc_sort_spec(self) -> None:
+        """Setzt die Sortierspezifikation zurück, falls ihre Spalte nach einem Rebuild fehlt.
+
+        Beispiel: Sortierung nach einer inzwischen gelöschten Notenspalte →
+        ``_doc_sort_column = None`` (Basisreihenfolge), ``_doc_sort_ascending = True``.
+        Eine weiterhin gültige Sortierung bleibt unverändert erhalten.
+        """
+        if self._doc_sort_column is not None and not self._doc_axis.has(self._doc_sort_column):
+            self._doc_sort_column = None
+            self._doc_sort_ascending = True
+
+    def _project_doc_rows(self, rows: dict[str, DocRow]) -> None:
+        """Einzige Stelle für Insert/Update/Delete von Tabellenzeilen in allen drei Treeviews.
+
+        Fast Path: gleiche iid-Menge wie zuletzt (Normalfall bei einem
+        einzelnen Symbol-/Noten-Edit) → nur geänderte ``DocRow``s per
+        ``item()`` aktualisieren. Sonst alle drei Trees leeren und in
+        Basisreihenfolge neu befüllen. Reihenfolge, Auswahl, Fokus und
+        Markierung werden getrennt davon synchronisiert
+        (``_apply_doc_row_order``, ``_set_docs_row_selection``, …).
+
+        Args:
+            rows: Neue Zeilen (iid → ``DocRow``) in Basisreihenfolge.
+        """
+        trees = self._docs_trees_by_pane()
+        desired = set(rows)
+        same_row_set = all(set(tree.get_children()) == desired for tree in trees.values())
+        if same_row_set:
+            for iid, row in rows.items():
+                if self._doc_rows.get(iid) != row:
+                    self._write_doc_row(row, insert=False)
             return
-        sort_key = self._doc_sort_column
-        iids = list(self.docs_tree.get_children(""))
+        for tree in trees.values():
+            children = tree.get_children()
+            if children:
+                tree.delete(*children)
+        for row in rows.values():
+            self._write_doc_row(row, insert=True)
 
-        def get_sort_value(iid: str):
-            if sort_key == "nachname":
-                return (self.docs_tree.item(iid, "text").lower(),)
-            if sort_key == "vorname":
-                values = self.docs_tree.item(iid, "values")
-                return (str(values[0]).lower() if values else "",)
-            if sort_key in self._doc_date_column_ids:
-                idx = self._doc_date_column_ids.index(sort_key)
-                values = self.docs_tree.item(iid, "values")
-                raw = str(values[idx + 1]) if values and idx + 1 < len(values) else ""
-                return (raw,)
-            if sort_key in self._doc_fixed_column_ids:
-                idx = self._doc_fixed_column_ids.index(sort_key)
-                values = self.docs_right_tree.item(iid, "values")
-                raw = str(values[idx]) if values and idx < len(values) else ""
-                try:
-                    return (0, float(raw))
-                except (ValueError, TypeError):
-                    return (1, raw.lower())
-            return ("",)
+    def _write_doc_row(self, row: DocRow, *, insert: bool) -> None:
+        """Schreibt die drei Projektionen einer Zeile in ihre Treeviews.
 
-        sorted_iids = sorted(iids, key=get_sort_value, reverse=not self._doc_sort_ascending)
-        for i, iid in enumerate(sorted_iids):
-            self.docs_tree.move(iid, "", i)
-            self.docs_right_tree.move(iid, "", i)
+        Args:
+            row: Zu schreibende Zeile.
+            insert: ``True`` → am Ende einfügen, ``False`` → bestehendes Item aktualisieren.
+        """
+        text, name_values = row.names_projection()
+        if insert:
+            self.docs_name_tree.insert("", "end", iid=row.iid, text=text, values=name_values)
+            self.docs_tree.insert("", "end", iid=row.iid, values=row.main_projection())
+            self.docs_right_tree.insert("", "end", iid=row.iid, values=row.right_projection())
+            return
+        self.docs_name_tree.item(row.iid, text=text, values=name_values)
+        self.docs_tree.item(row.iid, values=row.main_projection())
+        self.docs_right_tree.item(row.iid, values=row.right_projection())
+
+    def _apply_doc_row_order(self) -> None:
+        """Berechnet die Zeilenreihenfolge und ordnet alle drei Treeviews danach.
+
+        Ergebnis von ``sort_iids(_doc_rows, Sortierspezifikation)``; wird als
+        ``self._doc_row_order`` gemerkt (Quelle für die visuelle Reihenfolge,
+        z. B. bei ↑/↓).
+
+        Die Reihenfolge wird ausschließlich aus ``self._doc_rows`` (Basisreihenfolge)
+        und ``_doc_sort_column`` / ``_doc_sort_ascending`` berechnet; der
+        Abgleich mit ``get_children()`` dient nur dazu, unnötige ``move()``-
+        Aufrufe zu sparen.
+        """
+        order = sort_iids(self._doc_rows.values(), self._doc_sort_column, self._doc_sort_ascending, self._doc_axis)
+        self._doc_row_order = order
+        for tree in self._docs_trees_by_pane().values():
+            if list(tree.get_children("")) == order:
+                continue
+            for index, iid in enumerate(order):
+                tree.move(iid, "", index)

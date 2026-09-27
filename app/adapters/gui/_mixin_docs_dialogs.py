@@ -123,7 +123,7 @@ class DocsDialogsMixin:
         self._controller.dispatch(AddGradeColumnIntent(category=clean_category, title=title or ""))
         new_column_id = self._controller.state.doc_selected_column_id
         if new_column_id:
-            self._select_doc_fixed_column(f"grade_{new_column_id}")
+            self._select_doc_nondate_column(f"grade_{new_column_id}")
         self._refresh_documentation_table()
 
     def delete_grade_column_dialog(self) -> None:
@@ -131,7 +131,7 @@ class DocsDialogsMixin:
 
         Bestimmt die Zielspalte in derselben Reihenfolge wie
         ``set_selected_documentation_grade_dialog``: zuerst die aktuell
-        markierte feste Spalte (``_doc_selected_fixed_column_id``), sonst —
+        markierte feste Spalte (``_doc_selected_nondate_column_id``), sonst —
         falls genau eine Notenspalte existiert — diese. Gibt es mehrere
         Notenspalten ohne eindeutige Markierung, öffnet sich eine
         Auswahlliste; die Bestätigung erfolgt erst danach in
@@ -148,8 +148,8 @@ class DocsDialogsMixin:
             return
 
         column: GradeColumn | None = None
-        if self._doc_selected_fixed_column_id and self._doc_selected_fixed_column_id.startswith("grade_"):
-            raw_id = self._doc_selected_fixed_column_id[len("grade_"):]
+        if self._doc_selected_nondate_column_id and self._doc_selected_nondate_column_id.startswith("grade_"):
+            raw_id = self._doc_selected_nondate_column_id[len("grade_"):]
             for item in grade_columns:
                 if item.column_id == raw_id:
                     column = item
@@ -236,15 +236,15 @@ class DocsDialogsMixin:
                     column = item
                     break
         if column is None:
-            if self._doc_selected_fixed_column_id and self._doc_selected_fixed_column_id.startswith("grade_"):
-                raw_id = self._doc_selected_fixed_column_id[len("grade_"):]
+            if self._doc_selected_nondate_column_id and self._doc_selected_nondate_column_id.startswith("grade_"):
+                raw_id = self._doc_selected_nondate_column_id[len("grade_"):]
                 for item in grade_columns:
                     if item.column_id == raw_id:
                         column = item
                         break
             if column is None:
                 column = grade_columns[0]
-        self._select_doc_fixed_column(f"grade_{column.column_id}")
+        self._select_doc_nondate_column(f"grade_{column.column_id}")
         self._refresh_doc_selection_status()
         self._open_selected_docs_grade_cell_editor()
 

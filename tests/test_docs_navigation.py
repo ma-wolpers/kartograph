@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.adapters.gui._mixin_docs_nav import DocsNavMixin
 from app.adapters.gui.docs_table_model import DocColumnAxis, DocsPane
 from app.adapters.gui.docs_table_rules import resolve_horizontal_target
 
@@ -58,3 +59,34 @@ class TestDateAnchorReturn:
     def test_without_dates_falls_back_to_structure(self):
         axis = DocColumnAxis((), FIXED)
         assert _step(axis, "grade_a", -1) == ("vorname", DocsPane.NAMES)
+
+
+class _ClampHost(DocsNavMixin):
+    """Tk-freies Double: nur die Zustandsfelder, die Clamp/aktive Spalte brauchen."""
+
+    def __init__(self, axis: DocColumnAxis, nondate: str | None, anchor: int) -> None:
+        self._doc_axis = axis
+        self._doc_selected_nondate_column_id = nondate
+        self._doc_selected_date_index = anchor
+
+
+class TestVanishedActiveColumn:
+    """Nach einem Rebuild ist die aktive Spalte gültig oder fällt deterministisch zurück."""
+
+    def test_vanished_grade_column_falls_back_to_clamped_anchor(self):
+        host = _ClampHost(DocColumnAxis(DATES[:6], ("summary", "grade_0", "grade_1", "grade_2", "overall")), "grade_4", 3)
+        host._clamp_doc_column_selection_after_rebuild(6)
+        assert host._doc_selected_nondate_column_id is None
+        assert host._doc_active_column_key() == "date_3"
+
+    def test_vanished_date_is_clamped(self):
+        host = _ClampHost(DocColumnAxis(DATES[:6], FIXED), None, 8)
+        host._clamp_doc_column_selection_after_rebuild(6)
+        assert host._doc_active_column_key() == "date_5"
+
+    @pytest.mark.parametrize("key", ["vorname", "nachname", "grade_b"])
+    def test_existing_nondate_column_stays(self, key):
+        host = _ClampHost(DocColumnAxis(DATES, FIXED), key, 2)
+        host._clamp_doc_column_selection_after_rebuild(len(DATES))
+        assert host._doc_active_column_key() == key
+        assert host._doc_selected_date_index == 2

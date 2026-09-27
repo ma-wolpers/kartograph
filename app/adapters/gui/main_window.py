@@ -49,6 +49,7 @@ from app.adapters.gui._mixin_theme import ThemeMixin
 from app.adapters.gui._mixin_undo_redo import UndoRedoMixin
 from app.adapters.gui._mixin_viewport import ViewportMixin
 from app.adapters.gui._pending_field_save import PendingFieldSave
+from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow
 from app.adapters.gui.main_window_constants import (
     COLOR_MARKER_PALETTE,
     DEFAULT_CANVAS_RADIUS,
@@ -314,10 +315,12 @@ class KartographMainWindow(
         self._doc_dates: list[str] = []
         self._doc_tree_iid_by_student_index: dict[int, str] = {}
         self._doc_student_index_by_iid: dict[str, int] = {}
-        self._doc_row_values_cache: dict[str, tuple[str, tuple, tuple]] = {}
+        self._doc_rows: dict[str, DocRow] = {}
+        self._doc_axis: DocColumnAxis = DocColumnAxis((), ())
+        self._doc_row_order: list[str] = []
         self._doc_date_column_ids: list[str] = []
         self._doc_fixed_column_ids: list[str] = []
-        self._doc_selected_fixed_column_id: str | None = None
+        self._doc_selected_nondate_column_id: str | None = None
         self._doc_sort_column: str | None = None
         self._doc_sort_ascending: bool = True
         self._docs_splitter_positioned: bool = False
