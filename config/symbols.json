@@ -5,9 +5,9 @@
       "meaning": "Beteiligung",
       "shortcut": "b",
       "legend": {
-        "three": "beteiligt sich unaufgefordert und kontinuierlich mit Beiträgen, die den Lernprozess voranbringen",
-        "two": "beteiligt sich gelegentlich mit eigenen Beiträgen am Lerngespräch",
-        "one": "beteiligt sich vor allem nach direkter Ansprache oder mit Denkzeit"
+        "three": "beteiligt sich unaufgefordert, kontinuierlich und verlässlich am Lerngespräch, trägt durch Beiträge und Ergebnisse aktiv dazu bei, den Lernprozess weiter zu entwickeln.",
+        "two": "beteiligt sich gelegentlich am Lerngespräch und nutzt es zunehmend als Lerngelegenheit; trägt immer wieder mit eigenen Beiträgen und Ergebnissen zur Weiterentwicklung des Lernprozesses bei.",
+        "one": "beteiligt sich am Lerngespräch vor allem nach direkter Ansprache oder Ermutigung; bringt Beiträge ein, wenn ein sicherer Rahmen und Unterstützung gegeben sind (z. B. Vorbereitung in Partnerarbeit, Denkzeit, konkrete Impulse)."
       }
     },
     {
@@ -15,9 +15,9 @@
       "meaning": "Kooperation",
       "shortcut": "c",
       "legend": {
-        "three": "arbeitet eigeninitiativ und verantwortungsvoll im Team und bringt eigene Ideen ein",
-        "two": "arbeitet überwiegend zielorientiert im Team und übernimmt auf Anregung Verantwortung",
-        "one": "arbeitet im Team mit, wenn Ziele und Rollen klar vorgegeben sind"
+        "three": "arbeitet ziel- und teamorientiert mit anderen, übernimmt eigeninitiativ Verantwortung für Rollen und Aufgaben und bringt eigene Ideen in die Gruppe ein",
+        "two": "arbeitet überwiegend zielorientiert in der Gruppe mit, übernimmt auf Anregung Verantwortung und trägt aufgabengeleitet zum gemeinsamen Ergebnis bei",
+        "one": "arbeitet in der Gruppe aufgabenbezogen mit, wenn Ziele und Rollen klar vorgegeben sind, und trägt mit dem eigenen Aufgabenteil zum Gruppenergebnis bei"
       }
     },
     {
@@ -25,9 +25,9 @@
       "meaning": "Interaktion",
       "shortcut": "i",
       "legend": {
-        "three": "geht aktiv und wertschätzend auf Beiträge anderer ein",
-        "two": "reagiert überwiegend angemessen und wertschätzend auf Beiträge anderer",
-        "one": "reagiert auf Beiträge anderer vor allem, wenn sie/er direkt angesprochen wird"
+        "three": "hört aktiv zu, geht sensibel und wertschätzend auf Beiträge anderer ein und vertritt die eigene Position überzeugend",
+        "two": "hört meist aufmerksam zu, reagiert überwiegend angemessen und wertschätzend auf Beiträge anderer und bringt die eigene Position anlassbezogen ein",
+        "one": "hört phasenweise aktiv zu und reagiert auf Beiträge anderer vor allem, wenn sie/er angesprochen wird; hält Gesprächsregeln mit Erinnerung ein"
       }
     },
     {
@@ -35,9 +35,9 @@
       "meaning": "Konfliktfähigkeit",
       "shortcut": "k",
       "legend": {
-        "three": "klärt Konflikte eigeninitiativ, konstruktiv und kompromissbereit",
-        "two": "beteiligt sich an der Klärung von Konflikten und zeigt Ansätze von Kompromissbereitschaft",
-        "one": "klärt Konflikte mit Begleitung durch Lehrkraft oder Streitschlichtung"
+        "three": "nimmt Kritik offen an und äußert sie konstruktiv, klärt Missverständnisse eigeninitiativ und handelt Positionen fair und kompromissbereit aus",
+        "two": "nimmt Kritik überwiegend an, beteiligt sich an der Klärung von Missverständnissen und regelt Konflikte eher spontan, mit ersten Ansätzen von Kompromissbereitschaft",
+        "one": "nimmt konkret und ruhig geäußerte Kritik an und klärt Konflikte mit Begleitung, z. B. durch Lehrkraft oder Streitschlichtung"
       }
     },
     {
@@ -45,9 +45,9 @@
       "meaning": "Aufgabenbearbeitung",
       "shortcut": "a",
       "legend": {
-        "three": "plant, überprüft und korrigiert die eigene Arbeit selbstständig",
-        "two": "löst einzelne Lernschritte selbstständig und holt sich bei Bedarf gezielt Hilfe",
-        "one": "löst Aufgaben schrittweise mit personaler Hilfestellung"
+        "three": "kann Lernschritte selbständig planen und Ergebnisse mit Hilfe von Lösungen überprüfen, Fehler erkennen und korrigieren sowie den Lernweg erklären",
+        "two": "kann einzelne Lernschritte selbständig lösen und holt sich bei Bedarf gezielt Hilfestellung (durch Lehrkraft, Partner/Partnerin, Hilfekarten)",
+        "one": "kann eine Aufgabe schrittweise lösen, wenn personale Hilfestellung (Lehrkraft, andere Lernende) zur Verfügung steht"
       }
     },
     {
@@ -55,9 +55,9 @@
       "meaning": "Umgang mit Material",
       "shortcut": "m",
       "legend": {
-        "three": "organisiert benötigtes Material selbstständig und situativ passend",
-        "two": "organisiert Material in der Regel eigenständig",
-        "one": "organisiert Material nach genauen Vorgaben"
+        "three": "erkennt eigenständig, welche Materialien wann erforderlich sind und kann diese selbständig organisieren, strukturieren und situativ passend bereithalten",
+        "two": "kann Materialien in der Regel eigenständig organisieren, strukturieren und weitgehend ohne externe Aufforderung bereithalten",
+        "one": "kann Arbeitsmaterialien organisieren, strukturieren und bereithalten, wenn genaue Vorgaben (z. B. Materialliste, Checkliste, feste Ablage) zur Verfügung stehen"
       }
     },
     {
@@ -65,9 +65,9 @@
       "meaning": "Visualisierung",
       "shortcut": "v",
       "legend": {
-        "three": "erstellt eigene Visualisierungen komplexer Zusammenhänge und kann sie begründen",
-        "two": "setzt Zusammenhänge unter Anleitung in Visualisierungen um",
-        "one": "erstellt einfache Visualisierungen nach Vorlage"
+        "three": "kann eigene Visualisierungen zur Darstellung komplexer Strukturen und Zusammenhängen erstellen sowie diese vortragen/ erklären/ begründen und reflektieren",
+        "two": "kann komplexe Strukturen (Texte, Zusammenhänge) unter Anleitung (Aufgabenstellung) in einfache sowie teilweise auch komplexe Visualisierungen oder andere Darstellungsformen umsetzen und diese erklären",
+        "one": "kann aus Texten einfache Visualisierungen (Tabelle, Mindmap, concept map) erstellen, wenn Vorgaben oder Modelle zur Verfügung stehen"
       }
     },
     {
@@ -75,9 +75,9 @@
       "meaning": "Fachkompetenz",
       "shortcut": "f",
       "legend": {
-        "three": "erfüllt die fachlichen Anforderungen sicher und selbstständig, auch bei komplexen Aufgaben",
-        "two": "erfüllt die fachlichen Anforderungen größtenteils, teils mit Hinweisen oder Beispielen",
-        "one": "erfüllt grundlegende fachliche Anforderungen mit gezielter Unterstützung"
+        "three": "erfüllt die fachlichen Anforderungen sicher und selbstständig, stellt Lösungswege nachvollziehbar dar und nutzt Fachbegriffe und Darstellungsformen präzise, auch bei komplexeren Aufgaben",
+        "two": "erfüllt die fachlichen Anforderungen größtenteils und stellt Lösungswege überwiegend korrekt dar, teils mit Unterstützung durch Hinweise, Beispiele oder Strukturierungshilfen",
+        "one": "erfüllt grundlegende fachliche Anforderungen, wenn gezielte Unterstützung wie Schritt-für-Schritt-Anleitungen oder Beispiele zur Verfügung steht; nutzt vertraute Fachbegriffe teilweise passend"
       }
     },
     {
@@ -85,9 +85,9 @@
       "meaning": "Algebra",
       "shortcut": "w",
       "legend": {
-        "three": "formt Terme und Gleichungen sicher um und wechselt flexibel zwischen Situation, Tabelle, Graph und Term",
-        "two": "formt einfache Terme und Gleichungen meist korrekt um und wechselt mit Hilfen zwischen Darstellungen",
-        "one": "führt einfache Umformungen mit Anleitung aus und beschreibt Zusammenhänge anhand konkreter Werte"
+        "three": "nutzt Variablen flexibel, formt Terme und Gleichungen sicher und begründet um und wechselt bei funktionalen Zusammenhängen sicher zwischen Situation, Tabelle, Graph und Term",
+        "two": "formt einfache Terme und Gleichungen meist korrekt um und beschreibt Zusammenhänge zwischen Größen; wechselt bei bekannten Funktionstypen mit Hilfen zwischen den Darstellungen",
+        "one": "setzt Zahlen in Terme ein und führt einfache Umformungen mit Anleitung aus; beschreibt Zusammenhänge anhand konkreter Werte und braucht Unterstützung beim Wechsel der Darstellung"
       }
     },
     {
@@ -95,9 +95,9 @@
       "meaning": "Nachfragen",
       "shortcut": "n",
       "legend": {
-        "three": "erschließt Fragen und Arbeitsaufträge selbstständig",
-        "two": "erschließt Arbeitsaufträge meist selbstständig und klärt offene Punkte durch Nachfragen",
-        "one": "erschließt Arbeitsaufträge nach Wiederholung oder zusätzlicher Erläuterung"
+        "three": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben selbstständig und sicher",
+        "two": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben in der Regel selbstständig und klärt offene Punkte gezielt durch Nachfragen",
+        "one": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben mithilfe von Wiederholung, Rückfragen oder zusätzlicher Erläuterung (z. B. Beispiel, Visualisierung, Umformulierung)"
       }
     },
     {
@@ -105,9 +105,9 @@
       "meaning": "Programmieren o.ä.",
       "shortcut": "P",
       "legend": {
-        "three": "zerlegt komplexe Probleme in Teilschritte und entwickelt eigene Algorithmen",
-        "two": "entwickelt für einfache Probleme selbstständig Algorithmen",
-        "one": "entwickelt einfache Algorithmen mit Hilfestellung"
+        "three": "zerlegt komplexe Probleme in Teilschritte, kann Algorithmen entwickeln, umsetzen und erklären",
+        "two": "kann einfache Probleme in Teilschritte zerlegen, kann einfache Algorithmen entwickeln, umsetzen und erklären",
+        "one": "kann einfache Probleme mit Hilfestellung in Teilschritte zerlegen sowie einfache Algorithmen mit Hilfestellung entwickeln, umsetzen und erklären"
       }
     },
     {
