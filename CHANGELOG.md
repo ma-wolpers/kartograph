@@ -31,6 +31,7 @@ The format is based on Keep a Changelog.
 
 ### Changed
 - Dokumentationsansicht: Nachname und Vorname bleiben jetzt links fixiert sichtbar, auch wenn man ganz nach rechts zu den neuesten Terminen scrollt. Werden die Namensspalten per Spaltentrenner verbreitert, lässt sich der Namensbereich über seine eigene Scrollleiste verschieben.
+- Dokumentationsansicht: Die Scrollleisten (horizontal unter allen drei Tabellenbereichen und die vertikale) sehen jetzt genauso schlicht aus wie die der Tischplanansicht statt der bisherigen klobigen Leisten mit Pfeilknöpfen.
 - Dokumentationsansicht: Mit ←/→ lassen sich jetzt auch die Spalten Nachname und Vorname ansteuern; Zellmarkierung und Statuszeile zeigen sie dann als aktive Spalte. Symbol-Kürzel und „Symbol löschen“ wirken dort – wie bei ausgewählter Notenspalte – weiterhin auf das zuletzt gewählte Datum, Enter hat dort keine Wirkung. ← aus der ersten Notenspalte springt wie bisher zum zuletzt gewählten Datum zurück.
 - Dokumentationsansicht: Ein Klick auf einen Namen wählt nur die Zeile aus und behält die aktive Datums- bzw. Notenspalte bei. Wird die Spalte gelöscht, nach der gerade sortiert war, kehrt die Tabelle zur Sitzordnung zurück; bei gleichen Werten entscheidet beim Sortieren immer die Sitzordnung.
 - Der Symbol-Katalog wird beim Start einmalig zentral geladen (`AppState.symbol_catalog`) statt von der GUI separat aus der Konfigurationsdatei.

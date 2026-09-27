@@ -88,8 +88,15 @@ class ThemeMixin:
             relief="flat",
             bd=0,
         )
-        self.x_scroll.configure(**_scroll_kw)
-        self.y_scroll.configure(**_scroll_kw)
+        for scrollbar in (
+            self.x_scroll,
+            self.y_scroll,
+            self.docs_names_x_scroll,
+            self.docs_main_x_scroll,
+            self.docs_right_x_scroll,
+            self.docs_y_scroll,
+        ):
+            scrollbar.configure(**_scroll_kw)
 
         self.plan_listbox.configure(
             bg=theme["bg_panel"],

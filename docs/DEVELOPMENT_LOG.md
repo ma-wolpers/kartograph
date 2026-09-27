@@ -9,6 +9,11 @@ Regel:
 ## [Unreleased]
 
 ### Changed
+- **Dokuansicht: `tk.Scrollbar` statt `ttk.Scrollbar`.**
+  - Alle vier Doku-Scrollbars (`docs_names_x_scroll`, `docs_main_x_scroll`, `docs_right_x_scroll`, `docs_y_scroll`) entstehen jetzt über `LayoutDocsMixin._create_docs_scrollbar` als flache `ui.Scrollbar` (tk) — identisch konfiguriert wie `x_scroll`/`y_scroll` der Rasteransicht. Unter Windows zeichnet tk die native, schlanke Scrollbar; die ttk-Scrollbar im `clam`-Theme hatte Pfeilknöpfe und Rahmen.
+  - `ThemeMixin._apply_kartograph_theme` färbt die Doku-Scrollbars mit denselben `_scroll_kw` wie die Raster-Scrollbars.
+  - Die Invariante „gleich hohe X-Scrollbar in allen drei Panes“ bleibt erhalten, weil alle drei aus derselben Factory kommen.
+  - Noch ttk (bewusst nicht mitgeändert): Planliste (`_mixin_layout.py`) sowie die Popups Laufkern, Snapshots und Symbol-Verwaltung.
 - **Shortcuts vollständig über den bw-gui-Keybinding-Contract (NumLock-Fix).**
   - **Ursache:** `_mixin_edit.py` prüfte in drei Handlern `event.state & 0x0008` als „Alt“. Unter Windows-Tk ist das das NumLock-Bit (Alt = `0x20000`, live gemessen), deshalb waren Symbol-, Farb- und Mitarbeit-Kürzel bei NumLock wirkungslos.
   - **Binder statt lokaler Kopie:** `_register_runtime_shortcut`/`_build_runtime_context` (lokale Binder-Kopie) sind entfernt. `_mixin_shortcuts.py` erzeugt genau einen bw-gui-`WindowShortcutBinder` (`_init_shortcut_binder`), `_bind_runtime_shortcut` delegiert nur noch. Das Debug-Overlay nutzt `self._shortcut_binder.build_context()`.
