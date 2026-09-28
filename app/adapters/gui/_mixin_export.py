@@ -17,6 +17,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 ensure_bw_gui_on_path()
 from bw_gui import ui
 from bw_gui.runtime import widgets as tui
+from bw_gui.widgets import Checkbox
 
 
 class ExportMixin:
@@ -78,13 +79,13 @@ class ExportMixin:
         for symbol in self.symbol_catalog:
             var = ui.BooleanVar(value=symbol in self._grid_visible_symbols)
             vars_by_symbol[symbol] = var
-            tui.Checkbutton(container, text=symbol, variable=var).pack(anchor="w", pady=(0, 2))
+            Checkbox(container, text=symbol, variable=var).pack(anchor="w", pady=(0, 2))
         for effective in self.effective_documentation_symbols:
             if not effective.is_custom:
                 continue
             var = ui.BooleanVar(value=effective.key in self._grid_visible_symbols)
             vars_by_symbol[effective.key] = var
-            tui.Checkbutton(
+            Checkbox(
                 container, text=f"{effective.glyph} {effective.display_name}", variable=var
             ).pack(anchor="w", pady=(0, 2))
 

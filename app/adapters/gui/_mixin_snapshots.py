@@ -26,6 +26,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.runtime import ui, widgets as tui
+from bw_gui.widgets import Checkbox
 
 
 def _format_timestamp(raw: str) -> str:
@@ -311,7 +312,7 @@ class SnapshotsMixin:
         ).pack(padx=16, pady=(16, 8), anchor="w")
 
         hide_var = ui.BooleanVar(value=False)
-        tui.Checkbutton(dialog, text="Diese Warnung nicht mehr anzeigen", variable=hide_var).pack(
+        Checkbox(dialog, text="Diese Warnung nicht mehr anzeigen", variable=hide_var).pack(
             padx=16, pady=(0, 12), anchor="w"
         )
 

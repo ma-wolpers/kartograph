@@ -15,6 +15,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 ensure_bw_gui_on_path()
 from bw_gui import ui
 from bw_gui.runtime import widgets as tui
+from bw_gui.widgets import Checkbox
 
 
 class PdfMixin:
@@ -71,7 +72,7 @@ class PdfMixin:
             for symbol_name in available_symbols:
                 var = ui.BooleanVar(value=True)
                 symbol_vars[symbol_name] = var
-                tui.Checkbutton(symbols_frame, text=symbol_name, variable=var).pack(anchor="w", pady=(0, 2))
+                Checkbox(symbols_frame, text=symbol_name, variable=var).pack(anchor="w", pady=(0, 2))
             symbol_button_row = tui.Frame(container)
             symbol_button_row.pack(fill="x", pady=(4, 8))
             all_symbols_button = tui.Button(
@@ -91,8 +92,8 @@ class PdfMixin:
         else:
             tui.Label(symbols_frame, text="Im Plan sind aktuell keine Symbole vorhanden.").pack(anchor="w", pady=(0, 8))
 
-        tui.Checkbutton(container, text="Farbige Punkte mit exportieren", variable=include_color_markers_var).pack(anchor="w", pady=(0, 6))
-        tui.Checkbutton(container, text="Legende auf weiterer Seite exportieren", variable=include_legend_var).pack(anchor="w", pady=(0, 6))
+        Checkbox(container, text="Farbige Punkte mit exportieren", variable=include_color_markers_var).pack(anchor="w", pady=(0, 6))
+        Checkbox(container, text="Legende auf weiterer Seite exportieren", variable=include_legend_var).pack(anchor="w", pady=(0, 6))
 
         self._focus_overlay_widget(dialog, first_mode_button)
 

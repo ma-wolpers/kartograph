@@ -23,6 +23,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.runtime import ui, widgets as tui
+from bw_gui.widgets import Switch
 
 
 class LaufkernMixin:
@@ -108,7 +109,7 @@ class LaufkernMixin:
         self._refresh_shortcut_runtime_debug_dialog()
 
     def _on_shortcut_runtime_offline_var_changed(self) -> None:
-        """Synchronisiert den Offline-Modus wenn die Checkbox geändert wird."""
+        """Synchronisiert den Offline-Modus, sobald der Switch umgeschaltet wird (sofortige Wirkung)."""
         self._shortcut_runtime_offline = bool(self._shortcut_runtime_debug_offline_var.get())
         self._refresh_shortcut_runtime_debug_dialog()
 
@@ -130,7 +131,12 @@ class LaufkernMixin:
         toolbar = tui.Frame(window, padding=(10, 8))
         toolbar.pack(fill="x")
         tui.Label(toolbar, textvariable=self._shortcut_runtime_debug_context_var, style="Muted.TLabel").pack(side="left", fill="x", expand=True)
-        offline_check = tui.Checkbutton(toolbar, text="Offline simulieren", variable=self._shortcut_runtime_debug_offline_var, command=self._on_shortcut_runtime_offline_var_changed)
+        offline_check = Switch(
+            toolbar,
+            text="Offline simulieren",
+            variable=self._shortcut_runtime_debug_offline_var,
+            on_change=lambda _offline: self._on_shortcut_runtime_offline_var_changed(),
+        )
         offline_check.pack(side="left", padx=(12, 0))
         self._attach_hover_help(offline_check, label="Offline-Modus fuer Runtime-Resolver umschalten", shortcut="Ctrl+Shift+O")
         refresh_button = tui.Button(toolbar, text="Aktualisieren", command=self._refresh_shortcut_runtime_debug_dialog)
