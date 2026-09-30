@@ -9,6 +9,12 @@ Regel:
 ## [Unreleased]
 
 ### Changed
+- **`main_window.py` unter die 300-Zeilen-Grenze** (393 → 284 Code-Zeilen, reine Verschiebung): Die Zustandsanwendung
+  (`dispatch`, `interaction_mode`, `_documentation_only_symbols`, `apply_state`,
+  `_rebuild_effective_documentation_symbols_if_changed`, `_replace_current_plan`, `_apply_plan_list`,
+  `_build_symbol_shortcut_map`) liegt jetzt in `_mixin_state_apply.py` (`StateApplyMixin`, erste Basis von
+  `KartographMainWindow`, kein anderes Fenster-Mixin definiert diese Namen). Der Ausnahme-Eintrag in
+  `ARCHITEKTUR.md` entfällt.
 - **Neu: `app/core/domain/symbol_renames.py`** — Migrationstabelle für umbenannte eingebaute Symbole
   (`LEGACY_SYMBOL_RENAMES`, erster Eintrag `"Mathem. Fachkompetenz"` → `"Fachkompetenz"`). Hintergrund:
   eingebaute Symbole werden unter ihrem Bedeutungstext gespeichert (Diagnoseprofil, Doku-Einträge,
