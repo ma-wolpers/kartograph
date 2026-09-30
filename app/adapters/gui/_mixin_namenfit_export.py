@@ -16,7 +16,7 @@ from app.infrastructure.exporters.namenfit_csv_exporter import export_namenfit_c
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui import ui
+from bw_gui.runtime import ui
 from bw_gui.runtime import widgets as tui
 
 

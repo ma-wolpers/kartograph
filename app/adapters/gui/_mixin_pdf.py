@@ -13,7 +13,7 @@ from app.core.intents.view_intents import ExportPdfIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui import ui
+from bw_gui.runtime import ui
 from bw_gui.runtime import widgets as tui
 from bw_gui.widgets import Checkbox
 

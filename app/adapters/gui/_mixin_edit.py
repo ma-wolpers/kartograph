@@ -25,7 +25,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 from bw_libs.ui_contract.hsm import ESCAPE_CLOSE_POPUP, ESCAPE_EXIT_INLINE_EDITOR, ESCAPE_POP_PARENT
 
 ensure_bw_gui_on_path()
-from bw_gui import ui
+from bw_gui.runtime import ui
 from bw_gui.runtime import widgets as tui
 
 

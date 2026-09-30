@@ -19,7 +19,7 @@ from app.core.intents.student_intents import CreateStudentIntent, RenameStudentI
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui import ui
+from bw_gui.runtime import ui
 from bw_gui.runtime import widgets as tui
 
 

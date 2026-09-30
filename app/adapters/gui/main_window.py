@@ -660,7 +660,7 @@ class KartographMainWindow(
         Args:
             plan_list: Aktuelle Liste der Plan-Einträge aus dem AppState.
         """
-        from bw_gui import ui as _ui
+        from bw_gui.runtime import ui as _ui
         self._plan_index = list(plan_list)
         if not hasattr(self, "plan_listbox"):
             return
