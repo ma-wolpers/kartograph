@@ -58,7 +58,6 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 
 ## Bekannte Ausnahmen vom 300-Zeilen-Limit
 - `tests/test_app_controller.py` (~1243 Codezeilen ohne Docstrings/Kommentare/Imports/Leerzeilen, Stand: eigene Doku-Symbole-Feature): eine Testdatei, kein Programm-Feature — die Struktur folgt bewusst der Handler-Isolation-Gliederung der Applikationsschicht (`TestHandle<Feature>Handlers`-Klassen), nicht eigenen fachlichen Modulgrenzen. Ein Split nach Zeilenzahl wuerde diese 1:1-Zuordnung zu den Handler-Modulen aufbrechen, ohne einen Klarheitsgewinn zu bringen.
-- `app/adapters/gui/_mixin_edit.py` (knapp ueber dem Richtmass, Stand: NumLock-Fix -- die drei Modifier-Guards sind in den bw-gui-Binder gewandert): Bearbeitungsoperationen fuer Schuelertische, Symbole, Farbpunkte, Mitarbeit-Bewertung und die zugehoerigen Tastatur-Shortcut-Handler. War schon vor diesem Task ueber dem Richtmass (u. a. durch eine zwischenzeitliche, unabhaengige Merge-Uebernahme); die Deprecation des Attendance-Sonderpfads hat die Datei durch Konsolidierung von vier Methoden auf zwei sogar leicht verkleinert (von ~406 auf ~385 Gesamtzeilen), bleibt aber uebers Limit. Kein Split im Rahmen dieses Tasks, da die Datei thematisch bereits eine sinnvolle Einheit ist (ein Mixin pro GUI-Bearbeitungsbereich); ein Split nach Tastatur- vs. Maus-/Dialog-Operationen waere ein separates, unabhaengiges Aufraeumen.
 
 ## Build- und Laufzeitkontext
 - Start lokal ueber `start-kartograph.bat` oder `python kartograph.py`.
