@@ -6,6 +6,7 @@ Regel:
 - Keine Feature- oder Architekturaenderung ohne Update in diesem Log.
 - Bugfix-Only-Changes koennen ohne Eintrag erfolgen.
 
+- Einheitliche Marker fuer akzeptierte Grenzen (2026-10-08, reine Doku-Migration): die Liste der Groessen-Ausnahmen in `docs/ARCHITEKTUR.md` ist als `GRENZE(dateigroesse)` ueberschrieben; akzeptierte Einschraenkungen tragen projektuebergreifend `GRENZE:`, offene Punkte `BAUSTELLE:` (Suche: `rg -n "\b(GRENZE|BAUSTELLE)\b"`). Die `TODO(...)`-Zitate in `docs/architecture-plan-v2.md` bleiben als historischer Stand erledigter Aufgaben unveraendert.
 ## [Unreleased]
 
 ### Changed

@@ -56,7 +56,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Exportaktionen werden in der GUI angestossen und durch den Infrastructure-Exporter als PDF geschrieben.
 - Der PNG-ZIP-Export berechnet die Tisch-Pixelgeometrie einmal pro Export (`GeometryTransform`) und rendert daraus pro benanntem Schueler ein eigenes PNG mit identischer Bildgroesse/Skalierung; nur die Fuellfarbe des eigenen Tisches wechselt. Schichtgrenzen strikt eingehalten: Domain (`student_png_export.py`) kennt Pillow nicht, der Renderer macht kein Datei-I/O, der ZIP-Exporter macht kein GUI, die GUI waehlt nur den Zielpfad und startet den Export ueber ein No-Op-Intent (analog PDF/CSV).
 
-## Bekannte Ausnahmen vom 300-Zeilen-Limit
+## GRENZE(dateigroesse): Bekannte Ausnahmen vom 300-Zeilen-Limit
 - `tests/test_app_controller.py` (~1243 Codezeilen ohne Docstrings/Kommentare/Imports/Leerzeilen, Stand: eigene Doku-Symbole-Feature): eine Testdatei, kein Programm-Feature — die Struktur folgt bewusst der Handler-Isolation-Gliederung der Applikationsschicht (`TestHandle<Feature>Handlers`-Klassen), nicht eigenen fachlichen Modulgrenzen. Ein Split nach Zeilenzahl wuerde diese 1:1-Zuordnung zu den Handler-Modulen aufbrechen, ohne einen Klarheitsgewinn zu bringen.
 
 ## Build- und Laufzeitkontext
