@@ -68,6 +68,8 @@ from bw_libs.ui_contract.keybinding import KeybindingRegistry
 from bw_libs.ui_contract.popup import POPUP_KIND_MODAL, POPUP_KIND_NON_MODAL, PopupPolicy, PopupPolicyRegistry
 
 ensure_bw_gui_on_path()
+from bw_gui.contracts.screen_geometry import Size
+from bw_gui.runtime.screen_placement import place_on_pointer_monitor
 from bw_gui.runtime import BwBaseWindow, ui, widgets as tui
 from bw_gui.menu import section_spec
 from app.adapters.gui._mixin_state_apply import StateApplyMixin
@@ -432,16 +434,18 @@ class KartographMainWindow(
 
 
     def _center_window_on_screen(self) -> None:
-        """Zentriert das Fenster auf dem Bildschirm nach dem ersten Layout-Durchgang."""
+        """Zentriert das Fenster nach dem ersten Layout-Durchgang auf dem Monitor des Mauszeigers.
+
+        Nutzt den Screen-Placement-Contract von bw-gui (Work-Area des Monitors unter
+        dem Mauszeiger) statt ``winfo_screenwidth``, das unter Windows nur den
+        Primärmonitor kennt.
+        """
         self.update_idletasks()
         width = max(self.winfo_width(), 1000)
         height = max(self.winfo_height(), 680)
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        x_pos = max(0, (screen_width - width) // 2)
-        y_pos = max(0, (screen_height - height) // 2)
-        self.geometry(f"{width}x{height}+{x_pos}+{y_pos}")
-        LOGGER.info("Window centered to %dx%d at +%d+%d on screen %dx%d", width, height, x_pos, y_pos, screen_width, screen_height)
+        self.geometry(f"{width}x{height}")
+        position = place_on_pointer_monitor(self, size=Size(width, height))
+        LOGGER.info("Window centered to %dx%d at %+d%+d", width, height, position.x, position.y)
 
     def _ui_watchdog_tick(self) -> None:
         """Erkennt und loggt UI-Thread-Blockierungen durch Vergleich des Timer-Drifts."""

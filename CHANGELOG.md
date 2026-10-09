@@ -44,6 +44,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Das Hauptfenster öffnet sich zentriert auf dem Monitor, auf dem der Mauszeiger steht (oberhalb der Taskleiste), statt immer auf dem Hauptmonitor.
 - Die Einbuchstaben-Kürzel für Symbole (z. B. `a`, `b`, Leertaste), Farbpunkte (`1`–`9`) und Mitarbeit (`+`, `-`, `o`, `s`) wirkten weder im Sitzplan-Raster noch in der Dokuansicht, solange NumLock eingeschaltet war: Windows meldet NumLock mit demselben Bit, das die Kürzel fälschlich als „Alt gedrückt“ werteten. Jetzt funktionieren sie unabhängig von NumLock (und CapsLock); mit gehaltenem Strg oder Alt lösen sie wie vorgesehen nicht aus.
 - Das Nachteilsausgleiche-Feld verlor Eingaben, wenn direkt nach dem Tippen zu einem anderen Tisch gewechselt wurde (per Maus oder Pfeiltaste), ohne vorher das Feld zu verlassen — das Detail-Panel wurde schon vorher für den neuen Schüler neu gezeichnet und überschrieb dabei den ungespeicherten Text.
 - Die aufgedeckte Tischdetailansicht schloss sich bei jedem Wechsel zu einem anderen Tisch (Maus oder Pfeiltaste) automatisch. Bleibt jetzt beim Wechsel zu einem anderen belegten Tisch offen und zeigt die Details des neuen Schülers; schließt weiterhin bei Escape oder Auswahl einer leeren Zelle/des Lehrertisches/mehrerer Zellen.
