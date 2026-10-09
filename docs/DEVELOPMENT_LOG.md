@@ -9,6 +9,7 @@ Regel:
 - Einheitliche Marker fuer akzeptierte Grenzen (2026-10-08, reine Doku-Migration): die Liste der Groessen-Ausnahmen in `docs/ARCHITEKTUR.md` ist als `GRENZE(dateigroesse)` ueberschrieben; akzeptierte Einschraenkungen tragen projektuebergreifend `GRENZE:`, offene Punkte `BAUSTELLE:` (Suche: `rg -n "\b(GRENZE|BAUSTELLE)\b"`). Die `TODO(...)`-Zitate in `docs/architecture-plan-v2.md` bleiben als historischer Stand erledigter Aufgaben unveraendert.
 ## [Unreleased]
 
+- Schritt-0-Invariante (bw-gui-Wunschliste, 2026-10-09): neuer Test `tests/test_bw_gui_import_source.py` prüft per `bw_gui.testing.import_source.assert_bw_gui_from_sibling`, dass bw_gui aus dem Geschwister-Checkout und nie aus einer verschachtelten `bw-gui/`-Kopie geladen wird. Bleibt dauerhaft, auch nach Entfernen des Fallbacks 3 in `ensure_bw_gui_on_path`.
 ### Changed
 - **`main_window.py` unter die 300-Zeilen-Grenze** (393 → 284 Code-Zeilen, reine Verschiebung): Die Zustandsanwendung
   (`dispatch`, `interaction_mode`, `_documentation_only_symbols`, `apply_state`,
