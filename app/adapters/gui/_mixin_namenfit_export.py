@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import filedialog, messagebox
 from app.adapters.gui.main_window_constants import NAME_FORMAT_OPTIONS
 from app.core.domain.namenfit_csv_export import NamenfitExportError
@@ -86,7 +87,7 @@ class NamenfitExportMixin:
             except Exception as exc:
                 messagebox.showerror("Namenfit-Export fehlgeschlagen", str(exc), parent=dialog)
 
-        dialog.bind("<Return>", lambda _e: do_export())
+        bind_action(dialog_keys(dialog), ENTER, do_export, binding_id="dialog.confirm")
 
         button_row = tui.Frame(container)
         button_row.pack(fill="x", pady=(12, 0))

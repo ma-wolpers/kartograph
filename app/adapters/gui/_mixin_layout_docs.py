@@ -8,12 +8,21 @@ derselben logischen Dokutabelle.
 
 from __future__ import annotations
 
+from app.adapters.gui._local_keys import widget_keys
 from app.adapters.gui.docs_table_model import VORNAME_KEY, DocsPane
 from app.adapters.gui.ui_intents import UiIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import ui, widgets as tui
+from bw_gui.contracts import KeyModifiers, KeySpec
+from bw_gui.runtime import bind_click, bind_wheel, on_key, ui, widgets as tui
+
+# Pfeiltasten der Doku-Tabellen: tolerierte Zusatz-Modifier. Ohne Toleranz fiele
+# z. B. Shift+↑ an die native Treeview-Klassenbindung, die nur EINEN der drei
+# synchronisierten Trees bewegen würde. Alt+←/→ bleibt bewusst frei: das ist das
+# Fenster-Kürzel "voriges/nächstes Datum" (früher von <Left>/<Right> abgefangen).
+_DOCS_VERTICAL_TOLERANCE = "(tolerate: Ctrl, Alt, Shift)"
+_DOCS_HORIZONTAL_TOLERANCE = "(tolerate: Ctrl, Shift)"
 
 
 class LayoutDocsMixin:
@@ -189,7 +198,7 @@ class LayoutDocsMixin:
         self.docs_right_tree.configure(xscrollcommand=self.docs_right_x_scroll.set)
         for pane, tree in self._docs_trees_by_pane().items():
             self._bind_docs_pane_events(pane, tree)
-        self.docs_right_tree.bind("<Double-Button-1>", self._on_docs_right_tree_double_click)
+        bind_click(self.docs_right_tree, self._on_docs_right_tree_double_click, count=2)
 
         self.docs_splitter.bind(
             "<Configure>",
@@ -241,14 +250,35 @@ class LayoutDocsMixin:
         """
         tree.configure(yscrollcommand=lambda first, last, p=pane: self._sync_docs_yscroll(p, first, last))
         tree.bind("<<TreeviewSelect>>", lambda _event, p=pane: self._on_docs_pane_select(p))
-        tree.bind("<Button-1>", lambda event, p=pane: self._on_docs_pane_click(p, event))
-        tree.bind("<Up>", lambda _event, p=pane: self._on_docs_vertical_nav(-1, source=p))
-        tree.bind("<Down>", lambda _event, p=pane: self._on_docs_vertical_nav(1, source=p))
-        tree.bind("<Left>", lambda _event: self._on_docs_horizontal_nav(-1))
-        tree.bind("<Right>", lambda _event: self._on_docs_horizontal_nav(1))
-        tree.bind("<KeyPress>", self._on_docs_pane_keypress, add="+")
-        tree.bind("<MouseWheel>", lambda _event: self.after_idle(self._update_docs_cell_highlight))
-        tree.bind("<Shift-MouseWheel>", self._on_docs_shift_mouse_wheel)
+        bind_click(tree, lambda event, p=pane: self._on_docs_pane_click(p, event))
+        keys = widget_keys(tree)
+        for name, handler in (
+            (f"Up {_DOCS_VERTICAL_TOLERANCE}", lambda _e, p=pane: self._on_docs_vertical_nav(-1, source=p)),
+            (f"Down {_DOCS_VERTICAL_TOLERANCE}", lambda _e, p=pane: self._on_docs_vertical_nav(1, source=p)),
+            (f"Left {_DOCS_HORIZONTAL_TOLERANCE}", lambda _e: self._on_docs_horizontal_nav(-1)),
+            (f"Right {_DOCS_HORIZONTAL_TOLERANCE}", lambda _e: self._on_docs_horizontal_nav(1)),
+        ):
+            spec = KeySpec.parse(name)
+            keys.bind(spec, handler, binding_id=f"docs.nav.{spec.key.value}", intent="docs.nav")
+        on_key(tree, self._on_docs_pane_keypress)
+        bind_wheel(tree, self._on_docs_tree_wheel)
+
+    def _on_docs_tree_wheel(self, event):
+        """Mausrad über einem Doku-Tree: Shift scrollt horizontal, sonst nativ vertikal.
+
+        Vertikal scrollt die native Treeview-Bindung (``NOT_HANDLED``); danach wird
+        nur die Zellmarkierung nachgezogen.
+
+        Args:
+            event: bw-gui-``WheelEvent``.
+
+        Returns:
+            ``EventResult`` des Shift-Handlers bzw. ``None`` (= ``NOT_HANDLED``).
+        """
+        if isinstance(event.modifiers, KeyModifiers) and event.modifiers.shift:
+            return self._on_docs_shift_mouse_wheel(event)
+        self.after_idle(self._update_docs_cell_highlight)
+        return None
 
     def _docs_trees_by_pane(self) -> dict[DocsPane, object]:
         """Liefert die drei Doku-Treeviews, geordnet von links nach rechts.

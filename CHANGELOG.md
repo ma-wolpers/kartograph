@@ -31,6 +31,7 @@ The format is based on Keep a Changelog.
 - Schueler-Felder unterstuetzen jetzt einen separaten "Nachname" neben dem Vornamen; PDF-Export, Legenden und Dokumentationsansicht verwenden automatisch beide Felder.
 
 ### Changed
+- Tastenkürzel mit Strg/Alt gelten genau für die angegebene Kombination: Strg+Pfeil oder Alt+Pfeil bewegen die Markierung im Raster nicht mehr (nur Pfeil bzw. Umschalt+Pfeil). Die Enter-Taste des Ziffernblocks bestätigt jetzt auch in Dialogen, Farbpunkte 1–9 lassen sich auch über den Ziffernblock setzen. Kleine Touchpad-Bewegungen über dem Raster sammeln sich zu ganzen Scroll-/Zoom-Schritten, statt bei jeder Mini-Bewegung einen ganzen Schritt zu springen.
 - `tools/ci/check_ai_guardrails.py` in Einstieg plus die Module `guardrail_config/support/process/checks.py` aufgeteilt; Aufruf und Prüfungen unverändert (reine CI-Tooling-Wartung, keine Nutzer-sichtbare Änderung).
 - Häkchen-Felder haben ein modernes, an das Theme angepasstes Aussehen. Auswahlen, die erst mit einem Knopf wirksam werden (Symbolfilter, PDF-Export, "Diese Warnung nicht mehr anzeigen"), sind Checkboxen. "Offline simulieren" im Shortcut-Runtime-Debug wirkt sofort und ist deshalb jetzt ein Schalter (Switch).
 - Ansicht-Menü: "Archivierte Sitzpläne anzeigen", "Dokumentationssicht" und "Offline-Simulation" sind jetzt Schalter, die ihren aktuellen Zustand anzeigen. Vorher war das ein Auswahlpunkt bzw. ein reiner "…umschalten"-Befehl ohne Zustandsanzeige.
@@ -45,6 +46,9 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Im Dialog "Symbol setzen" sprang ein Mausklick in die Liste auf einen festen Eintrag; die Ziffern 1–9 wählen jetzt wie vorgesehen den n-ten Eintrag (auch über den Ziffernblock).
+- Alt+←/→ springt in der Dokumentationstabelle zum vorigen/nächsten Datum, auch wenn die Tabelle den Fokus hat (bisher bewegte es nur die Spaltenauswahl).
+- Tastenkürzel reagieren nicht mehr auf die Feststelltaste: Strg+Z, Strg+C usw. sowie die Symbol-, Farb- und Mitarbeit-Kürzel funktionieren auch bei eingeschaltetem CapsLock. Strg+Umschalt+R/O (Kürzel-Debug) funktionieren jetzt ohne CapsLock.
 - Das Hauptfenster öffnet sich zentriert auf dem Monitor, auf dem der Mauszeiger steht (oberhalb der Taskleiste), statt immer auf dem Hauptmonitor.
 - Die Einbuchstaben-Kürzel für Symbole (z. B. `a`, `b`, Leertaste), Farbpunkte (`1`–`9`) und Mitarbeit (`+`, `-`, `o`, `s`) wirkten weder im Sitzplan-Raster noch in der Dokuansicht, solange NumLock eingeschaltet war: Windows meldet NumLock mit demselben Bit, das die Kürzel fälschlich als „Alt gedrückt“ werteten. Jetzt funktionieren sie unabhängig von NumLock (und CapsLock); mit gehaltenem Strg oder Alt lösen sie wie vorgesehen nicht aus.
 - Das Nachteilsausgleiche-Feld verlor Eingaben, wenn direkt nach dem Tippen zu einem anderen Tisch gewechselt wurde (per Maus oder Pfeiltaste), ohne vorher das Feld zu verlassen — das Detail-Panel wurde schon vorher für den neuen Schüler neu gezeichnet und überschrieb dabei den ungespeicherten Text.

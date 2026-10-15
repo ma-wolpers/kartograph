@@ -6,6 +6,7 @@ Namensformular, Symbols/Farb-Frames) und befüllt die Symbol-Shortcuts-Bar.
 
 from __future__ import annotations
 
+from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -56,22 +57,19 @@ class DetailsLayoutMixin:
         self.name_entry = tui.Entry(self.details_form, textvariable=self._name_var, width=20)
         self.name_entry.pack(side="left", padx=(8, 16))
         self.name_entry.bind("<FocusOut>", lambda _event: self._on_name_field_focus_out())
-        self.name_entry.bind("<Escape>", self._on_name_entry_escape)
-        self.name_entry.bind("<Return>", self._on_name_entry_return)
+        self._bind_name_entry_keys(self.name_entry)
 
         tui.Label(self.details_form, text="Nachname", style="Panel.TLabel").pack(side="left")
         self.last_name_entry = tui.Entry(self.details_form, textvariable=self._last_name_var, width=20)
         self.last_name_entry.pack(side="left", padx=(8, 16))
         self.last_name_entry.bind("<FocusOut>", lambda _event: self._on_name_field_focus_out())
-        self.last_name_entry.bind("<Escape>", self._on_name_entry_escape)
-        self.last_name_entry.bind("<Return>", self._on_name_entry_return)
+        self._bind_name_entry_keys(self.last_name_entry)
 
         tui.Label(self.details_form, text="Spitzname", style="Panel.TLabel").pack(side="left")
         self.nickname_entry = tui.Entry(self.details_form, textvariable=self._nickname_var, width=20)
         self.nickname_entry.pack(side="left", padx=(8, 0))
         self.nickname_entry.bind("<FocusOut>", lambda _event: self._on_name_field_focus_out())
-        self.nickname_entry.bind("<Escape>", self._on_name_entry_escape)
-        self.nickname_entry.bind("<Return>", self._on_name_entry_return)
+        self._bind_name_entry_keys(self.nickname_entry)
 
         self.symbols_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.symbols_frame.pack(fill="x", pady=(6, 0))
@@ -152,3 +150,16 @@ class DetailsLayoutMixin:
                     label=f"{item.meaning} (nur Doku) – {item.legend_one}",
                     shortcut=key,
                 )
+
+    def _bind_name_entry_keys(self, entry) -> None:
+        """Escape und Enter in einem Namensfeld verlassen den Namenseditor-Modus.
+
+        Widget-lokal (``WidgetShortcutBinder``), aktiv trotz Texteingabe-Fokus --
+        das Feld selbst ist die Texteingabe.
+
+        Args:
+            entry: Vor-, Nach- oder Spitznamenfeld.
+        """
+        keys = widget_keys(entry)
+        keys.bind(ESCAPE, self._on_name_entry_escape, binding_id="name.escape", intent="name.escape", allow_when_text_input=True)
+        keys.bind(ENTER, self._on_name_entry_return, binding_id="name.return", intent="name.return", allow_when_text_input=True)

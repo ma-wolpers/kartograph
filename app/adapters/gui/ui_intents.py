@@ -48,7 +48,6 @@ class UiIntent:
 
     DOCS_GRADE = "docs.grade"
     DOCS_SYMBOL = "docs.symbol"
-    DOCS_SYMBOL_LOWER = "docs.symbol.lower"
     CUSTOM_SYMBOL_SHORTCUT = "docs.custom_symbol_shortcut"
     SYMBOL_SHORTCUT = "desk.symbol_shortcut"
     COLOR_SHORTCUT = "desk.color_shortcut"
@@ -60,4 +59,3 @@ class UiIntent:
     DOCS_NEXT = "docs.next"
     GLOBAL_DELETE = "global.delete"
     GLOBAL_RETURN = "global.return"
-    GLOBAL_RETURN_NUMPAD = "global.return.numpad"

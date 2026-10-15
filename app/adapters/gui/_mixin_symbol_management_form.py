@@ -14,6 +14,7 @@ from app.core.domain.custom_symbol_validation import (
     validate_custom_symbol_shortcut,
 )
 from app.core.intents.custom_symbol_intents import AddCustomSymbolIntent, UpdateCustomSymbolIntent
+from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -137,7 +138,7 @@ class SymbolManagementFormMixin:
             dialog.destroy()
             self._refresh_symbol_management_table()
 
-        dialog.bind("<Return>", lambda _e: submit())
+        bind_action(dialog_keys(dialog), ENTER, submit, binding_id="dialog.confirm")
 
         button_row = tui.Frame(frame)
         button_row.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(8, 0))

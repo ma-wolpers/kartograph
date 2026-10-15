@@ -11,36 +11,40 @@ from app.adapters.gui.main_window_constants import LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.intents.session_intents import NavigateSessionIntent
 from app.core.usecases.v4.custom_symbol_usecases import resolve_custom_symbol_shortcut
+from bw_libs.shared_gui_core import ensure_bw_gui_on_path
+
+ensure_bw_gui_on_path()
+from bw_gui.contracts import EventResult
 
 
 class ShortcutHandlersMixin:
     """Mixin: Konkrete Tastatur-Handler-Implementierungen (F2, Entf, Alt-Pfeile, etc.)."""
 
-    def _on_rename_shortcut(self, _event) -> str | None:
+    def _on_rename_shortcut(self, _event) -> EventResult | None:
         """Handler für F2: umbenennen nur in der Listenansicht.
 
         Args:
-            _event: Tkinter-Tastaturereignis (unbenutzt).
+            _event: bw-gui-``KeyEvent`` (unbenutzt).
         """
         if self.interaction_mode != LIST_ACTIVE:
             return None
         return self._handle_intent(UiIntent.RENAME_SELECTED_PLAN)
 
-    def _on_duplicate_shortcut(self, _event) -> str | None:
+    def _on_duplicate_shortcut(self, _event) -> EventResult | None:
         """Handler für Ctrl+D: duplizieren nur in der Listenansicht.
 
         Args:
-            _event: Tkinter-Tastaturereignis (unbenutzt).
+            _event: bw-gui-``KeyEvent`` (unbenutzt).
         """
         if self.interaction_mode != LIST_ACTIVE:
             return None
         return self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN)
 
-    def _on_delete_key(self, _event) -> str | None:
+    def _on_delete_key(self, _event) -> EventResult | None:
         """Handler für Entf: kontextabhängiges Löschen in Liste, Docs oder Raster.
 
         Args:
-            _event: Tkinter-Tastaturereignis (unbenutzt).
+            _event: bw-gui-``KeyEvent`` (unbenutzt).
         """
         if self.interaction_mode == LIST_ACTIVE:
             return self._handle_intent(UiIntent.DELETE_SELECTED_PLAN)
@@ -48,82 +52,82 @@ class ShortcutHandlersMixin:
             if self._is_text_input_focused():
                 return None
             self.clear_selected_documentation_symbol()
-            return "break"
+            return EventResult.HANDLED
         return self._handle_intent(UiIntent.DELETE_DESK)
 
-    def _on_set_grade_shortcut(self, _event) -> str | None:
+    def _on_set_grade_shortcut(self, _event) -> EventResult | None:
         """Handler für Ctrl+G: Noten-Inline-Editor in der Docs-Ansicht öffnen.
 
         Args:
-            _event: Tkinter-Tastaturereignis (unbenutzt).
+            _event: bw-gui-``KeyEvent`` (unbenutzt).
         """
         if not self._shortcut_scope_allows("docs"):
             return None
         self.set_selected_documentation_grade_dialog()
-        return "break"
+        return EventResult.HANDLED
 
-    def _on_set_symbol_shortcut(self, _event) -> str | None:
+    def _on_set_symbol_shortcut(self, _event) -> EventResult | None:
         """Handler für Ctrl+Shift+S: Symbol-Dialog in der Docs-Ansicht öffnen.
 
         Args:
-            _event: Tkinter-Tastaturereignis (unbenutzt).
+            _event: bw-gui-``KeyEvent`` (unbenutzt).
         """
         if not self._shortcut_scope_allows("docs"):
             return None
         self.set_selected_documentation_symbol_dialog()
-        return "break"
+        return EventResult.HANDLED
 
-    def _on_clear_symbol_shortcut(self, _event) -> str | None:
+    def _on_clear_symbol_shortcut(self, _event) -> EventResult | None:
         """Handler für Ctrl+Entf / Ctrl+Backspace: Symbol der Doku-Zelle löschen.
 
         Args:
-            _event: Tkinter-Tastaturereignis (unbenutzt).
+            _event: bw-gui-``KeyEvent`` (unbenutzt).
         """
         if not self._shortcut_scope_allows("docs"):
             return None
         self.clear_selected_documentation_symbol()
-        return "break"
+        return EventResult.HANDLED
 
-    def _on_docs_prev_date_shortcut(self, _event) -> str | None:
+    def _on_docs_prev_date_shortcut(self, _event) -> EventResult | None:
         """Handler für Alt+Links: zum vorigen Dokumentationsdatum springen (v4: NavigateSessionIntent).
 
         Args:
-            _event: Tkinter-Tastaturereignis (unbenutzt).
+            _event: bw-gui-``KeyEvent`` (unbenutzt).
         """
         if not self._shortcut_scope_allows("docs"):
             return None
         if not self._doc_dates:
-            return "break"
+            return EventResult.HANDLED
         self._select_doc_nondate_column(None)
         self._controller.dispatch(NavigateSessionIntent(direction="prev"))
-        return "break"
+        return EventResult.HANDLED
 
-    def _on_docs_next_date_shortcut(self, _event) -> str | None:
+    def _on_docs_next_date_shortcut(self, _event) -> EventResult | None:
         """Handler für Alt+Rechts: zum nächsten Dokumentationsdatum springen (v4: NavigateSessionIntent).
 
         Args:
-            _event: Tkinter-Tastaturereignis (unbenutzt).
+            _event: bw-gui-``KeyEvent`` (unbenutzt).
         """
         if not self._shortcut_scope_allows("docs"):
             return None
         if not self._doc_dates:
-            return "break"
+            return EventResult.HANDLED
         self._select_doc_nondate_column(None)
         self._controller.dispatch(NavigateSessionIntent(direction="next"))
-        return "break"
+        return EventResult.HANDLED
 
-    def _on_docs_today_shortcut(self, _event) -> str | None:
+    def _on_docs_today_shortcut(self, _event) -> EventResult | None:
         """Handler für Ctrl+H: heutiges Datum in der Docs-Ansicht ansteuern.
 
         Args:
-            _event: Tkinter-Tastaturereignis (unbenutzt).
+            _event: bw-gui-``KeyEvent`` (unbenutzt).
         """
         if not self._shortcut_scope_allows("docs"):
             return None
         self.select_today_documentation_date()
-        return "break"
+        return EventResult.HANDLED
 
-    def _on_custom_symbol_shortcut(self, letter: str) -> str | None:
+    def _on_custom_symbol_shortcut(self, letter: str) -> EventResult | None:
         """Handler für einen einzelnen Buchstaben: eigenes Doku-Symbol togglen.
 
         Löst *letter* live gegen die eigenen Symbole des AKTUELL offenen Plans
@@ -153,4 +157,4 @@ class ShortcutHandlersMixin:
             self._toggle_documentation_symbol_today_grid(custom.id)
         else:
             return None
-        return "break"
+        return EventResult.HANDLED

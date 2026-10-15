@@ -17,31 +17,44 @@ from __future__ import annotations
 
 from app.adapters.gui.main_window_constants import NAME_EDITING
 from app.core.intents.view_intents import ResetViewIntent, ZoomInIntent, ZoomOutIntent
+from bw_libs.shared_gui_core import ensure_bw_gui_on_path
+
+ensure_bw_gui_on_path()
+from bw_gui.contracts import EventResult, KeyModifiers
+from bw_gui.contracts.pointer import Axis, WheelEvent, wheel_axis
+from bw_gui.runtime import bind_click, bind_drag, bind_wheel
 
 
 class CanvasEventsMixin:
     """Mixin: Canvas-Mausereignisse, Zoom und Viewport-Navigation."""
 
     def _register_canvas_event_bindings(self) -> None:
-        """Bindet alle Maus- und Tastaturereignisse an den Canvas."""
-        self.canvas.bind("<Button-1>", self._on_canvas_click)
-        self.canvas.bind("<B1-Motion>", self._on_canvas_drag)
-        self.canvas.bind("<ButtonRelease-1>", self._on_canvas_release)
-        self.canvas.bind("<Double-Button-1>", self._on_canvas_double_click)
+        """Bindet Maus-Gesten (bw-gui-Pointer-Contract) und die Größenänderung an den Canvas.
+
+        Press/Ziehen/Loslassen ist eine ``bind_drag``-Geste (Schwelle 0: der Press
+        selbst wählt die Zelle). Der zweite Press eines Doppelklicks ist ein
+        ``bind_click(count=2)`` und startet keinen Drag (Tks Mehrfachklick-Erkennung,
+        wie früher ``<Double-Button-1>``). Verliert das Fenster während des Ziehens den
+        Fokus, endet die Geste ohne weiteren Callback; die Auswahl bleibt, wie sie ist.
+        """
+        bind_drag(
+            self.canvas,
+            on_start=self._on_canvas_click,
+            on_move=self._on_canvas_drag,
+            on_end=self._on_canvas_release,
+        )
+        bind_click(self.canvas, self._on_canvas_double_click, count=2)
         self.canvas.bind("<Configure>", lambda _event: self.redraw_grid())
-        self.canvas.bind("<MouseWheel>", self._on_mouse_wheel)
-        self.canvas.bind("<Shift-MouseWheel>", self._on_shift_mouse_wheel)
-        self.canvas.bind("<Control-MouseWheel>", self._on_ctrl_mouse_wheel)
+        bind_wheel(self.canvas, self._on_canvas_wheel)
 
     def _on_canvas_click(self, event) -> None:
-        """Setzt die Einzelauswahl auf die angeklickte Zelle und initiiert Drag.
+        """Setzt die Einzelauswahl auf die angeklickte Zelle (Beginn der Drag-Geste).
 
         Args:
-            event: Tkinter-Mausereignis.
+            event: bw-gui-``DragEvent`` des Press (``x``/``y`` relativ zum Canvas).
         """
         x, y = self._event_to_cell(event)
         self._set_selection_single(x, y)
-        self._drag_active = True
         self.canvas.focus_set()
         self._update_selection_no_open()
 
@@ -49,10 +62,8 @@ class CanvasEventsMixin:
         """Erweitert die Auswahl während eines Drag-Vorgangs.
 
         Args:
-            event: Tkinter-Mausereignis.
+            event: bw-gui-``DragEvent`` der Bewegung.
         """
-        if not self._drag_active:
-            return
         x, y = self._event_to_cell(event)
         self._set_selection_focus(x, y)
         self._update_selection_no_open()
@@ -61,11 +72,8 @@ class CanvasEventsMixin:
         """Schließt einen Drag-Vorgang ab und aktualisiert die Auswahl.
 
         Args:
-            event: Tkinter-Mausereignis.
+            event: bw-gui-``DragEvent`` des Loslassens (auch außerhalb des Canvas).
         """
-        if not self._drag_active:
-            return
-        self._drag_active = False
         x, y = self._event_to_cell(event)
         self._set_selection_focus(x, y)
         self._update_selection_no_open()
@@ -125,7 +133,7 @@ class CanvasEventsMixin:
         """Wählt die Zelle aus, bestätigt sie und öffnet den Namenseditor.
 
         Args:
-            event: Tkinter-Mausereignis.
+            event: bw-gui-``ClickEvent`` des zweiten Press (``count=2``).
         """
         x, y = self._event_to_cell(event)
         self._set_selection_single(x, y)
@@ -136,7 +144,7 @@ class CanvasEventsMixin:
         """Wandelt Canvas-Pixel-Koordinaten in Raster-Zellkoordinaten um.
 
         Args:
-            event: Tkinter-Mausereignis.
+            event: bw-gui-Pointer-Ereignis mit ``x``/``y`` relativ zum Canvas.
 
         Returns:
             Geklemmte (x, y)-Zellkoordinaten.
@@ -145,36 +153,35 @@ class CanvasEventsMixin:
         world_y = int((self.canvas.canvasy(event.y)) // self.cell_size)
         return self._clamp_cell(world_x, world_y)
 
-    def _on_mouse_wheel(self, event) -> None:
-        """Scrollt den Canvas vertikal per Mausrad.
+    def _on_canvas_wheel(self, event: WheelEvent) -> EventResult:
+        """Mausrad über dem Canvas: Strg zoomt, Shift scrollt horizontal, sonst vertikal.
+
+        Gearbeitet wird mit ganzen Rasten (``whole_steps``): ein normales Mausrad
+        liefert pro Raste genau einen Schritt wie bisher; kleine Touchpad-Deltas
+        sammeln sich, bis eine ganze Raste erreicht ist (früher zählte jedes
+        Ereignis unabhängig von seiner Größe als ein Schritt). Positiv = zum
+        Inhaltsende bzw. herauszoomen.
 
         Args:
-            event: Tkinter-Mausradereignis (liefert ``delta`` für die Richtung).
+            event: bw-gui-``WheelEvent``.
+
+        Returns:
+            ``EventResult.HANDLED`` -- der Canvas ist der Scroll-Empfänger.
         """
-        steps = -1 if event.delta > 0 else 1
-        self.canvas.yview_scroll(steps, "units")
-        self.redraw_grid()
-
-    def _on_shift_mouse_wheel(self, event) -> None:
-        """Scrollt den Canvas horizontal per Shift+Mausrad.
-
-        Args:
-            event: Tkinter-Mausradereignis (liefert ``delta`` für die Richtung).
-        """
-        steps = -1 if event.delta > 0 else 1
-        self.canvas.xview_scroll(steps, "units")
-        self.redraw_grid()
-
-    def _on_ctrl_mouse_wheel(self, event) -> None:
-        """Zoomt per Ctrl+Mausrad ein oder aus.
-
-        Args:
-            event: Tkinter-Mausradereignis (liefert ``delta`` für die Richtung).
-        """
-        if event.delta > 0:
-            self.zoom_in()
+        steps = event.whole_steps
+        if steps == 0:
+            return EventResult.HANDLED
+        if isinstance(event.modifiers, KeyModifiers) and event.modifiers.control:
+            zoom = self.zoom_out if steps > 0 else self.zoom_in
+            for _ in range(abs(steps)):
+                zoom()
+            return EventResult.HANDLED
+        if wheel_axis(event) is Axis.HORIZONTAL:
+            self.canvas.xview_scroll(steps, "units")
         else:
-            self.zoom_out()
+            self.canvas.yview_scroll(steps, "units")
+        self.redraw_grid()
+        return EventResult.HANDLED
 
     def zoom_in(self) -> None:
         """Vergrößert die Ansicht um eine Stufe (v4: ZoomInIntent)."""

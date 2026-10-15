@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 
+from app.adapters.gui._local_keys import ENTER, ESCAPE, bind_action, dialog_keys
 from app.adapters.gui.main_window_constants import DEFAULT_PERIODIC_BACKUP_INTERVAL_MS
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.intents.view_intents import UpdateSettingsIntent
@@ -101,7 +102,7 @@ class ExportMixin:
             self.redraw_grid()
             self._refresh_details_panel()
 
-        dialog.bind("<Return>", lambda _e: apply_filter())
+        bind_action(dialog_keys(dialog), ENTER, apply_filter, binding_id="dialog.confirm")
 
         button_row = tui.Frame(container)
         button_row.pack(fill="x", pady=(10, 0))
@@ -137,7 +138,7 @@ class ExportMixin:
         dialog.transient(resolved_parent)
         self._track_popup_window(dialog)
         dialog.grab_set()
-        dialog.bind("<Escape>", lambda _event: self._destroy_tracked_dialog(dialog))
+        bind_action(dialog_keys(dialog), ESCAPE, lambda: self._destroy_tracked_dialog(dialog), binding_id="dialog.cancel")
         dialog.protocol("WM_DELETE_WINDOW", lambda: self._destroy_tracked_dialog(dialog))
         self._focus_overlay_widget(dialog, dialog)
         return dialog

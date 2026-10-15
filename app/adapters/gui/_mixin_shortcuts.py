@@ -4,12 +4,15 @@ Enthält den bw-gui-``WindowShortcutBinder`` (Registrierung + Runtime-Gating),
 den fachlichen Shortcut-Modus und den zentralen Intent-Dispatcher. Die
 Bindungstabelle selbst steht in ``_mixin_shortcut_bindings.py``; Symbol-,
 Farb- und Mitarbeit-Handler in ``_mixin_edit.py``; der Return-Key-Handler in
-``_mixin_selection.py``.
+``_mixin_selection.py``; dialog- und widgetlokale Kürzel in ``_local_keys.py``.
+
+Handler liefern ``EventResult`` (bw-gui): ``HANDLED`` beendet die Verarbeitung
+des Tastenereignisses, ``None`` = ``NOT_HANDLED`` lässt es weiterlaufen.
 """
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Iterable
 
 from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS, LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
@@ -19,6 +22,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 from bw_libs.ui_contract.keybinding import UI_MODE_GLOBAL, UI_MODE_PREVIEW, KeyBindingDefinition
 
 ensure_bw_gui_on_path()
+from bw_gui.contracts import EventResult, KeySpec
 from bw_gui.runtime import WindowShortcutBinder
 
 
@@ -115,7 +119,7 @@ class ShortcutMixin:
 
     def _bind_runtime_shortcut(
         self,
-        sequence: str,
+        keys: KeySpec | Iterable[KeySpec],
         handler,
         *,
         binding_id: str,
@@ -127,8 +131,8 @@ class ShortcutMixin:
         """Registriert ein Kürzel über den bw-gui-Binder (dünne Delegation).
 
         Args:
-            sequence: Tk-Tastatursequenz (Keyboard-Contract von bw-gui).
-            handler: Callback, erhält das Tk-Event.
+            keys: Eine ``KeySpec`` oder mehrere alternative Specs derselben Definition.
+            handler: Callback, erhält das bw-gui-``KeyEvent`` und liefert ``EventResult``.
             binding_id: Eindeutige Binding-ID.
             intent: UiIntent-String (muss im HSM-Vertrag bekannt sein).
             modes: Erlaubte UI-Modi.
@@ -139,23 +143,24 @@ class ShortcutMixin:
             Die registrierte ``KeyBindingDefinition``.
         """
         return self._shortcut_binder.bind(
-            sequence,
+            keys,
             handler,
             binding_id=binding_id,
             intent=intent,
             modes=modes,
             allow_when_text_input=allow_when_text_input,
             allow_when_offline=allow_when_offline,
-        )
+        ).definition
 
-    def _handle_intent(self, intent: str) -> str | None:
+    def _handle_intent(self, intent: str) -> EventResult | None:
         """Leitet einen Intent an den UiIntentController weiter und trackt das Ergebnis.
 
         Args:
             intent: UiIntent-String.
 
         Returns:
-            Rückgabewert des Controllers oder None bei blockiertem Intent.
+            ``EventResult.HANDLED``, wenn eine Aktion registriert ist und lief;
+            ``None`` (= ``NOT_HANDLED``) bei blockiertem oder unbekanntem Intent.
         """
         intent_ok, intent_reason = self._hsm_contract.validate_intent(intent)
         if not intent_ok:
@@ -175,7 +180,7 @@ class ShortcutMixin:
             result = None
             if handler is not None:
                 handler()
-                result = "break"
+                result = EventResult.HANDLED
         except Exception:
             self._record_laufkern_intent_dispatch(intent, success=False)
             raise

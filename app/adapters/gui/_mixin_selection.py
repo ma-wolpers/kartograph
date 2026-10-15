@@ -12,6 +12,11 @@ from app.adapters.gui.main_window_constants import LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.intents.navigation_intents import MoveSelectionIntent, SelectCellIntent
+from app.adapters.gui._local_keys import ENTER, widget_keys
+from bw_libs.shared_gui_core import ensure_bw_gui_on_path
+
+ensure_bw_gui_on_path()
+from bw_gui.contracts import EventResult
 
 
 class SelectionMixin:
@@ -171,14 +176,14 @@ class SelectionMixin:
             return True
         return False
 
-    def _on_return_key(self, _event) -> str | None:
+    def _on_return_key(self, _event) -> EventResult | None:
         """Handler für Return/KP_Enter: kontextabhängige Bestätigungs-Aktion.
 
         Args:
-            _event: Tkinter-Tastaturereignis (ungenutzt).
+            _event: bw-gui-``KeyEvent`` (ungenutzt).
         """
         if self._is_text_input_focused():
-            return "break"
+            return EventResult.HANDLED
         if self.editor_view.winfo_ismapped():
             if self._editor_surface == "docs":
                 fixed_column_id = self._doc_selected_nondate_column_id
@@ -186,9 +191,9 @@ class SelectionMixin:
                 if self._doc_selected_nondate_column_id and self._doc_selected_nondate_column_id.startswith("grade_"):
                     self._open_selected_docs_grade_cell_editor()
                     self.after_idle(lambda: self._restore_docs_column_selection(fixed_column_id, date_index))
-                    return "break"
+                    return EventResult.HANDLED
                 self.after_idle(lambda: self._restore_docs_column_selection(fixed_column_id, date_index))
-                return "break"
+                return EventResult.HANDLED
             if not self.selection.is_single():
                 self._collapse_selection_to_anchor()
                 self.redraw_grid()
@@ -199,31 +204,30 @@ class SelectionMixin:
         return self._handle_intent(UiIntent.CONFIRM_SELECTION)
 
     def _bind_editor_return_override(self, widget) -> None:
-        """Bindet Return und KP_Enter an ``_on_return_key`` für einen Toolbar-Button.
+        """Bindet Enter (inkl. Ziffernblock) an ``_on_return_key`` für einen Toolbar-Button.
 
         Args:
             widget: Toolbar-Button-Widget, an das die Tastenbindung gebunden wird.
         """
-        widget.bind("<Return>", self._on_return_key)
-        widget.bind("<KP_Enter>", self._on_return_key)
+        widget_keys(widget).bind(ENTER, self._on_return_key, binding_id="toolbar.return", intent=UiIntent.GLOBAL_RETURN)
 
-    def _on_name_entry_escape(self, _event) -> str:
+    def _on_name_entry_escape(self, _event) -> EventResult:
         """Handler für Escape in Namensfeldern: verlässt den Namenseditor-Modus.
 
         Args:
-            _event: Tkinter-Tastaturereignis (ungenutzt).
+            _event: bw-gui-``KeyEvent`` (ungenutzt).
         """
         self.exit_name_edit_mode()
-        return "break"
+        return EventResult.HANDLED
 
-    def _on_name_entry_return(self, _event) -> str:
+    def _on_name_entry_return(self, _event) -> EventResult:
         """Handler für Return in Namensfeldern: verlässt den Namenseditor-Modus.
 
         Args:
-            _event: Tkinter-Tastaturereignis (ungenutzt).
+            _event: bw-gui-``KeyEvent`` (ungenutzt).
         """
         self.exit_name_edit_mode()
-        return "break"
+        return EventResult.HANDLED
 
     def _today_doc_date(self) -> str:
         """Gibt das heutige Datum im ISO-Format als Dokumentations-Datums-Schlüssel zurück."""

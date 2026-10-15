@@ -6,6 +6,7 @@ Lehrertisch setzen, Escape-Handler sowie zugehörige Tastatur-Shortcut-Handler.
 
 from __future__ import annotations
 
+from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.adapters.gui.main_window_constants import NAME_EDITING, SPACE_SHORTCUT
 from app.core.domain.models_v4 import ParticipationRating
@@ -25,6 +26,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 from bw_libs.ui_contract.hsm import ESCAPE_CLOSE_POPUP, ESCAPE_EXIT_INLINE_EDITOR, ESCAPE_POP_PARENT
 
 ensure_bw_gui_on_path()
+from bw_gui.contracts import EventResult
 from bw_gui.runtime import ui
 from bw_gui.runtime import widgets as tui
 
@@ -32,7 +34,7 @@ from bw_gui.runtime import widgets as tui
 class EditMixin:
     """Mixin: Bearbeitungsoperationen für Schülertische, Symbole, Farbpunkte und Escape (v4)."""
 
-    def _on_symbol_shortcut(self, _event, symbol_name: str | None) -> str | None:
+    def _on_symbol_shortcut(self, _event, symbol_name: str | None) -> EventResult | None:
         """Tastatur-Shortcut-Handler für Symbole.
 
         In der Dokuansicht wirkt jedes Symbol auf die dort gewählte
@@ -46,7 +48,7 @@ class EditMixin:
         aufgerufen, der *symbol_name* dynamisch aus dem Katalog auflöst.
 
         Args:
-            _event: Tkinter-Tastaturereignis (unbenutzt; Modifier-Gating übernimmt
+            _event: bw-gui-``KeyEvent`` (unbenutzt; Modifier-Gating übernimmt
                 der bw-gui-Binder vor dem Aufruf).
             symbol_name: Bezeichner des umzuschaltenden Symbols, oder ``None``
                 wenn kein Katalogeintrag dieses Kürzel trägt (dann No-Op).
@@ -59,22 +61,22 @@ class EditMixin:
             return None
         if self._editor_surface == "docs":
             self._toggle_documentation_symbol(symbol_name)
-            return "break"
+            return EventResult.HANDLED
         if self._editor_surface != "grid":
             return None
         if symbol_name in self.diagnostic_symbol_catalog:
             self._toggle_selected_symbol(symbol_name)
-            return "break"
+            return EventResult.HANDLED
         if symbol_name in self._documentation_only_symbols:
             self._toggle_documentation_symbol_today_grid(symbol_name)
-            return "break"
+            return EventResult.HANDLED
         return None
 
-    def _on_color_shortcut(self, event, color_key: str) -> str | None:
+    def _on_color_shortcut(self, event, color_key: str) -> EventResult | None:
         """Tastatur-Shortcut-Handler für Farbpunkte im Raster.
 
         Args:
-            event: Tkinter-Tastaturereignis (unbenutzt; Modifier-Gating übernimmt
+            event: bw-gui-``KeyEvent`` (unbenutzt; Modifier-Gating übernimmt
                 der bw-gui-Binder vor dem Aufruf).
             color_key: Schlüssel des umzuschaltenden Farbpunkts.
         """
@@ -83,7 +85,7 @@ class EditMixin:
         if not self.current_plan or not self.current_plan_path:
             return None
         self._toggle_selected_color(color_key)
-        return "break"
+        return EventResult.HANDLED
 
     def _toggle_selected_symbol(self, symbol: str) -> None:
         """Schaltet ein diagnostisches Symbol für den aktuell ausgewählten Schüler um (v4).
@@ -119,7 +121,7 @@ class EditMixin:
             )
         )
 
-    def _on_space_symbol_shortcut(self, event) -> str | None:
+    def _on_space_symbol_shortcut(self, event) -> EventResult | None:
         """Tastatur-Shortcut-Handler (Leertaste): löst das Katalogsymbol dynamisch auf und delegiert.
 
         Kein eigener Guard, keine eigene Datums- oder Oberflächenlogik mehr —
@@ -130,7 +132,7 @@ class EditMixin:
         läuft in ``_on_symbol_shortcut()``.
 
         Args:
-            event: Tkinter-Tastaturereignis, unverändert an ``_on_symbol_shortcut`` gereicht.
+            event: bw-gui-``KeyEvent``, unverändert an ``_on_symbol_shortcut`` gereicht.
         """
         return self._on_symbol_shortcut(event, self._shortcut_to_symbol.get(SPACE_SHORTCUT))
 
@@ -191,11 +193,11 @@ class EditMixin:
             student_id=student.student_id, date=self._today_doc_date(), rating=rating))
         self._refresh_documentation_table()
 
-    def _on_participation_rating_shortcut(self, event, rating: ParticipationRating) -> str | None:
+    def _on_participation_rating_shortcut(self, event, rating: ParticipationRating) -> EventResult | None:
         """Tastatur-Shortcut-Handler (+/-/0): Mitarbeit-Bewertung heute setzen/löschen.
 
         Args:
-            event: Tkinter-Tastaturereignis (unbenutzt; Modifier-Gating übernimmt
+            event: bw-gui-``KeyEvent`` (unbenutzt; Modifier-Gating übernimmt
                 der bw-gui-Binder vor dem Aufruf).
             rating: Zu setzende Bewertung ("+"/"o"/"-").
         """
@@ -209,7 +211,7 @@ class EditMixin:
             self._set_participation_rating_today_docs(rating)
         else:
             return None
-        return "break"
+        return EventResult.HANDLED
 
     def add_symbol_to_selected_desk_dialog(self) -> None:
         """Öffnet einen Dialog zur Symbolauswahl für den markierten Schülerplatz (v4)."""
@@ -246,7 +248,7 @@ class EditMixin:
             self._toggle_selected_symbol(symbol)
             dialog.destroy()
 
-        dialog.bind("<Return>", lambda _e: apply_choice())
+        bind_action(dialog_keys(dialog), ENTER, apply_choice, binding_id="dialog.confirm")
 
         button_row = tui.Frame(dialog)
         button_row.pack(fill="x", padx=12, pady=(0, 12))

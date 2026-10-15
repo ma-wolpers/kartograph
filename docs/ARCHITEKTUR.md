@@ -27,12 +27,15 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 ## Datenfluss
 - GUI-Interaktionen werden in Use-Cases ueberfuehrt.
 - KeyBindings laufen ausnahmslos ueber den bw-gui-Keybinding-Contract (bw-gui `docs/KEYBINDING_CONTRACT.md`):
-  - **Ein Binder:** Genau ein `WindowShortcutBinder` (`_mixin_shortcuts.py::_init_shortcut_binder`) uebernimmt Mode-, Text-, Dialog-, Offline- und Modifier-Gating sowie die semantische Kollisionspruefung.
-  - **Eine Tabelle:** Die gesamte Bindungstabelle steht in `_mixin_shortcut_bindings.py`.
-  - **Kein App-eigenes Tk-Wissen:** Kein `bind_all` fuer Kuerzel und keine eigene Auswertung von `event.state`. `bw_gui.testing.tk_state_guard` (zentral in bw-gui) prueft das per AST in Test-Suite und CI; unter Windows ist `0x0008` NumLock, nicht Alt.
+  - **Fenster-Binder:** Genau ein `WindowShortcutBinder` fuer das Hauptfenster (`_mixin_shortcuts.py::_init_shortcut_binder`) uebernimmt Mode-, Text-, Dialog- und Offline-Gating, exakte Modifier und die semantische Kollisionspruefung.
+  - **Eine Tabelle:** Die gesamte Fenster-Bindungstabelle steht in `_mixin_shortcut_bindings.py`, ausschliesslich als `KeySpec` in kanonischer Notation (`KeySpec.parse("Ctrl+Shift+D")`), nie als Tk-Sequenz. Buchstaben folgen Shift, nie CapsLock; Ziffernblock-Tasten sind dieselben Zeichen bzw. `Enter`.
+  - **Lokale Kuerzel:** Dialoge bekommen einen eigenen `WindowShortcutBinder`, einzelne Widgets (Raster-Canvas-Pfeile, Doku-Tabellen-Pfeile, Namensfelder, Inline-Editor, Listen, Toolbar-Enter) einen `WidgetShortcutBinder`; beide ueber `_local_keys.py` (`dialog_keys`, `widget_keys`, `bind_action`).
+  - **Handler-Ergebnis:** Handler liefern `EventResult` (`HANDLED` beendet die Verarbeitung, `None` = `NOT_HANDLED`), nie `"break"`.
+  - **Maus:** Raster-Klick/Ziehen ueber `bind_drag`, Doppelklicks ueber `bind_click(count=2)`, Mausrad ueber `bind_wheel` (ganze Rasten, Strg = Zoom, Shift = horizontal).
+  - **Kein App-eigenes Tk-Wissen:** Kein `bind_all`, keine Tastatur-/Maus-Sequenzen, keine Auswertung von `event.state`/`keysym`/`delta`. `bw_gui.testing.tk_state_guard` (zentral in bw-gui) prueft `event.state` per AST in Test-Suite und CI; unter Windows ist `0x0008` NumLock, nicht Alt.
   - **Modus aus `AppState`:** Der Shortcut-Modus kommt fachlich aus `AppState` (`app/application/shortcut_scope.py::is_preview_shortcut_scope`, explizite Menge von `InteractionMode`s), nicht aus der Widget-Sichtbarkeit.
   - **Sichtbarkeit aus `AppState`:** Auch die Sichtbarkeit von Liste und Editor folgt allein `AppState` ueber `apply_state()`.
-  - **Offen:** Widget-lokale Navigation (Pfeiltasten am Raster-Canvas) ist noch direkt gebunden; das steht in bw-gui `docs/TK_USAGE_INVENTORY.md`.
+  - **Offen:** Lifecycle-Ereignisse (`<Configure>`, `<FocusIn/Out>`, `<<ListboxSelect>>`, `<<TreeviewSelect>>`, `<<Modified>>`) sind noch direkt gebunden, bis bw-gui die Widget-Event-Contracts bereitstellt (bw-gui `docs/TK_USAGE_INVENTORY.md`).
 - Pop-up-Verhalten wird zentral ueber `bw_libs/ui_contract/popup.py` mit einheitlicher Focus-/Lifecycle-Policy gefuehrt.
 - HSM-Vertragslogik fuer Intent-Katalog, Escape-Prioritaet und Transition-Validierung liegt zentral in `bw_libs/ui_contract/hsm.py`.
 - Globale Keyboard-Shortcuts werden im GUI-Adapter auf UI-Intents gemappt; `Strg+T` oeffnet das Tischgruppen-Overlay, `1..9` toggeln Farbpunkte am markierten Schuelertisch.

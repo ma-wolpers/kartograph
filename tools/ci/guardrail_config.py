@@ -55,8 +55,7 @@ SHORTCUT_COVERAGE_SOFT_CHECKS = (
             "app/adapters/gui/_mixin_shortcut_bindings.py",
         ),
         "shortcut_markers": (
-            "<Control-comma>",
-            "<Control-,>",
+            '_k("Ctrl+,")',
             "Strg+,",
         ),
     },

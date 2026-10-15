@@ -12,6 +12,7 @@ from app.core.intents.grade_intents import RecordGradeIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
+from bw_gui.contracts import EventResult
 from bw_gui.runtime import ui
 
 
@@ -127,27 +128,27 @@ class DocsNavMixin:
         self.status_var.set(status)
         self._refresh_documentation_table()
 
-    def _on_docs_inline_editor_return(self, _event) -> str:
+    def _on_docs_inline_editor_return(self, _event) -> EventResult:
         """Schließt den Inline-Editor mit Übernahme (Return/KP_Enter).
 
         Args:
-            _event: Tkinter-Tastaturereignis (Inhalt wird nicht ausgewertet).
+            _event: bw-gui-``KeyEvent`` (Inhalt wird nicht ausgewertet).
         """
         self._close_docs_inline_editor(apply_changes=True)
         if self.docs_right_tree.winfo_exists():
             self.docs_right_tree.focus_set()
-        return "break"
+        return EventResult.HANDLED
 
-    def _on_docs_inline_editor_escape(self, _event) -> str:
+    def _on_docs_inline_editor_escape(self, _event) -> EventResult:
         """Bricht den Inline-Editor ohne Übernahme ab (Escape).
 
         Args:
-            _event: Tkinter-Tastaturereignis (Inhalt wird nicht ausgewertet).
+            _event: bw-gui-``KeyEvent`` (Inhalt wird nicht ausgewertet).
         """
         self._close_docs_inline_editor(apply_changes=False)
         if self.docs_right_tree.winfo_exists():
             self.docs_right_tree.focus_set()
-        return "break"
+        return EventResult.HANDLED
 
     def _open_selected_docs_grade_cell_editor(self) -> None:
         """Öffnet den Inline-Noten-Editor für die aktuell ausgewählte Doku-Zelle."""

@@ -6,6 +6,7 @@ Symbol-Auswahl und Gewichtungskonfiguration bereit.
 
 from __future__ import annotations
 
+from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys, widget_keys
 from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.adapters.gui.main_window_constants import SPACE_SHORTCUT
 from app.core.domain.effective_symbol import resolve_symbol_display
@@ -21,7 +22,8 @@ from app.core.usecases.v4.session_usecases import rename_session_date
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import ui
+from bw_gui.contracts import KeySpec
+from bw_gui.runtime import bind_click, ui
 from bw_gui.runtime import widgets as tui
 
 
@@ -189,8 +191,8 @@ class DocsDialogsMixin:
             dialog.destroy()
             self._confirm_and_delete_grade_column(chosen)
 
-        listbox.bind("<Double-Button-1>", lambda _event: confirm())
-        listbox.bind("<Return>", lambda _event: confirm())
+        bind_click(listbox, lambda _event: confirm(), count=2)
+        bind_action(widget_keys(listbox), ENTER, confirm, binding_id="list.confirm")
         button_row = tui.Frame(frame)
         button_row.pack(fill="x", pady=(8, 0))
         tui.Button(button_row, text="Weiter", command=confirm).pack(side="right")
@@ -374,11 +376,11 @@ class DocsDialogsMixin:
             self._refresh_documentation_table()
             dialog.destroy()
 
-        for seq in ("<Delete>", "<BackSpace>", "<0>", "<KP_0>"):
-            dialog.bind(seq, lambda _event: clear_symbol())
-        symbol_listbox.bind("<Double-Button-1>", lambda _event: apply_symbol())
-        symbol_listbox.bind("<Return>", lambda _event: apply_symbol())
-        symbol_listbox.bind("<KP_Enter>", lambda _event: apply_symbol())
+        keys = dialog_keys(dialog)
+        clear_keys = [KeySpec.parse("Delete (tolerate: Shift)"), KeySpec.parse("Backspace (tolerate: Shift)"), KeySpec.char("0")]
+        bind_action(keys, clear_keys, clear_symbol, binding_id="symbol.clear", text=False)
+        bind_click(symbol_listbox, lambda _event: apply_symbol(), count=2)
+        bind_action(widget_keys(symbol_listbox), ENTER, apply_symbol, binding_id="symbol.apply")
 
         def select_by_digit(index: int) -> None:
             if index < 0 or index >= len(all_symbol_keys):
@@ -388,9 +390,11 @@ class DocsDialogsMixin:
             symbol_listbox.activate(index)
             symbol_listbox.see(index)
 
+        # Ziffern 1-9 (Haupttastatur und Ziffernblock) wählen den n-ten Eintrag. Früher
+        # stand hier "<1>"..."<9>" -- für Tk sind "<1>"..."<5>" MAUSTASTEN, jeder Klick
+        # in den Dialog sprang deshalb auf einen festen Eintrag (Bug 3).
         for digit in range(1, 10):
-            dialog.bind(f"<{digit}>", lambda _event, i=digit - 1: select_by_digit(i))
-            dialog.bind(f"<KP_{digit}>", lambda _event, i=digit - 1: select_by_digit(i))
+            bind_action(keys, KeySpec.char(str(digit)), lambda i=digit - 1: select_by_digit(i), binding_id=f"symbol.digit.{digit}", text=False)
 
         button_row = tui.Frame(frame)
         button_row.pack(fill="x", pady=(8, 0))

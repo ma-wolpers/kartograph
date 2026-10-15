@@ -9,6 +9,7 @@ from __future__ import annotations
 from app.core.domain.symbol_toggle import next_symbol_toggle_strength
 from app.core.intents.session_intents import ClearDocEntryIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
+from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -67,9 +68,9 @@ class DocsEditMixin:
         editor.place(x=x, y=y, width=width, height=height)
         editor.focus_set()
         editor.selection_range(0, ui.END)
-        editor.bind("<Return>", self._on_docs_inline_editor_return)
-        editor.bind("<KP_Enter>", self._on_docs_inline_editor_return)
-        editor.bind("<Escape>", self._on_docs_inline_editor_escape)
+        keys = widget_keys(editor)
+        keys.bind(ENTER, self._on_docs_inline_editor_return, binding_id="docs.inline.return", intent="docs.inline.return", allow_when_text_input=True)
+        keys.bind(ESCAPE, self._on_docs_inline_editor_escape, binding_id="docs.inline.escape", intent="docs.inline.escape", allow_when_text_input=True)
         editor.bind("<FocusOut>", lambda _event: self._close_docs_inline_editor(apply_changes=True))
 
         self._docs_inline_editor = editor

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import filedialog, messagebox
 from app.core.intents.view_intents import ExportPdfIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -125,7 +126,7 @@ class PdfMixin:
             except Exception as exc:
                 messagebox.showerror("PDF-Export fehlgeschlagen", str(exc), parent=dialog)
 
-        dialog.bind("<Return>", lambda _e: do_export())
+        bind_action(dialog_keys(dialog), ENTER, do_export, binding_id="dialog.confirm")
 
         button_row = tui.Frame(container)
         button_row.pack(fill="x", pady=(12, 0))

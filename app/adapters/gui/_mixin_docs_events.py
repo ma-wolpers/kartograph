@@ -15,6 +15,12 @@ from __future__ import annotations
 
 from app.adapters.gui.docs_table_model import DocsPane
 from app.adapters.gui.docs_table_rules import resolve_horizontal_target
+from bw_libs.shared_gui_core import ensure_bw_gui_on_path
+
+ensure_bw_gui_on_path()
+from bw_gui.contracts import EventResult, Key
+
+_ARROW_KEYS = frozenset({Key.LEFT, Key.RIGHT, Key.UP, Key.DOWN})
 
 
 class DocsEventsMixin:
@@ -44,7 +50,7 @@ class DocsEventsMixin:
 
         Args:
             pane: Pane, in dem geklickt wurde.
-            event: Tkinter-Mausereignis.
+            event: bw-gui-``ClickEvent`` (``x``/``y`` relativ zum Tree).
         """
         tree = self._docs_trees_by_pane()[pane]
         column_key = self._resolve_docs_click_column(pane, event.x)
@@ -89,9 +95,10 @@ class DocsEventsMixin:
         """Stellt nach Tasteneingabe in einem Doku-Tree die Spaltenauswahl wieder her (außer Pfeile).
 
         Args:
-            event: Tkinter-Tastaturereignis (``keysym`` bestimmt, ob Pfeiltasten ignoriert werden).
+            event: bw-gui-``KeyEvent`` (Pfeiltasten -- auch nicht navigierende wie
+                Alt+←/→ -- lassen die Spaltenauswahl unangetastet).
         """
-        if event.keysym in {"Left", "Right", "Up", "Down"}:
+        if event.key in _ARROW_KEYS:
             return
         self._preserve_docs_column_selection_after_keypress()
 
@@ -99,7 +106,7 @@ class DocsEventsMixin:
         """Öffnet den Inline-Editor bei Doppelklick auf eine Noten-Zelle im RIGHT-Pane.
 
         Args:
-            event: Tkinter-Mausereignis.
+            event: bw-gui-``ClickEvent`` des zweiten Press (``count=2``).
         """
         row_id = self.docs_right_tree.identify_row(event.y)
         if not row_id:
@@ -148,7 +155,7 @@ class DocsEventsMixin:
         if student_idx is not None:
             self._doc_selected_student_index = student_idx
 
-    def _on_docs_vertical_nav(self, delta: int, *, source: DocsPane) -> str:
+    def _on_docs_vertical_nav(self, delta: int, *, source: DocsPane) -> EventResult:
         """Navigiert in der Doku-Tabelle um ``delta`` Zeilen in visueller Reihenfolge.
 
         Die aktive Spalte bleibt unverändert (auch eine Namensspalte).
@@ -158,19 +165,19 @@ class DocsEventsMixin:
             source: Pane, dessen Tree die Taste empfangen hat (behält den Tk-Fokus).
 
         Returns:
-            ``"break"`` um die Standard-Tkinter-Navigation zu unterdrücken.
+            ``EventResult.HANDLED`` um die native Treeview-Navigation zu unterdrücken.
         """
         if not self._shortcut_scope_allows("docs"):
-            return "break"
+            return EventResult.HANDLED
         if not self._doc_student_coords:
-            return "break"
+            return EventResult.HANDLED
 
         nondate_column_id = self._doc_selected_nondate_column_id
         date_index = self._doc_selected_date_index
 
         all_iids = list(self._doc_row_order)
         if not all_iids:
-            return "break"
+            return EventResult.HANDLED
 
         current_iid = self._doc_tree_iid_by_student_index.get(
             max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
@@ -184,9 +191,9 @@ class DocsEventsMixin:
         self._refresh_doc_selection_status()
         self.after_idle(lambda: self._restore_docs_column_selection(nondate_column_id, date_index))
         self.after_idle(self._update_docs_cell_highlight)
-        return "break"
+        return EventResult.HANDLED
 
-    def _on_docs_horizontal_nav(self, delta: int) -> str:
+    def _on_docs_horizontal_nav(self, delta: int) -> EventResult:
         """Bewegt die aktive Spalte entlang der logischen Spaltenachse (←/→).
 
         Die Zielspalte bestimmt die reine, Tk-freie Regel
@@ -198,16 +205,16 @@ class DocsEventsMixin:
             delta: ``1`` nach rechts, ``-1`` nach links.
 
         Returns:
-            ``"break"`` um die Standard-Navigation zu unterdrücken.
+            ``EventResult.HANDLED`` um die Standard-Navigation zu unterdrücken.
         """
         if not self._shortcut_scope_allows("docs"):
-            return "break"
+            return EventResult.HANDLED
         target = resolve_horizontal_target(
             self._doc_axis, self._doc_active_column_key(), self._doc_selected_date_index, delta
         )
         if target is None:
-            return "break"
+            return EventResult.HANDLED
         self._set_doc_active_column(target)
         self._focus_docs_pane(self._doc_axis.pane_of(target))
         self._apply_doc_column_heading_highlight()
-        return "break"
+        return EventResult.HANDLED

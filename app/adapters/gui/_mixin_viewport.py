@@ -10,6 +10,10 @@ from __future__ import annotations
 
 from app.adapters.gui.docs_table_model import DocsPane
 from app.adapters.gui.main_window_constants import DOCS_HORIZONTAL_SCROLLBAR_UNITS, DOCS_HORIZONTAL_WHEEL_UNITS
+from bw_libs.shared_gui_core import ensure_bw_gui_on_path
+
+ensure_bw_gui_on_path()
+from bw_gui.contracts import EventResult
 
 
 class ViewportMixin:
@@ -92,30 +96,32 @@ class ViewportMixin:
             self.docs_right_tree.xview(*args)
         self.after_idle(self._update_docs_cell_highlight)
 
-    def _docs_horizontal_wheel_units(self, delta: int) -> int:
-        """Berechnet die Scroll-Einheitenzahl aus einem MouseWheel-Delta.
+    def _docs_horizontal_wheel_units(self, steps: float) -> int:
+        """Berechnet die Scroll-Einheitenzahl aus normalisierten Mausrad-Rasten.
+
+        Jedes Ereignis scrollt mindestens um eine Raste (wie früher bei kleinen
+        Deltas), größere Ereignisse um ihre ganzen Rasten.
 
         Args:
-            delta: MouseWheel-Delta-Wert.
+            steps: ``WheelEvent.steps`` (positiv = nach rechts bzw. zum Inhaltsende).
 
         Returns:
             Vorzeichenbehaftete Scroll-Einheitenanzahl.
         """
-        direction = -1 if delta > 0 else 1
-        steps = max(1, abs(int(delta)) // 120) if delta else 1
-        return direction * steps * DOCS_HORIZONTAL_WHEEL_UNITS
+        direction = 1 if steps > 0 else -1
+        return direction * max(1, int(abs(steps))) * DOCS_HORIZONTAL_WHEEL_UNITS
 
-    def _on_docs_shift_mouse_wheel(self, event) -> str:
-        """Handler für Shift+MouseWheel: horizontales Scrollen im aktiven Docs-Treeview.
+    def _on_docs_shift_mouse_wheel(self, event) -> EventResult:
+        """Handler für Shift+Mausrad: horizontales Scrollen im aktiven Docs-Treeview.
 
         Args:
-            event: Tkinter-MouseWheel-Ereignis mit Ziel-Widget und Delta.
+            event: bw-gui-``WheelEvent`` mit Ziel-Widget und Rasten.
         """
         pane = self._pane_of_docs_widget(event.widget) or DocsPane.MAIN
         target = self._docs_trees_by_pane()[pane]
-        target.xview_scroll(self._docs_horizontal_wheel_units(getattr(event, "delta", 0)), "units")
+        target.xview_scroll(self._docs_horizontal_wheel_units(event.steps), "units")
         self.after_idle(self._update_docs_cell_highlight)
-        return "break"
+        return EventResult.HANDLED
 
     def _sync_docs_yscroll(self, source: DocsPane, first: str, last: str) -> None:
         """Hält alle drei Docs-Treeviews auf derselben vertikalen Position.

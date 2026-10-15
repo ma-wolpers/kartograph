@@ -5,20 +5,21 @@ from bw_libs.ui_contract.keybinding import (
     KeybindingRegistry,
     KeybindingRuntimeContext,
 )
+from bw_gui.contracts import KeySpec
 
 
 def test_runtime_evaluation_in_dialog_and_preview_modes() -> None:
     registry = KeybindingRegistry()
     preview_binding = KeyBindingDefinition(
         binding_id="view.toggle",
-        sequence="<Control-Shift-d>",
+        keys=(KeySpec.parse("Ctrl+Shift+D"),),
         intent="view.documentation.toggle",
         modes=(UI_MODE_PREVIEW,),
         allow_when_text_input=False,
     )
     dialog_binding = KeyBindingDefinition(
         binding_id="debug.runtime",
-        sequence="<Control-Shift-r>",
+        keys=(KeySpec.parse("Ctrl+Shift+R"),),
         intent="debug.runtime",
         modes=(UI_MODE_DIALOG,),
         allow_when_text_input=True,

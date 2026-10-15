@@ -203,7 +203,7 @@ class LaufkernMixin:
                     active_count += 1
                 else:
                     disabled_count += 1
-                table.insert("", ui.END, values=(mode, definition.sequence, definition.binding_id, status, "" if can_execute else reason))
+                table.insert("", ui.END, values=(mode, str(definition.primary_key), definition.binding_id, status, "" if can_execute else reason))
 
         total = active_count + disabled_count
         self._shortcut_runtime_debug_summary_var.set(

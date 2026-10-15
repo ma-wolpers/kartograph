@@ -17,6 +17,7 @@ from bw_libs.ui_contract.keybinding import (
     KeybindingRegistry,
     KeybindingRuntimeContext,
 )
+from bw_gui.contracts import KeySpec
 
 
 def _custom_symbol_binding(letter: str = "l") -> KeyBindingDefinition:
@@ -24,7 +25,7 @@ def _custom_symbol_binding(letter: str = "l") -> KeyBindingDefinition:
     Custom-Symbol-Kuerzel registriert."""
     return KeyBindingDefinition(
         binding_id=f"custom_symbol.{letter}",
-        sequence=f"<KeyPress-{letter}>",
+        keys=(KeySpec.char(letter), KeySpec.char(letter.upper())),
         intent="docs.custom_symbol_shortcut",
         modes=(UI_MODE_PREVIEW,),
         allow_when_text_input=False,

@@ -223,7 +223,6 @@ class KartographMainWindow(
         self._display_names: dict = {}
         self.selected_cell: tuple[int, int] = (0, 0)
         self.selection = RectSelection(0, 0)
-        self._drag_active = False
         self.cell_size = DEFAULT_CELL_SIZE
         self._plan_index: list[PlanListEntry] = []
         # None = HIDDEN. Sonst (x, y, mode): Detail-Panel fuer Zelle (x, y) sichtbar,

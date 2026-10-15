@@ -12,8 +12,8 @@ Abgesichert werden:
   mit gesetztem NumLock-Bit (win32: ``0x0008``); Strg/Alt blockieren sie.
 * Migration ``bind_all`` -> bw-gui-Binder (Fenster-Bindtag): Raster und Dokuansicht
   feuern, Texteingabe und fremde Toplevels nicht, ein blockiertes Alt+Buchstabe
-  erreicht weiterhin globale ``bind_all``-Handler (Menü), ausgeführte Kürzel
-  liefern ``"break"``; keine semantischen Binding-Kollisionen.
+  erreicht weiterhin den ``all``-Router (Menü-Mnemonics, Beobachter), ausgeführte
+  Kürzel beenden die Verarbeitung (``HANDLED``); keine semantischen Binding-Kollisionen.
 """
 
 from __future__ import annotations
@@ -117,7 +117,7 @@ def _show_surface(app, surface: str):
 
 
 def test_no_semantic_binding_conflicts(window):
-    assert window._runtime_shortcuts.find_conflicts(window._shortcut_binder.backend) == []
+    assert window._runtime_shortcuts.find_conflicts() == []
 
 
 @pytest.mark.parametrize("keysym", ["a", "plus", "1", "space"])
@@ -159,16 +159,21 @@ def test_text_input_and_foreign_toplevel_are_gated(window):
 
 def test_blocked_alt_letter_still_reaches_global_handlers_and_executed_breaks(window):
     _show_surface(window, "grid")
-    seen: list[int] = []
+    from bw_gui.contracts import Key
+    from bw_gui.runtime.key_router import ROLE_OBSERVER, router_for
+
+    seen: list[bool] = []
     root = window.tk_root
-    root.bind_all("<KeyPress-a>", lambda e: seen.append(e.state), add="+")
+    observer = router_for(root).register(
+        ROLE_OBSERVER, lambda item: seen.append(item.event.modifiers.alt) if item.event.key is Key.CHARACTER else None
+    )
     try:
-        assert not _press(window, window.canvas, "a", ALT)  # blockiert -> kein "break"
-        assert _press(window, window.canvas, "a", 0)  # ausgeführt -> "break"
+        assert not _press(window, window.canvas, "a", ALT)  # blockiert -> läuft bis zum all-Router
+        assert _press(window, window.canvas, "a", 0)  # ausgeführt -> HANDLED, Router sieht nichts
         _press(window, window.canvas, "a", 0)  # Plan zurück-toggeln
     finally:
-        root.unbind_all("<KeyPress-a>")
+        observer.remove()
         # Alt+Buchstabe darf das Menü öffnen (globaler <Alt-KeyPress>-Handler) -- schließen.
         window.handle_escape()
         root.update()
-    assert seen == [ALT]
+    assert seen == [True]

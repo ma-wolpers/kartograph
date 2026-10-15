@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import filedialog, messagebox
 from app.core.domain.student_png_export import StudentPngExportError
 from app.core.intents.view_intents import ExportStudentPngsZipIntent
@@ -75,7 +76,7 @@ class StudentPngExportMixin:
             except Exception as exc:
                 messagebox.showerror("PNG-Export fehlgeschlagen", str(exc), parent=dialog)
 
-        dialog.bind("<Return>", lambda _e: do_export())
+        bind_action(dialog_keys(dialog), ENTER, do_export, binding_id="dialog.confirm")
 
         button_row = tui.Frame(container)
         button_row.pack(fill="x", pady=(16, 0))

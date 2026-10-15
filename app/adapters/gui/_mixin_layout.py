@@ -7,12 +7,13 @@ Widgets werden in ``_mixin_layout_docs.py`` ergänzt.
 
 from __future__ import annotations
 
+from app.adapters.gui._local_keys import ENTER, bind_action, widget_keys
 from app.adapters.gui.toolbar_icon_styler import ToolbarIconStyler
 from app.adapters.gui.ui_intents import UiIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import ui, widgets as tui
+from bw_gui.runtime import bind_click, ui, widgets as tui
 from bw_gui.shortcuts import compose_hover_text as compose_shared_hover_text
 from bw_gui.widgets import HoverTooltip as SharedHoverTooltip
 
@@ -126,8 +127,13 @@ class LayoutMixin:
             borderwidth=1,
         )
         self.plan_listbox.pack(side="left", fill="both", expand=True)
-        self.plan_listbox.bind("<Double-Button-1>", lambda _event: self._handle_intent(UiIntent.LIST_OPEN_SELECTED))
-        self.plan_listbox.bind("<Return>", lambda _event: self._handle_intent(UiIntent.LIST_OPEN_SELECTED))
+        bind_click(self.plan_listbox, lambda _event: self._handle_intent(UiIntent.LIST_OPEN_SELECTED), count=2)
+        bind_action(
+            widget_keys(self.plan_listbox),
+            ENTER,
+            lambda: self._handle_intent(UiIntent.LIST_OPEN_SELECTED),
+            binding_id="list.open",
+        )
         self.plan_listbox.bind("<<ListboxSelect>>", lambda _event: self._ensure_list_selection())
 
         scroll = tui.Scrollbar(self.list_body, orient="vertical", command=self.plan_listbox.yview)

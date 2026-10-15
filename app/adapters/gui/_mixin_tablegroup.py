@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from app.core.domain.table_groups import TG_ROTATION_LIMIT, TG_SHIFT_LIMIT
 from app.core.intents.view_intents import OpenTablegroupSettingsIntent
+from app.adapters.gui._local_keys import ENTER, ESCAPE, bind_action, dialog_keys
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -43,7 +44,7 @@ class TablegroupMixin:
         overlay.transient(self)
         self._track_popup_window(overlay)
         overlay.protocol("WM_DELETE_WINDOW", self._close_tablegroup_overlay)
-        overlay.bind("<Escape>", lambda _event: self._close_tablegroup_overlay())
+        bind_action(dialog_keys(overlay), ESCAPE, self._close_tablegroup_overlay, binding_id="dialog.cancel")
         self._tablegroup_overlay = overlay
         self._position_tablegroup_overlay()
 
@@ -87,7 +88,7 @@ class TablegroupMixin:
         apply_button.pack(side="right", padx=(0, 8))
         self._attach_hover_help(apply_button, label="Tischgruppenwerte speichern", shortcut="Enter")
 
-        overlay.bind("<Return>", lambda _event: self._apply_tablegroup_overlay_values())
+        bind_action(dialog_keys(overlay), ENTER, self._apply_tablegroup_overlay_values, binding_id="dialog.confirm")
         self._focus_overlay_widget(overlay, number_entry)
         self._refresh_tablegroup_overlay()
 
