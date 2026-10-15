@@ -25,7 +25,7 @@ from app.core.intents.view_intents import UpdateSettingsIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import bind_click, ui, widgets as tui
+from bw_gui.runtime import bind_click, on_treeview_select, ui, widgets as tui
 from bw_gui.widgets import Checkbox
 
 
@@ -104,7 +104,7 @@ class SnapshotsMixin:
         y_scroll = tui.Scrollbar(body, orient="vertical", command=table.yview)
         y_scroll.pack(side="right", fill="y")
         table.configure(yscrollcommand=y_scroll.set)
-        table.bind("<<TreeviewSelect>>", lambda _e: self._on_snapshot_selection_changed())
+        on_treeview_select(table, lambda _change: self._on_snapshot_selection_changed())
         bind_click(table, lambda _e: self._load_selected_snapshot(), count=2)
 
         self._snapshot_window = window

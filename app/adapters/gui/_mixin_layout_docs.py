@@ -15,7 +15,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.contracts import KeyModifiers, KeySpec
-from bw_gui.runtime import bind_click, bind_wheel, on_key, ui, widgets as tui
+from bw_gui.runtime import bind_click, bind_wheel, on_key, on_treeview_select, ui, widgets as tui
 
 # Pfeiltasten der Doku-Tabellen: tolerierte Zusatz-Modifier. Ohne Toleranz fiele
 # z. B. Shift+↑ an die native Treeview-Klassenbindung, die nur EINEN der drei
@@ -192,7 +192,6 @@ class LayoutDocsMixin:
         self.docs_y_scroll.pack(side="right", fill="y")
 
         self._syncing_docs_scroll = False
-        self._syncing_docs_selection = False
         self.docs_name_tree.configure(xscrollcommand=self.docs_names_x_scroll.set)
         self.docs_tree.configure(xscrollcommand=self.docs_main_x_scroll.set)
         self.docs_right_tree.configure(xscrollcommand=self.docs_right_x_scroll.set)
@@ -249,7 +248,7 @@ class LayoutDocsMixin:
             tree: Der Treeview dieses Panes.
         """
         tree.configure(yscrollcommand=lambda first, last, p=pane: self._sync_docs_yscroll(p, first, last))
-        tree.bind("<<TreeviewSelect>>", lambda _event, p=pane: self._on_docs_pane_select(p))
+        on_treeview_select(tree, lambda _change, p=pane: self._on_docs_pane_select(p))
         bind_click(tree, lambda event, p=pane: self._on_docs_pane_click(p, event))
         keys = widget_keys(tree)
         for name, handler in (

@@ -10,7 +10,7 @@ from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import widgets as tui
+from bw_gui.runtime import on_focus_change, on_text_modified, widgets as tui
 from bw_gui.widgets import WrappedTextField
 
 
@@ -56,19 +56,19 @@ class DetailsLayoutMixin:
         tui.Label(self.details_form, text="Vorname", style="Panel.TLabel").pack(side="left")
         self.name_entry = tui.Entry(self.details_form, textvariable=self._name_var, width=20)
         self.name_entry.pack(side="left", padx=(8, 16))
-        self.name_entry.bind("<FocusOut>", lambda _event: self._on_name_field_focus_out())
+        on_focus_change(self.name_entry, on_lost=lambda _change: self._on_name_field_focus_out())
         self._bind_name_entry_keys(self.name_entry)
 
         tui.Label(self.details_form, text="Nachname", style="Panel.TLabel").pack(side="left")
         self.last_name_entry = tui.Entry(self.details_form, textvariable=self._last_name_var, width=20)
         self.last_name_entry.pack(side="left", padx=(8, 16))
-        self.last_name_entry.bind("<FocusOut>", lambda _event: self._on_name_field_focus_out())
+        on_focus_change(self.last_name_entry, on_lost=lambda _change: self._on_name_field_focus_out())
         self._bind_name_entry_keys(self.last_name_entry)
 
         tui.Label(self.details_form, text="Spitzname", style="Panel.TLabel").pack(side="left")
         self.nickname_entry = tui.Entry(self.details_form, textvariable=self._nickname_var, width=20)
         self.nickname_entry.pack(side="left", padx=(8, 0))
-        self.nickname_entry.bind("<FocusOut>", lambda _event: self._on_name_field_focus_out())
+        on_focus_change(self.nickname_entry, on_lost=lambda _change: self._on_name_field_focus_out())
         self._bind_name_entry_keys(self.nickname_entry)
 
         self.symbols_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
@@ -88,11 +88,10 @@ class DetailsLayoutMixin:
         tui.Label(self.accommodations_frame, text="Nachteilsausgleiche", style="Panel.TLabel").pack(anchor="w")
         self.accommodations_field = WrappedTextField(self.accommodations_frame, height=3)
         self.accommodations_field.pack(fill="x")
-        # <<Modified>> statt <KeyRelease>: einheitliche Tk-Änderungserkennung für
-        # Text-Widgets (deckt auch Paste/Kontextmenü ab). Bindung wird korrekt an
-        # das interne tk.Text-Widget weitergereicht, s. WrappedTextField.bind().
-        self.accommodations_field.bind("<<Modified>>", lambda _event: self._on_accommodations_text_modified(), add="+")
-        self.accommodations_field.bind("<FocusOut>", lambda _event: self._commit_pending_edits())
+        # Inhaltsaenderung statt Tastenloslassen: deckt auch Paste/Kontextmenue ab
+        # (bw-gui on_text_modified prueft und setzt Tks Modified-Flag selbst zurueck).
+        on_text_modified(self.accommodations_field.text, lambda _text: self._on_accommodations_text_modified())
+        on_focus_change(self.accommodations_field.text, on_lost=lambda _change: self._commit_pending_edits())
 
         self._details_panel_visible = True
 

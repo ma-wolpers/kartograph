@@ -13,7 +13,7 @@ from app.adapters.gui.ui_intents import UiIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import bind_click, ui, widgets as tui
+from bw_gui.runtime import bind_click, on_listbox_select, ui, widgets as tui
 from bw_gui.shortcuts import compose_hover_text as compose_shared_hover_text
 from bw_gui.widgets import HoverTooltip as SharedHoverTooltip
 
@@ -134,7 +134,7 @@ class LayoutMixin:
             lambda: self._handle_intent(UiIntent.LIST_OPEN_SELECTED),
             binding_id="list.open",
         )
-        self.plan_listbox.bind("<<ListboxSelect>>", lambda _event: self._ensure_list_selection())
+        on_listbox_select(self.plan_listbox, lambda _change: self._ensure_list_selection())
 
         scroll = tui.Scrollbar(self.list_body, orient="vertical", command=self.plan_listbox.yview)
         scroll.pack(side="right", fill="y")

@@ -23,7 +23,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.contracts import KeySpec
-from bw_gui.runtime import bind_click, ui
+from bw_gui.runtime import bind_click, listbox_selection, ui
 from bw_gui.runtime import widgets as tui
 
 
@@ -180,7 +180,7 @@ class DocsDialogsMixin:
         listbox.pack(fill="both", expand=True)
         for col in grade_columns:
             listbox.insert(ui.END, f"{col.title} ({col.category})")
-        listbox.selection_set(0)
+        listbox_selection.set(listbox, [0])
         self._focus_overlay_widget(dialog, listbox)
 
         def confirm() -> None:
@@ -346,7 +346,7 @@ class DocsDialogsMixin:
             sel_idx = max(0, min(self._docs_symbol_dialog_last_index, len(all_symbol_keys) - 1))
             if preferred_symbol in all_symbol_keys:
                 sel_idx = all_symbol_keys.index(preferred_symbol)
-            symbol_listbox.selection_set(sel_idx)
+            listbox_selection.set(symbol_listbox, [sel_idx])
             symbol_listbox.activate(sel_idx)
             symbol_listbox.see(sel_idx)
         self._focus_overlay_widget(dialog, symbol_listbox)
@@ -385,8 +385,7 @@ class DocsDialogsMixin:
         def select_by_digit(index: int) -> None:
             if index < 0 or index >= len(all_symbol_keys):
                 return
-            symbol_listbox.selection_clear(0, ui.END)
-            symbol_listbox.selection_set(index)
+            listbox_selection.set(symbol_listbox, [index])
             symbol_listbox.activate(index)
             symbol_listbox.see(index)
 

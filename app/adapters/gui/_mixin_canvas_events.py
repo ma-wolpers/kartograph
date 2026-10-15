@@ -22,7 +22,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 ensure_bw_gui_on_path()
 from bw_gui.contracts import EventResult, KeyModifiers
 from bw_gui.contracts.pointer import Axis, WheelEvent, wheel_axis
-from bw_gui.runtime import bind_click, bind_drag, bind_wheel
+from bw_gui.runtime import bind_click, bind_drag, bind_wheel, on_resize
 
 
 class CanvasEventsMixin:
@@ -44,7 +44,7 @@ class CanvasEventsMixin:
             on_end=self._on_canvas_release,
         )
         bind_click(self.canvas, self._on_canvas_double_click, count=2)
-        self.canvas.bind("<Configure>", lambda _event: self.redraw_grid())
+        on_resize(self.canvas, lambda _event: self.redraw_grid())
         bind_wheel(self.canvas, self._on_canvas_wheel)
 
     def _on_canvas_click(self, event) -> None:

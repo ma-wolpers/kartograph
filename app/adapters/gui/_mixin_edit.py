@@ -27,7 +27,7 @@ from bw_libs.ui_contract.hsm import ESCAPE_CLOSE_POPUP, ESCAPE_EXIT_INLINE_EDITO
 
 ensure_bw_gui_on_path()
 from bw_gui.contracts import EventResult
-from bw_gui.runtime import topmost_window, ui
+from bw_gui.runtime import listbox_selection, topmost_window, ui
 from bw_gui.runtime import widgets as tui
 
 
@@ -237,7 +237,7 @@ class EditMixin:
         for symbol in self.diagnostic_symbol_catalog:
             listbox.insert(ui.END, symbol)
         if self.diagnostic_symbol_catalog:
-            listbox.selection_set(0)
+            listbox_selection.set(listbox, [0])
         self._focus_overlay_widget(dialog, listbox)
 
         def apply_choice() -> None:

@@ -19,6 +19,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.contracts import EventResult, Key
+from bw_gui.runtime import treeview_selection
 
 _ARROW_KEYS = frozenset({Key.LEFT, Key.RIGHT, Key.UP, Key.DOWN})
 
@@ -83,8 +84,6 @@ class DocsEventsMixin:
         Args:
             pane: Pane, dessen Treeview ``<<TreeviewSelect>>`` ausgelöst hat.
         """
-        if self._syncing_docs_selection:
-            return
         selected = self._docs_trees_by_pane()[pane].selection()
         if not selected:
             return
@@ -132,24 +131,20 @@ class DocsEventsMixin:
         """
         if not row_id:
             return
-        if self._syncing_docs_selection:
-            return
         trees = self._docs_trees_by_pane()
         if not all(tree.exists(row_id) for tree in trees.values()):
             return
-        self._syncing_docs_selection = True
-        try:
-            for pane, tree in trees.items():
-                if pane is source:
-                    continue
-                selected = tree.selection()
-                if len(selected) != 1 or selected[0] != row_id:
-                    tree.selection_set(row_id)
-                if tree.focus() != row_id:
-                    tree.focus(row_id)
-                tree.see(row_id)
-        finally:
-            self._syncing_docs_selection = False
+        # notify=False: der Abgleich meldet sich nicht als Auswahl zurueck (frueher sollte das
+        # ein Sperr-Flag verhindern, Tks nachgereichte Ereignisse kamen aber erst danach an).
+        for pane, tree in trees.items():
+            if pane is source:
+                continue
+            selected = tree.selection()
+            if len(selected) != 1 or selected[0] != row_id:
+                treeview_selection.set(tree, [row_id])
+            if tree.focus() != row_id:
+                tree.focus(row_id)
+            tree.see(row_id)
 
         student_idx = self._doc_student_index_by_iid.get(row_id)
         if student_idx is not None:

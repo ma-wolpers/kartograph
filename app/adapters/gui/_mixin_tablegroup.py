@@ -12,7 +12,7 @@ from app.adapters.gui._local_keys import ENTER, ESCAPE, bind_action, dialog_keys
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import ui, widgets as tui
+from bw_gui.runtime import on_focus_change, ui, widgets as tui
 
 
 class TablegroupMixin:
@@ -60,22 +60,22 @@ class TablegroupMixin:
         tui.Label(body, text="TG-Nummer").grid(row=0, column=0, sticky="w", pady=(0, 4))
         number_entry = tui.Entry(body, textvariable=self._tg_number_var, width=10)
         number_entry.grid(row=0, column=1, sticky="w", pady=(0, 4))
-        number_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("number"))
+        on_focus_change(number_entry, on_gained=lambda _change: self._set_tg_last_changed("number"))
 
         tui.Label(body, text=f"x-shift (-{TG_SHIFT_LIMIT:.2f}..{TG_SHIFT_LIMIT:.2f})").grid(row=1, column=0, sticky="w", pady=(0, 4))
         shift_x_entry = tui.Entry(body, textvariable=self._tg_shift_x_var, width=10)
         shift_x_entry.grid(row=1, column=1, sticky="w", pady=(0, 4))
-        shift_x_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("shift_x"))
+        on_focus_change(shift_x_entry, on_gained=lambda _change: self._set_tg_last_changed("shift_x"))
 
         tui.Label(body, text=f"y-shift (-{TG_SHIFT_LIMIT:.2f}..{TG_SHIFT_LIMIT:.2f})").grid(row=2, column=0, sticky="w", pady=(0, 4))
         shift_y_entry = tui.Entry(body, textvariable=self._tg_shift_y_var, width=10)
         shift_y_entry.grid(row=2, column=1, sticky="w", pady=(0, 4))
-        shift_y_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("shift_y"))
+        on_focus_change(shift_y_entry, on_gained=lambda _change: self._set_tg_last_changed("shift_y"))
 
         tui.Label(body, text=f"Rotation (-{int(TG_ROTATION_LIMIT)}..{int(TG_ROTATION_LIMIT)})").grid(row=3, column=0, sticky="w", pady=(0, 4))
         rotation_entry = tui.Entry(body, textvariable=self._tg_rotation_var, width=10)
         rotation_entry.grid(row=3, column=1, sticky="w", pady=(0, 4))
-        rotation_entry.bind("<FocusIn>", lambda _event: self._set_tg_last_changed("rotation"))
+        on_focus_change(rotation_entry, on_gained=lambda _change: self._set_tg_last_changed("rotation"))
 
         tui.Label(body, textvariable=self._tg_status_var, style="Panel.TLabel").grid(row=4, column=0, columnspan=2, sticky="w", pady=(8, 8))
 

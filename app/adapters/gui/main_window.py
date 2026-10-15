@@ -69,7 +69,7 @@ from bw_libs.ui_contract.keybinding import KeybindingRegistry
 ensure_bw_gui_on_path()
 from bw_gui.contracts.screen_geometry import Size
 from bw_gui.runtime.screen_placement import place_on_pointer_monitor
-from bw_gui.runtime import BwBaseWindow, ui, widgets as tui
+from bw_gui.runtime import BwBaseWindow, on_resize, ui, widgets as tui
 from bw_gui.menu import section_spec
 from app.adapters.gui._mixin_state_apply import StateApplyMixin
 
@@ -345,7 +345,8 @@ class KartographMainWindow(
         self._build_layout(frame)
         self._register_canvas_event_bindings()
         self._bind_shortcuts()
-        self.bind("<Configure>", lambda _event: self._position_tablegroup_overlay(), add="+")
+        # within=True: wie frueher am Toplevel-Tag -- auch Layoutaenderungen im Fenster verschieben das Overlay.
+        on_resize(self.tk_root, lambda _event: self._position_tablegroup_overlay(), within=True)
         self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
         self.after(DEFAULT_UI_WATCHDOG_INTERVAL_MS, self._ui_watchdog_tick)
 

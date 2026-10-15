@@ -15,7 +15,7 @@ from app.core.intents.custom_symbol_intents import DeleteCustomSymbolIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import bind_click, ui, widgets as tui
+from bw_gui.runtime import bind_click, on_treeview_select, ui, widgets as tui
 
 _ROLE_LABELS = {"diagnostic": "Diagnose", "documentation_only": "Doku"}
 
@@ -68,7 +68,7 @@ class SymbolManagementMixin:
         y_scroll = tui.Scrollbar(body, orient="vertical", command=table.yview)
         y_scroll.pack(side="right", fill="y")
         table.configure(yscrollcommand=y_scroll.set)
-        table.bind("<<TreeviewSelect>>", lambda _e: self._on_symbol_management_selection_changed())
+        on_treeview_select(table, lambda _change: self._on_symbol_management_selection_changed())
         bind_click(table, lambda _e: self._edit_selected_custom_symbol_dialog(), count=2)
 
         self._symbol_management_window = window

@@ -19,7 +19,7 @@ from app.core.intents.student_intents import CreateStudentIntent, RenameStudentI
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import ui
+from bw_gui.runtime import reset_text_modified, ui
 from bw_gui.runtime import widgets as tui
 
 
@@ -422,19 +422,18 @@ class DetailsMixin:
         """
         self.accommodations_field.text.configure(state="normal")
         self.accommodations_field.set("\n".join(student.diagnostic.accommodations) if student else "")
-        self.accommodations_field.text.edit_modified(False)
+        reset_text_modified(self.accommodations_field.text)  # neu befuellt = unveraendert
         if student is None:
             self.accommodations_field.text.configure(state="disabled")
 
     def _on_accommodations_text_modified(self, _event=None) -> None:
-        """``<<Modified>>``-Callback des Nachteilsausgleiche-Feldes.
+        """Inhaltsaenderung des Nachteilsausgleiche-Feldes (bw-gui ``on_text_modified``).
 
-        Feuert sowohl bei echter Tastatureingabe/Paste als auch beim programmatischen
-        Neubefüllen in ``_set_accommodations_field()`` (harmlos, s. ``_apply_accommodations_field``).
-        ``edit_modified(False)`` ist Pflicht-Reset -- ohne ihn löst Tk das Event kein
-        zweites Mal aus.
+        Feuert bei Tastatureingabe, Paste und Kontextmenue. Das programmatische Neubefuellen in
+        ``_set_accommodations_field()`` gilt als unveraendert (``reset_text_modified``) und meldet
+        nicht (frueher merkte es harmlos eine Speicherung des unveraenderten Inhalts vor).
+        Pruefen und Zuruecksetzen von Tks Modified-Flag erledigt der Contract.
         """
-        self.accommodations_field.text.edit_modified(False)
         self._accommodations_pending_save.note_change()
 
     def _capture_accommodations_field(self) -> tuple[StudentId, list[str]] | None:

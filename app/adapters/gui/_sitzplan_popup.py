@@ -13,7 +13,7 @@ from app.core.domain.table_groups import build_seat_geometries_v4
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import ui
+from bw_gui.runtime import on_resize, ui
 
 _PADDING = 24
 
@@ -50,7 +50,8 @@ class SitzplanPopup:
             highlightthickness=0,
         )
         self._canvas.pack(fill="both", expand=True)
-        self._window.bind("<Configure>", lambda _e: self._window.after_idle(self._redraw))
+        # within=True: wie frueher am Toplevel-Tag (auch das Canvas meldet seine Groesse).
+        on_resize(self._window, lambda _event: self._window.after_idle(self._redraw), within=True)
 
     @property
     def window(self) -> ui.Toplevel:

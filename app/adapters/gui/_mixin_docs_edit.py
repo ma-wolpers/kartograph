@@ -13,7 +13,7 @@ from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import ui
+from bw_gui.runtime import on_focus_change, ui
 from bw_gui.runtime import widgets as tui
 
 
@@ -71,7 +71,7 @@ class DocsEditMixin:
         keys = widget_keys(editor)
         keys.bind(ENTER, self._on_docs_inline_editor_return, binding_id="docs.inline.return", intent="docs.inline.return", allow_when_text_input=True)
         keys.bind(ESCAPE, self._on_docs_inline_editor_escape, binding_id="docs.inline.escape", intent="docs.inline.escape", allow_when_text_input=True)
-        editor.bind("<FocusOut>", lambda _event: self._close_docs_inline_editor(apply_changes=True))
+        on_focus_change(editor, on_lost=lambda _change: self._close_docs_inline_editor(apply_changes=True))
 
         self._docs_inline_editor = editor
         self._docs_inline_editor_tree = tree

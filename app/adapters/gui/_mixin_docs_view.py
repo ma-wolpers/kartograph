@@ -18,7 +18,7 @@ from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import ui
+from bw_gui.runtime import listbox_selection
 
 
 def _resolve_doc_student_index_for_cell(
@@ -81,8 +81,7 @@ class DocsViewMixin:
             desired_index = int(self.plan_listbox.curselection()[0])
 
         desired_index = max(0, min(desired_index, len(self._plan_index) - 1))
-        self.plan_listbox.selection_clear(0, ui.END)
-        self.plan_listbox.selection_set(desired_index)
+        listbox_selection.set(self.plan_listbox, [desired_index])
         self.plan_listbox.activate(desired_index)
         self.plan_listbox.see(desired_index)
 
