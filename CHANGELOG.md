@@ -31,6 +31,7 @@ The format is based on Keep a Changelog.
 - Schueler-Felder unterstuetzen jetzt einen separaten "Nachname" neben dem Vornamen; PDF-Export, Legenden und Dokumentationsansicht verwenden automatisch beide Felder.
 
 ### Changed
+- `tools/ci/check_ai_guardrails.py` in Einstieg plus die Module `guardrail_config/support/process/checks.py` aufgeteilt; Aufruf und Prüfungen unverändert (reine CI-Tooling-Wartung, keine Nutzer-sichtbare Änderung).
 - Häkchen-Felder haben ein modernes, an das Theme angepasstes Aussehen. Auswahlen, die erst mit einem Knopf wirksam werden (Symbolfilter, PDF-Export, "Diese Warnung nicht mehr anzeigen"), sind Checkboxen. "Offline simulieren" im Shortcut-Runtime-Debug wirkt sofort und ist deshalb jetzt ein Schalter (Switch).
 - Ansicht-Menü: "Archivierte Sitzpläne anzeigen", "Dokumentationssicht" und "Offline-Simulation" sind jetzt Schalter, die ihren aktuellen Zustand anzeigen. Vorher war das ein Auswahlpunkt bzw. ein reiner "…umschalten"-Befehl ohne Zustandsanzeige.
 - Das Diagnosesymbol "Mathem. Fachkompetenz" heißt jetzt fächerneutral "Fachkompetenz" (gilt für das jeweils aktuelle Fach), hat statt `+` das Zeichen `🎓` (keine Verwechslung mehr mit der Mitarbeit-Bewertung `+`/`o`/`-`) und eine fächerneutrale Legende; das Kürzel `f` bleibt. Bereits erfasste Einträge und der Raster-Symbolfilter werden beim Laden automatisch übernommen.
