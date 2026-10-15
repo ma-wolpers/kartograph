@@ -24,6 +24,7 @@ from bw_libs.ui_contract.keybinding import UI_MODE_GLOBAL, UI_MODE_PREVIEW, KeyB
 ensure_bw_gui_on_path()
 from bw_gui.contracts import EventResult, KeySpec
 from bw_gui.runtime import WindowShortcutBinder
+from bw_gui.runtime.overlay_stack import blocking
 
 
 class ShortcutMixin:
@@ -113,9 +114,12 @@ class ShortcutMixin:
         return UI_MODE_PREVIEW if is_preview_shortcut_scope(self._controller.state) else UI_MODE_GLOBAL
 
     def _shortcut_dialog_open(self) -> bool:
-        """Synchronisiert Popup-Sitzungen und meldet, ob ein modus-blockierendes Popup offen ist."""
-        self._sync_popup_sessions_from_windows()
-        return self._popup_registry.has_mode_blocking_popup()
+        """Meldet, ob ein modaler Dialog offen ist (bw-gui-Overlay-Stack, Preset ``blocking()``).
+
+        Menü-Popups sperren in Kartograph **nicht** (der frühere Scan stufte sie als
+        ``dialog.non_blocking`` ein), Werkzeugfenster ebenso wenig.
+        """
+        return blocking(self.tk_root)()
 
     def _bind_runtime_shortcut(
         self,

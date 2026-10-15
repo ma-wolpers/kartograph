@@ -42,7 +42,7 @@ class TablegroupMixin:
         overlay.title("Tischeinstellungen")
         overlay.resizable(False, False)
         overlay.transient(self)
-        self._track_popup_window(overlay)
+        self._register_popup_window(overlay)
         overlay.protocol("WM_DELETE_WINDOW", self._close_tablegroup_overlay)
         bind_action(dialog_keys(overlay), ESCAPE, self._close_tablegroup_overlay, binding_id="dialog.cancel")
         self._tablegroup_overlay = overlay
@@ -124,12 +124,9 @@ class TablegroupMixin:
         self._tablegroup_overlay.geometry(f"{width}x{height}+{x_pos}+{y_pos}")
 
     def _close_tablegroup_overlay(self) -> None:
-        """Schließt das Tischgruppen-Overlay und meldet es aus der Popup-Registry ab."""
+        """Schließt das Tischgruppen-Overlay."""
         if self._tablegroup_overlay and self._tablegroup_overlay.winfo_exists():
-            popup_id = str(self._tablegroup_overlay)
-            self._popup_registry.close_popup(popup_id)
-            self._tracked_popup_ids.discard(popup_id)
-            self._tablegroup_overlay.destroy()
+            self._tablegroup_overlay.destroy()  # beendet auch die Overlay-Anmeldung
         self._tablegroup_overlay = None
         self._tg_number_var = None
         self._tg_shift_x_var = None

@@ -65,7 +65,6 @@ from bw_libs.app_shell import AppShellConfig
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 from bw_libs.ui_contract.hsm import build_ui_hsm_contract
 from bw_libs.ui_contract.keybinding import KeybindingRegistry
-from bw_libs.ui_contract.popup import POPUP_KIND_MODAL, POPUP_KIND_NON_MODAL, PopupPolicy, PopupPolicyRegistry
 
 ensure_bw_gui_on_path()
 from bw_gui.contracts.screen_geometry import Size
@@ -259,12 +258,6 @@ class KartographMainWindow(
         self._doc_selection_status_var = ui.StringVar(value="Doku-Zelle: -")
         self.status_var = ui.StringVar(value="Bereit")
         self._runtime_shortcuts = KeybindingRegistry()
-        self._popup_registry = PopupPolicyRegistry()
-        self._popup_registry.register_policy(PopupPolicy(policy_id="dialog.modal", kind=POPUP_KIND_MODAL))
-        self._popup_registry.register_policy(
-            PopupPolicy(policy_id="dialog.non_blocking", kind=POPUP_KIND_NON_MODAL, trap_focus=False, affects_mode=False)
-        )
-        self._tracked_popup_ids: set[str] = set()
         self._hover_tooltips: list[object] = []
         self._shortcut_runtime_offline = False
         self._shortcut_runtime_debug_window: ui.Toplevel | None = None

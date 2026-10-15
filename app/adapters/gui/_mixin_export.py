@@ -136,7 +136,7 @@ class ExportMixin:
         dialog.title(title)
         dialog.geometry(geometry)
         dialog.transient(resolved_parent)
-        self._track_popup_window(dialog)
+        self._register_popup_window(dialog)
         dialog.grab_set()
         bind_action(dialog_keys(dialog), ESCAPE, lambda: self._destroy_tracked_dialog(dialog), binding_id="dialog.cancel")
         dialog.protocol("WM_DELETE_WINDOW", lambda: self._destroy_tracked_dialog(dialog))
@@ -144,14 +144,11 @@ class ExportMixin:
         return dialog
 
     def _destroy_tracked_dialog(self, dialog: ui.Toplevel) -> None:
-        """Schließt ein getrackte Dialog-Fenster und entfernt es aus der Popup-Registry.
+        """Schließt ein Dialog-Fenster (seine Overlay-Anmeldung endet mit dem ``<Destroy>``).
 
         Args:
             dialog: Das zu schließende Toplevel-Fenster.
         """
-        popup_id = str(dialog)
-        self._popup_registry.close_popup(popup_id)
-        self._tracked_popup_ids.discard(popup_id)
         dialog.destroy()
 
     def _focus_overlay_widget(self, dialog: ui.Toplevel, widget: ui.Widget) -> None:

@@ -62,7 +62,7 @@ class SnapshotsMixin:
         window.title("Snapshots")
         window.geometry("640x420")
         window.minsize(480, 320)
-        self._track_popup_window(window, policy_id="dialog.non_blocking")
+        self._register_popup_window(window, blocking_shortcuts=False)
 
         toolbar = tui.Frame(window, padding=(10, 8))
         toolbar.pack(fill="x")
@@ -113,12 +113,9 @@ class SnapshotsMixin:
         self._refresh_snapshot_table()
 
     def _close_snapshots_popup(self) -> None:
-        """Schließt das Snapshots-Popup und meldet es aus der Popup-Registry ab."""
+        """Schließt das Snapshots-Popup."""
         if self._snapshot_window is not None and int(self._snapshot_window.winfo_exists()):
-            popup_id = str(self._snapshot_window)
-            self._popup_registry.close_popup(popup_id)
-            self._tracked_popup_ids.discard(popup_id)
-            self._snapshot_window.destroy()
+            self._snapshot_window.destroy()  # beendet auch die Overlay-Anmeldung
         self._snapshot_window = None
         self._snapshot_table = None
         self._snapshot_add_button = None
@@ -300,6 +297,7 @@ class SnapshotsMixin:
         """
         result = {"confirmed": False}
         dialog = ui.Toplevel(self._snapshot_window)
+        self._register_popup_window(dialog)  # modal (grab_set + wait_window)
         dialog.title("Snapshot löschen")
         dialog.transient(self._snapshot_window)
         dialog.resizable(False, False)

@@ -38,7 +38,11 @@ def _is_ci_environment() -> bool:
 
 
 def _check_runtime_shortcut_integration(errors: list[str]) -> None:
-    """Require runtime shortcut integration and debug intents in GUI flow.
+    """Require runtime shortcut integration, overlay-stack popup gating and debug intents in GUI flow.
+
+    Popup gating reads the bw-gui overlay stack (``blocking()``; menu popups do not block in
+    Kartograph); toplevels register through ``_register_popup_window``. Until 2026-10-15 this
+    rule required the former ``PopupPolicyRegistry`` (``tests/test_overlay_gating_tk.py``).
 
     Args:
         errors: Error list to append to when a required contract snippet is missing.
@@ -52,12 +56,11 @@ def _check_runtime_shortcut_integration(errors: list[str]) -> None:
         source_label,
         errors,
     )
-    _require_substring(
-        main_window,
-        "self._popup_registry = PopupPolicyRegistry()",
-        source_label,
-        errors,
-    )
+    for snippet in ("return blocking(self.tk_root)()", "register_overlay(window, category, toplevel=window)"):
+        _require_substring(main_window, snippet, source_label, errors)
+    for stale in ("_sync_popup_sessions_from_windows", "PopupPolicyRegistry()", "_popup_registry"):
+        if stale in main_window:
+            errors.append(f"{source_label}: former popup registry/scan is back ({stale}); use the overlay stack")
     _require_substring(
         main_window,
         "self._runtime_shortcuts.evaluate_runtime(",

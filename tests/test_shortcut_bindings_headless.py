@@ -74,7 +74,6 @@ class _Host(ShortcutBindingsMixin, ShortcutMixin):
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
         self._controller = SimpleNamespace(state=state)
         self._shortcut_runtime_offline = False
-        self._popup_registry = SimpleNamespace(has_mode_blocking_popup=lambda: False)
         self.symbol_definitions, _warning = load_symbol_definitions(SYMBOLS_PATH)
         self._shortcut_to_symbol = {d.shortcut: d.meaning for d in self.symbol_definitions if d.shortcut}
         self.color_palette = COLOR_MARKER_PALETTE
@@ -88,9 +87,6 @@ class _Host(ShortcutBindingsMixin, ShortcutMixin):
         """Gibt Fenster-Binder und Canvas frei (der Root lebt modulweit weiter)."""
         self._shortcut_binder.dispose()
         self.canvas.destroy()
-
-    def _sync_popup_sessions_from_windows(self) -> None:
-        """Keine echten Popups im Test."""
 
     def _is_text_input_focused(self) -> bool:
         """Kein Textfeld fokussiert."""

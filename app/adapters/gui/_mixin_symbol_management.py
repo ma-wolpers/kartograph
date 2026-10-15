@@ -36,7 +36,7 @@ class SymbolManagementMixin:
         window.title("Symbol-Verwaltung")
         window.geometry("760x480")
         window.minsize(620, 360)
-        self._track_popup_window(window, policy_id="dialog.non_blocking")
+        self._register_popup_window(window, blocking_shortcuts=False)
 
         toolbar = tui.Frame(window, padding=(10, 8))
         toolbar.pack(fill="x")
@@ -77,12 +77,9 @@ class SymbolManagementMixin:
         self._refresh_symbol_management_table()
 
     def _close_symbol_management_dialog(self) -> None:
-        """Schließt das Symbol-Verwaltung-Popup und meldet es aus der Popup-Registry ab."""
+        """Schließt das Symbol-Verwaltung-Popup."""
         if self._symbol_management_window is not None and int(self._symbol_management_window.winfo_exists()):
-            popup_id = str(self._symbol_management_window)
-            self._popup_registry.close_popup(popup_id)
-            self._tracked_popup_ids.discard(popup_id)
-            self._symbol_management_window.destroy()
+            self._symbol_management_window.destroy()  # beendet auch die Overlay-Anmeldung
         self._symbol_management_window = None
         self._symbol_management_table = None
         self._symbol_management_edit_button = None

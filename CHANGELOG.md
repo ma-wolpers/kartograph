@@ -31,6 +31,7 @@ The format is based on Keep a Changelog.
 - Schueler-Felder unterstuetzen jetzt einen separaten "Nachname" neben dem Vornamen; PDF-Export, Legenden und Dokumentationsansicht verwenden automatisch beide Felder.
 
 ### Changed
+- Guardrail `_check_runtime_shortcut_integration` prüft die Popup-Sperre jetzt über den bw-gui-Overlay-Stack statt der früheren Popup-Registry (reine Wartung, keine Nutzer-sichtbare Änderung; Popups, Kürzelsperre und Escape verhalten sich unverändert).
 - Tastenkürzel mit Strg/Alt gelten genau für die angegebene Kombination: Strg+Pfeil oder Alt+Pfeil bewegen die Markierung im Raster nicht mehr (nur Pfeil bzw. Umschalt+Pfeil). Die Enter-Taste des Ziffernblocks bestätigt jetzt auch in Dialogen, Farbpunkte 1–9 lassen sich auch über den Ziffernblock setzen. Kleine Touchpad-Bewegungen über dem Raster sammeln sich zu ganzen Scroll-/Zoom-Schritten, statt bei jeder Mini-Bewegung einen ganzen Schritt zu springen.
 - `tools/ci/check_ai_guardrails.py` in Einstieg plus die Module `guardrail_config/support/process/checks.py` aufgeteilt; Aufruf und Prüfungen unverändert (reine CI-Tooling-Wartung, keine Nutzer-sichtbare Änderung).
 - Häkchen-Felder haben ein modernes, an das Theme angepasstes Aussehen. Auswahlen, die erst mit einem Knopf wirksam werden (Symbolfilter, PDF-Export, "Diese Warnung nicht mehr anzeigen"), sind Checkboxen. "Offline simulieren" im Shortcut-Runtime-Debug wirkt sofort und ist deshalb jetzt ein Schalter (Switch).

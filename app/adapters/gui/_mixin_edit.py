@@ -27,7 +27,7 @@ from bw_libs.ui_contract.hsm import ESCAPE_CLOSE_POPUP, ESCAPE_EXIT_INLINE_EDITO
 
 ensure_bw_gui_on_path()
 from bw_gui.contracts import EventResult
-from bw_gui.runtime import ui
+from bw_gui.runtime import topmost_window, ui
 from bw_gui.runtime import widgets as tui
 
 
@@ -342,27 +342,19 @@ class EditMixin:
         würden übersprungen, obwohl der Nutzer nur den Namenseditor
         verlassen wollte.
         """
-        self._sync_popup_sessions_from_windows()
         has_inline_editor = self.interaction_mode == NAME_EDITING
         details_revealed = self._desk_detail_state is not None
-        has_popup = self._popup_registry.has_active_popup() or (details_revealed and not has_inline_editor)
+        # Jüngstes Overlay mit Toplevel ausser TRANSIENT, Menü-Popups eingeschlossen
+        # (früher PopupPolicyRegistry.active_popup()).
+        popup = topmost_window(self.tk_root)
+        has_popup = popup is not None or (details_revealed and not has_inline_editor)
         has_parent_state = self.editor_view.winfo_ismapped()
         action = self._hsm_contract.resolve_escape_action(
             has_popup=has_popup, has_inline_editor=has_inline_editor, has_parent_state=has_parent_state
         )
         if action == ESCAPE_CLOSE_POPUP:
-            active_popup = self._popup_registry.active_popup()
-            if active_popup is not None:
-                popup_id = active_popup.popup_id
-                for child in self.winfo_children():
-                    if not isinstance(child, ui.Toplevel):
-                        continue
-                    if str(child) != popup_id:
-                        continue
-                    self._destroy_tracked_dialog(child)
-                    return
-                self._popup_registry.close_popup(popup_id)
-                self._tracked_popup_ids.discard(popup_id)
+            if popup is not None:
+                self._destroy_tracked_dialog(popup)
                 return
             self._hide_details()
             return

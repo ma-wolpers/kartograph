@@ -126,7 +126,7 @@ class LaufkernMixin:
         window.title("Shortcut Runtime Debug")
         window.geometry("980x520")
         window.minsize(820, 420)
-        self._track_popup_window(window, policy_id="dialog.non_blocking")
+        self._register_popup_window(window, blocking_shortcuts=False)
 
         toolbar = tui.Frame(window, padding=(10, 8))
         toolbar.pack(fill="x")
@@ -169,12 +169,9 @@ class LaufkernMixin:
         self._refresh_shortcut_runtime_debug_dialog()
 
     def _close_shortcut_runtime_debug_dialog(self) -> None:
-        """Schließt das Runtime-Debug-Fenster und meldet es aus der Popup-Registry ab."""
+        """Schließt das Runtime-Debug-Fenster."""
         if self._shortcut_runtime_debug_window is not None and int(self._shortcut_runtime_debug_window.winfo_exists()):
-            popup_id = str(self._shortcut_runtime_debug_window)
-            self._popup_registry.close_popup(popup_id)
-            self._tracked_popup_ids.discard(popup_id)
-            self._shortcut_runtime_debug_window.destroy()
+            self._shortcut_runtime_debug_window.destroy()  # beendet auch die Overlay-Anmeldung
         self._shortcut_runtime_debug_window = None
         self._shortcut_runtime_debug_table = None
 

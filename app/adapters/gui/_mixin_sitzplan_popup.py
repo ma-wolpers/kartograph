@@ -31,6 +31,8 @@ class SitzplanPopupMixin:
             self._sitzplan_popup = None
 
         popup = SitzplanPopup(self, theme_key=self.theme_key, name_format=self.name_format)
+        # Sperrte als sichtbares, nicht angemeldetes Kind-Fenster schon im frueheren Scan (1:1).
+        self._register_popup_window(popup.window)
         popup.window.protocol("WM_DELETE_WINDOW", self._close_sitzplan_popup)
         self._sitzplan_popup = popup
         self._sitzplan_popup.update(
