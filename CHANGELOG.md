@@ -47,6 +47,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Solange die **Sitzplan-Vorschau** offen war, funktionierten die Tastenkürzel im Hauptfenster nicht. Die Vorschau läuft jetzt als Werkzeugfenster neben dem Bearbeiten mit, und alle Kürzel bleiben nutzbar.
 - Im Dialog "Symbol setzen" sprang ein Mausklick in die Liste auf einen festen Eintrag; die Ziffern 1–9 wählen jetzt wie vorgesehen den n-ten Eintrag (auch über den Ziffernblock).
 - Alt+←/→ springt in der Dokumentationstabelle zum vorigen/nächsten Datum, auch wenn die Tabelle den Fokus hat (bisher bewegte es nur die Spaltenauswahl).
 - Tastenkürzel reagieren nicht mehr auf die Feststelltaste: Strg+Z, Strg+C usw. sowie die Symbol-, Farb- und Mitarbeit-Kürzel funktionieren auch bei eingeschaltetem CapsLock. Strg+Umschalt+R/O (Kürzel-Debug) funktionieren jetzt ohne CapsLock.

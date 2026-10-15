@@ -31,8 +31,9 @@ class SitzplanPopupMixin:
             self._sitzplan_popup = None
 
         popup = SitzplanPopup(self, theme_key=self.theme_key, name_format=self.name_format)
-        # Sperrte als sichtbares, nicht angemeldetes Kind-Fenster schon im frueheren Scan (1:1).
-        self._register_popup_window(popup.window)
+        # Live-Vorschau neben dem Bearbeiten: Werkzeugfenster, sperrt die Kuerzel des Hauptfensters
+        # nicht (bis 2026-10-15 sperrte sie, weil der fruehere Scan sie als Dialog zaehlte).
+        self._register_popup_window(popup.window, blocking_shortcuts=False)
         popup.window.protocol("WM_DELETE_WINDOW", self._close_sitzplan_popup)
         self._sitzplan_popup = popup
         self._sitzplan_popup.update(

@@ -11,7 +11,9 @@ Menü-Popups als ``dialog.non_blocking``, alles andere (z. B. die Sitzplan-Vorsc
 :class:`_FormerRegistry` konserviert diesen Ablauf. Jetzt liefern
 ``ShortcutMixin._shortcut_dialog_open`` (``blocking()``, Menüs sperren nicht) und
 ``bw_gui.runtime.topmost_window`` beides; für jede Popup-Art und Kombinationen müssen alt
-und neu übereinstimmen. Einzige Abweichung: modale Dialoge **in** einem anderen Fenster
+und neu übereinstimmen. Bewusste Änderung (Entscheidung 2026-10-15): die Sitzplan-Vorschau
+zählte der Scan als Dialog, sie ist jetzt ein Werkzeugfenster und sperrt nicht mehr.
+Unbeobachtbare Abweichung: modale Dialoge **in** einem anderen Fenster
 (Snapshot-Löschen) zählte der Scan nicht mit -- sie halten aber ``grab_set``, das
 Hauptfenster bekommt solange keine Tasten, die Abweichung ist nicht beobachtbar.
 Nur synthetische Fenster, keine Klassendaten.
@@ -85,7 +87,7 @@ def scene(root):
 
     class Scene:
         def modal(self, *, tracked: bool = True, parent=None):
-            """Export-/Eingabedialog, Tischgruppen-Overlay (getrackt) bzw. Sitzplan-Vorschau (nur gescannt)."""
+            """Export-/Eingabedialog, Tischgruppen-Overlay (getrackt) bzw. nur gescannter Dialog."""
             window = ui.Toplevel(parent or root)
             PopupMixin._register_popup_window(host, window)
             if tracked:
@@ -113,6 +115,12 @@ def scene(root):
             bar.open_popup(anchor, (MenuItem(type="command", label="Eins"),), 0, "datei")
             opened.append((bar, anchor, suspended))
             return bar._popup_stack[0]
+
+        def root_widget(self):
+            return root
+
+        def keep(self, window):
+            opened.append(window)
 
         def new(self):
             root.update()
@@ -151,8 +159,18 @@ def test_nothing_open(scene):
 def test_tracked_and_scanned_modal_windows_block(scene):
     dialog = scene.modal()
     assert scene.check() == (True, str(dialog))
-    preview = scene.modal(tracked=False)  # Sitzplan-Vorschau
-    assert scene.check() == (True, str(preview))
+    scanned = scene.modal(tracked=False)  # nur vom Scan erfasst, ebenfalls Dialog
+    assert scene.check() == (True, str(scanned))
+
+
+def test_seating_preview_no_longer_blocks(scene):
+    """Bewusste Änderung: früher sperrte die (nicht getrackte) Vorschau als Dialog, jetzt Werkzeugfenster."""
+    preview = ui.Toplevel(scene_root := scene.root_widget())
+    PopupMixin._register_popup_window(SimpleNamespace(tk_root=scene_root), preview, blocking_shortcuts=False)
+    scene.keep(preview)
+    old_open, _old_target = scene.old()
+    assert old_open is True
+    assert scene.new() == (False, str(preview))
 
 
 def test_tool_windows_do_not_block(scene):
