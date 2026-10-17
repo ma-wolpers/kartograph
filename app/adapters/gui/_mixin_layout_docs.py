@@ -15,7 +15,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.contracts import KeyModifiers, KeySpec
-from bw_gui.runtime import bind_click, bind_wheel, on_key, on_treeview_select, ui, widgets as tui
+from bw_gui.runtime import bind_click, bind_wheel, on_key, on_resize, on_treeview_select, ui, widgets as tui
 
 # Pfeiltasten der Doku-Tabellen: tolerierte Zusatz-Modifier. Ohne Toleranz fiele
 # z. B. Shift+↑ an die native Treeview-Klassenbindung, die nur EINEN der drei
@@ -199,11 +199,7 @@ class LayoutDocsMixin:
             self._bind_docs_pane_events(pane, tree)
         bind_click(self.docs_right_tree, self._on_docs_right_tree_double_click, count=2)
 
-        self.docs_splitter.bind(
-            "<Configure>",
-            lambda _event: self._position_docs_splitter_initial(),
-            add="+",
-        )
+        on_resize(self.docs_splitter, lambda _event: self._position_docs_splitter_initial())
 
     def _create_docs_scrollbar(self, parent, *, orient: str, command) -> ui.Scrollbar:
         """Erstellt eine flache ``tk.Scrollbar`` im selben Stil wie die der Rasteransicht.

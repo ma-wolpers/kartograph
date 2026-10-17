@@ -31,6 +31,7 @@ The format is based on Keep a Changelog.
 - Schueler-Felder unterstuetzen jetzt einen separaten "Nachname" neben dem Vornamen; PDF-Export, Legenden und Dokumentationsansicht verwenden automatisch beide Felder.
 
 ### Changed
+- Ein Architektur-Test verhindert rohe Tk-Ereignisbindungen und Auswahl-Mutationen in der App (reine Wartung, keine Nutzer-sichtbare Änderung).
 - Fenster-, Fokus-, Text- und Auswahl-Ereignisse laufen über die bw-gui-Widget-Events-API statt über rohe Tk-Bindings (reine Wartung, keine Nutzer-sichtbare Änderung).
 - Guardrail `_check_runtime_shortcut_integration` prüft die Popup-Sperre jetzt über den bw-gui-Overlay-Stack statt der früheren Popup-Registry (reine Wartung, keine Nutzer-sichtbare Änderung; Popups, Kürzelsperre und Escape verhalten sich unverändert).
 - Tastenkürzel mit Strg/Alt gelten genau für die angegebene Kombination: Strg+Pfeil oder Alt+Pfeil bewegen die Markierung im Raster nicht mehr (nur Pfeil bzw. Umschalt+Pfeil). Die Enter-Taste des Ziffernblocks bestätigt jetzt auch in Dialogen, Farbpunkte 1–9 lassen sich auch über den Ziffernblock setzen. Kleine Touchpad-Bewegungen über dem Raster sammeln sich zu ganzen Scroll-/Zoom-Schritten, statt bei jeder Mini-Bewegung einen ganzen Schritt zu springen.
