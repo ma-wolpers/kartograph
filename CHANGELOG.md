@@ -31,7 +31,7 @@ The format is based on Keep a Changelog.
 - Schueler-Felder unterstuetzen jetzt einen separaten "Nachname" neben dem Vornamen; PDF-Export, Legenden und Dokumentationsansicht verwenden automatisch beide Felder.
 
 ### Changed
-- **Einheitliche Scrollbars:** Alle Scrollbars sind jetzt die schlanke native Scrollbar, auch in der Planliste und in den Fenstern Laufkern, Snapshots und Symbol-Verwaltung (bisher dort die klobige mit Pfeilknöpfen). Unter Windows werden sie im dunklen Theme dunkel. Die Scrollleiste aufgeklappter Auswahllisten nutzt die bw-gui-Standardfarben.
+- **Einheitliche Scrollbars:** Alle Scrollbars sind jetzt die schlanke native Scrollbar, auch in der Planliste und in den Fenstern Laufkern, Snapshots und Symbol-Verwaltung (bisher dort die klobige mit Pfeilknöpfen). Unter Windows werden sie im dunklen Theme dunkel. Die Scrollleiste aufgeklappter Auswahllisten nutzt die bw-gui-Standardfarben. Das Mausrad über der Scrollbar eines scrollbaren Bereichs (z. B. im Einstellungsdialog) scrollt jetzt genau dreimal so weit wie über dem Inhalt (bisher unbeabsichtigt fünfmal).
 - Ungenutzte Variable und Imports entfernt (reine Wartung, keine Nutzer-sichtbare Änderung).
 - Ein Architektur-Test verhindert rohe Tk-Ereignisbindungen und Auswahl-Mutationen in der App (reine Wartung, keine Nutzer-sichtbare Änderung).
 - Fenster-, Fokus-, Text- und Auswahl-Ereignisse laufen über die bw-gui-Widget-Events-API statt über rohe Tk-Bindings (reine Wartung, keine Nutzer-sichtbare Änderung).
