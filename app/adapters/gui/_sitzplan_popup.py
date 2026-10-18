@@ -80,7 +80,6 @@ class SitzplanPopup:
             return
 
         theme = kartograph_theme(self._theme_key)
-        classroom = self._plan.classroom
         geometries = build_seat_geometries_v4(self._plan)
 
         # Collect all world points (with optional flip — same as pdf_exporter "teacher_top")

@@ -13,7 +13,6 @@ from app.core.domain.models_v4 import ParticipationRating
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.student_intents import (
-    CreateStudentIntent,
     DeleteStudentIntent,
     SetTeacherSeatIntent,
 )

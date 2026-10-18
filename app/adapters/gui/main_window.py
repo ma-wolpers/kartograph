@@ -51,7 +51,7 @@ from app.adapters.gui._mixin_undo_redo import UndoRedoMixin
 from app.adapters.gui._mixin_viewport import ViewportMixin
 from app.adapters.gui._pending_field_save import PendingFieldSave
 from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow
-from app.adapters.gui.main_window_constants import COLOR_MARKER_PALETTE, DEFAULT_CANVAS_RADIUS, DEFAULT_CELL_SIZE, DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, DEFAULT_UI_WATCHDOG_INTERVAL_MS, LOGGER, DeskDetailMode, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH, UI_WATCHDOG_WARN_DRIFT_SECONDS, _known_ui_intents, apply_window_icon, configure_windows_process_identity
+from app.adapters.gui.main_window_constants import COLOR_MARKER_PALETTE, DEFAULT_CELL_SIZE, DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, DEFAULT_UI_WATCHDOG_INTERVAL_MS, LOGGER, DeskDetailMode, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH, UI_WATCHDOG_WARN_DRIFT_SECONDS, _known_ui_intents, apply_window_icon, configure_windows_process_identity
 from app.adapters.gui.ui_intents import UiIntent
 from app.adapters.gui.ui_theme import normalize_theme_key
 from app.application.app_controller import KartographAppController
