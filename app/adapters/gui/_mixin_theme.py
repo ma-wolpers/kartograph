@@ -1,7 +1,7 @@
 """Theme-Mixin für das Kartograph-Hauptfenster.
 
 Stellt das Anwenden und Umschalten von Themes bereit, inklusive der
-Stil-Konfiguration aller ttk-Widgets, Scrollbars, der Listbox sowie
+Stil-Konfiguration aller ttk-Widgets, der Listbox sowie
 der Hover-Tooltips und der Farbpunkt-Buttons.
 """
 
@@ -58,11 +58,6 @@ class ThemeMixin:
 
         self.style.configure("TEntry", fieldbackground=theme["bg_surface"], foreground=theme["fg_primary"], insertcolor=theme["fg_primary"])
 
-        self.style.configure("Horizontal.TScrollbar", troughcolor=theme["bg_surface"], background=theme["panel_strong"], bordercolor=theme["border"], arrowcolor=theme["fg_muted"])
-        self.style.map("Horizontal.TScrollbar", background=[("active", theme["accent_soft"])])
-        self.style.configure("Vertical.TScrollbar", troughcolor=theme["bg_surface"], background=theme["panel_strong"], bordercolor=theme["border"], arrowcolor=theme["fg_muted"])
-        self.style.map("Vertical.TScrollbar", background=[("active", theme["accent_soft"])])
-
         self.main_frame.configure(style="Main.TFrame")
         self.list_view.configure(style="Panel.TFrame")
         self.list_toolbar.configure(style="StrongPanel.TFrame")
@@ -79,24 +74,7 @@ class ThemeMixin:
         self.docs_table_container.configure(style="Panel.TFrame")
 
         self.canvas.configure(bg=theme["bg_surface"])
-        _scroll_kw = dict(
-            bg=theme["panel_strong"],
-            activebackground=theme["accent_soft"],
-            troughcolor=theme["bg_surface"],
-            highlightbackground=theme["bg_surface"],
-            highlightcolor=theme["bg_surface"],
-            relief="flat",
-            bd=0,
-        )
-        for scrollbar in (
-            self.x_scroll,
-            self.y_scroll,
-            self.docs_names_x_scroll,
-            self.docs_main_x_scroll,
-            self.docs_right_x_scroll,
-            self.docs_y_scroll,
-        ):
-            scrollbar.configure(**_scroll_kw)
+        # Scrollbars färben sich selbst (bw-gui-Primitive mit Theme-Listener).
 
         self.plan_listbox.configure(
             bg=theme["bg_panel"],

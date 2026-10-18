@@ -131,7 +131,8 @@ class LayoutDocsMixin:
 
         UI-Invariante: Alle drei Treeviews nutzen denselben ttk-Style
         ``Treeview`` (gleiche Zeilen- und Kopfhöhe), und jedes Pane hat unten
-        eine horizontale Scrollbar gleicher Höhe. Nur so bilden sie denselben
+        eine horizontale Scrollbar gleicher Höhe (alle sind die bw-gui-Primitive
+        ``tui.Scrollbar``, also gleich hoch). Nur so bilden sie denselben
         vertikalen Dokumentraum ab und bleiben per ``yview_moveto``
         zeilengenau synchron — kein Tree darf einen eigenen Style/``rowheight``
         bekommen.
@@ -149,8 +150,8 @@ class LayoutDocsMixin:
         self.docs_names_pane.pack(side="left", fill="y")
         self.docs_name_tree = tui.Treeview(self.docs_names_pane, show="tree headings", columns=(VORNAME_KEY,))
         self.docs_name_tree.pack(side="top", fill="both", expand=True)
-        self.docs_names_x_scroll = self._create_docs_scrollbar(
-            self.docs_names_pane, orient="horizontal", command=self.docs_name_tree.xview
+        self.docs_names_x_scroll = tui.Scrollbar(
+            self.docs_names_pane, orient="horizontal", command=self.docs_name_tree.xview, takefocus=False
         )
         self.docs_names_x_scroll.pack(side="bottom", fill="x")
         self.docs_name_tree.column("#0", width=150, anchor="w", stretch=False)
@@ -174,20 +175,20 @@ class LayoutDocsMixin:
 
         self.docs_tree = tui.Treeview(self.docs_main_pane, show="headings")
         self.docs_tree.pack(side="top", fill="both", expand=True)
-        self.docs_main_x_scroll = self._create_docs_scrollbar(
-            self.docs_main_pane, orient="horizontal", command=self._docs_main_xview
+        self.docs_main_x_scroll = tui.Scrollbar(
+            self.docs_main_pane, orient="horizontal", command=self._docs_main_xview, takefocus=False
         )
         self.docs_main_x_scroll.pack(side="bottom", fill="x")
 
         self.docs_right_tree = tui.Treeview(self.docs_fixed_pane, show="headings")
         self.docs_right_tree.pack(side="top", fill="both", expand=True)
-        self.docs_right_x_scroll = self._create_docs_scrollbar(
-            self.docs_fixed_pane, orient="horizontal", command=self._docs_right_xview
+        self.docs_right_x_scroll = tui.Scrollbar(
+            self.docs_fixed_pane, orient="horizontal", command=self._docs_right_xview, takefocus=False
         )
         self.docs_right_x_scroll.pack(side="bottom", fill="x")
 
-        self.docs_y_scroll = self._create_docs_scrollbar(
-            self.docs_table_container, orient="vertical", command=self._docs_yview
+        self.docs_y_scroll = tui.Scrollbar(
+            self.docs_table_container, orient="vertical", command=self._docs_yview, takefocus=False
         )
         self.docs_y_scroll.pack(side="right", fill="y")
 
@@ -200,38 +201,6 @@ class LayoutDocsMixin:
         bind_click(self.docs_right_tree, self._on_docs_right_tree_double_click, count=2)
 
         on_resize(self.docs_splitter, lambda _event: self._position_docs_splitter_initial())
-
-    def _create_docs_scrollbar(self, parent, *, orient: str, command) -> ui.Scrollbar:
-        """Erstellt eine flache ``tk.Scrollbar`` im selben Stil wie die der Rasteransicht.
-
-        Bewusst ``ui.Scrollbar`` (tk) statt ``tui.Scrollbar`` (ttk): Unter
-        Windows zeichnet tk die native, schlanke System-Scrollbar, während die
-        ttk-Scrollbar im ``clam``-Theme klobige Pfeilknöpfe und Rahmen hat.
-        Damit sehen Raster- und Dokuansicht gleich aus. Farben setzt
-        ``ThemeMixin._apply_kartograph_theme`` (wirken nur außerhalb von
-        Windows; dort bleibt die native Darstellung).
-
-        Alle Doku-Scrollbars müssen über diese Methode entstehen, damit die
-        horizontalen Leisten der drei Panes gleich hoch bleiben (UI-Invariante
-        aus ``_build_docs_tree_widgets``).
-
-        Args:
-            parent: Eltern-Widget (Pane-Frame oder Tabellencontainer).
-            orient: ``"horizontal"`` oder ``"vertical"``.
-            command: Scroll-Kommando (``xview``/``yview`` bzw. Sync-Weiterleitung).
-
-        Returns:
-            Die erstellte, noch nicht platzierte Scrollbar.
-        """
-        return ui.Scrollbar(
-            parent,
-            orient=orient,
-            command=command,
-            highlightthickness=0,
-            borderwidth=0,
-            relief="flat",
-            takefocus=0,
-        )
 
     def _bind_docs_pane_events(self, pane: DocsPane, tree) -> None:
         """Bindet die für alle drei Panes identischen Ereignisse an *tree*.

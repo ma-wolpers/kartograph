@@ -177,9 +177,9 @@ class LayoutMixin:
         self.canvas = ui.Canvas(self.grid_container, highlightthickness=0)
         self.canvas.pack(side="left", fill="both", expand=True)
 
-        self.y_scroll = ui.Scrollbar(self.grid_container, orient="vertical", command=self._yview, highlightthickness=0, borderwidth=0, relief="flat", takefocus=0)
+        self.y_scroll = tui.Scrollbar(self.grid_container, orient="vertical", command=self._yview, takefocus=False)
         self.y_scroll.pack(side="right", fill="y")
-        self.x_scroll = ui.Scrollbar(self.grid_stack, orient="horizontal", command=self._xview, highlightthickness=0, borderwidth=0, relief="flat", takefocus=0)
+        self.x_scroll = tui.Scrollbar(self.grid_stack, orient="horizontal", command=self._xview, takefocus=False)
         self.x_scroll.pack(fill="x")
 
         self.canvas.configure(
