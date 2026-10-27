@@ -35,7 +35,26 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 @pytest.fixture(scope="module")
 def window(tmp_path_factory):
     """Echtes Hauptfenster mit synthetischem, geöffnetem Plan."""
-    workspace = tmp_path_factory.mktemp("kartograph_start")
+    app, patcher = open_window_with_plan(tmp_path_factory.mktemp("kartograph_start"), build_synthetic_plan(3, 1, 0))
+    yield app
+    app.tk_root.destroy()
+    patcher.undo()
+
+
+def open_window_with_plan(workspace: Path, plan) -> tuple[KartographMainWindow, pytest.MonkeyPatch]:
+    """Baut ein echtes Hauptfenster in *workspace* (isoliertes ``APPDATA``) und öffnet *plan*.
+
+    Gemeinsames Setup für alle Tk-Tests mit echtem Hauptfenster: kopiert nur
+    ``config/symbols.json``, legt einen leeren Plan-Ordner an und berührt
+    keine echte Nutzerkonfiguration.
+
+    Args:
+        workspace: Leeres temporäres Verzeichnis.
+        plan: Synthetischer Plan (erfundene Namen).
+
+    Returns:
+        ``(Hauptfenster, MonkeyPatch)``; der Aufrufer zerstört ``tk_root`` und ruft ``undo()``.
+    """
     patcher = pytest.MonkeyPatch()
     patcher.setenv("APPDATA", str(workspace / "appdata"))
     (workspace / "config").mkdir()
@@ -46,15 +65,13 @@ def window(tmp_path_factory):
         json.dumps({"plans_dir": str(plans_dir)}), encoding="utf-8"
     )
     plan_path = plans_dir / "synthetisch.json"
-    JsonSeatingPlanRepositoryV4().save_plan(build_synthetic_plan(3, 1, 0), plan_path)
+    JsonSeatingPlanRepositoryV4().save_plan(plan, plan_path)
 
     app = _create_window_with_retry(workspace)
     app.tk_root.update()
     app.open_plan(plan_path)
     app.tk_root.update()
-    yield app
-    app.tk_root.destroy()
-    patcher.undo()
+    return app, patcher
 
 
 def _create_window_with_retry(workspace: Path, attempts: int = 3) -> KartographMainWindow:

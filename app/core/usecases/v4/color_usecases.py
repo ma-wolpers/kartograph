@@ -28,6 +28,23 @@ def is_color_tag_used(plan: SeatingPlan, color_key: str) -> bool:
     )
 
 
+def used_color_tags(plan: SeatingPlan) -> set[str]:
+    """Gibt alle Farbschlüssel zurück, die mindestens ein Schüler trägt.
+
+    Einzige Definition von "im Plan vergebene Farben": genutzt zum
+    Bereinigen der Palette (``cleanup_unused_palette_entries``) und für die
+    Farbauswahl im Sitzplan-Vorschau-Dialog (nur vergebene Farben wählbar).
+
+    Args:
+        plan: Plan, aus dem gelesen wird.
+
+    Returns:
+        Menge der getragenen Farbschlüssel (unsortiert; für eine
+        Palettenreihenfolge ``color_order.order_color_keys`` verwenden).
+    """
+    return {tag for s in plan.classroom.students for tag in s.diagnostic.color_tags}
+
+
 def set_palette_meaning(plan: SeatingPlan, color_key: str, meaning: str) -> SeatingPlan:
     """Weist *color_key* eine pädagogische Bedeutung zu oder entfernt sie.
 
@@ -89,11 +106,7 @@ def cleanup_unused_palette_entries(plan: SeatingPlan) -> SeatingPlan:
         Neuer Plan ohne verwaiste Palette-Einträge.
     """
     next_plan = deepcopy(plan)
-    used = {
-        tag
-        for s in next_plan.classroom.students
-        for tag in s.diagnostic.color_tags
-    }
+    used = used_color_tags(next_plan)
     next_plan.color_palette = {
         key: entry
         for key, entry in next_plan.color_palette.items()

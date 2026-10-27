@@ -48,6 +48,19 @@ def palette_by_key(color_palette: Sequence[PaletteEntryTuple] | None) -> dict[st
     return {color_key: (label, hex_color) for _key, color_key, label, hex_color in (color_palette or ())}
 
 
+def palette_shortcut_by_key(color_palette: Sequence[PaletteEntryTuple] | None) -> dict[str, str]:
+    """Baut den Lookup ``color_key -> Tastenkürzel`` (die Farbnummer, z. B. ``"1"``).
+
+    Args:
+        color_palette: Palette als Folge von ``(key, color_key, label, hex)``;
+            ``None`` ergibt ein leeres Dict.
+
+    Returns:
+        Dict, z. B. ``{"gelb": "1", "orange": "2", …}``.
+    """
+    return {color_key: key for key, color_key, _label, _hex in (color_palette or ())}
+
+
 def order_color_keys(color_markers: Iterable[str], color_order: Sequence[str]) -> list[str]:
     """Sortiert Farbschlüssel gemäß Palettenreihenfolge, ohne Duplikate.
 

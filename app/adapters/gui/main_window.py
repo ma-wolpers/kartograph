@@ -38,6 +38,7 @@ from app.adapters.gui._mixin_plan_list import PlanListMixin
 from app.adapters.gui._mixin_plan_save import PlanSaveMixin
 from app.adapters.gui._mixin_popup import PopupMixin
 from app.adapters.gui._mixin_sitzplan_popup import SitzplanPopupMixin
+from app.adapters.gui._mixin_sitzplan_preview_dialog import SitzplanPreviewDialogMixin
 from app.adapters.gui._mixin_snapshots import SnapshotsMixin
 from app.adapters.gui._mixin_selection import SelectionMixin
 from app.adapters.gui._mixin_settings import SettingsMixin
@@ -107,6 +108,7 @@ class KartographMainWindow(
     ThemeMixin,
     LaufkernMixin,
     PopupMixin,
+    SitzplanPreviewDialogMixin,
     SitzplanPopupMixin,
     SnapshotsMixin,
     ShortcutHandlersMixin,

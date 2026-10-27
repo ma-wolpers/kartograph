@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.adapters.gui.main_window_constants import COLOR_MARKER_PALETTE
-from app.core.domain.color_order import order_color_keys, palette_by_key, palette_order
+from app.core.domain.color_order import order_color_keys, palette_by_key, palette_order, palette_shortcut_by_key
 
 PALETTE = [
     ("1", "gelb", "Gelb", "#111111"),
@@ -26,6 +26,12 @@ def test_palette_order_and_lookup_accept_none() -> None:
 def test_palette_by_key_maps_label_and_hex() -> None:
     """Der Lookup liefert ``(label, hex)`` je Farbschlüssel."""
     assert palette_by_key(PALETTE)["rot"] == ("Rot", "#333333")
+
+
+def test_palette_shortcut_by_key_maps_color_number() -> None:
+    """Der Kürzel-Lookup liefert die Farbnummer je Farbschlüssel."""
+    assert palette_shortcut_by_key(PALETTE) == {"gelb": "1", "orange": "2", "rot": "3"}
+    assert palette_shortcut_by_key(None) == {}
 
 
 def test_order_color_keys_sorts_by_palette_and_dedupes() -> None:

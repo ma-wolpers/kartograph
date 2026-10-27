@@ -1,13 +1,20 @@
-"""Sitzplan-Vorschau-Popup-Mixin für das Kartograph-Hauptfenster."""
+"""Sitzplan-Vorschau-Popup-Mixin für das Kartograph-Hauptfenster.
+
+Verwaltet den Lebenszyklus des Vorschaufensters: mit Einstellungen anlegen
+oder ein offenes Fenster aktualisieren, debounced bei Planänderungen neu
+zeichnen, schließen. Den Einstellungsdialog davor baut
+``_mixin_sitzplan_preview_dialog.py``.
+"""
 
 from __future__ import annotations
 
 from app.adapters.gui._sitzplan_popup import SitzplanPopup
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.preview_color_frames import PreviewOptions
 
 
 class SitzplanPopupMixin:
-    """Mixin: Sitzplan-Vorschau-Popup öffnen, debounced aktualisieren und schließen."""
+    """Mixin: Sitzplan-Vorschau-Popup anlegen/aktualisieren, debounced neu zeichnen und schließen."""
 
     def _init_sitzplan_popup_state(self) -> None:
         """Initialisiert den Popup-Zustand (im __init__ des Hauptfensters aufrufen)."""
@@ -18,27 +25,48 @@ class SitzplanPopupMixin:
         self._sitzplan_popup_pending_fmt: str = "Vorname Nachname"
         self._sitzplan_popup_pending_disambiguate: bool = False
 
-    def open_sitzplan_popup(self) -> None:
-        """Öffnet das Vorschaufenster oder bringt es bei erneutem Aufruf in den Vordergrund."""
-        if self._sitzplan_popup is not None:
-            try:
-                if self._sitzplan_popup.window.winfo_exists():
-                    self._sitzplan_popup.window.lift()
-                    self._sitzplan_popup.window.focus_set()
-                    return
-            except Exception:
-                pass
-            self._sitzplan_popup = None
+    def _live_sitzplan_popup(self) -> SitzplanPopup | None:
+        """Gibt das offene Vorschaufenster zurück oder ``None``, wenn keins (mehr) existiert.
 
-        popup = SitzplanPopup(self, theme_key=self.theme_key, name_format=self.name_format)
+        Einzige Stelle, die prüft, ob das Fenster noch lebt. Ein vom
+        Fenstermanager bereits zerstörtes Fenster wird dabei vergessen.
+        """
+        if self._sitzplan_popup is None:
+            return None
+        try:
+            if self._sitzplan_popup.window.winfo_exists():
+                return self._sitzplan_popup
+        except Exception:
+            pass
+        self._sitzplan_popup = None
+        return None
+
+    def _apply_sitzplan_preview_options(self, options: PreviewOptions) -> None:
+        """Zeigt die Vorschau mit *options*: aktualisiert ein offenes Fenster oder öffnet eines.
+
+        Ist schon eine Vorschau offen, öffnet sich bewusst keine zweite. Die
+        bestehende übernimmt die Einstellungen und kommt in den Vordergrund.
+
+        Args:
+            options: Im Dialog bestätigte Einstellungen.
+        """
+        popup = self._live_sitzplan_popup()
+        if popup is not None:
+            popup.set_options(options)
+            popup.window.lift()
+            popup.window.focus_set()
+            return
+
+        popup = SitzplanPopup(
+            self, color_palette=self.color_palette, options=options,
+            theme_key=self.theme_key, name_format=self.name_format,
+        )
         # Live-Vorschau neben dem Bearbeiten: Werkzeugfenster, sperrt die Kuerzel des Hauptfensters
         # nicht (bis 2026-10-15 sperrte sie, weil der fruehere Scan sie als Dialog zaehlte).
         self._register_popup_window(popup.window, blocking_shortcuts=False)
         popup.window.protocol("WM_DELETE_WINDOW", self._close_sitzplan_popup)
         self._sitzplan_popup = popup
-        self._sitzplan_popup.update(
-            self.current_plan, self.theme_key, self.name_format, self.disambiguate_colliding_names
-        )
+        popup.update(self.current_plan, self.theme_key, self.name_format, self.disambiguate_colliding_names)
 
     def _close_sitzplan_popup(self) -> None:
         """Schließt das Vorschaufenster und bricht ausstehende Timer ab."""
@@ -60,15 +88,13 @@ class SitzplanPopupMixin:
 
         Wird bei jeder Zustandsänderung aufgerufen. Das Popup aktualisiert sich
         erst, wenn `sitzplan_popup_delay` Sekunden lang keine weitere Änderung kam.
+
+        Args:
+            plan: Neuer Planzustand.
+            theme_key: Aktives Theme.
+            name_format: Aktives Namensformat.
         """
-        if self._sitzplan_popup is None:
-            return
-        try:
-            if not self._sitzplan_popup.window.winfo_exists():
-                self._sitzplan_popup = None
-                return
-        except Exception:
-            self._sitzplan_popup = None
+        if self._live_sitzplan_popup() is None:
             return
 
         self._sitzplan_popup_pending_plan = plan
@@ -88,16 +114,10 @@ class SitzplanPopupMixin:
     def _sitzplan_popup_fire_update(self) -> None:
         """Führt die aufgeschobene Popup-Aktualisierung aus."""
         self._sitzplan_popup_after_id = None
-        if self._sitzplan_popup is None:
+        popup = self._live_sitzplan_popup()
+        if popup is None:
             return
-        try:
-            if not self._sitzplan_popup.window.winfo_exists():
-                self._sitzplan_popup = None
-                return
-        except Exception:
-            self._sitzplan_popup = None
-            return
-        self._sitzplan_popup.update(
+        popup.update(
             self._sitzplan_popup_pending_plan,
             self._sitzplan_popup_pending_theme,
             self._sitzplan_popup_pending_fmt,
