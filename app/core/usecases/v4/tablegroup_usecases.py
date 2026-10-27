@@ -61,36 +61,77 @@ def _build_seat_components(plan: SeatingPlan) -> list[list[tuple[int, int]]]:
 
 
 def normalize_tablegroups(plan: SeatingPlan) -> SeatingPlan:
-    """Baut ``plan.tablegroups`` aus der physischen Sitznachbarschaft neu auf.
+    """Gibt eine Kopie von *plan* mit aus der Sitznachbarschaft neu aufgebauten Tischgruppen zurück.
 
-    Komponenten ohne benannten Schüler bilden keine eigene Gruppe. Bestehende
-    Gruppennummern und Geometrie-Offsets bleiben erhalten, wo möglich.
+    Kopierende Hülle um ``compute_normalized_tablegroups()`` für Aufrufer,
+    die den Eingabeplan nicht verändern dürfen (Exporte, Tischgruppen-Overlay).
 
     Args:
-        plan: Ausgangsplan.
+        plan: Ausgangsplan (bleibt unverändert).
 
     Returns:
         Neuer Plan mit aktualisierten Tischgruppen.
     """
     next_plan = deepcopy(plan)
-    components = _build_seat_components(next_plan)
+    next_plan.tablegroups = compute_normalized_tablegroups(next_plan)
+    return next_plan
 
-    seat_lookup = {(s.seat.x, s.seat.y): s for s in next_plan.classroom.students}
+
+def apply_normalized_tablegroups(plan: SeatingPlan) -> None:
+    """Setzt ``plan.tablegroups`` in-place auf den aus der Sitznachbarschaft berechneten Stand.
+
+    Einzige Stelle, an der die Invariante "gespeicherte Tischgruppen passen
+    zur aktuellen Sitznachbarschaft" durchgesetzt wird: beim Übernehmen
+    jedes neuen Planzustands (``handlers/_shared.py::_record_and_save``) und
+    beim Öffnen einer Plandatei (``handlers/plan_handlers.py::handle_open_plan``;
+    das Repository selbst bleibt ein treuer Speichern/Laden-Spiegel). Ohne
+    diese Invariante zeigten Editor-Raster und Sitzplan-Vorschau z. B. nach
+    dem Umsetzen eines Tisches neben eine gedrehte Gruppe noch die
+    Transformation der alten Gruppe, PDF-/PNG-Export dagegen die neue.
+
+    Nur für Pläne aufrufen, die der Aufrufer gerade selbst erzeugt hat
+    (frische Kopie bzw. frisch deserialisiert), weil der Plan verändert wird.
+
+    Args:
+        plan: Zu normalisierender Plan (wird verändert).
+    """
+    plan.tablegroups = compute_normalized_tablegroups(plan)
+
+
+def compute_normalized_tablegroups(plan: SeatingPlan) -> list[TableGroup]:
+    """Berechnet die Tischgruppen aus der physischen Sitznachbarschaft, ohne *plan* zu verändern.
+
+    Regeln:
+    - Jeder 4-Wege-zusammenhängende Block von Schülerplätzen ist ein Kandidat.
+    - Blöcke ohne benannten Schüler bilden keine Gruppe.
+    - Die Gruppennummer ist die mehrheitlich bisherige Nummer des Blocks
+      (bei Gleichstand die kleinere). Fehlt sie oder ist sie schon vergeben,
+      gibt es fortlaufend eine neue ab ``max(bisherige) + 1``.
+    - Verschiebung und Drehung übernimmt der ganze Block vom ersten
+      benannten Platz in Suchreihenfolge. Ein an eine Gruppe angesetzter
+      Tisch übernimmt so deren Transformation.
+
+    Args:
+        plan: Plan, aus dessen Schülerplätzen und bisherigen ``tablegroups``
+            gerechnet wird (nur gelesen).
+
+    Returns:
+        Neue ``TableGroup``-Objekte (keine geteilten Referenzen mit *plan*);
+        leer, wenn es keine gültigen Blöcke gibt.
+    """
+    components = _build_seat_components(plan)
+
+    seat_lookup = {(s.seat.x, s.seat.y): s for s in plan.classroom.students}
     old_group_by_seat: dict[tuple[int, int], int] = {}
     old_geom_by_seat: dict[tuple[int, int], tuple[float, float, float]] = {}
-    for group in next_plan.tablegroups:
+    for group in plan.tablegroups:
         for gs in group.seats:
             old_group_by_seat[(gs.x, gs.y)] = group.group_id
             old_geom_by_seat[(gs.x, gs.y)] = (gs.shift_x, gs.shift_y, gs.rotation)
 
-    if not components:
-        next_plan.tablegroups = []
-        return next_plan
-
     valid_components = [comp for comp in components if any(seat_lookup[xy].is_named() for xy in comp)]
     if not valid_components:
-        next_plan.tablegroups = []
-        return next_plan
+        return []
 
     def pick_number(component: list[tuple[int, int]]) -> int | None:
         numbers = [old_group_by_seat[xy] for xy in component if old_group_by_seat.get(xy, 0) > 0]
@@ -127,8 +168,7 @@ def normalize_tablegroups(plan: SeatingPlan) -> SeatingPlan:
         new_groups.append(TableGroup(group_id=number, seats=seats))
         assigned_numbers.add(number)
 
-    next_plan.tablegroups = new_groups
-    return next_plan
+    return new_groups
 
 
 def tablegroup_number_at(plan: SeatingPlan, x: int, y: int) -> int | None:

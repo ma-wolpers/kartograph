@@ -10,6 +10,7 @@ from app.application.handler_context import HandlerContext
 from app.application.plan_listing import build_plan_list
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.settings import resolve_plans_dir
+from app.core.usecases.v4.tablegroup_usecases import apply_normalized_tablegroups
 
 
 def _can_undo(ctx: HandlerContext) -> bool:
@@ -38,6 +39,16 @@ def _record_and_save(
 ) -> None:
     """Schreibt *plan* in die History (unter *action_kind*) und persistiert ihn unter *path*.
 
+    Vorher werden die Tischgruppen von *plan* in-place aus der aktuellen
+    Sitznachbarschaft neu berechnet (``apply_normalized_tablegroups``). Weil
+    jeder planverändernde Handler hier durchläuft, gilt die Invariante
+    "Tischgruppen passen zur Sitznachbarschaft" für jeden übernommenen
+    Zustand: Editor-Raster, Sitzplan-Vorschau und Exporte sehen dieselbe
+    Geometrie, History und Datei ebenso. In-place ist sicher, weil die
+    Handler hier das frisch erzeugte Ergebnis eines Use-Cases übergeben.
+    Ein Use-Case, der im No-op-Fall den Eingabeplan zurückgibt, ist ebenfalls
+    unkritisch: Der ist bereits normalisiert, die Neuberechnung idempotent.
+
     Die History-Aufzeichnung ist immer synchron (unverändert) — sie ist die
     Grundlage für Undo/Redo und muss bei jedem Edit sofort aktuell sein.
     Das eigentliche Schreiben auf die Festplatte kann dagegen über
@@ -51,6 +62,7 @@ def _record_and_save(
         action_kind: Kurzbezeichner der Aktion für den History-Eintrag (z. B. ``"student.move"``).
         ctx: Handler-Kontext mit Zugriff auf History und Repository.
     """
+    apply_normalized_tablegroups(plan)
     ctx.history.record(plan, action_kind)
     if ctx.plan_save_scheduler is not None:
         ctx.plan_save_scheduler(plan, path)

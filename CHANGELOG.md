@@ -51,6 +51,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- **Gedrehte/verschobene Tischgruppen** sehen im Sitzplan-Raster und in der Sitzplan-Vorschau jetzt immer so aus wie im PDF- und Sitzkärtchen-Export. Bisher behielt ein Tisch, der neben eine Gruppe umgesetzt oder dort neu angelegt wurde, im Editor die Drehung seiner alten Gruppe bzw. blieb ungedreht, bis das Tischgruppen-Fenster geöffnet wurde. Der Export ordnete ihn dagegen schon der neuen Gruppe zu. Jetzt übernimmt er die Drehung und Verschiebung der Gruppe sofort. Auch ältere Pläne mit veralteter Gruppenzuordnung werden beim Öffnen richtig angezeigt.
 - Solange die **Sitzplan-Vorschau** offen war, funktionierten die Tastenkürzel im Hauptfenster nicht. Die Vorschau läuft jetzt als Werkzeugfenster neben dem Bearbeiten mit, und alle Kürzel bleiben nutzbar.
 - Im Dialog "Symbol setzen" sprang ein Mausklick in die Liste auf einen festen Eintrag; die Ziffern 1–9 wählen jetzt wie vorgesehen den n-ten Eintrag (auch über den Ziffernblock).
 - Alt+←/→ springt in der Dokumentationstabelle zum vorigen/nächsten Datum, auch wenn die Tabelle den Fokus hat (bisher bewegte es nur die Spaltenauswahl).
