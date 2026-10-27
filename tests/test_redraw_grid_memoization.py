@@ -68,6 +68,7 @@ class _GridTestWindow(tk.Frame, GridRenderMixin, GridHelpersMixin):
         self._documentation_only_symbols: set[str] = set()
         self.color_palette: list = []
         self._color_by_key: dict = {}
+        self._color_order: list = []
         self.symbol_strength = 1
         self.symbol_catalog: list = []
         self._symbol_by_meaning: dict = {}

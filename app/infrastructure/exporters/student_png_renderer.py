@@ -20,6 +20,7 @@ from __future__ import annotations
 import io
 from dataclasses import dataclass
 
+from app.core.domain.seat_orientation import world_bounds
 from app.core.domain.student_id import StudentId
 from app.core.domain.table_groups import SeatGeometryV4
 
@@ -81,10 +82,10 @@ def build_geometry_transform(
 ) -> GeometryTransform:
     """Berechnet Skalierung, Ursprung und Bildgröße aus der Bounding-Box aller Tisch-Polygone.
 
-    Formel (``span_x``/``span_y`` wie bei ``pdf_exporter.py`` und
-    ``_sitzplan_popup.py`` über ``max(0.1, ...)`` gegen Nulldivision bei
-    einer entarteten Bounding-Box abgesichert -- etabliertes Muster aus dem
-    bestehenden PDF-/Vorschau-Rendering):
+    Formel (Bounding-Box über ``seat_orientation.world_bounds()``, dieselbe
+    Funktion wie PDF-Export und Sitzplan-Vorschau; ``span_x``/``span_y`` sind
+    dort über ``max(0.1, ...)`` gegen Nulldivision bei einer entarteten
+    Bounding-Box abgesichert):
 
     - ``scale = content_size_px / max(span_x, span_y)``
     - ``content_w = span_x * scale`` (kleiner-gleich ``content_size_px``)
@@ -109,13 +110,9 @@ def build_geometry_transform(
         content_size_px: Zielgröße der längeren Bounding-Box-Kante in Pixeln.
         margin_px: Zusätzlicher Rand auf allen vier Seiten.
     """
-    all_points = [point for geometry in geometries for point in geometry.polygon]
-    min_x = min(p[0] for p in all_points)
-    max_x = max(p[0] for p in all_points)
-    min_y = min(p[1] for p in all_points)
-    max_y = max(p[1] for p in all_points)
-    span_x = max(0.1, max_x - min_x)
-    span_y = max(0.1, max_y - min_y)
+    bounds = world_bounds(geometry.polygon for geometry in geometries)
+    min_x, min_y = bounds.min_x, bounds.min_y
+    span_x, span_y = bounds.span_x, bounds.span_y
 
     scale = content_size_px / max(span_x, span_y)
     canvas_w = round(span_x * scale) + 2 * margin_px

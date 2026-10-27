@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from xml.sax.saxutils import escape as xml_escape
 
+from app.core.domain.color_order import order_color_keys, palette_by_key, palette_order
 from app.core.domain.models_v4 import SeatingPlan
-from app.infrastructure.exporters.pdf_font_utils import build_symbol_token, order_color_keys
+from app.infrastructure.exporters.pdf_font_utils import build_symbol_token
 from app.infrastructure.symbol_config_loader import SymbolDefinition
 
 
@@ -36,11 +37,8 @@ class PdfLegendRenderer:
         self._symbols_by_meaning: dict[str, SymbolDefinition] = {
             item.meaning: item for item in symbol_definitions
         }
-        self._color_order = [color_key for _key, color_key, _label, _hex in (color_palette or [])]
-        self._color_by_key = {
-            color_key: (label, hex_color)
-            for _key, color_key, label, hex_color in (color_palette or [])
-        }
+        self._color_order = palette_order(color_palette)
+        self._color_by_key = palette_by_key(color_palette)
         self._symbol_font_name = "Helvetica"
         self._symbol_font_uses_fallback = True
 

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import filedialog, messagebox
+from app.core.domain.seat_orientation import ORIENTATION_MODES, TEACHER_BOTTOM
 from app.core.intents.view_intents import ExportPdfIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -21,6 +22,32 @@ from bw_gui.widgets import Checkbox
 
 class PdfMixin:
     """Mixin: Konfigurationsdialog für den PDF-Export eines Sitzplans."""
+
+    def _build_orientation_radios(self, container: ui.Widget, variable: ui.StringVar) -> ui.Widget:
+        """Baut den Abschnitt "Ansicht wählen" mit je einem Radiobutton pro Ansicht.
+
+        Gemeinsamer Baustein für den PDF-Export-Dialog und den
+        Sitzplan-Vorschau-Dialog: Schlüssel und Labels kommen ausschließlich
+        aus ``seat_orientation.ORIENTATION_MODES``, damit beide Dialoge
+        dieselben Ansichten mit denselben Texten anbieten. Die Vorbelegung
+        bestimmt der Aufrufer über den Startwert von *variable*.
+
+        Args:
+            container: Eltern-Widget, in das Überschrift und Radiobuttons
+                gepackt werden.
+            variable: ``StringVar``, die den gewählten Ansicht-Schlüssel hält.
+
+        Returns:
+            Den ersten Radiobutton, damit der Aufrufer ihn fokussieren kann.
+        """
+        tui.Label(container, text="Ansicht wählen").pack(anchor="w", pady=(0, 6))
+        buttons = []
+        for index, (mode_key, label) in enumerate(ORIENTATION_MODES):
+            button = tui.Radiobutton(container, text=label, value=mode_key, variable=variable)
+            is_last = index == len(ORIENTATION_MODES) - 1
+            button.pack(anchor="w", pady=(4 if index else 0, 10 if is_last else 0))
+            buttons.append(button)
+        return buttons[0]
 
     def export_plan_pdf_dialog(self) -> None:
         """Öffnet den PDF-Export-Dialog und exportiert den aktuellen Plan bei Bestätigung.
@@ -39,27 +66,14 @@ class PdfMixin:
         container = tui.Frame(dialog)
         container.pack(fill="both", expand=True, padx=12, pady=12)
 
-        mode_var = ui.StringVar(value="teacher_bottom")
+        mode_var = ui.StringVar(value=TEACHER_BOTTOM)
         grade_mode_var = ui.StringVar(value="none")
         include_color_markers_var = ui.BooleanVar(value=False)
         include_legend_var = ui.BooleanVar(value=False)
         available_symbols = self._collect_export_symbols(self.current_plan)
         symbol_vars: dict[str, ui.BooleanVar] = {}
 
-        tui.Label(container, text="Ansicht wählen").pack(anchor="w", pady=(0, 6))
-        first_mode_button = tui.Radiobutton(
-            container,
-            text="Lehrertisch unten (Standard)",
-            value="teacher_bottom",
-            variable=mode_var,
-        )
-        first_mode_button.pack(anchor="w")
-        tui.Radiobutton(
-            container,
-            text="Lehrertisch oben (180° Perspektive)",
-            value="teacher_top",
-            variable=mode_var,
-        ).pack(anchor="w", pady=(4, 10))
+        first_mode_button = self._build_orientation_radios(container, mode_var)
 
         tui.Label(container, text="Noten").pack(anchor="w", pady=(0, 6))
         tui.Radiobutton(container, text="Keine Noten (Standard)", value="none", variable=grade_mode_var).pack(anchor="w")

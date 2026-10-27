@@ -7,6 +7,7 @@ Details-Panel (Spaltenanzahl, Legende, Farb-/Symbol-Zeilen).
 
 from __future__ import annotations
 
+from app.core.domain.color_order import order_color_keys
 from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import ParticipationRating, SeatingPlan, Student
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -223,21 +224,14 @@ class GridHelpersMixin:
     def _ordered_color_markers(self, color_markers: list[str]) -> list[str]:
         """Gibt die Farbpunkte in der konfigurierten Palettenreihenfolge zurück.
 
+        Dünner Adapter auf ``color_order.order_color_keys`` (gemeinsame
+        Sortierung für Grid, PDF und Sitzplan-Vorschau) mit der im
+        Hauptfenster einmal abgeleiteten ``self._color_order``.
+
         Args:
             color_markers: Liste der Farb-Schlüssel eines Schülers (unsortiert).
         """
-        ordered: list[str] = []
-        seen: set[str] = set()
-        configured_order = [color_key for _key, color_key, _label, _hex_color in self.color_palette]
-        for color_key in configured_order:
-            if color_key in color_markers and color_key not in seen:
-                ordered.append(color_key)
-                seen.add(color_key)
-        for color_key in color_markers:
-            if color_key not in seen:
-                ordered.append(color_key)
-                seen.add(color_key)
-        return ordered
+        return order_color_keys(color_markers, self._color_order)
 
     def _color_legend_lines(self, plan: SeatingPlan, desk_color_markers: list[str]) -> list[str]:
         """Erstellt Legendenzeilen für Farbpunkte (v4: color_palette statt color_meanings).

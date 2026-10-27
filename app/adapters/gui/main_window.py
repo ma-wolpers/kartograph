@@ -56,6 +56,7 @@ from app.adapters.gui.ui_intents import UiIntent
 from app.adapters.gui.ui_theme import normalize_theme_key
 from app.application.app_controller import KartographAppController
 from app.application.app_state import PlanListEntry
+from app.core.domain.color_order import palette_by_key, palette_order
 from app.core.domain.effective_symbol import EffectiveSymbol
 from app.core.domain.models_v4 import CustomSymbolDefinition, SeatingPlan
 from app.core.domain.plan_selection import RectSelection
@@ -315,7 +316,8 @@ class KartographMainWindow(
         self._ui_watchdog_tick_count = 0
 
         self.color_palette = COLOR_MARKER_PALETTE
-        self._color_by_key = {color_key: (label, hex_color) for _key, color_key, label, hex_color in self.color_palette}
+        self._color_by_key = palette_by_key(self.color_palette)
+        self._color_order = palette_order(self.color_palette)
 
         # AppState.symbol_catalog ist beim Controller-Start bereits geladen
         # (Phase D3) — die GUI liest nur noch daraus statt selbst erneut

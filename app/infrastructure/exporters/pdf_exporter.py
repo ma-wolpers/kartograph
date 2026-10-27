@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Literal
 
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.seat_orientation import is_orientation_mode, orient_geometries, world_bounds
 from app.core.domain.settings import DEFAULT_NAME_FORMAT
 from app.core.domain.student_naming import compute_display_names
 from app.core.domain.table_groups import build_seat_geometries_v4
@@ -93,7 +94,8 @@ class PdfSeatingPlanExporter:
         Args:
             plan: Zu exportierender Sitzplan.
             output_path: Zieldatei (wird überschrieben).
-            orientation_mode: ``"teacher_bottom"`` oder ``"teacher_top"``.
+            orientation_mode: Ansicht-Schlüssel aus ``seat_orientation.ORIENTATION_MODES``
+                (``"teacher_bottom"`` oder ``"teacher_top"``).
             grade_mode: Notenmodus für die PDF-Ausgabe.
             visible_symbols: Zu exportierende Symbole; None = alle.
             include_color_markers: Farbpunkte an Tischen zeichnen.
@@ -118,7 +120,7 @@ class PdfSeatingPlanExporter:
 
         self._ensure_symbol_font(pdfmetrics, ttfonts)
 
-        if orientation_mode not in {"teacher_bottom", "teacher_top"}:
+        if not is_orientation_mode(orientation_mode):
             raise ValueError("Unbekannter Exportmodus")
         if grade_mode not in {"none", "final_only", "include_provisional"}:
             raise ValueError("Unbekannter Notenmodus")
@@ -128,24 +130,10 @@ class PdfSeatingPlanExporter:
         if not geometries:
             raise ValueError("Plan enthaelt keine Tische")
 
-        all_points: list[tuple[float, float]] = []
-        render_items: list[tuple[tuple[tuple[float, float], ...], tuple[float, float], object]] = []
-        for geometry in geometries:
-            points = list(geometry.polygon)
-            cx, cy = geometry.center_x, geometry.center_y
-            if orientation_mode == "teacher_top":
-                points = [(-px, -py) for px, py in points]
-                cx, cy = -cx, -cy
-            polygon = tuple(points)
-            render_items.append((polygon, (cx, cy), geometry))
-            all_points.extend(points)
-
-        min_x = min(p[0] for p in all_points)
-        max_x = max(p[0] for p in all_points)
-        min_y = min(p[1] for p in all_points)
-        max_y = max(p[1] for p in all_points)
-        span_x = max(0.1, max_x - min_x)
-        span_y = max(0.1, max_y - min_y)
+        render_items = orient_geometries(geometries, orientation_mode)
+        bounds = world_bounds(item.polygon for item in render_items)
+        min_x, min_y = bounds.min_x, bounds.min_y
+        span_x, span_y = bounds.span_x, bounds.span_y
 
         page_w, page_h = landscape(A4)
         margin = 30.0
@@ -168,17 +156,17 @@ class PdfSeatingPlanExporter:
             export_plan.classroom.students, name_format, disambiguate_colliding_names
         )
 
-        for polygon, center, geometry in render_items:
+        for item in render_items:
             pdf_polygon = tuple(
                 (origin_x + (wx - min_x) * cell_size, top_y - (wy - min_y) * cell_size)
-                for wx, wy in polygon
+                for wx, wy in item.polygon
             )
             pdf_center = (
-                origin_x + (center[0] - min_x) * cell_size,
-                top_y - (center[1] - min_y) * cell_size,
+                origin_x + (item.center[0] - min_x) * cell_size,
+                top_y - (item.center[1] - min_y) * cell_size,
             )
             self._desk_renderer.render_desk(
-                c, colors, pdfmetrics, geometry, pdf_polygon, pdf_center, cell_size,
+                c, colors, pdfmetrics, item.geometry, pdf_polygon, pdf_center, cell_size,
                 export_plan, grade_mode, visible_symbols, include_color_markers,
                 used_symbol_levels, used_colors, display_names,
             )

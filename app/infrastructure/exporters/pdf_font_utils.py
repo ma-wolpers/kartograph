@@ -1,8 +1,9 @@
 """Zustandslose Hilfsfunktionen für den PDF-Export.
 
-Enthält Schriftgrößen-Fitting, Symbol-Token-Generierung, Symbol-Listen-
-Iteration und Farbmarkierungs-Sortierung. Alle Funktionen sind rein
-(keine Seiteneffekte) und können von mehreren Renderern genutzt werden.
+Enthält Schriftgrößen-Fitting, Symbol-Token-Generierung und Symbol-Listen-
+Iteration. Alle Funktionen sind rein (keine Seiteneffekte) und können von
+mehreren Renderern genutzt werden. Die Farbmarkierungs-Sortierung liegt in
+``app/core/domain/color_order.py`` (gemeinsam mit Grid und Sitzplan-Vorschau).
 """
 
 from __future__ import annotations
@@ -138,26 +139,3 @@ def iter_symbol_counts(
         if count >= 1:
             entries.append((meaning, min(3, count)))
     return entries
-
-
-def order_color_keys(color_markers: list[str], color_order: list[str]) -> list[str]:
-    """Sortiert Farbmarkierungen gemäß der definierten Palettenreihenfolge.
-
-    Args:
-        color_markers: Farbmarker des Tisches (Roh-Reihenfolge).
-        color_order: Referenz-Reihenfolge der Farbpalette.
-
-    Returns:
-        Sortierte Liste ohne Duplikate.
-    """
-    ordered: list[str] = []
-    seen: set[str] = set()
-    for color_key in color_order:
-        if color_key in color_markers and color_key not in seen:
-            ordered.append(color_key)
-            seen.add(color_key)
-    for color_key in color_markers:
-        if color_key not in seen:
-            ordered.append(color_key)
-            seen.add(color_key)
-    return ordered
