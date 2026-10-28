@@ -28,6 +28,7 @@ from app.adapters.gui._mixin_grid_render import GridRenderMixin
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.student_id import StudentId
 from app.core.usecases.v4.grade_usecases import add_grade_column, record_grade
+from bw_gui.widgets.canvas_item_pool import CanvasItemPool
 from tests.conftest import make_plan, make_student
 
 
@@ -61,7 +62,7 @@ class _GridTestWindow(tk.Frame, GridRenderMixin, GridHelpersMixin):
         self._grid_geometry_cache_value = None
         self._grid_font_size_cache_key = None
         self._grid_font_size_cache_value = None
-        self._grid_tile_pool: list = []
+        self._grid_tile_pool = CanvasItemPool(self.canvas, "rectangle", tags=("grid",))
 
         # Minimale Symbol-/Farb-Infrastruktur — der Synthetik-Plan nutzt keine.
         self._grid_visible_symbols: set[str] = set()

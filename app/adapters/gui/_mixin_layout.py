@@ -16,6 +16,7 @@ ensure_bw_gui_on_path()
 from bw_gui.runtime import bind_click, on_listbox_select, ui, widgets as tui
 from bw_gui.shortcuts import compose_hover_text as compose_shared_hover_text
 from bw_gui.widgets import HoverTooltip as SharedHoverTooltip
+from bw_gui.widgets.canvas_item_pool import CanvasItemPool
 
 
 class LayoutMixin:
@@ -175,6 +176,10 @@ class LayoutMixin:
         self.grid_container = tui.Frame(self.grid_stack)
 
         self.canvas = ui.Canvas(self.grid_container, highlightthickness=0)
+        # Hintergrundkacheln über den bw-gui CanvasItemPool: über Aufrufe hinweg
+        # wiederverwendet, Tk bekommt nur Änderungen. Andere Raster-Items (Pulte,
+        # Auswahl) tragen noch "grid_transient" und werden je Redraw neu gezeichnet.
+        self._grid_tile_pool = CanvasItemPool(self.canvas, "rectangle", tags=("grid",))
         self.canvas.pack(side="left", fill="both", expand=True)
 
         self.y_scroll = tui.Scrollbar(self.grid_container, orient="vertical", command=self._yview, takefocus=False)

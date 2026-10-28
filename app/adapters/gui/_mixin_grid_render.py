@@ -43,7 +43,7 @@ class GridRenderMixin:
        ``canvas.delete("grid")`` + Neuerzeugung ALLER sichtbaren Items bei
        jedem Aufruf war selbst bei reinem Scrollen/Zoomen teuer. Die
        Hintergrundkacheln (dominante Item-Anzahl, bis zu ~1500 bei starkem
-       Auszoomen) werden jetzt über ``_grid_tile_pool`` wiederverwendet
+       Auszoomen) werden jetzt über ``_grid_tile_pool`` (bw-gui ``CanvasItemPool``) wiederverwendet
        (``coords()``/``itemconfigure()`` statt ``create_rectangle()``);
        überzählige Kacheln werden versteckt (``state="hidden"``), nie
        gelöscht. Andere Canvas-Items (Pulte, Auswahl-Indikatoren) tragen
@@ -57,8 +57,8 @@ class GridRenderMixin:
         """Zeichnet das gesamte Raster neu auf dem Canvas."""
         self.canvas.delete("grid_transient")
         if not self.current_plan:
-            for item_id in self._grid_tile_pool:
-                self.canvas.itemconfigure(item_id, state="hidden")
+            self._grid_tile_pool.begin()
+            self._grid_tile_pool.end()
             return
 
         theme = kartograph_theme(self.theme_key)
@@ -267,42 +267,23 @@ class GridRenderMixin:
         )
 
     def _sync_tile_pool(self, cell_positions: list[tuple[float, float]], theme: dict) -> None:
-        """Erzeugt/aktualisiert die Hintergrundkacheln über einen wiederverwendbaren Item-Pool.
+        """Zeichnet die Hintergrundkacheln über den gemeinsamen bw-gui ``CanvasItemPool``.
 
-        Kachel-Slots sind anonym und austauschbar -- keine Kachel "gehört"
-        über mehrere Aufrufe hinweg zu einer bestimmten Rasterzelle. Slot
-        ``i`` wird pro Aufruf positional mit der i-ten sichtbaren
-        Kachelposition befüllt (``coords()``/``itemconfigure()`` bei
-        Wiederverwendung). Überzählige Slots werden versteckt
-        (``state="hidden"``), nie gelöscht -- das ist bewusst, damit
-        Schrumpfen (z.B. Reinzoomen) keine Waisen hinterlässt und kein
-        erneutes ``create_rectangle()`` beim nächsten Wachstum nötig ist.
-
-        Neu erzeugte Kacheln werden explizit an den Boden des Canvas-Stapels
-        gelegt (``tag_lower()``), statt sich implizit darauf zu verlassen,
-        dass alle anderen Items ohnehin nach dieser Methode neu gezeichnet
-        werden -- die Stapelreihenfolge der Kacheln soll eine explizite
-        Invariante sein, kein Nebenprodukt der Aufrufreihenfolge.
+        Kachel-Slots sind anonym und austauschbar; der Pool vergibt sie pro
+        Aufruf der Reihe nach, schickt Tk nur geänderte Koordinaten/Farben und
+        versteckt überzählige Kacheln (nie löschen -- Schrumpfen hinterlässt
+        so keine Waisen). Neu entstandene Kacheln werden explizit an den Boden
+        des Canvas-Stapels gelegt (``tag_lower``): die Stapelreihenfolge ist
+        eine Invariante, kein Nebenprodukt der Aufrufreihenfolge.
         """
         pool = self._grid_tile_pool
-        needed = len(cell_positions)
-
-        for index, (x1, y1) in enumerate(cell_positions):
-            x2 = x1 + self.cell_size
-            y2 = y1 + self.cell_size
-            if index < len(pool):
-                item_id = pool[index]
-                self.canvas.coords(item_id, x1, y1, x2, y2)
-                self.canvas.itemconfigure(
-                    item_id, fill=theme["bg_surface"], outline=theme["border"], state="normal"
-                )
-            else:
-                item_id = self.canvas.create_rectangle(
-                    x1, y1, x2, y2,
-                    fill=theme["bg_surface"], outline=theme["border"], width=1, tags=("grid",),
-                )
-                self.canvas.tag_lower(item_id)
-                pool.append(item_id)
-
-        for index in range(needed, len(pool)):
-            self.canvas.itemconfigure(pool[index], state="hidden")
+        created_before = len(pool.items)
+        pool.begin()
+        for x1, y1 in cell_positions:
+            pool.place(
+                (x1, y1, x1 + self.cell_size, y1 + self.cell_size),
+                fill=theme["bg_surface"], outline=theme["border"], width=1,
+            )
+        pool.end()
+        for item_id in pool.items[created_before:]:
+            self.canvas.tag_lower(item_id)

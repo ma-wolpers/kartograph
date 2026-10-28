@@ -24,7 +24,7 @@ from app.core.intents.view_intents import SetEditorSurfaceIntent
 from app.infrastructure.repositories.v4.json_plan_repository_v4 import JsonSeatingPlanRepositoryV4
 from app.tools.isolated_window import open_isolated_window
 from app.tools.perf_bench_docs_table import build_synthetic_plan
-from app.tools.tcl_call_counter import count_tcl_calls
+from bw_gui.testing.tcl_calls import count_tcl_calls  # bw_gui-Pfad ist über die app-Importe gesetzt
 
 
 @dataclass(frozen=True)
