@@ -139,7 +139,6 @@ class DocsEditMixin:
         if not student or not student.is_named():
             return
         self._toggle_documentation_symbol_for_student(student, symbol, date_key)
-        self._refresh_documentation_table()
 
     def clear_selected_documentation_symbol(self) -> None:
         """Löscht alle aktiven Symbole und Noten für die aktuelle Doku-Zelle (v4).
@@ -156,4 +155,3 @@ class DocsEditMixin:
         if not student or not student.is_named():
             return
         self._controller.dispatch(ClearDocEntryIntent(student_id=student.student_id, date=date_key))
-        self._refresh_documentation_table()

@@ -134,7 +134,6 @@ class DocsNavMixin:
         )
         status = "Note geloescht" if grade_value is None else "Note aktualisiert"
         self.status_var.set(status)
-        self._refresh_documentation_table()
 
     def _on_docs_inline_editor_return(self, _event) -> EventResult:
         """Schließt den Inline-Editor mit Übernahme (Return/KP_Enter).

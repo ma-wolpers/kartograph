@@ -52,6 +52,7 @@ class DocsDialogsMixin:
         self._replace_current_plan(renamed_plan)
         self._controller.dispatch(AddSessionIntent(date=new_date))
         self.status_var.set("Dokudatum umbenannt")
+        # Nötig: _replace_current_plan löst kein apply_state aus, und AddSession kann ein No-op sein.
         self._refresh_documentation_table()
 
     def delete_selected_documentation_date_dialog(self) -> None:
@@ -106,7 +107,6 @@ class DocsDialogsMixin:
             return
         self._controller.dispatch(DeleteSessionIntent(date=target_date))
         self.status_var.set(f"Dokumentationstermin '{target_date}' gelöscht")
-        self._refresh_documentation_table()
 
     def add_grade_column_dialog(self) -> None:
         """Öffnet einen Dialog zum Hinzufügen einer neuen Notenspalte (schriftlich/sonstig) (v4)."""
@@ -126,7 +126,8 @@ class DocsDialogsMixin:
         new_column_id = self._controller.state.doc_selected_column_id
         if new_column_id:
             self._select_doc_nondate_column(f"grade_{new_column_id}")
-        self._refresh_documentation_table()
+        # Tabelle hat apply_state schon neu gebaut; nur die danach gewählte Spalte markieren.
+        self._apply_doc_column_heading_highlight()
 
     def delete_grade_column_dialog(self) -> None:
         """Löscht eine Notenspalte nach Bestätigung (v4).
@@ -216,7 +217,6 @@ class DocsDialogsMixin:
             return
         self._controller.dispatch(DeleteGradeColumnIntent(column_id=column.column_id))
         self.status_var.set(f"Notenspalte '{column.title}' gelöscht")
-        self._refresh_documentation_table()
 
     def set_selected_documentation_grade_dialog(self, selected_column_id: str | None = None) -> None:
         """Öffnet den Inline-Editor für die ausgewählte Noten-Spalte.
@@ -274,7 +274,6 @@ class DocsDialogsMixin:
         self._controller.dispatch(
             UpdateGradeWeightingIntent(written_percent=written_percent, sonstige_percent=sonstige_percent)
         )
-        self._refresh_documentation_table()
 
     def set_selected_documentation_symbol_dialog(self) -> None:
         """Öffnet einen Dialog zur Symbolauswahl für die aktuelle Doku-Zelle (v4).
@@ -373,7 +372,6 @@ class DocsDialogsMixin:
                 RecordDocumentationSymbolIntent(student_id=student.student_id, date=date_key, symbol=sym, strength=0)
             )
             self.status_var.set(f"Dokumentation '{sym}' geloescht")
-            self._refresh_documentation_table()
             dialog.destroy()
 
         keys = dialog_keys(dialog)
