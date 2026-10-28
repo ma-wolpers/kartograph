@@ -20,7 +20,7 @@ from app.core.domain.models_v4 import Session, SessionEntry
 from app.core.intents.view_intents import SetEditorSurfaceIntent
 from bw_gui.testing.keys import press_key
 from tests.conftest import make_plan, make_student
-from tests.test_main_window_startup_tk import open_window_with_plan
+from app.tools.isolated_window import open_isolated_window
 
 DATE = "2026-10-28"
 
@@ -45,7 +45,7 @@ def setup(tmp_path, monkeypatch):
         zf.writestr("Ben Lukas Muster/aufsatz.docx", b"nur docx")  # zählt als Abgabe
     workspace = tmp_path / "ws"
     workspace.mkdir()
-    app, patcher = open_window_with_plan(workspace, plan)
+    app, close = open_isolated_window(workspace, plan)
     monkeypatch.setattr(submissions_module.filedialog, "askopenfilename", lambda **_kw: str(archive))
     app._controller.dispatch(SetEditorSurfaceIntent(surface="documentation"))
     app._select_doc_date_column(0)
@@ -53,8 +53,7 @@ def setup(tmp_path, monkeypatch):
     yield app, anna, ben, cem
     app._close_submission_viewer()
     gc.collect()  # PhotoImages des Viewers freigeben, solange Tk noch lebt
-    app.tk_root.destroy()
-    patcher.undo()
+    close()
 
 
 def _symbols(app, student):
@@ -140,10 +139,9 @@ def test_custom_symbol_on_new_builtin_letter_is_reported_on_open(tmp_path, monke
     )
     workspace = tmp_path / "ws"
     workspace.mkdir()
-    app, patcher = open_window_with_plan(workspace, plan)
+    app, close = open_isolated_window(workspace, plan)
     try:
         assert len(shown) == 1 and "„Eigenes“ (E)" in shown[0]
         assert opened == ["sym1"]
     finally:
-        app.tk_root.destroy()
-        patcher.undo()
+        close()

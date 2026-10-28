@@ -1,7 +1,7 @@
 """Tk-Test: Sitzplan-Vorschau-Dialog öffnet bzw. aktualisiert genau eine Vorschau mit Farbrahmen.
 
 Echtes Hauptfenster mit synthetischem Plan (erfundene Namen, isoliertes
-``APPDATA``, siehe ``open_window_with_plan``). Abgesichert:
+``APPDATA``, siehe ``app.tools.isolated_window``). Abgesichert:
 - Erstes Öffnen: Dialog mit Standardvorbelegung, Enter öffnet die Vorschau.
 - Erneutes Öffnen: Dialog ist mit den Einstellungen der offenen Vorschau
   vorbelegt, Enter aktualisiert dieselbe Vorschau (kein zweites Fenster);
@@ -19,7 +19,7 @@ from app.core.domain.preview_color_frames import PreviewOptions
 from app.core.domain.seat_orientation import TEACHER_BOTTOM, TEACHER_TOP
 from app.tools.perf_bench_docs_table import build_synthetic_plan
 from bw_gui.testing.keys import press_key
-from tests.test_main_window_startup_tk import open_window_with_plan
+from app.tools.isolated_window import open_isolated_window
 
 HEX = {key: hex_color for key, (_label, hex_color) in palette_by_key(COLOR_MARKER_PALETTE).items()}
 
@@ -29,11 +29,10 @@ def window(tmp_path_factory):
     """Hauptfenster mit einem Plan, dessen erster Schüler die Farben gelb (1) und rot (3) trägt."""
     plan = build_synthetic_plan(3, 1, 0)
     plan.classroom.students[0].diagnostic.color_tags = ["rot", "gelb"]
-    app, patcher = open_window_with_plan(tmp_path_factory.mktemp("kartograph_preview"), plan)
+    app, close = open_isolated_window(tmp_path_factory.mktemp("kartograph_preview"), plan)
     yield app
     app._close_sitzplan_popup()
-    app.tk_root.destroy()
-    patcher.undo()
+    close()
 
 
 def _confirm_preview_dialog(app) -> None:

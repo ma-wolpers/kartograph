@@ -13,78 +13,24 @@ Navigation und ein Overlay-Dialog mit Escape über seinen eigenen Fenster-Binder
 
 from __future__ import annotations
 
-import json
-import shutil
-import tkinter
-from pathlib import Path
 
 import pytest
 
-from app.adapters.bootstrap.wiring import build_gui_dependencies
-from app.infrastructure.symbol_config_loader import DEFAULT_SYMBOLS_PATH
-from app.adapters.gui.main_window import KartographMainWindow
 from app.core.intents.view_intents import SetEditorSurfaceIntent
-from app.infrastructure.repositories.v4.json_plan_repository_v4 import JsonSeatingPlanRepositoryV4
+from app.tools.isolated_window import open_isolated_window
 from app.tools.perf_bench_docs_table import build_synthetic_plan
 from bw_gui.runtime.key_router import router_for
 from bw_gui.testing.keys import press_key
 
 SHIFT = 0x0001
-REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture(scope="module")
 def window(tmp_path_factory):
     """Echtes Hauptfenster mit synthetischem, geöffnetem Plan."""
-    app, patcher = open_window_with_plan(tmp_path_factory.mktemp("kartograph_start"), build_synthetic_plan(3, 1, 0))
+    app, close = open_isolated_window(tmp_path_factory.mktemp("kartograph_start"), build_synthetic_plan(3, 1, 0))
     yield app
-    app.tk_root.destroy()
-    patcher.undo()
-
-
-def open_window_with_plan(workspace: Path, plan) -> tuple[KartographMainWindow, pytest.MonkeyPatch]:
-    """Baut ein echtes Hauptfenster in *workspace* (isoliertes ``APPDATA``) und öffnet *plan*.
-
-    Gemeinsames Setup für alle Tk-Tests mit echtem Hauptfenster: kopiert nur
-    die Standardsymbole (``DEFAULT_SYMBOLS_PATH``), legt einen leeren Plan-Ordner an und berührt
-    keine echte Nutzerkonfiguration.
-
-    Args:
-        workspace: Leeres temporäres Verzeichnis.
-        plan: Synthetischer Plan (erfundene Namen).
-
-    Returns:
-        ``(Hauptfenster, MonkeyPatch)``; der Aufrufer zerstört ``tk_root`` und ruft ``undo()``.
-    """
-    patcher = pytest.MonkeyPatch()
-    patcher.setenv("APPDATA", str(workspace / "appdata"))
-    (workspace / "config").mkdir()
-    shutil.copy(DEFAULT_SYMBOLS_PATH, workspace / "config" / "symbols.json")
-    plans_dir = workspace / "plans"
-    plans_dir.mkdir()
-    (workspace / "config" / "kartograph_settings.json").write_text(
-        json.dumps({"plans_dir": str(plans_dir)}), encoding="utf-8"
-    )
-    plan_path = plans_dir / "synthetisch.json"
-    JsonSeatingPlanRepositoryV4().save_plan(plan, plan_path)
-
-    app = _create_window_with_retry(workspace)
-    app.tk_root.update()
-    app.open_plan(plan_path)
-    app.tk_root.update()
-    return app, patcher
-
-
-def _create_window_with_retry(workspace: Path, attempts: int = 3) -> KartographMainWindow:
-    """Baut das Hauptfenster; wiederholt nur bei der bekannten Tcl-Init-Race unter Windows."""
-    for attempt in range(attempts):
-        try:
-            deps = build_gui_dependencies(workspace)
-            return KartographMainWindow(controller=deps.controller, shell_config=deps.shell_config)
-        except tkinter.TclError as exc:
-            if not any(m in str(exc) for m in ("usable", "tcl_findLibrary", "init.tcl")) or attempt == attempts - 1:
-                raise
-    raise AssertionError("unreachable")
+    close()
 
 
 def _show_surface(app, surface: str) -> None:
