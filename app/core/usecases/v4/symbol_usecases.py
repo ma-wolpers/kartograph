@@ -70,14 +70,39 @@ def record_symbol(
         return deepcopy(plan)
 
     next_plan = ensure_session(plan, date)
-    student = next_plan.classroom.student_by_id(student_id)
-    if student is None or not student.is_named():
-        return next_plan
+    apply_symbol_strength_in_place(next_plan, student_id, date, clean_symbol, strength)
+    return next_plan
 
-    date_key = _normalize_doc_date(date)
-    session = next_plan.documentation.session_for_date(date_key)
+
+def apply_symbol_strength_in_place(
+    plan: SeatingPlan,
+    student_id: StudentId,
+    date: str | None,
+    symbol: str,
+    strength: int,
+) -> None:
+    """Setzt/entfernt ein Dokumentationssymbol direkt in *plan* (ohne Kopie).
+
+    Einzige Stelle der Regel "Stärke 0 entfernt, sonst auf 1–3 clampen, leere
+    Einträge verschwinden". Nur für Usecases gedacht, die *plan* bereits
+    selbst kopiert und die Session per ``ensure_session`` angelegt haben —
+    so kostet z. B. das Setzen mehrerer Symbole in einem Schritt nur eine
+    Plankopie statt einer pro Symbol. Unbenannte Schüler und fehlende
+    Sessions werden still übergangen.
+
+    Args:
+        plan: Bereits kopierter Plan, der verändert wird.
+        student_id: ID des betroffenen Schülers.
+        date: Datum im Format YYYY-MM-DD (None = heute).
+        symbol: Bereits bereinigter Symbolname.
+        strength: Neue Stärke (0 = löschen, 1–3 = setzen).
+    """
+    student = plan.classroom.student_by_id(student_id)
+    if student is None or not student.is_named():
+        return
+    session = plan.documentation.session_for_date(_normalize_doc_date(date))
     if session is None:
-        return next_plan
+        return
 
     try:
         parsed = int(strength)
@@ -86,14 +111,12 @@ def record_symbol(
 
     entry = session.ensure_entry(student_id)
     if parsed <= 0:
-        entry.symbols.pop(clean_symbol, None)
+        entry.symbols.pop(symbol, None)
     else:
-        entry.symbols[clean_symbol] = max(1, min(3, parsed))
+        entry.symbols[symbol] = max(1, min(3, parsed))
 
     if not entry.has_content():
         session.entries.pop(student_id, None)
-
-    return next_plan
 
 
 def summarize_latest_symbols(plan: SeatingPlan, student_id: StudentId) -> dict[str, int]:
