@@ -9,9 +9,13 @@ from __future__ import annotations
 
 import dataclasses
 
+from app.adapters.gui.dialog_services import messagebox
 from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS
 from app.adapters.gui.ui_intents import UiIntent
+from app.core.domain.grade_scale import GRADE_SCALES, scale_for
+from app.core.intents.grade_intents import SetGradeScaleIntent
 from app.core.intents.view_intents import UpdateSettingsIntent
+from app.core.usecases.v4.grade_scale_usecases import count_grades
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -81,6 +85,7 @@ class MenuMixin:
             SharedMenuItem(type="command", label="Plan umbenennen (F2)", command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN)),
             SharedMenuItem(type="command", label="Plan loeschen (Entf in Liste)", command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN)),
             SharedMenuItem(type="command", label="Plan duplizieren (Strg+D)", command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN)),
+            self._grade_scale_menu_item(),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Export PDF (Strg+E)", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF)),
             SharedMenuItem(type="command", label="Für Namenfit exportieren (CSV)", command=lambda: self._handle_intent(UiIntent.EXPORT_NAMENFIT_CSV)),
@@ -90,6 +95,59 @@ class MenuMixin:
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="command", label="Beenden", command=self.destroy),
         )
+
+    def _grade_scale_menu_item(self):
+        """Liefert das Untermenü "Notenskala" mit je einem Radio pro Skala der Registry.
+
+        Wird bei jedem Öffnen des Datei-Menüs neu gebaut (``items_provider``),
+        der Radio-Zustand folgt daher automatisch Planwechseln und Undo.
+        Ohne geöffneten Plan erscheint nur ein deaktivierter Hinweis.
+        """
+        if not self.current_plan:
+            return SharedMenuItem(type="disabled", label="Notenskala (kein Plan geöffnet)")
+        current = self.current_plan.documentation.grade_scale
+        return SharedMenuItem(
+            type="submenu",
+            label="Notenskala",
+            items=tuple(
+                SharedMenuItem(
+                    type="radio",
+                    label=scale.label,
+                    checked=(scale.scale_id == current),
+                    command=lambda scale_id=scale.scale_id: self._set_grade_scale(scale_id),
+                )
+                for scale in GRADE_SCALES.values()
+            ),
+        )
+
+    def _set_grade_scale(self, scale_id: str) -> None:
+        """Stellt die Notenskala des Plans um; warnt vorher, wenn schon Noten eingetragen sind.
+
+        Ohne eingetragene Noten wird direkt umgeschaltet. Sonst erst nach
+        Bestätigung — die Umrechnung selbst (``set_grade_scale``) ist
+        verlustbehaftet für Zwischenwerte und deshalb nicht stillschweigend.
+        Die GUI aktualisiert sich über ``apply_state`` nach dem Dispatch.
+
+        Args:
+            scale_id: ID der gewählten Zielskala.
+        """
+        if not self.current_plan or not self.current_plan_path:
+            return
+        target = scale_for(scale_id)
+        if target.scale_id == scale_for(self.current_plan.documentation.grade_scale).scale_id:
+            return
+        grade_count = count_grades(self.current_plan)
+        if grade_count and not messagebox.askyesno(
+            "Notenskala wechseln",
+            f"In diesem Plan sind bereits {grade_count} Noten eingetragen.\n\n"
+            f"Beim Wechsel zu „{target.label}“ werden alle Werte umgerechnet "
+            "(z. B. 3,2 → 7 Punkte, 3,15 → 7,5 Punkte).\n"
+            "Mit Strg+Z lässt sich der Wechsel rückgängig machen.\n\nFortfahren?",
+            parent=self,
+        ):
+            return
+        self._controller.dispatch(SetGradeScaleIntent(scale_id=target.scale_id))
+        self.status_var.set(f"Notenskala: {target.label}")
 
     def _menu_items_edit(self):
         """Liefert die Menüeinträge für das Bearbeiten-Menü."""

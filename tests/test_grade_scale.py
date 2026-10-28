@@ -53,6 +53,12 @@ class TestRegistry:
     def test_format_value(self, scale_id, value, expected):
         assert scale_for(scale_id).format_value(value) == expected
 
+    def test_format_input_keeps_zero(self):
+        points = scale_for(SCALE_POINTS_0_15)
+        assert points.format_input(0.0) == "0"
+        assert points.format_input(7.5) == "7.5"
+        assert scale_for(SCALE_SCHOOL_1_6).format_input(2.3) == "2.3"
+
 
 class TestConversion:
     @pytest.mark.parametrize(("points", "grade"), sorted(ANCHORS.items()))

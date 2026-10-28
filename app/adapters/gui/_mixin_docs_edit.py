@@ -6,6 +6,7 @@ den Inline-Noten-Editor der Dokutabelle bereit.
 
 from __future__ import annotations
 
+from app.core.domain.grade_scale import scale_for
 from app.core.domain.symbol_toggle import next_symbol_toggle_strength
 from app.core.intents.session_intents import ClearDocEntryIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
@@ -61,7 +62,7 @@ class DocsEditMixin:
                 if entry is not None:
                     value = entry.grades.get(model_column_id)
                     if value is not None:
-                        current_text = f"{float(value):.2f}".rstrip("0").rstrip(".")
+                        current_text = scale_for(self.current_plan.documentation.grade_scale).format_input(value)
 
         editor = tui.Entry(tree)
         editor.insert(0, current_text)

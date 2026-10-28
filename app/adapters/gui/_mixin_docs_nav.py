@@ -8,6 +8,7 @@ für die Dokumentations-Tabelle bereit.
 from __future__ import annotations
 
 from app.adapters.gui.ui_theme import kartograph_theme
+from app.core.domain.grade_scale import scale_for
 from app.core.intents.grade_intents import RecordGradeIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -86,8 +87,12 @@ class DocsNavMixin:
     def _apply_docs_inline_editor_value(self) -> None:
         """Übernimmt den Wert aus dem aktiven Inline-Editor als Noteneintrag (v4).
 
-        Parst den Text als Dezimalzahl und dispatcht ``RecordGradeIntent``.
-        Bei leerem Text wird die Note gelöscht (``grade=0.0``).
+        Parst den Text als Dezimalzahl (Komma oder Punkt) und dispatcht
+        ``RecordGradeIntent``. Bei leerem Text wird die Note gelöscht
+        (``grade=None``). Werte außerhalb der Plan-Skala werden mit dem
+        Hinweis der Skala abgelehnt statt still geclampt — sonst würde z. B.
+        eine versehentlich eingetippte Punktzahl 12 in einem Notenplan
+        unbemerkt als 6.0 gespeichert.
         """
         if not self.current_plan:
             return
@@ -103,6 +108,7 @@ class DocsNavMixin:
         if not column_id:
             return
         raw_text = self._docs_inline_editor.get().strip()
+        scale = scale_for(self.current_plan.documentation.grade_scale)
         grade_value: float | None
         if not raw_text:
             grade_value = None
@@ -110,7 +116,9 @@ class DocsNavMixin:
             try:
                 grade_value = float(raw_text.replace(",", "."))
             except ValueError:
-                self.status_var.set("Ungueltige Note: bitte Zahl zwischen 1 und 6 eingeben")
+                grade_value = None
+            if grade_value is None or not scale.contains(grade_value):
+                self.status_var.set(scale.input_hint)
                 return
 
         student = self.current_plan.student_at(x, y)

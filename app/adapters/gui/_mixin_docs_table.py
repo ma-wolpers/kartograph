@@ -15,6 +15,7 @@ import time
 from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow, DocsPane
 from app.adapters.gui.docs_table_rules import sort_iids
 from app.adapters.gui.main_window_constants import LOGGER
+from app.core.domain.grade_scale import scale_for
 from app.core.usecases.v4.grade_usecases import (
     collect_grade_value_lists_by_student,
     compute_grade_display_by_student,
@@ -85,6 +86,7 @@ class DocsTableMixin:
         sessions_by_date = {s.date: s for s in self.current_plan.documentation.sessions}
         students_by_coord = {(s.seat.x, s.seat.y): s for s in self.current_plan.classroom.students}
         latest_grades_by_student = compute_latest_grades_by_student(self.current_plan)
+        grade_scale = scale_for(self.current_plan.documentation.grade_scale)
         latest_symbols_by_student = summarize_latest_symbols_by_student(self.current_plan)
         # Einmal sammeln, an alle drei Anzeige-Funktionen weiterreichen — sonst
         # würde jede für sich nochmal alle Sessions scannen (siehe Docstring
@@ -121,7 +123,7 @@ class DocsTableMixin:
             student_latest_grades = latest_grades_by_student.get(student.student_id, {})
             for grade in grade_columns:
                 raw_grade = student_latest_grades.get(grade.column_id)
-                fixed_values.append(f"{raw_grade:.2f}" if raw_grade is not None else "")
+                fixed_values.append(grade_scale.format_value(raw_grade) if raw_grade is not None else "")
             if "written_total" in fixed_columns:
                 fixed_values.append(written_subtotal_by_student.get(student.student_id, ""))
             if "sonstige_total" in fixed_columns:

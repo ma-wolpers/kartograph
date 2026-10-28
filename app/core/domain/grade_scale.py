@@ -83,6 +83,21 @@ class GradeScale:
         """
         return format(float(value), self.display_format)
 
+    def format_input(self, value: float) -> str:
+        """Formatiert *value* als Vorbelegung des Inline-Editors (ohne überflüssige Nullen).
+
+        Bewusst ``"g"`` statt ``"…".rstrip("0")``: Letzteres machte aus
+        ``0.0`` einen leeren String, und ein leerer Editor löscht beim
+        Bestätigen den Wert — fatal für 0 Punkte.
+
+        Args:
+            value: Gespeicherter Wert.
+
+        Examples:
+            ``2.3 → "2.3"``, ``3.15 → "3.15"``, ``0.0 → "0"``.
+        """
+        return format(float(value), "g")
+
 
 # Schulnoten beginnen bei 0.7 ("1+"), damit 15 Punkte verlustfrei abbildbar sind.
 GRADE_SCALES: dict[str, GradeScale] = {
