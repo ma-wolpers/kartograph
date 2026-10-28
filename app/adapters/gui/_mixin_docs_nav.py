@@ -121,7 +121,7 @@ class DocsNavMixin:
                 student_id=student.student_id,
                 date=date_key,
                 column_id=column_id,
-                grade=grade_value if grade_value is not None else 0.0,
+                grade=grade_value,
             )
         )
         status = "Note geloescht" if grade_value is None else "Note aktualisiert"

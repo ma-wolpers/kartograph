@@ -37,7 +37,12 @@ from app.application.handlers.custom_symbol_handlers import (
     handle_delete_custom_symbol,
     handle_update_custom_symbol,
 )
-from app.application.handlers.grade_handlers import handle_add_grade_column, handle_delete_grade_column
+from app.application.handlers.grade_handlers import (
+    handle_add_grade_column,
+    handle_delete_grade_column,
+    handle_record_grade,
+    handle_set_grade_scale,
+)
 from app.application.handlers.participation_handlers import handle_set_participation_rating
 from app.application.handlers.navigation_handlers import (
     handle_clear_selection,
@@ -95,7 +100,13 @@ from app.core.intents.custom_symbol_intents import (
     DeleteCustomSymbolIntent,
     UpdateCustomSymbolIntent,
 )
-from app.core.intents.grade_intents import AddGradeColumnIntent, DeleteGradeColumnIntent
+from app.core.domain.grade_scale import SCALE_POINTS_0_15, SCALE_SCHOOL_1_6
+from app.core.intents.grade_intents import (
+    AddGradeColumnIntent,
+    DeleteGradeColumnIntent,
+    RecordGradeIntent,
+    SetGradeScaleIntent,
+)
 from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.navigation_intents import (
     ClearSelectionIntent,
@@ -1178,6 +1189,52 @@ class TestHandleGradeColumnHandlers:
         result = handle_delete_grade_column(DeleteGradeColumnIntent(column_id="missing"), state, ctx)
 
         assert result is state
+
+
+class TestHandleGradeScale:
+    def _state_with_grade(self, grade):
+        student = make_student(x=1, y=0)
+        plan = make_plan(students=[student])
+        path = PLANS_DIR / "test.json"
+        ctx = make_ctx({path: plan})
+        state = handle_open_plan(OpenPlanIntent(plan_path=path), AppState(), ctx)
+        state = handle_add_grade_column(
+            AddGradeColumnIntent(category="schriftlich", title="Arbeit 1"), state, ctx
+        )
+        column_id = state.current_plan.documentation.grade_columns[0].column_id
+        state = handle_record_grade(
+            RecordGradeIntent(student_id=student.student_id, date="2025-09-01", column_id=column_id, grade=grade),
+            state,
+            ctx,
+        )
+        return state, ctx, student.student_id, column_id
+
+    @staticmethod
+    def _grade(state, sid, column_id):
+        session = state.current_plan.documentation.session_for_date("2025-09-01")
+        entry = session.entry_for(sid) if session else None
+        return entry.grades.get(column_id) if entry else None
+
+    def test_set_grade_scale_converts_and_is_undoable(self):
+        state, ctx, sid, col = self._state_with_grade(3.15)
+
+        switched = handle_set_grade_scale(SetGradeScaleIntent(scale_id=SCALE_POINTS_0_15), state, ctx)
+        assert switched.current_plan.documentation.grade_scale == SCALE_POINTS_0_15
+        assert self._grade(switched, sid, col) == 7.5
+
+        undone = handle_undo(UndoIntent(), switched, ctx)
+        assert undone.current_plan.documentation.grade_scale == SCALE_SCHOOL_1_6
+        assert self._grade(undone, sid, col) == 3.15
+
+    def test_zero_points_is_stored_and_none_deletes(self):
+        state, ctx, sid, col = self._state_with_grade(6.0)
+        state = handle_set_grade_scale(SetGradeScaleIntent(scale_id=SCALE_POINTS_0_15), state, ctx)
+        assert self._grade(state, sid, col) == 0.0
+
+        deleted = handle_record_grade(
+            RecordGradeIntent(student_id=sid, date="2025-09-01", column_id=col, grade=None), state, ctx
+        )
+        assert self._grade(deleted, sid, col) is None
 
 
 # ---------------------------------------------------------------------------

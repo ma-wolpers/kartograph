@@ -44,6 +44,7 @@ from app.application.handlers.grade_handlers import (
     handle_add_grade_column,
     handle_delete_grade_column,
     handle_record_grade,
+    handle_set_grade_scale,
     handle_update_grade_weighting,
 )
 from app.application.handlers.navigation_handlers import (
@@ -119,6 +120,7 @@ from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
     DeleteGradeColumnIntent,
     RecordGradeIntent,
+    SetGradeScaleIntent,
     UpdateGradeWeightingIntent,
 )
 from app.core.intents.navigation_intents import (
@@ -368,6 +370,7 @@ class KartographAppController:
         r.register(DeleteGradeColumnIntent,    lambda i, s: handle_delete_grade_column(i, s, ctx))
         r.register(RecordGradeIntent,          lambda i, s: handle_record_grade(i, s, ctx))
         r.register(UpdateGradeWeightingIntent, lambda i, s: handle_update_grade_weighting(i, s, ctx))
+        r.register(SetGradeScaleIntent,        lambda i, s: handle_set_grade_scale(i, s, ctx))
 
         # Session
         r.register(AddSessionIntent,         lambda i, s: handle_add_session(i, s, ctx))

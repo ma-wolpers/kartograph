@@ -11,8 +11,10 @@ from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
     DeleteGradeColumnIntent,
     RecordGradeIntent,
+    SetGradeScaleIntent,
     UpdateGradeWeightingIntent,
 )
+from app.core.usecases.v4.grade_scale_usecases import set_grade_scale
 from app.core.usecases.v4.grade_usecases import (
     add_grade_column,
     record_grade,
@@ -75,7 +77,7 @@ def handle_delete_grade_column(intent: DeleteGradeColumnIntent, state: AppState,
 
 
 def handle_record_grade(intent: RecordGradeIntent, state: AppState, ctx: HandlerContext) -> AppState:
-    """Trägt die Note aus *intent* ein (0.0 löscht den Eintrag, s. ``record_grade``-Usecase).
+    """Trägt die Note aus *intent* ein (``None`` löscht den Eintrag, s. ``record_grade``-Usecase).
 
     Args:
         intent: Schüler-ID, Datum, Spalte und einzutragende Note.
@@ -84,9 +86,8 @@ def handle_record_grade(intent: RecordGradeIntent, state: AppState, ctx: Handler
     """
     if state.current_plan is None or state.current_plan_path is None:
         return state
-    grade_value = intent.grade if intent.grade != 0.0 else None
     next_plan = record_grade(
-        state.current_plan, intent.student_id, intent.date, intent.column_id, grade_value
+        state.current_plan, intent.student_id, intent.date, intent.column_id, intent.grade
     )
     _record_and_save(next_plan, state.current_plan_path, "grade.record", ctx)
     return _with_plan(state, next_plan, ctx)
@@ -106,4 +107,22 @@ def handle_update_grade_weighting(
         return state
     next_plan = set_grade_weighting(state.current_plan, intent.written_percent, intent.sonstige_percent)
     _record_and_save(next_plan, state.current_plan_path, "grade.weighting.update", ctx)
+    return _with_plan(state, next_plan, ctx)
+
+
+def handle_set_grade_scale(intent: SetGradeScaleIntent, state: AppState, ctx: HandlerContext) -> AppState:
+    """Stellt die Notenskala des Plans um und rechnet alle Werte um (undo-fähig).
+
+    Läuft wie alle Planänderungen über ``_record_and_save``, sodass Strg+Z
+    den gesamten Wechsel inkl. Umrechnung in einem Schritt zurücknimmt.
+
+    Args:
+        intent: ID der Zielskala.
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository, History).
+    """
+    if state.current_plan is None or state.current_plan_path is None:
+        return state
+    next_plan = set_grade_scale(state.current_plan, intent.scale_id)
+    _record_and_save(next_plan, state.current_plan_path, "grade.scale.set", ctx)
     return _with_plan(state, next_plan, ctx)

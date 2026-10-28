@@ -23,12 +23,15 @@ class DeleteGradeColumnIntent(Intent):
 
 @dataclass(frozen=True)
 class RecordGradeIntent(Intent):
-    """Trägt für einen Schüler an *date* in Spalte *column_id* die Note *grade* ein (0.0 = löschen)."""
+    """Trägt für einen Schüler an *date* in Spalte *column_id* den Wert *grade* ein (None = löschen).
+
+    ``None`` statt ``0.0`` als Lösch-Signal, weil 0 Punkte ein gültiger Wert ist.
+    """
 
     student_id: StudentId
     date: str
     column_id: str
-    grade: float  # 0.0 = löschen
+    grade: float | None  # None = löschen
 
 
 @dataclass(frozen=True)
@@ -37,3 +40,14 @@ class UpdateGradeWeightingIntent(Intent):
 
     written_percent: int
     sonstige_percent: int
+
+
+@dataclass(frozen=True)
+class SetGradeScaleIntent(Intent):
+    """Stellt die planweite Notenskala auf *scale_id* um und rechnet alle Werte um.
+
+    Die Rückfrage bei vorhandenen Noten erfolgt vorher in der GUI; der
+    Intent selbst konvertiert immer.
+    """
+
+    scale_id: str
