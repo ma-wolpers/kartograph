@@ -28,6 +28,7 @@ from app.core.domain.models_v4 import (
     TableGroup,
     TeacherSeat,
 )
+from app.core.domain.grade_scale import scale_for
 from app.core.domain.student_id import StudentId
 from app.core.domain.symbol_renames import merge_symbol_strength
 from app.infrastructure.repositories.v4.snapshot_load_issue import SnapshotLoadIssue
@@ -305,7 +306,11 @@ def _deserialize_custom_symbols(raw: dict) -> dict[str, CustomSymbolDefinition]:
 # ---------------------------------------------------------------------------
 
 def _deserialize_documentation(raw: dict) -> DocumentationBlock:
-    """Liest Notenspalten, Gewichtung und Sessions aus *raw* zu einem ``DocumentationBlock`` zusammen.
+    """Liest Notenspalten, Gewichtung, Notenskala und Sessions aus *raw* zu einem ``DocumentationBlock`` zusammen.
+
+    Fehlt ``grade_scale`` (Pläne vor Einführung der Skala) oder ist die ID
+    unbekannt, gilt über ``scale_for`` die Standardskala Schulnoten — die
+    gespeicherten Werte bleiben dadurch unverändert gültig.
 
     Args:
         raw: Roh-Dict des ``documentation``-Feldes aus der Plandatei.
@@ -317,6 +322,7 @@ def _deserialize_documentation(raw: dict) -> DocumentationBlock:
         grade_columns=grade_columns,
         weighting=weighting,
         sessions=sessions,
+        grade_scale=scale_for(raw.get("grade_scale")).scale_id,
     )
 
 

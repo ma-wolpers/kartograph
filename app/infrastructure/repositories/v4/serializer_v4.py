@@ -156,6 +156,7 @@ def _serialize_documentation(plan: SeatingPlan) -> dict:
             "written_percent": doc.weighting.written_percent,
             "sonstige_percent": doc.weighting.sonstige_percent,
         },
+        "grade_scale": doc.grade_scale,
         "sessions": _serialize_sessions(doc),
     }
 

@@ -14,6 +14,7 @@ from app.core.domain.models_v4 import (
     SessionEntry,
     TableGroup,
 )
+from app.core.domain.grade_scale import SCALE_POINTS_0_15, SCALE_SCHOOL_1_6
 from app.core.domain.student_id import StudentId
 from app.infrastructure.repositories.v4.deserializer_v4 import deserialize_plan
 from app.infrastructure.repositories.v4.serializer_v4 import serialize_plan
@@ -175,6 +176,18 @@ class TestDocumentationRoundtrip:
         plan.documentation.weighting = GradeWeighting(written_percent=60, sonstige_percent=40)
         restored = _roundtrip(plan)
         assert restored.documentation.weighting.written_percent == 60
+
+    def test_grade_scale_preserved(self, plan):
+        plan.documentation.grade_scale = SCALE_POINTS_0_15
+        restored = _roundtrip(plan)
+        assert restored.documentation.grade_scale == SCALE_POINTS_0_15
+
+    def test_missing_or_unknown_grade_scale_defaults_to_school_grades(self, plan):
+        payload = serialize_plan(plan)
+        payload["documentation"].pop("grade_scale")
+        assert deserialize_plan(payload).documentation.grade_scale == SCALE_SCHOOL_1_6
+        payload["documentation"]["grade_scale"] = "quatsch"
+        assert deserialize_plan(payload).documentation.grade_scale == SCALE_SCHOOL_1_6
 
     def test_session_with_entries_preserved(self):
         sid = StudentId.new()

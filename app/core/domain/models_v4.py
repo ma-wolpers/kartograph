@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+from app.core.domain.grade_scale import DEFAULT_SCALE_ID
 from app.core.domain.student_id import StudentId
 
 GradeCategory = Literal["schriftlich", "sonstig"]
@@ -270,11 +271,18 @@ class Session:
 
 @dataclass(slots=True)
 class DocumentationBlock:
-    """Alle Dokumentationsdaten eines Plans: Spalten, Gewichtung, Sessions."""
+    """Alle Dokumentationsdaten eines Plans: Spalten, Gewichtung, Skala, Sessions.
+
+    ``grade_scale`` ist die planweite Notenskala (ID aus
+    ``app/core/domain/grade_scale.py``); alle Werte in ``SessionEntry.grades``
+    sind in dieser Skala gespeichert. Ein Wechsel läuft ausschließlich über
+    ``set_grade_scale``, das alle Werte mitkonvertiert.
+    """
 
     grade_columns: list[GradeColumn] = field(default_factory=list)
     weighting: GradeWeighting = field(default_factory=GradeWeighting)
     sessions: list[Session] = field(default_factory=list)
+    grade_scale: str = DEFAULT_SCALE_ID
 
     def session_for_date(self, date: str) -> Session | None:
         """Gibt die Session zum Datum *date* zurück, oder None.

@@ -145,6 +145,7 @@ def handle_intent(self, intent: str) -> str | None:
       "written_percent": 60,
       "sonstige_percent": 40
     },
+    "grade_scale": "schulnoten_1_6",   // oder "punktnoten_0_15"; fehlt → schulnoten_1_6
     "sessions": [
       {
         "date": "2025-09-01",
@@ -165,6 +166,8 @@ def handle_intent(self, intent: str) -> str | None:
 
 - **Schüler bewegen sich:** `seat` ändert sich, `student_id` bleibt.
 - **Session-Abfrage:** `plan.documentation.sessions` direkt iterierbar ohne Desk-Lookup.
+- **Notenskala:** `documentation.grade_scale` gilt planweit; alle `grades`-Werte sind in dieser
+  Skala gespeichert (Registry + Umrechnung: `app/core/domain/grade_scale.py`).
 - **Tischgruppen:** `tablegroups` ist eine flache Liste; Geometrie pro Platz (x/y), nicht pro Desk.
 - **Farb-Palette:** `color_palette[key].meaning` — kombiniert was bisher `color_meanings` + `COLOR_MARKER_PALETTE` war.
 - **Lehrertisch:** `classroom.teacher_seat` — separater Eintrag, keine Desk-Instanz.
