@@ -74,6 +74,7 @@ class StateApplyMixin:
         old_plan = self.current_plan
         self.current_plan = state.current_plan
         self.current_plan_path = state.current_plan_path
+        self._close_submission_viewer_if_plan_changed()
         self._rebuild_effective_documentation_symbols_if_changed(
             self.current_plan.custom_symbols if self.current_plan else {}
         )

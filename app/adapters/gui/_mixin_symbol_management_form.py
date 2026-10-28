@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from app.core.domain.custom_symbol_validation import (
     CustomSymbolValidationError,
+    conflicting_custom_symbol_ids,
     reserved_symbol_letters,
     validate_custom_symbol_glyph,
     validate_custom_symbol_meaning,
@@ -15,6 +16,7 @@ from app.core.domain.custom_symbol_validation import (
 )
 from app.core.intents.custom_symbol_intents import AddCustomSymbolIntent, UpdateCustomSymbolIntent
 from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
+from app.adapters.gui.dialog_services import messagebox
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -23,6 +25,32 @@ from bw_gui.runtime import ui, widgets as tui
 
 class SymbolManagementFormMixin:
     """Mixin: Add/Edit-Formular-Dialog für eigene Doku-Symbole."""
+
+    def _report_custom_shortcut_conflicts(self) -> None:
+        """Meldet eigene Symbole, deren Kürzel jetzt ein eingebautes Symbol belegt, und öffnet das Formular.
+
+        Aufgerufen nach dem Öffnen eines Plans. Solche Kürzel sind ohne
+        Wirkung (gebunden werden nur freie Buchstaben); statt sie still zu
+        verdrängen, nennt die Meldung alle Betroffenen und das Formular des
+        ersten öffnet sich mit leerem Kürzel. Weitere erscheinen beim nächsten
+        Öffnen erneut oder lassen sich in der Symbol-Verwaltung bearbeiten —
+        bewusst nur *ein* modales Formular auf einmal.
+        """
+        if not self.current_plan:
+            return
+        conflicts = conflicting_custom_symbol_ids(self.current_plan.custom_symbols, self.symbol_definitions)
+        if not conflicts:
+            return
+        symbols = self.current_plan.custom_symbols
+        listing = ", ".join(f"„{symbols[sid].meaning}“ ({symbols[sid].shortcut})" for sid in conflicts)
+        first = symbols[conflicts[0]]
+        messagebox.showinfo(
+            "Tastenkürzel neu vergeben",
+            f"Diese eigenen Symbole nutzen Buchstaben, die jetzt eingebaute Symbole belegen: {listing}.\n\n"
+            f"Bitte ein neues Kürzel wählen – das Formular für „{first.meaning}“ öffnet sich jetzt.",
+            parent=self,
+        )
+        self._open_custom_symbol_form(symbol_id=conflicts[0], glyph=first.glyph, meaning=first.meaning, shortcut="")
 
     def _new_custom_symbol_dialog(self) -> None:
         """Öffnet das Formular zum Anlegen eines neuen eigenen Doku-Symbols."""

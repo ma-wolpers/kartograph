@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Iterable, Protocol
+from typing import Iterable, Mapping, Protocol
 
 
 class CustomSymbolValidationError(Exception):
@@ -93,6 +93,26 @@ def reserved_symbol_letters(symbol_definitions: Iterable[_HasShortcut]) -> froze
     return frozenset(
         d.shortcut.upper() for d in symbol_definitions if d.shortcut and len(d.shortcut) == 1
     ) | RESERVED_SYMBOL_LETTERS
+
+
+def conflicting_custom_symbol_ids(
+    custom_symbols: Mapping[str, _HasShortcut],
+    symbol_definitions: Iterable[_HasShortcut],
+) -> list[str]:
+    """Gibt die IDs eigener Symbole zurück, deren Kürzel inzwischen gesperrt ist.
+
+    Entsteht, wenn ein neues eingebautes Symbol einen Buchstaben belegt, den
+    ein Plan schon für ein eigenes Symbol nutzte (z. B. ``E`` nach Einführung
+    von ✓ "Abgabe vollständig"). Solche Kürzel werden nicht mehr gebunden;
+    die GUI meldet das beim Öffnen und lässt neu zuweisen, statt sie still
+    zu verdrängen.
+
+    Args:
+        custom_symbols: Eigene Symbole des Plans (ID → Definition).
+        symbol_definitions: Aktueller Katalog (``AppState.symbol_catalog``).
+    """
+    reserved = reserved_symbol_letters(symbol_definitions)
+    return sorted(sid for sid, symbol in custom_symbols.items() if symbol.shortcut and symbol.shortcut.upper() in reserved)
 
 
 def validate_custom_symbol_shortcut(

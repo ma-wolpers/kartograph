@@ -49,6 +49,8 @@ class KartographSettings:
     save_delay: float = DEFAULT_SAVE_DELAY
     show_archived_plans: bool = False
     hide_snapshot_delete_confirm: bool = False
+    # Zuletzt gewählter Wert der Checkbox "Abwesende ohne Abgabe ebenfalls mit X" (Abgaben zählen).
+    submission_mark_absent: bool = False
 
     @classmethod
     def from_dict(cls, payload: dict) -> "KartographSettings":
@@ -135,6 +137,7 @@ class KartographSettings:
             ),
             show_archived_plans=_bool(payload.get("show_archived_plans"), False),
             hide_snapshot_delete_confirm=_bool(payload.get("hide_snapshot_delete_confirm"), False),
+            submission_mark_absent=_bool(payload.get("submission_mark_absent"), False),
         )
 
     def to_dict(self) -> dict:
@@ -158,6 +161,7 @@ class KartographSettings:
             "save_delay": self.save_delay,
             "show_archived_plans": self.show_archived_plans,
             "hide_snapshot_delete_confirm": self.hide_snapshot_delete_confirm,
+            "submission_mark_absent": self.submission_mark_absent,
         }
 
 

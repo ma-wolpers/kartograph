@@ -40,6 +40,7 @@ from app.adapters.gui._mixin_popup import PopupMixin
 from app.adapters.gui._mixin_sitzplan_popup import SitzplanPopupMixin
 from app.adapters.gui._mixin_sitzplan_preview_dialog import SitzplanPreviewDialogMixin
 from app.adapters.gui._mixin_snapshots import SnapshotsMixin
+from app.adapters.gui._mixin_submissions import SubmissionsMixin
 from app.adapters.gui._mixin_selection import SelectionMixin
 from app.adapters.gui._mixin_settings import SettingsMixin
 from app.adapters.gui._mixin_shortcut_handlers import ShortcutHandlersMixin
@@ -111,6 +112,7 @@ class KartographMainWindow(
     SitzplanPreviewDialogMixin,
     SitzplanPopupMixin,
     SnapshotsMixin,
+    SubmissionsMixin,
     ShortcutHandlersMixin,
     ShortcutBindingsMixin,
     ShortcutMixin,
@@ -213,6 +215,7 @@ class KartographMainWindow(
             section_spec("file", label="Datei", alt="d", items_provider=self._menu_items_file),
             section_spec("edit", label="Bearbeiten", alt="b", items_provider=self._menu_items_edit),
             section_spec("view", label="Ansicht", alt="a", items_provider=self._menu_items_view),
+            section_spec("extras", label="Extras", alt="e", items_provider=self._menu_items_extras),
         ]
 
     def build_content(self, frame) -> None:

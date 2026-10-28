@@ -165,3 +165,17 @@ class TestValidateCustomSymbolMeaning:
         """Keine Eindeutigkeitspruefung -- die Identitaet laeuft ueber die ID,
         nicht den Bedeutungstext (siehe CustomSymbolDefinition-Docstring)."""
         assert validate_custom_symbol_meaning("Kaffee vergessen") == "Kaffee vergessen"
+
+
+def test_conflicting_custom_symbols_are_those_on_now_builtin_letters():
+    from types import SimpleNamespace
+
+    from app.core.domain.custom_symbol_validation import conflicting_custom_symbol_ids
+
+    catalog = [SimpleNamespace(shortcut="e"), SimpleNamespace(shortcut="space"), SimpleNamespace(shortcut=None)]
+    custom = {
+        "b": SimpleNamespace(shortcut="E"),
+        "a": SimpleNamespace(shortcut="Q"),
+        "c": SimpleNamespace(shortcut="O"),  # O ist fester Systembuchstabe (Mitarbeit)
+    }
+    assert conflicting_custom_symbol_ids(custom, catalog) == ["b", "c"]
