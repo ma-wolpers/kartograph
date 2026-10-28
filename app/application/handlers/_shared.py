@@ -37,6 +37,8 @@ def _record_and_save(
     path: Path,
     action_kind: str,
     ctx: HandlerContext,
+    *,
+    coalesce: bool = True,
 ) -> None:
     """Schreibt *plan* in die History (unter *action_kind*) und persistiert ihn unter *path*.
 
@@ -64,10 +66,11 @@ def _record_and_save(
         path: Zieldatei für die Persistenz.
         action_kind: Kurzbezeichner der Aktion für den History-Eintrag (z. B. ``"student.move"``).
         ctx: Handler-Kontext mit Zugriff auf History und Repository.
+        coalesce: An ``PlanHistory.record`` durchgereicht; ``False`` = immer eigener Undo-Schritt.
     """
     apply_normalized_tablegroups(plan)
     drop_unused_palette_entries(plan)
-    ctx.history.record(plan, action_kind)
+    ctx.history.record(plan, action_kind, coalesce=coalesce)
     if ctx.plan_save_scheduler is not None:
         ctx.plan_save_scheduler(plan, path)
     else:

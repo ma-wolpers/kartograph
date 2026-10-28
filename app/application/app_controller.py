@@ -40,6 +40,10 @@ from app.application.handlers.edit_handlers import (
     handle_redo,
     handle_undo,
 )
+from app.application.handlers.submission_handlers import (
+    handle_apply_missing_submissions,
+    handle_set_submission_status,
+)
 from app.application.handlers.grade_handlers import (
     handle_add_grade_column,
     handle_delete_grade_column,
@@ -116,6 +120,7 @@ from app.core.intents.edit_intents import (
     RedoIntent,
     UndoIntent,
 )
+from app.core.intents.submission_intents import ApplyMissingSubmissionsIntent, SetSubmissionStatusIntent
 from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
     DeleteGradeColumnIntent,
@@ -371,6 +376,10 @@ class KartographAppController:
         r.register(RecordGradeIntent,          lambda i, s: handle_record_grade(i, s, ctx))
         r.register(UpdateGradeWeightingIntent, lambda i, s: handle_update_grade_weighting(i, s, ctx))
         r.register(SetGradeScaleIntent,        lambda i, s: handle_set_grade_scale(i, s, ctx))
+
+        # Abgaben
+        r.register(ApplyMissingSubmissionsIntent, lambda i, s: handle_apply_missing_submissions(i, s, ctx))
+        r.register(SetSubmissionStatusIntent,     lambda i, s: handle_set_submission_status(i, s, ctx))
 
         # Session
         r.register(AddSessionIntent,         lambda i, s: handle_add_session(i, s, ctx))

@@ -62,7 +62,7 @@ class PlanHistory:
         """
         self.plan_path = new_path
 
-    def record(self, plan: SeatingPlan, action_kind: str) -> None:
+    def record(self, plan: SeatingPlan, action_kind: str, *, coalesce: bool = True) -> None:
         """Merkt sich *plan* als neuen Verlaufszustand und löscht den Redo-Stack.
 
         Identische Zustände werden ignoriert. Folgen mehrere Aufrufe mit
@@ -74,6 +74,9 @@ class PlanHistory:
             plan: Aktueller Sitzplan, der als Snapshot gespeichert wird.
             action_kind: Kennung der Aktion, die zur Zusammenfassung
                 aufeinanderfolgender gleichartiger Schritte dient.
+            coalesce: ``False`` legt immer einen eigenen Schritt an — für
+                einzelne Entscheidungen (z. B. je eine Abgabe-Bewertung),
+                die einzeln rückgängig machbar sein sollen.
         """
         if not self._states:
             self.reset(plan, self.plan_path)
@@ -83,7 +86,7 @@ class PlanHistory:
         if candidate == self._states[-1]:
             return
 
-        if len(self._states) > 1 and self._action_kinds[-1] == action_kind:
+        if coalesce and len(self._states) > 1 and self._action_kinds[-1] == action_kind:
             self._states[-1] = candidate
         else:
             self._states.append(candidate)

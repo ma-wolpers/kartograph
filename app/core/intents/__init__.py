@@ -40,6 +40,7 @@ from app.core.intents.custom_symbol_intents import (
     DeleteCustomSymbolIntent,
     UpdateCustomSymbolIntent,
 )
+from app.core.intents.submission_intents import ApplyMissingSubmissionsIntent, SetSubmissionStatusIntent
 from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
     DeleteGradeColumnIntent,
@@ -119,6 +120,9 @@ __all__ = [
     "RecordGradeIntent",
     "SetGradeScaleIntent",
     "UpdateGradeWeightingIntent",
+    # Abgaben
+    "ApplyMissingSubmissionsIntent",
+    "SetSubmissionStatusIntent",
     # Session
     "AddSessionIntent",
     "DeleteSessionIntent",
