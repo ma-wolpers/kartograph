@@ -36,6 +36,7 @@ The format is based on Keep a Changelog.
 - Bei Schulnoten kann jetzt auch 0,7 (1+) eingetragen werden.
 - Werte außerhalb der Skala (z. B. 7 bei Schulnoten oder 16 bei Punkten) werden mit einem Hinweis abgelehnt, statt still auf den Rand gesetzt zu werden.
 - Eine eingetragene 0 (Punkte) bleibt beim erneuten Öffnen der Zelle sichtbar, statt als leeres Feld zu erscheinen.
+- In der Sitzplan-Vorschau werden zu breite Namen zweizeilig geschrieben: der Nachname bzw. sein Kürzel rückt in die zweite Zeile. Namen, die auf den Tisch passen, bleiben einzeilig.
 - Der Knopf "Sicht umkehren" in der Sitzplan-Vorschau entfällt; die Ansicht wählst du jetzt im Vorschau-Dialog. Im PDF-Export-Dialog heißt die erste Ansicht nun "Lehrertisch unten" (ohne "(Standard)"), weil beide Dialoge dieselben Bezeichnungen verwenden. Vorbelegt ist sie dort weiterhin.
 - **Einheitliche Scrollbars:** Alle Scrollbars sind jetzt die schlanke native Scrollbar, auch in der Planliste und in den Fenstern Laufkern, Snapshots und Symbol-Verwaltung (bisher dort die klobige mit Pfeilknöpfen). Unter Windows werden sie im dunklen Theme dunkel. Die Scrollleiste aufgeklappter Auswahllisten nutzt die bw-gui-Standardfarben. Das Mausrad über der Scrollbar eines scrollbaren Bereichs (z. B. im Einstellungsdialog) scrollt jetzt genau dreimal so weit wie über dem Inhalt (bisher unbeabsichtigt fünfmal).
 - Ungenutzte Variable und Imports entfernt (reine Wartung, keine Nutzer-sichtbare Änderung).
