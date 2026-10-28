@@ -274,12 +274,8 @@ class DocsViewMixin:
         date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
         x, y = self._doc_student_coords[student_index]
         student = self.current_plan.student_at(x, y)
-        name = ""
-        if student is not None and student.is_named():
-            first = student.first_name.strip()
-            last = (student.last_name or "").strip()
-            name = f"{last}, {first}" if last else first
-        display_name = name or f"({x},{y})"
+        # Einzige Formatierung "Nachname, Vorname" (mit Koordinaten-Fallback) liegt in Student.display_name().
+        display_name = student.display_name() if student is not None else f"({x},{y})"
         if self._doc_selected_nondate_column_id:
             label = self._doc_column_label(self._doc_selected_nondate_column_id)
             self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {label}")

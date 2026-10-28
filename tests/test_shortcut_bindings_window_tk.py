@@ -115,6 +115,8 @@ def _press(app, widget, keysym: str, state: int = 0):
 def _show_surface(app, surface: str):
     app._controller.dispatch(SetEditorSurfaceIntent(surface=surface))
     app.tk_root.update()
+    # Wächter: ein falscher Wert (z. B. "docs") fiele sonst still auf das Raster zurück.
+    assert app._editor_surface == ("docs" if surface == "documentation" else "grid"), surface
 
 
 def test_no_semantic_binding_conflicts(window):
@@ -131,7 +133,7 @@ def test_grid_shortcuts_fire_with_numlock_and_are_blocked_by_ctrl_alt(window, ke
 
 
 def test_docs_symbol_shortcut_fires_with_numlock(window):
-    _show_surface(window, "docs")
+    _show_surface(window, "documentation")
     try:
         tree = window.docs_tree
         assert _press(window, tree, "a", NUMLOCK)

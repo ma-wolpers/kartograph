@@ -90,6 +90,8 @@ def _create_window_with_retry(workspace: Path, attempts: int = 3) -> KartographM
 def _show_surface(app, surface: str) -> None:
     app._controller.dispatch(SetEditorSurfaceIntent(surface=surface))
     app.tk_root.update()
+    # Wächter: ein falscher Wert (z. B. "docs") fiele sonst still auf das Raster zurück.
+    assert app._editor_surface == ("docs" if surface == "documentation" else "grid"), surface
 
 
 def test_router_installed_without_foreign_all_bindings(window):
@@ -106,7 +108,7 @@ def test_canvas_arrows_move_and_expand_the_selection(window):
 
 
 def test_docs_tree_navigation_is_handled_by_the_widget_binder(window):
-    _show_surface(window, "docs")
+    _show_surface(window, "documentation")
     try:
         assert press_key(window.docs_tree, "Down") is True
         assert press_key(window.docs_tree, "Up", state=SHIFT) is True  # toleriert, nicht nativ
