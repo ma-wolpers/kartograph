@@ -32,6 +32,7 @@ The format is based on Keep a Changelog.
 - Schueler-Felder unterstuetzen jetzt einen separaten "Nachname" neben dem Vornamen; PDF-Export, Legenden und Dokumentationsansicht verwenden automatisch beide Felder.
 
 ### Changed
+- In der Sitzplan-Vorschau werden zu breite Namen zweizeilig geschrieben: der Nachname bzw. sein Kürzel rückt in die zweite Zeile. Namen, die auf den Tisch passen, bleiben einzeilig.
 - Der Knopf "Sicht umkehren" in der Sitzplan-Vorschau entfällt; die Ansicht wählst du jetzt im Vorschau-Dialog. Im PDF-Export-Dialog heißt die erste Ansicht nun "Lehrertisch unten" (ohne "(Standard)"), weil beide Dialoge dieselben Bezeichnungen verwenden. Vorbelegt ist sie dort weiterhin.
 - **Einheitliche Scrollbars:** Alle Scrollbars sind jetzt die schlanke native Scrollbar, auch in der Planliste und in den Fenstern Laufkern, Snapshots und Symbol-Verwaltung (bisher dort die klobige mit Pfeilknöpfen). Unter Windows werden sie im dunklen Theme dunkel. Die Scrollleiste aufgeklappter Auswahllisten nutzt die bw-gui-Standardfarben. Das Mausrad über der Scrollbar eines scrollbaren Bereichs (z. B. im Einstellungsdialog) scrollt jetzt genau dreimal so weit wie über dem Inhalt (bisher unbeabsichtigt fünfmal).
 - Ungenutzte Variable und Imports entfernt (reine Wartung, keine Nutzer-sichtbare Änderung).

@@ -14,16 +14,18 @@ from app.core.domain.color_order import PaletteEntryTuple, palette_by_key, palet
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.preview_color_frames import PreviewOptions, frame_colors_outer_to_inner, frame_rings
 from app.core.domain.seat_orientation import orient_geometries, world_bounds
-from app.core.domain.student_naming import compute_display_names
+from app.core.domain.student_naming import compute_display_name_parts, fit_name_to_width
 from app.core.domain.table_groups import build_seat_geometries_v4
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import on_resize, ui
+from bw_gui.runtime import fonts, on_resize, ui
 
 _PADDING = 24
 _FRAME_WIDTH_PER_CELL = 0.07
 """Wunschbreite eines Farbrings relativ zur Zellgröße (wird bei vielen Ringen gedeckelt)."""
+_NAME_WIDTH_PER_CELL = 0.88
+"""Breite, ab der ein Name zweizeilig wird, relativ zur Zellgröße (ein Tisch ist eine Zelle breit)."""
 
 
 class SitzplanPopup:
@@ -53,7 +55,7 @@ class SitzplanPopup:
         self._theme_key = theme_key
         self._name_format = name_format
         self._disambiguate = False
-        self._display_names: dict = {}
+        self._display_name_parts: dict = {}
         self._plan: SeatingPlan | None = None
         self._options = options
         self._color_order = palette_order(color_palette)
@@ -100,8 +102,8 @@ class SitzplanPopup:
         self._theme_key = theme_key
         self._name_format = name_format
         self._disambiguate = disambiguate
-        self._display_names = (
-            compute_display_names(plan.classroom.students, name_format, disambiguate) if plan is not None else {}
+        self._display_name_parts = (
+            compute_display_name_parts(plan.classroom.students, name_format, disambiguate) if plan is not None else {}
         )
         self._canvas.configure(bg=kartograph_theme(theme_key)["bg_main"])
         self._redraw()
@@ -141,8 +143,9 @@ class SitzplanPopup:
             ys = [py for _px, py in canvas_pts]
             labels.append((origin_x + item.center[0] * cell, (min(ys) + max(ys)) / 2, geometry))
 
+        name_font = fonts.Font(family="Segoe UI", size=max(7, int(cell * 0.14)), weight="bold")
         for label_x, label_y, geometry in labels:
-            self._draw_label(label_x, label_y, geometry, theme, cell)
+            self._draw_label(label_x, label_y, geometry, theme, cell, name_font)
 
     def _draw_color_frames(self, canvas_pts: list[tuple[float, float]], color_tags: list[str], cell: float) -> None:
         """Zeichnet die Farbringe eines Tisches (außen höchste Farbe, innen Farbe 1).
@@ -164,15 +167,20 @@ class SitzplanPopup:
             _label, hex_color = self._color_by_key[color_key]
             self._canvas.create_polygon(_flat(ring), fill="", outline=hex_color, width=width)
 
-    def _draw_label(self, x: float, y: float, geometry, theme: dict, cell: float) -> None:
+    def _draw_label(self, x: float, y: float, geometry, theme: dict, cell: float, name_font) -> None:
         """Beschriftet einen Tisch: "Lehrertisch" bzw. den Anzeigenamen des Schülers.
+
+        Ist der Name einzeilig breiter als der Tisch, kommt der Nachname bzw.
+        sein Kürzel in eine zweite Zeile (``fit_name_to_width``).
 
         Args:
             x: Canvas-x der Beschriftungsmitte.
             y: Canvas-y der Beschriftungsmitte.
             geometry: ``SeatGeometryV4`` des Tisches.
             theme: Aktives Theme-Dict.
-            cell: Zellgröße in Pixeln (skaliert die Schrift).
+            cell: Zellgröße in Pixeln (skaliert die Schrift und die Umbruchbreite).
+            name_font: Schrift der Schülernamen (einmal pro Neuzeichnen erzeugt);
+                misst die Breite und liefert Familie/Größe fürs Zeichnen.
         """
         if geometry.is_teacher:
             self._canvas.create_text(
@@ -180,11 +188,14 @@ class SitzplanPopup:
                 font=("Segoe UI", max(7, int(cell * 0.12)), "bold"),
             )
         elif geometry.student is not None:
-            name = self._display_names.get(geometry.student.student_id, "")
-            if name:
+            parts = self._display_name_parts.get(geometry.student.student_id)
+            if parts and any(parts):
+                name = fit_name_to_width(parts, cell * _NAME_WIDTH_PER_CELL, name_font.measure)
+                # Zeichnen per Font-Tupel, nicht per Font-Objekt: Tk löscht eine
+                # benannte Schrift, sobald das Python-Objekt eingesammelt wird.
                 self._canvas.create_text(
-                    x, y, text=name, fill=theme["fg_primary"],
-                    font=("Segoe UI", max(7, int(cell * 0.14)), "bold"),
+                    x, y, text=name, fill=theme["fg_primary"], justify="center",
+                    font=(name_font.cget("family"), name_font.cget("size"), "bold"),
                 )
 
 
