@@ -7,7 +7,7 @@ der Fontregistrierung über ``set_symbol_font`` gesetzt.
 
 from __future__ import annotations
 
-from app.core.domain.color_order import order_color_keys, palette_by_key, palette_order
+from app.core.domain.color_order import FALLBACK_COLOR_HEX, order_color_keys, palette_by_key, palette_color, palette_order
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.table_groups import SeatGeometryV4
 from app.core.usecases.v4.grade_usecases import compute_grade_display
@@ -155,11 +155,11 @@ class PdfDeskRenderer:
             start_dot_x = center_x + box_width * 0.18
             dots_y = box_top + box_height * 0.18
             for idx, color_key in enumerate(desk_color_markers[:9]):
-                _label, hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+                _label, hex_color = palette_color(self._color_by_key, color_key)
                 try:
                     fill_color = colors.HexColor(hex_color)
                 except Exception:
-                    fill_color = colors.HexColor("#999999")
+                    fill_color = colors.HexColor(FALLBACK_COLOR_HEX)
                 c.setFillColor(fill_color)
                 c.setStrokeColor(colors.black)
                 c.circle(start_dot_x + idx * spacing, dots_y, radius, stroke=1, fill=1)

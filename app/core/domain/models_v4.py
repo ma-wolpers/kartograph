@@ -8,8 +8,9 @@ Ersetzt langfristig ``models.py`` (v3). Die zentralen Unterschiede:
   nicht redundant in jedem ``Desk``.
 - Dokumentation wird als geordnete ``Session``-Liste gespeichert;
   Abfragen über ein Datum erfordern kein vollständiges Desk-Iterieren.
-- Farbpalette: ``color_palette[key]`` trägt Label, Hex-Wert *und*
-  pädagogische Bedeutung in einem Objekt.
+- Farbpalette: ``color_palette[key]`` trägt nur die planweite pädagogische
+  Bedeutung einer Farbe. Label und Hex-Wert stehen ausschließlich in
+  ``COLOR_MARKER_PALETTE`` (SSOT, s. ``app/core/domain/color_order.py``).
 """
 
 from __future__ import annotations
@@ -167,10 +168,12 @@ class TableGroup:
 
 @dataclass(slots=True)
 class PaletteEntry:
-    """Ein Farbeintrag mit Label, Hex-Wert und pädagogischer Bedeutung."""
+    """Planweite pädagogische Bedeutung einer Farbe (Schlüssel: ``color_key``).
 
-    label: str
-    hex: str
+    Bewusst ohne Label/Hex: beides ist allein in ``COLOR_MARKER_PALETTE``
+    definiert und würde hier nur als nie gelesene Kopie veralten.
+    """
+
     meaning: str = ""
 
 

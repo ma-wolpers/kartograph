@@ -7,7 +7,7 @@ Details-Panel (Spaltenanzahl, Legende, Farb-/Symbol-Zeilen).
 
 from __future__ import annotations
 
-from app.core.domain.color_order import order_color_keys
+from app.core.domain.color_order import order_color_keys, palette_color
 from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import ParticipationRating, SeatingPlan, Student
 from app.core.usecases.v4.color_usecases import palette_meaning
@@ -64,7 +64,7 @@ class GridHelpersMixin:
             start_x_dot = center_px + self.cell_size * 0.17
             circles_y = min_py + self.cell_size * 0.12
             for idx, color_key in enumerate(desk_color_markers[:9]):
-                _label, hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+                _label, hex_color = palette_color(self._color_by_key, color_key)
                 cx = start_x_dot + idx * spacing
                 self.canvas.create_oval(
                     cx - radius, circles_y - radius, cx + radius, circles_y + radius,
@@ -255,7 +255,7 @@ class GridHelpersMixin:
         """
         lines: list[str] = []
         for color_key in self._ordered_color_markers(desk_color_markers):
-            label, _hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+            label, _hex_color = palette_color(self._color_by_key, color_key)
             meaning = palette_meaning(plan, color_key) or MISSING_COLOR_MEANING_HINT
             lines.append(f"● {label}: {meaning}")
         return lines

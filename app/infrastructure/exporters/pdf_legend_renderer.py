@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from xml.sax.saxutils import escape as xml_escape
 
-from app.core.domain.color_order import order_color_keys, palette_by_key, palette_order
+from app.core.domain.color_order import FALLBACK_COLOR_HEX, order_color_keys, palette_by_key, palette_color, palette_order
+from app.core.usecases.v4.color_usecases import palette_meaning
 from app.core.domain.models_v4 import SeatingPlan
 from app.infrastructure.exporters.pdf_font_utils import build_symbol_token
 from app.infrastructure.symbol_config_loader import SymbolDefinition
@@ -211,16 +212,15 @@ class PdfLegendRenderer:
         if include_color_markers and used_colors:
             color_rows: list[tuple[str, str]] = []
             for color_key in order_color_keys(list(used_colors), self._color_order):
-                palette_entry = plan.color_palette.get(color_key)
-                meaning = str(palette_entry.meaning if palette_entry else "").strip()
+                meaning = palette_meaning(plan, color_key)
                 if not meaning:
                     continue
-                label, hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+                label, hex_color = palette_color(self._color_by_key, color_key)
                 try:
                     colors.HexColor(hex_color)
                     safe_hex = hex_color
                 except Exception:
-                    safe_hex = "#999999"
+                    safe_hex = FALLBACK_COLOR_HEX
                 token_markup = f"<font color='{safe_hex}'>&#9679;</font> {xml_escape(label)}"
                 color_rows.append((token_markup, meaning))
             if color_rows:

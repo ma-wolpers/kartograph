@@ -120,13 +120,12 @@ class TestTableGroupRoundtrip:
 class TestColorPaletteRoundtrip:
     def test_palette_preserved(self, plan):
         plan.color_palette = {
-            "gelb": PaletteEntry(label="Gelb", hex="#f4d35e", meaning="Förderbedarf"),
+            "gelb": PaletteEntry(meaning="Förderbedarf"),
         }
         restored = _roundtrip(plan)
         entry = restored.color_palette.get("gelb")
         assert entry is not None
         assert entry.meaning == "Förderbedarf"
-        assert entry.hex == "#f4d35e"
 
 
 class TestCustomSymbolsRoundtrip:

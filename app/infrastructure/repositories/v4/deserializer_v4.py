@@ -251,7 +251,10 @@ def _deserialize_tablegroups(raw_list: list) -> list[TableGroup]:
 # ---------------------------------------------------------------------------
 
 def _deserialize_color_palette(raw: dict) -> dict[str, PaletteEntry]:
-    """Liest die Farbpalette (Label/Hex/Bedeutung pro Farbschlüssel) aus *raw*; überspringt leere Schlüssel.
+    """Liest die Farbbedeutungen pro Farbschlüssel aus *raw*; überspringt leere Schlüssel.
+
+    Ältere Dateien enthalten zusätzlich ``label``/``hex``; die Felder werden
+    ignoriert, weil Label und Hex allein aus ``COLOR_MARKER_PALETTE`` kommen.
 
     Args:
         raw: Roh-Dict des ``color_palette``-Feldes aus der Plandatei.
@@ -261,11 +264,7 @@ def _deserialize_color_palette(raw: dict) -> dict[str, PaletteEntry]:
         key = str(key).strip()
         if not key or not isinstance(entry, dict):
             continue
-        palette[key] = PaletteEntry(
-            label=str(entry.get("label") or key).strip(),
-            hex=str(entry.get("hex") or "").strip(),
-            meaning=str(entry.get("meaning") or "").strip(),
-        )
+        palette[key] = PaletteEntry(meaning=str(entry.get("meaning") or "").strip())
     return palette
 
 

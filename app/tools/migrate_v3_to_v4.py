@@ -21,19 +21,6 @@ from datetime import datetime
 from pathlib import Path
 
 
-COLOR_PALETTE_DEFAULTS: dict[str, dict[str, str]] = {
-    "gelb":    {"label": "Gelb",    "hex": "#f4d35e"},
-    "orange":  {"label": "Orange",  "hex": "#ee964b"},
-    "rot":     {"label": "Rot",     "hex": "#f95738"},
-    "magenta": {"label": "Magenta", "hex": "#d81159"},
-    "lila":    {"label": "Lila",    "hex": "#7b2cbf"},
-    "marine":  {"label": "Marine",  "hex": "#1d3557"},
-    "cyan":    {"label": "Cyan",    "hex": "#4cc9f0"},
-    "tuerkis": {"label": "Türkis",  "hex": "#2a9d8f"},
-    "gruen":   {"label": "Grün",    "hex": "#6a994e"},
-}
-
-
 def migrate_plan(v3: dict) -> dict:
     """Konvertiert einen v3-Plan-Dict in das v4-Format.
 
@@ -83,15 +70,12 @@ def migrate_plan(v3: dict) -> dict:
         for gid, seats in sorted(groups.items())
     ]
 
-    # Farb-Palette: nur tatsächlich verwendete Farben einschließen
+    # Farb-Palette: nur tatsächlich verwendete Farben, nur ihre Bedeutung
+    # (Label/Hex stehen allein in COLOR_MARKER_PALETTE).
     color_palette: dict[str, dict] = {}
-    for key, defaults in COLOR_PALETTE_DEFAULTS.items():
-        if not any(key in (d.get("color_markers") or []) for d in students_raw):
-            continue
-        color_palette[key] = {
-            **defaults,
-            "meaning": color_meanings.get(key, ""),
-        }
+    for d in students_raw:
+        for key in d.get("color_markers") or []:
+            color_palette.setdefault(key, {"meaning": color_meanings.get(key, "")})
 
     # Sessions aus documentation_entries aller Desks aufbauen
     docs_raw: dict = v3.get("documentation") or {}

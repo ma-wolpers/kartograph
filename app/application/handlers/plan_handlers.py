@@ -9,6 +9,7 @@ from app.application.handlers._shared import _can_redo, _can_undo, _refresh_plan
 from app.core.domain.list_action_history import DeletePlanAction, DuplicatePlanAction, RenamePlanAction
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import resolve_plans_dir
+from app.core.usecases.v4.color_usecases import drop_unused_palette_entries
 from app.core.usecases.v4.tablegroup_usecases import apply_normalized_tablegroups
 from app.core.intents.plan_intents import (
     ArchivePlanIntent,
@@ -33,7 +34,8 @@ def handle_open_plan(intent: OpenPlanIntent, state: AppState, ctx: HandlerContex
 
     Die Tischgruppen des geladenen Plans werden aus der Sitznachbarschaft neu
     berechnet (``apply_normalized_tablegroups``), damit auch Dateien mit
-    veralteten Gruppen sofort konsistent angezeigt werden. Das
+    veralteten Gruppen sofort konsistent angezeigt werden; ebenso werden
+    Bedeutungen nicht getragener Farben verworfen (``drop_unused_palette_entries``). Das
     Repository bleibt bewusst ein treuer Speichern/Laden-Spiegel. Die
     korrigierte Fassung landet mit der nächsten Änderung in der Datei.
 
@@ -48,6 +50,7 @@ def handle_open_plan(intent: OpenPlanIntent, state: AppState, ctx: HandlerContex
         _log.exception("handle_open_plan: load failed for %s", intent.plan_path)
         return dataclasses.replace(state, status_message=f"Fehler beim Öffnen: {intent.plan_path.name}")
     apply_normalized_tablegroups(plan)
+    drop_unused_palette_entries(plan)
 
     if ctx.history.plan_path == intent.plan_path:
         can_undo = _can_undo(ctx)

@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 from app.adapters.gui.main_window_constants import COLOR_MARKER_PALETTE
-from app.core.domain.color_order import order_color_keys, palette_by_key, palette_order, palette_shortcut_by_key
+from app.core.domain.color_order import (
+    FALLBACK_COLOR_HEX,
+    order_color_keys,
+    palette_by_key,
+    palette_color,
+    palette_order,
+    palette_shortcut_by_key,
+)
 
 PALETTE = [
     ("1", "gelb", "Gelb", "#111111"),
@@ -48,3 +55,10 @@ def test_order_color_keys_appends_unknown_keys_in_input_order() -> None:
 def test_real_palette_is_numbered_one_to_nine() -> None:
     """Die echte Palette ist der Nummerierung 1..9 nach geordnet (Grundlage für "Farbe 1 innen")."""
     assert [key for key, _color_key, _label, _hex in COLOR_MARKER_PALETTE] == [str(n) for n in range(1, 10)]
+
+
+def test_palette_color_resolves_known_and_falls_back_for_unknown_keys() -> None:
+    """Bekannte Schlüssel liefern Label/Hex, unbekannte ihren Schlüssel und die Ersatzfarbe."""
+    lookup = palette_by_key(PALETTE)
+    assert palette_color(lookup, "gelb") == ("Gelb", "#111111")
+    assert palette_color(lookup, "blau") == ("blau", FALLBACK_COLOR_HEX)

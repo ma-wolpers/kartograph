@@ -9,6 +9,7 @@ from __future__ import annotations
 from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.adapters.gui.main_window_constants import NAME_EDITING, SPACE_SHORTCUT
+from app.core.domain.color_order import palette_color
 from app.core.domain.models_v4 import ParticipationRating
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.participation_intents import SetParticipationRatingIntent
@@ -261,7 +262,10 @@ class EditMixin:
         Beim Einschalten einer Farbe, für die im Plan noch keine Bedeutung
         hinterlegt ist, wird die Bedeutung abgefragt -- unabhängig davon, ob
         andere Schüler die Farbe schon tragen. So lassen sich auch Pläne
-        nachpflegen, in denen Bedeutungen früher verloren gingen.
+        nachpflegen, in denen Bedeutungen früher verloren gingen. Die
+        Bedeutung wird ohne History-Eintrag vorab gesetzt und erst mit dem
+        folgenden Toggle gespeichert (``_record_and_save``); ein Abbruch des
+        Dialogs speichert nichts.
 
         Args:
             color_key: Schlüssel des umzuschaltenden Farbpunkts.
@@ -274,11 +278,11 @@ class EditMixin:
         x, y = self.selected_cell
         student = self.current_plan.student_at(x, y)
         if not student:
-            self.status_var.set("Farbpunkte nur fuer Schuelertische")
+            self.status_var.set("Farbpunkte nur für Schülertische")
             return
         currently_active = color_key in student.diagnostic.color_tags
         requires_meaning = (not currently_active) and (not palette_meaning(self.current_plan, color_key))
-        color_label, hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+        color_label, _hex_color = palette_color(self._color_by_key, color_key)
         if requires_meaning:
             meaning = simpledialog.askstring(
                 "Bedeutung für Farbe", f"Was bedeutet {color_label} in diesem Plan?", parent=self
@@ -293,9 +297,7 @@ class EditMixin:
                 self.canvas.focus_set()
                 return
             # Set palette meaning on the current plan (direct v4 usecase call), then save via toggle
-            updated_plan = set_palette_meaning(
-                self.current_plan, color_key, clean, label=color_label, hex_color=hex_color
-            )
+            updated_plan = set_palette_meaning(self.current_plan, color_key, clean)
             self._replace_current_plan(updated_plan)
         self._controller.dispatch(ToggleColorIntent(student_id=student.student_id, color_key=color_key))
         self.canvas.focus_set()

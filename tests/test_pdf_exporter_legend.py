@@ -86,8 +86,8 @@ def test_legend_page_shows_empty_hint_when_used_colors_have_no_meanings() -> Non
 
     plan = make_plan()
     plan.color_palette = {
-        "rot": PaletteEntry(label="Rot", hex="#f95738", meaning=""),
-        "blau": PaletteEntry(label="Blau", hex="#1d3557", meaning="   "),
+        "rot": PaletteEntry(meaning=""),
+        "blau": PaletteEntry(meaning="   "),
     }
     exporter._legend_renderer.render_legend_page(
         canvas,

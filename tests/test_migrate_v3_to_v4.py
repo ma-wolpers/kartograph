@@ -174,9 +174,10 @@ class TestMigratePlanColorPalette:
         v4 = migrate_plan(v3_plan)
         assert v4["color_palette"]["gelb"]["meaning"] == "Förderbedarf"
 
-    def test_hex_value_present(self, v3_plan):
+    def test_only_meaning_is_written(self, v3_plan):
+        # Label/Hex stehen allein in COLOR_MARKER_PALETTE, nicht in der Plandatei.
         v4 = migrate_plan(v3_plan)
-        assert v4["color_palette"]["gelb"]["hex"].startswith("#")
+        assert set(v4["color_palette"]["gelb"]) == {"meaning"}
 
 
 class TestMigratePlanSessions:

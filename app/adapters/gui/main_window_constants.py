@@ -70,8 +70,8 @@ COLOR_MARKER_PALETTE: list[tuple[str, str, str, str]] = [
     ("5", "lila", "Lila", "#7b2cbf"),
     ("6", "marine", "Marine", "#1d3557"),
     ("7", "cyan", "Cyan", "#4cc9f0"),
-    ("8", "tuerkis", "Tuerkis", "#2a9d8f"),
-    ("9", "gruen", "Gruen", "#6a994e"),
+    ("8", "tuerkis", "Türkis", "#2a9d8f"),
+    ("9", "gruen", "Grün", "#6a994e"),
 ]
 
 APP_USER_MODEL_ID = "7thCloud.Kartograph"

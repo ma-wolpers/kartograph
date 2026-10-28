@@ -10,6 +10,7 @@ from app.application.handler_context import HandlerContext
 from app.application.plan_listing import build_plan_list
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.settings import resolve_plans_dir
+from app.core.usecases.v4.color_usecases import drop_unused_palette_entries
 from app.core.usecases.v4.tablegroup_usecases import apply_normalized_tablegroups
 
 
@@ -48,6 +49,8 @@ def _record_and_save(
     Handler hier das frisch erzeugte Ergebnis eines Use-Cases übergeben.
     Ein Use-Case, der im No-op-Fall den Eingabeplan zurückgibt, ist ebenfalls
     unkritisch: Der ist bereits normalisiert, die Neuberechnung idempotent.
+    Ebenso werden Bedeutungen nicht mehr getragener Farben verworfen
+    (``drop_unused_palette_entries``, gleiche In-place-Begründung).
 
     Die History-Aufzeichnung ist immer synchron (unverändert) — sie ist die
     Grundlage für Undo/Redo und muss bei jedem Edit sofort aktuell sein.
@@ -63,6 +66,7 @@ def _record_and_save(
         ctx: Handler-Kontext mit Zugriff auf History und Repository.
     """
     apply_normalized_tablegroups(plan)
+    drop_unused_palette_entries(plan)
     ctx.history.record(plan, action_kind)
     if ctx.plan_save_scheduler is not None:
         ctx.plan_save_scheduler(plan, path)

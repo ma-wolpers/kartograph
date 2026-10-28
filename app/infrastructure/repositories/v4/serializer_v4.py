@@ -108,13 +108,17 @@ def _serialize_tablegroups(plan: SeatingPlan) -> list:
 
 
 def _serialize_color_palette(plan: SeatingPlan) -> dict:
-    """Wandelt die Farbpalette von *plan* in ein JSON-Dict um.
+    """Wandelt die Farbpalette von *plan* in ein JSON-Dict um (nur die Bedeutung je Farbe).
+
+    Label und Hex werden nicht geschrieben; sie stehen allein in
+    ``COLOR_MARKER_PALETTE``. Ältere Dateien mit diesen Feldern verlieren sie
+    beim nächsten Speichern.
 
     Args:
         plan: Sitzplan, dessen Farbpalette serialisiert wird.
     """
     return {
-        key: {"label": entry.label, "hex": entry.hex, "meaning": entry.meaning}
+        key: {"meaning": entry.meaning}
         for key, entry in plan.color_palette.items()
     }
 

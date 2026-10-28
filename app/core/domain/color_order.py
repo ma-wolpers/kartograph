@@ -20,6 +20,9 @@ from collections.abc import Iterable, Sequence
 PaletteEntryTuple = tuple[str, str, str, str]
 """Ein Palettenelement: ``(shortcut_key, color_key, label, hex_color)``."""
 
+FALLBACK_COLOR_HEX = "#999999"
+"""Ersatzfarbe für Farbschlüssel ohne (gültigen) Paletteneintrag, z. B. aus älteren Plandateien."""
+
 
 def palette_order(color_palette: Sequence[PaletteEntryTuple] | None) -> list[str]:
     """Gibt die Farbschlüssel in Palettenreihenfolge (= Nummerierung 1, 2, …) zurück.
@@ -46,6 +49,24 @@ def palette_by_key(color_palette: Sequence[PaletteEntryTuple] | None) -> dict[st
         Dict, z. B. ``{"gelb": ("Gelb", "#f4d35e"), …}``.
     """
     return {color_key: (label, hex_color) for _key, color_key, label, hex_color in (color_palette or ())}
+
+
+def palette_color(color_by_key: dict[str, tuple[str, str]], color_key: str) -> tuple[str, str]:
+    """Löst *color_key* zu ``(label, hex_color)`` auf, mit Ersatzwerten für unbekannte Schlüssel.
+
+    Einzige Stelle für den Fallback: Ein Farbschlüssel, der nicht in der
+    Palette steht (z. B. aus einer älteren Plandatei), wird mit seinem
+    Schlüssel als Label und ``FALLBACK_COLOR_HEX`` angezeigt statt verworfen.
+
+    Args:
+        color_by_key: Lookup aus ``palette_by_key``.
+        color_key: Aufzulösender Farbschlüssel.
+
+    Returns:
+        ``(label, hex_color)``, z. B. ``("Gelb", "#f4d35e")`` bzw.
+        ``("blau", "#999999")`` für einen unbekannten Schlüssel.
+    """
+    return color_by_key.get(color_key, (color_key, FALLBACK_COLOR_HEX))
 
 
 def palette_shortcut_by_key(color_palette: Sequence[PaletteEntryTuple] | None) -> dict[str, str]:
