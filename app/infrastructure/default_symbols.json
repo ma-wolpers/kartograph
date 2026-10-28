@@ -142,6 +142,28 @@
         "two": "mehrfach Aufgaben nicht gemacht",
         "one": "einmalig Aufgabe(n) nicht gemacht"
       }
+    },
+    {
+      "codepoint": "2713",
+      "meaning": "Abgabe vollständig",
+      "shortcut": "e",
+      "role": "documentation_only",
+      "legend": {
+        "three": "gibt regelmäßig vollständig ab",
+        "two": "mehrfach vollständig abgegeben",
+        "one": "einmal vollständig abgegeben"
+      }
+    },
+    {
+      "codepoint": "25D0",
+      "meaning": "Abgabe lückenhaft",
+      "shortcut": "l",
+      "role": "documentation_only",
+      "legend": {
+        "three": "gibt wiederholt lückenhaft ab",
+        "two": "mehrfach lückenhaft abgegeben",
+        "one": "einmal lückenhaft abgegeben"
+      }
     }
   ]
 }

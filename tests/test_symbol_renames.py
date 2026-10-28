@@ -8,14 +8,13 @@ Raster-Symbolfilter der Einstellungen.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from app.core.domain.models_v4 import Session, SessionEntry
 from app.core.domain.settings import KartographSettings
 from app.core.domain.symbol_renames import canonical_symbol_name, merge_symbol_strength
 from app.infrastructure.repositories.v4.deserializer_v4 import deserialize_plan
 from app.infrastructure.repositories.v4.serializer_v4 import serialize_plan
-from app.infrastructure.symbol_config_loader import load_symbol_definitions
+from app.infrastructure.symbol_config_loader import DEFAULT_SYMBOLS_PATH
 from tests.conftest import make_plan, make_student
 
 OLD = "Mathem. Fachkompetenz"
@@ -67,8 +66,7 @@ class TestSettingsMigration:
 
 
 def test_catalog_contains_new_name_only():
-    definitions, error = load_symbol_definitions(Path("config/symbols.json"))
-    assert error is None
-    meanings = [d.meaning for d in definitions]
+    """Prüft den mitgelieferten Katalog direkt -- ohne Loader, der eine Arbeitskopie beschreiben würde."""
+    meanings = [item["meaning"] for item in json.loads(DEFAULT_SYMBOLS_PATH.read_text(encoding="utf-8"))["symbols"]]
     assert NEW in meanings
     assert OLD not in meanings

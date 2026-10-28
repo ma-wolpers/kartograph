@@ -21,6 +21,9 @@ Tk-Tastatur-Routing im echten Hauptfenster: ``test_shortcut_bindings_window_tk.p
 
 from __future__ import annotations
 
+import shutil
+import tempfile
+
 import tkinter
 from pathlib import Path
 from types import SimpleNamespace
@@ -33,7 +36,7 @@ from app.adapters.gui.laufkern_manifest_provider import build_runtime_shortcut_m
 from app.adapters.gui.main_window_constants import COLOR_MARKER_PALETTE, _known_ui_intents
 from app.adapters.gui.ui_intents import UiIntent
 from app.application.app_state import AppState, InteractionMode
-from app.infrastructure.symbol_config_loader import load_symbol_definitions
+from app.infrastructure.symbol_config_loader import DEFAULT_SYMBOLS_PATH, load_symbol_definitions
 from app.tools.perf_bench_docs_table import build_synthetic_plan
 from bw_gui.contracts import EventResult, TkBackend, build_ui_hsm_contract
 from bw_gui.runtime import create_root, ui
@@ -41,7 +44,14 @@ from bw_gui.testing.keys import press_key
 from bw_libs.ui_contract.keybinding import KeybindingRegistry
 
 SHIFT, CAPSLOCK, CONTROL, NUMLOCK, ALT_WIN32 = 0x0001, 0x0002, 0x0004, 0x0008, 0x20000
-SYMBOLS_PATH = Path(__file__).resolve().parents[1] / "config" / "symbols.json"
+
+
+def _load_default_symbols():
+    """Lädt die Standardsymbole über eine Temp-Arbeitskopie (die Standarddatei bleibt unberührt)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        work_copy = Path(tmp) / "symbols.json"
+        shutil.copyfile(DEFAULT_SYMBOLS_PATH, work_copy)
+        return load_symbol_definitions(work_copy)
 
 
 @pytest.fixture(scope="module")
@@ -74,7 +84,7 @@ class _Host(ShortcutBindingsMixin, ShortcutMixin):
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
         self._controller = SimpleNamespace(state=state)
         self._shortcut_runtime_offline = False
-        self.symbol_definitions, _warning = load_symbol_definitions(SYMBOLS_PATH)
+        self.symbol_definitions, _warning = _load_default_symbols()
         self._shortcut_to_symbol = {d.shortcut: d.meaning for d in self.symbol_definitions if d.shortcut}
         self.color_palette = COLOR_MARKER_PALETTE
 
@@ -132,7 +142,7 @@ def test_full_table_binds_without_conflicts(host):
         ("space", " ", "_on_space_symbol_shortcut"),
         ("1", "1", "_on_color_shortcut"),
         ("plus", "+", "_on_participation_rating_shortcut"),
-        ("l", "l", "_on_custom_symbol_shortcut"),
+        ("j", "j", "_on_custom_symbol_shortcut"),
     ],
 )
 def test_numlock_regression_ctrl_and_alt_block(host, keysym, char, handler):
@@ -146,7 +156,7 @@ def test_numlock_regression_ctrl_and_alt_block(host, keysym, char, handler):
 def test_capslock_and_shift_forms_of_symbol_letters(host):
     press_key(host.canvas, "A", char="A", state=CAPSLOCK)
     press_key(host.canvas, "A", char="A", state=SHIFT)
-    press_key(host.canvas, "L", char="L", state=SHIFT | NUMLOCK)
+    press_key(host.canvas, "J", char="J", state=SHIFT | NUMLOCK)
     assert _names(host) == ["_on_symbol_shortcut", "_on_symbol_shortcut", "_on_custom_symbol_shortcut"]
 
 

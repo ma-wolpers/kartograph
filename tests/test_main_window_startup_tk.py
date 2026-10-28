@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from app.adapters.bootstrap.wiring import build_gui_dependencies
+from app.infrastructure.symbol_config_loader import DEFAULT_SYMBOLS_PATH
 from app.adapters.gui.main_window import KartographMainWindow
 from app.core.intents.view_intents import SetEditorSurfaceIntent
 from app.infrastructure.repositories.v4.json_plan_repository_v4 import JsonSeatingPlanRepositoryV4
@@ -45,7 +46,7 @@ def open_window_with_plan(workspace: Path, plan) -> tuple[KartographMainWindow, 
     """Baut ein echtes Hauptfenster in *workspace* (isoliertes ``APPDATA``) und öffnet *plan*.
 
     Gemeinsames Setup für alle Tk-Tests mit echtem Hauptfenster: kopiert nur
-    ``config/symbols.json``, legt einen leeren Plan-Ordner an und berührt
+    die Standardsymbole (``DEFAULT_SYMBOLS_PATH``), legt einen leeren Plan-Ordner an und berührt
     keine echte Nutzerkonfiguration.
 
     Args:
@@ -58,7 +59,7 @@ def open_window_with_plan(workspace: Path, plan) -> tuple[KartographMainWindow, 
     patcher = pytest.MonkeyPatch()
     patcher.setenv("APPDATA", str(workspace / "appdata"))
     (workspace / "config").mkdir()
-    shutil.copy(REPO_ROOT / "config" / "symbols.json", workspace / "config" / "symbols.json")
+    shutil.copy(DEFAULT_SYMBOLS_PATH, workspace / "config" / "symbols.json")
     plans_dir = workspace / "plans"
     plans_dir.mkdir()
     (workspace / "config" / "kartograph_settings.json").write_text(

@@ -35,6 +35,7 @@ if os.environ.get("TK_FOCUS_TESTS") != "1":
     pytest.skip("öffnet Fenster und übernimmt den Fokus; mit TK_FOCUS_TESTS=1 ausführen", allow_module_level=True)
 
 from app.adapters.bootstrap.wiring import build_gui_dependencies
+from app.infrastructure.symbol_config_loader import DEFAULT_SYMBOLS_PATH
 from app.adapters.gui import _mixin_edit
 from app.adapters.gui.main_window import KartographMainWindow
 from app.core.intents.view_intents import SetEditorSurfaceIntent
@@ -53,7 +54,7 @@ def window(tmp_path_factory):
     patcher.setenv("APPDATA", str(workspace / "appdata"))
     patcher.setattr(_mixin_edit.simpledialog, "askstring", lambda *a, **k: "Test")
     (workspace / "config").mkdir()
-    shutil.copy(REPO_ROOT / "config" / "symbols.json", workspace / "config" / "symbols.json")
+    shutil.copy(DEFAULT_SYMBOLS_PATH, workspace / "config" / "symbols.json")
     plans_dir = workspace / "plans"
     plans_dir.mkdir()
     (workspace / "config" / "kartograph_settings.json").write_text(

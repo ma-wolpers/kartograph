@@ -32,6 +32,8 @@ build/
 
 # User and machine local configuration
 config/kartograph_settings.json
+# Lokale Arbeitskopie des Symbolkatalogs (Standards: app/infrastructure/default_symbols.json)
+config/symbols.json
 
 # Temp outputs
 Temp/
