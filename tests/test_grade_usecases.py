@@ -1,5 +1,6 @@
 """Tests für v4 grade_usecases."""
 
+from app.core.domain.grade_scale import SCALE_POINTS_0_15
 from app.core.domain.student_id import StudentId
 from app.core.usecases.v4.grade_usecases import (
     add_grade_column,
@@ -47,11 +48,19 @@ class TestRecordGrade:
         entry = result.documentation.sessions[0].entries[sid]
         assert entry.grades[col_id] == 2.0
 
-    def test_clamps_grade_below_1(self):
+    def test_clamps_grade_below_one_plus(self):
         plan, sid, col_id = self._setup()
         result = record_grade(plan, sid, DATE, col_id, 0.0)
         entry = result.documentation.sessions[0].entries[sid]
-        assert entry.grades[col_id] == 1.0
+        assert entry.grades[col_id] == 0.7
+
+    def test_points_scale_keeps_zero_and_clamps_above_15(self):
+        plan, sid, col_id = self._setup()
+        plan.documentation.grade_scale = SCALE_POINTS_0_15
+        result = record_grade(plan, sid, DATE, col_id, 0.0)
+        assert result.documentation.sessions[0].entries[sid].grades[col_id] == 0.0
+        result = record_grade(result, sid, DATE, col_id, 16.0)
+        assert result.documentation.sessions[0].entries[sid].grades[col_id] == 15.0
 
     def test_clamps_grade_above_6(self):
         plan, sid, col_id = self._setup()
