@@ -21,6 +21,7 @@ import datetime
 import random
 import time
 
+from app.core.domain.grade_scale import DEFAULT_SCALE_ID, scale_for
 from app.core.domain.models_v4 import (
     Classroom,
     DocumentationBlock,
@@ -34,10 +35,11 @@ from app.core.domain.models_v4 import (
     TeacherSeat,
 )
 from app.core.domain.student_id import StudentId
-from app.core.usecases.v4._shared import _round_half_up_to_int, _round_half_up_to_two_decimals
 from app.core.usecases.v4.grade_usecases import (
     collect_grade_value_lists_by_student,
+    compute_grade_display,
     compute_grade_display_by_student,
+    compute_grade_subtotal_display,
     compute_grade_subtotal_display_by_student,
     compute_latest_grades_by_student,
 )
@@ -46,6 +48,10 @@ from app.tools._perf_bench_docs_table_tk_checks import (
     check_treeview_item_update_matches_reinsert,
     count_tcl_calls_for_single_cell_edit,
 )
+
+
+# Wertebereich der Zufallsnoten aus der Skalen-Registry (SSOT), nicht hart kodiert.
+_GRADES = scale_for(DEFAULT_SCALE_ID)
 
 
 def build_synthetic_plan(num_students: int, num_sessions: int, num_grade_columns: int) -> SeatingPlan:
@@ -85,7 +91,7 @@ def build_synthetic_plan(num_students: int, num_sessions: int, num_grade_columns
         for student in students:
             entry = SessionEntry()
             col = grade_columns[day % len(grade_columns)]
-            entry.grades[col.column_id] = round(rng.uniform(1.0, 6.0), 1)
+            entry.grades[col.column_id] = round(rng.uniform(_GRADES.min_value, _GRADES.max_value), 1)
             entry.symbols["beteiligung"] = rng.randint(1, 3)
             entries[student.student_id] = entry
         sessions.append(Session(date=date_key, entries=entries))
@@ -101,6 +107,8 @@ def build_synthetic_plan(num_students: int, num_sessions: int, num_grade_columns
 
 
 # --- Baseline: originalgetreue Kopie der vor dem Fix entfernten Logik ------
+# (nur Funktionen, die im Produktivcode nicht mehr existieren; noch lebende
+# Logik wie die Notenformel wird direkt aufgerufen, nicht kopiert)
 
 def _baseline_latest_grade_value(plan: SeatingPlan, student_id: StudentId, column_id: str) -> str:
     """Wie die entfernte ``_latest_grade_value_for_column`` — sortiert bei jedem Aufruf neu."""
@@ -149,42 +157,6 @@ def _baseline_summarize_latest_symbols(plan: SeatingPlan, student_id: StudentId)
     return summary
 
 
-def _baseline_compute_grade_display(plan: SeatingPlan, student_id: StudentId) -> str:
-    """Wie die ungeänderte ``compute_grade_display`` — sortiert bei jedem Aufruf neu (Einzelschüler-API)."""
-    student = plan.classroom.student_by_id(student_id)
-    if student is None or not student.is_named():
-        return ""
-    cat_by_col = {col.column_id: col.category for col in plan.documentation.grade_columns}
-    written_vals: list[float] = []
-    sonstige_vals: list[float] = []
-    for session in sorted(plan.documentation.sessions, key=lambda s: s.date):
-        entry = session.entry_for(student_id)
-        if entry is None:
-            continue
-        for col_id, grade_val in entry.grades.items():
-            cat = cat_by_col.get(col_id)
-            if cat == "schriftlich":
-                written_vals.append(float(grade_val))
-            elif cat == "sonstig":
-                sonstige_vals.append(float(grade_val))
-    if not written_vals and not sonstige_vals:
-        return ""
-    written_avg = sum(written_vals) / len(written_vals) if written_vals else None
-    sonstige_avg = sum(sonstige_vals) / len(sonstige_vals) if sonstige_vals else None
-    if written_avg is not None and sonstige_avg is not None:
-        w = _round_half_up_to_int(written_avg)
-        s = _round_half_up_to_int(sonstige_avg)
-        weighting = plan.documentation.weighting
-        total = weighting.written_percent + weighting.sonstige_percent
-        if total <= 0:
-            total = 100
-        overall = (w * weighting.written_percent + s * weighting.sonstige_percent) / total
-        return f"{_round_half_up_to_two_decimals(overall):.2f}"
-    partial = written_avg if written_avg is not None else sonstige_avg
-    assert partial is not None
-    return f"({_round_half_up_to_int(partial)})"
-
-
 def run_baseline_full_row_computation(plan: SeatingPlan) -> dict[StudentId, tuple]:
     """Reproduziert die *gesamte* pro-Zeile-Berechnung, wie sie ``_refresh_documentation_table``
 
@@ -199,7 +171,7 @@ def run_baseline_full_row_computation(plan: SeatingPlan) -> dict[StudentId, tupl
             _baseline_latest_grade_value(plan, student.student_id, col.column_id)
             for col in plan.documentation.grade_columns
         )
-        overall = _baseline_compute_grade_display(plan, student.student_id)
+        overall = compute_grade_display(plan, student.student_id)
         results[student.student_id] = (summary, grades, overall)
     return results
 
@@ -223,26 +195,17 @@ def run_new_full_row_computation(plan: SeatingPlan) -> dict[StudentId, tuple]:
 
 
 def run_grade_display_baseline(plan: SeatingPlan) -> dict[StudentId, tuple[str, str, str]]:
-    """Alte, pro Schüler neu sortierende Gesamtnoten-/Teilnoten-Berechnung (Referenzimplementierung)."""
-    valid_written = {c.column_id for c in plan.documentation.grade_columns if c.category == "schriftlich"}
-    valid_sonstig = {c.column_id for c in plan.documentation.grade_columns if c.category == "sonstig"}
+    """Pro Schüler einzeln scannende Gesamtnoten-/Teilnoten-Berechnung (Referenzpfad).
 
-    def subtotal(student_id: StudentId, valid_cols: set[str]) -> str:
-        values: list[float] = []
-        for session in sorted(plan.documentation.sessions, key=lambda s: s.date):
-            entry = session.entry_for(student_id)
-            if entry is None:
-                continue
-            for col_id, grade_val in entry.grades.items():
-                if col_id in valid_cols:
-                    values.append(float(grade_val))
-        return str(_round_half_up_to_int(sum(values) / len(values))) if values else ""
-
+    Nutzt die echten Einzelschüler-Usecases statt einer eigenen Kopie der
+    Notenformel (SSOT): gemessen wird so nur der Unterschied "jeder Schüler
+    scannt alle Sessions" gegenüber dem geteilten Bulk-Durchlauf.
+    """
     return {
         student.student_id: (
-            _baseline_compute_grade_display(plan, student.student_id),
-            subtotal(student.student_id, valid_written) if valid_written else "",
-            subtotal(student.student_id, valid_sonstig) if valid_sonstig else "",
+            compute_grade_display(plan, student.student_id),
+            compute_grade_subtotal_display(plan, student.student_id, "schriftlich"),
+            compute_grade_subtotal_display(plan, student.student_id, "sonstig"),
         )
         for student in plan.classroom.students
     }

@@ -37,6 +37,7 @@ from datetime import date
 
 from app.adapters.gui._mixin_grid_helpers import GridHelpersMixin
 from app.adapters.gui._mixin_grid_render import GridRenderMixin
+from app.core.domain.grade_scale import DEFAULT_SCALE_ID, scale_for
 from app.core.domain.models_v4 import (
     Classroom,
     DocumentationBlock,
@@ -118,6 +119,10 @@ class _GridBenchWindow(tk.Frame, GridRenderMixin, GridHelpersMixin):
         self._grid_tile_pool.clear()
 
 
+# Wertebereich der Zufallsnoten aus der Skalen-Registry (SSOT), nicht hart kodiert.
+_GRADES = scale_for(DEFAULT_SCALE_ID)
+
+
 def build_synthetic_plan(num_students: int, num_sessions: int) -> SeatingPlan:
     """Baut einen rein synthetischen Plan (erfundene Namen) mit Sitzgeometrie und Noten."""
     students = [
@@ -140,7 +145,7 @@ def build_synthetic_plan(num_students: int, num_sessions: int) -> SeatingPlan:
         entries: dict[StudentId, SessionEntry] = {}
         for student in students:
             entry = SessionEntry()
-            entry.grades["col0"] = round(rng.uniform(1.0, 6.0), 1)
+            entry.grades["col0"] = round(rng.uniform(_GRADES.min_value, _GRADES.max_value), 1)
             entries[student.student_id] = entry
         sessions.append(Session(date=date_key, entries=entries))
 
