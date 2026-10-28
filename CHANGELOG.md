@@ -51,6 +51,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Im Details-Panel steht unter einem Farbpunkt wieder, was er bedeutet (z. B. "● Gelb: Förderbedarf"). Die beim ersten Setzen einer Farbe abgefragte Bedeutung wurde bisher nicht gespeichert; dadurch blieb auch die Legende im PDF-Export leer. Farbpunkte, deren Bedeutung dabei verloren ging, zeigen jetzt einen Hinweis: Einmal aus- und wieder einschalten, dann fragt Kartograph die Bedeutung erneut ab.
 - Solange die **Sitzplan-Vorschau** offen war, funktionierten die Tastenkürzel im Hauptfenster nicht. Die Vorschau läuft jetzt als Werkzeugfenster neben dem Bearbeiten mit, und alle Kürzel bleiben nutzbar.
 - Im Dialog "Symbol setzen" sprang ein Mausklick in die Liste auf einen festen Eintrag; die Ziffern 1–9 wählen jetzt wie vorgesehen den n-ten Eintrag (auch über den Ziffernblock).
 - Alt+←/→ springt in der Dokumentationstabelle zum vorigen/nächsten Datum, auch wenn die Tabelle den Fokus hat (bisher bewegte es nur die Spaltenauswahl).

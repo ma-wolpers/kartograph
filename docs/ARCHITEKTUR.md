@@ -42,7 +42,7 @@ Dieses Dokument beschreibt den aktuellen Ist-Zustand.
 - Use-Cases lesen/schreiben ueber Repository-Schnittstellen.
 - Persistenz erfolgt ueber JSON-Repository-Implementierungen.
 - Tischgruppen-Metadaten werden im JSON-Repository serialisiert und beim Laden (inkl. Legacy-Defaults) normalisiert.
-- Farbmarker und deren planweite Bedeutungen werden im JSON-Repository serialisiert; ungenutzte Bedeutungszeilen werden beim Mutieren/Laden bereinigt.
+- Farbmarker (`diagnostic.color_tags`) und deren planweite Bedeutungen (`color_palette[key].meaning`) werden im JSON-Repository serialisiert. `set_palette_meaning` legt einen fehlenden Palette-Eintrag an; `palette_meaning` ist die einzige Stelle, die entscheidet, ob eine Farbe eine Bedeutung hat (beim Einschalten ohne Bedeutung fragt die GUI sie ab; die Details-Legende zeigt fehlende Bedeutungen mit Hinweis). Palette-Einträge bleiben erhalten, auch wenn kein Schüler die Farbe mehr trägt (`cleanup_unused_palette_entries` ist derzeit nicht verdrahtet).
 - Symbolkonfiguration wird beim App-Start geladen und in der GUI als Katalog/Legende genutzt.
 - Das S:S-Detailoverlay (Name, Symbole, Farbbuttons) ist in der Ansicht links/rechts/unten andockbar; das Tischgruppen-Overlay kann ebenfalls links/rechts/unten positioniert werden (persistente Settings).
 - Die Editoransicht unterstuetzt zwei Oberflaechen: Rasteransicht und Dokumentationsansicht. Der Wechsel erfolgt ueber UI-Intent (`view.documentation.toggle`) und teilt sich denselben geladenen Planzustand.

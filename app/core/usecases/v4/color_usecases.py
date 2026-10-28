@@ -8,43 +8,55 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.models_v4 import PaletteEntry, SeatingPlan
 from app.core.domain.student_id import StudentId
 
 
-def is_color_tag_used(plan: SeatingPlan, color_key: str) -> bool:
-    """Prüft, ob *color_key* bei mindestens einem Schüler gesetzt ist.
+def palette_meaning(plan: SeatingPlan, color_key: str) -> str:
+    """Gibt die hinterlegte pädagogische Bedeutung von *color_key* zurück.
+
+    Einzige Stelle, die entscheidet, ob eine Farbe "eine Bedeutung hat":
+    fehlender Palette-Eintrag und leerer/nur aus Leerraum bestehender Text
+    gelten gleichermaßen als "keine Bedeutung".
 
     Args:
         plan: Plan, aus dem gelesen wird.
-        color_key: Zu suchender Farbschlüssel.
+        color_key: Farbschlüssel, z. B. ``"gelb"``.
 
     Returns:
-        True, wenn mindestens ein Schüler den Tag trägt.
+        Getrimmter Bedeutungstext oder ``""``, wenn keiner hinterlegt ist.
     """
-    return any(
-        color_key in s.diagnostic.color_tags
-        for s in plan.classroom.students
-    )
+    entry = plan.color_palette.get(color_key)
+    return entry.meaning.strip() if entry else ""
 
 
-def set_palette_meaning(plan: SeatingPlan, color_key: str, meaning: str) -> SeatingPlan:
+def set_palette_meaning(
+    plan: SeatingPlan, color_key: str, meaning: str, *, label: str, hex_color: str
+) -> SeatingPlan:
     """Weist *color_key* eine pädagogische Bedeutung zu oder entfernt sie.
 
+    Fehlt der Palette-Eintrag noch (der Normalfall beim ersten Setzen einer
+    Farbe in einem Plan), wird er mit *label*/*hex_color* angelegt. Früher
+    kehrte die Funktion in diesem Fall still zurück -- die abgefragte
+    Bedeutung ging verloren und die Farbpunkt-Legende blieb leer.
     Leeres *meaning* entfernt nur den Bedeutungstext; der Palette-Eintrag bleibt.
 
     Args:
         plan: Ausgangsplan.
-        color_key: Farbschlüssel aus ``plan.color_palette``.
+        color_key: Farbschlüssel, z. B. ``"gelb"``.
         meaning: Textuelle Bedeutung; leer = löschen.
+        label: Anzeigename der Farbe, falls der Eintrag neu angelegt wird.
+        hex_color: Hex-Farbwert, falls der Eintrag neu angelegt wird.
 
     Returns:
         Neuer Plan mit dem aktualisierten Bedeutungstext.
     """
     next_plan = deepcopy(plan)
-    if color_key not in next_plan.color_palette:
-        return next_plan
-    next_plan.color_palette[color_key].meaning = meaning.strip()
+    entry = next_plan.color_palette.get(color_key)
+    if entry is None:
+        entry = PaletteEntry(label=label, hex=hex_color)
+        next_plan.color_palette[color_key] = entry
+    entry.meaning = meaning.strip()
     return next_plan
 
 

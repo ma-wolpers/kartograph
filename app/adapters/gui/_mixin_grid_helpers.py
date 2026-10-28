@@ -9,10 +9,15 @@ from __future__ import annotations
 
 from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import ParticipationRating, SeatingPlan, Student
+from app.core.usecases.v4.color_usecases import palette_meaning
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.runtime import fonts
+
+# Legendentext für einen gesetzten Farbpunkt ohne hinterlegte Bedeutung: erklärt,
+# wie sie sich nachtragen lässt (Einschalten fragt sie ab, s. _toggle_selected_color).
+MISSING_COLOR_MEANING_HINT = "keine Bedeutung hinterlegt – zum Festlegen aus- und wieder einschalten"
 
 
 class GridHelpersMixin:
@@ -242,17 +247,22 @@ class GridHelpersMixin:
     def _color_legend_lines(self, plan: SeatingPlan, desk_color_markers: list[str]) -> list[str]:
         """Erstellt Legendenzeilen für Farbpunkte (v4: color_palette statt color_meanings).
 
+        Jeder gesetzte Farbpunkt bekommt eine Zeile -- auch einer ohne hinterlegte
+        Bedeutung (z. B. aus Plänen, in denen die Bedeutung früher verloren ging):
+        Er zeigt dann, wie sich die Bedeutung nachtragen lässt, statt unerklärt
+        zu bleiben.
+
         Args:
             plan: Sitzplan, dessen ``color_palette`` für die Bedeutungen genutzt wird.
             desk_color_markers: Farb-Schlüssel des betroffenen Schülertisches.
+
+        Returns:
+            Zeilen im Format ``"● Label: Bedeutung"`` in Palettenreihenfolge.
         """
         lines: list[str] = []
         for color_key in self._ordered_color_markers(desk_color_markers):
-            entry = plan.color_palette.get(color_key)
-            meaning = entry.meaning if entry else ""
-            if not meaning:
-                continue
             label, _hex_color = self._color_by_key.get(color_key, (color_key, "#999999"))
+            meaning = palette_meaning(plan, color_key) or MISSING_COLOR_MEANING_HINT
             lines.append(f"● {label}: {meaning}")
         return lines
 
