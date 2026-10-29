@@ -70,6 +70,8 @@ class AppState:
     # Default/Grenzen als Literale dupliziert statt aus main_window_constants.py
     # importiert (Core/Application darf nicht von der GUI abhaengen, s. settings.py).
     cell_size: int = 92
+    # Globaler Spaltenbreiten-Zoom der Doku-Tabelle (nur für die Sitzung, wie cell_size).
+    docs_width_scale: float = 1.0
 
     # --- Docs-Ansicht --------------------------------------------------------
     doc_selected_student_id: StudentId | None = None

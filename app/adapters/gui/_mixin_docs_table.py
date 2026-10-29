@@ -1,18 +1,18 @@
 """Docs-Tabellen-Mixin für das Kartograph-Hauptfenster (v4-Modell).
 
 Baut die logische Dokutabelle (``DocRow`` je Schüler + ``DocColumnAxis``)
-aus den Domänendaten auf und projiziert sie in die drei Treeviews
-(NAMES / MAIN / RIGHT). Treeviews sind dabei reine Projektionen: Zeileninhalt,
-Reihenfolge und Sortierung kommen ausschließlich aus ``self._doc_rows`` und der
-Sortierspezifikation (``_doc_sort_column`` / ``_doc_sort_ascending``), nie aus
-einem Treeview.
+aus den Domänendaten auf und übergibt sie dem bw-gui ``DataGrid``. Das Grid
+ist reine Projektion: Zeileninhalt, Reihenfolge und Sortierung kommen
+ausschließlich aus ``self._doc_rows`` und der Sortierspezifikation
+(``_doc_sort_column`` / ``_doc_sort_ascending``).
 """
 
 from __future__ import annotations
 
 import time
 
-from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow, DocsPane
+from app.adapters.gui._mixin_layout_docs import REGION_BY_PANE
+from app.adapters.gui.docs_table_model import NACHNAME_KEY, SUMMARY_KEY, VORNAME_KEY, DocColumnAxis, DocRow
 from app.adapters.gui.docs_table_rules import sort_iids
 from app.adapters.gui.main_window_constants import LOGGER
 from app.core.domain.grade_scale import scale_for
@@ -23,19 +23,22 @@ from app.core.usecases.v4.grade_usecases import (
     compute_latest_grades_by_student,
 )
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols_by_student
+from bw_libs.shared_gui_core import ensure_bw_gui_on_path
+
+ensure_bw_gui_on_path()
+from bw_gui.widgets.data_grid import GridColumn, GridRow
 
 
 class DocsTableMixin:
-    """Mixin: Aufbau der logischen Dokutabelle und ihre Projektion in drei Treeviews (v4)."""
+    """Mixin: Aufbau der logischen Dokutabelle und ihre Projektion ins ``DataGrid`` (v4)."""
 
     def _refresh_documentation_table(self) -> None:
-        """Baut die logische Dokutabelle neu auf und projiziert sie in alle drei Treeviews (v4).
+        """Baut die logische Dokutabelle neu auf und übergibt sie dem ``DataGrid`` (v4).
 
         Ablauf: Domänendaten → ``DocRow``s (Basisreihenfolge = Sitzordnung) →
-        neue ``DocColumnAxis`` → Sortierspezifikation validieren →
-        ``_project_doc_rows`` (Insert/Update/Delete) → ``_apply_doc_row_order``
-        (Reihenfolge) → Zeilenauswahl, aktive Spalte und Überschriften
-        synchronisieren.
+        neue ``DocColumnAxis`` → Sortierspezifikation validieren → Grid-Spalten →
+        ``_apply_doc_row_order`` (Zeilen in Anzeigereihenfolge) → aktive
+        Spalte gültig halten → ``_sync_docs_cursor``.
         """
         started = time.perf_counter()
         if not self.current_plan:
@@ -69,14 +72,7 @@ class DocsTableMixin:
         self._doc_axis = DocColumnAxis(self._doc_date_column_ids, fixed_columns)
         self._validate_doc_sort_spec()
 
-        self.docs_tree.configure(columns=self._doc_axis.pane_columns(DocsPane.MAIN))
-        self.docs_right_tree.configure(columns=self._doc_axis.pane_columns(DocsPane.RIGHT))
-        for idx, date_key in enumerate(all_dates):
-            self.docs_tree.column(self._doc_date_column_ids[idx], width=120, anchor="center", stretch=False)
-            self.docs_tree.heading(self._doc_date_column_ids[idx], text=date_key)
-        self.docs_right_tree.column("summary", width=180, anchor="w", stretch=False)
-        for fixed_col_id in fixed_columns[1:]:
-            self.docs_right_tree.column(fixed_col_id, width=120, anchor="center", stretch=False)
+        self.docs_grid.set_columns(self._doc_grid_columns())
 
         # Einmalig vorberechnen statt (wie zuvor) pro Schüler x Spalte erneut zu
         # sortieren/scannen: session_for_date() als Dict, sowie die jeweils
@@ -140,23 +136,19 @@ class DocsTableMixin:
             )
             iid_by_coord_index[coord_index] = iid
 
-        self._project_doc_rows(rows)
         self._doc_rows = rows
-        self._doc_tree_iid_by_student_index = iid_by_coord_index
+        self._doc_row_id_by_student_index = iid_by_coord_index
         self._doc_student_index_by_iid = {iid: idx for idx, iid in iid_by_coord_index.items()}
         self._apply_doc_row_order()
 
         if self._doc_student_coords:
             self._doc_selected_student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-            selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
-            if selected_iid is not None:
-                self._set_docs_row_selection(selected_iid)
         else:
             self._doc_selected_student_index = 0
             self._doc_selected_date_index = 0
 
         self._clamp_doc_column_selection_after_rebuild(len(all_dates))
-        self._apply_doc_column_heading_highlight()
+        self._sync_docs_cursor()
 
         elapsed = time.perf_counter() - started
         if elapsed >= 0.2:
@@ -178,67 +170,34 @@ class DocsTableMixin:
             self._doc_sort_column = None
             self._doc_sort_ascending = True
 
-    def _project_doc_rows(self, rows: dict[str, DocRow]) -> None:
-        """Einzige Stelle für Insert/Update/Delete von Tabellenzeilen in allen drei Treeviews.
+    def _doc_grid_columns(self) -> list[GridColumn]:
+        """Leitet die Grid-Spalten aus der logischen Spaltenachse ab (Titel, Breite, Bereich).
 
-        Fast Path: gleiche iid-Menge wie zuletzt (Normalfall bei einem
-        einzelnen Symbol-/Noten-Edit) → nur geänderte ``DocRow``s per
-        ``item()`` aktualisieren. Sonst alle drei Trees leeren und in
-        Basisreihenfolge neu befüllen. Reihenfolge, Auswahl, Fokus und
-        Markierung werden getrennt davon synchronisiert
-        (``_apply_doc_row_order``, ``_set_docs_row_selection``, …).
+        Breiten wie bisher: Nachname 150, Vorname 120, Zusammenfassung 180 px
+        (linksbündig), alle übrigen Spalten 120 px zentriert; der globale
+        Spaltenbreiten-Zoom skaliert sie im Grid.
 
-        Args:
-            rows: Neue Zeilen (iid → ``DocRow``) in Basisreihenfolge.
+        Returns:
+            Spalten in Achsenreihenfolge.
         """
-        trees = self._docs_trees_by_pane()
-        desired = set(rows)
-        same_row_set = all(set(tree.get_children()) == desired for tree in trees.values())
-        if same_row_set:
-            for iid, row in rows.items():
-                if self._doc_rows.get(iid) != row:
-                    self._write_doc_row(row, insert=False)
-            return
-        for tree in trees.values():
-            children = tree.get_children()
-            if children:
-                tree.delete(*children)
-        for row in rows.values():
-            self._write_doc_row(row, insert=True)
-
-    def _write_doc_row(self, row: DocRow, *, insert: bool) -> None:
-        """Schreibt die drei Projektionen einer Zeile in ihre Treeviews.
-
-        Args:
-            row: Zu schreibende Zeile.
-            insert: ``True`` → am Ende einfügen, ``False`` → bestehendes Item aktualisieren.
-        """
-        text, name_values = row.names_projection()
-        if insert:
-            self.docs_name_tree.insert("", "end", iid=row.iid, text=text, values=name_values)
-            self.docs_tree.insert("", "end", iid=row.iid, values=row.main_projection())
-            self.docs_right_tree.insert("", "end", iid=row.iid, values=row.right_projection())
-            return
-        self.docs_name_tree.item(row.iid, text=text, values=name_values)
-        self.docs_tree.item(row.iid, values=row.main_projection())
-        self.docs_right_tree.item(row.iid, values=row.right_projection())
+        layout = {NACHNAME_KEY: (150, "w"), VORNAME_KEY: (120, "w"), SUMMARY_KEY: (180, "w")}
+        columns = []
+        for key in self._doc_axis.keys:
+            width, anchor = layout.get(key, (120, "center"))
+            region = REGION_BY_PANE[self._doc_axis.pane_of(key)]
+            columns.append(GridColumn(key, self._doc_column_label(key), width, region, anchor))
+        return columns
 
     def _apply_doc_row_order(self) -> None:
-        """Berechnet die Zeilenreihenfolge und ordnet alle drei Treeviews danach.
+        """Berechnet die Zeilenreihenfolge und übergibt die Zeilen samt Sortierpfeil an das Grid.
 
         Ergebnis von ``sort_iids(_doc_rows, Sortierspezifikation)``; wird als
-        ``self._doc_row_order`` gemerkt (Quelle für die visuelle Reihenfolge,
-        z. B. bei ↑/↓).
-
-        Die Reihenfolge wird ausschließlich aus ``self._doc_rows`` (Basisreihenfolge)
-        und ``_doc_sort_column`` / ``_doc_sort_ascending`` berechnet; der
-        Abgleich mit ``get_children()`` dient nur dazu, unnötige ``move()``-
-        Aufrufe zu sparen.
+        ``self._doc_row_order`` gemerkt (Quelle für die angezeigte Reihenfolge,
+        z. B. bei ↑/↓). Das Grid gleicht selbst ab, welche sichtbaren Zellen sich
+        geändert haben — ein einzelner Symbol-/Noten-Edit kostet daher nur die
+        geänderten Zellen.
         """
         order = sort_iids(self._doc_rows.values(), self._doc_sort_column, self._doc_sort_ascending, self._doc_axis)
         self._doc_row_order = order
-        for tree in self._docs_trees_by_pane().values():
-            if list(tree.get_children("")) == order:
-                continue
-            for index, iid in enumerate(order):
-                tree.move(iid, "", index)
+        self.docs_grid.set_rows([GridRow(iid, self._doc_axis.cells_of(self._doc_rows[iid])) for iid in order])
+        self.docs_grid.set_sort_indicator(self._doc_sort_column, self._doc_sort_ascending)

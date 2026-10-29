@@ -71,7 +71,7 @@ class ThemeMixin:
         self.details_frame.configure(style="Panel.TFrame")
         self.docs_container.configure(style="Panel.TFrame")
         self.docs_toolbar.configure(style="StrongPanel.TFrame")
-        self.docs_table_container.configure(style="Panel.TFrame")
+        self.docs_grid.frame.configure(style="Panel.TFrame")  # Grid-Inhalte färbt bw-gui selbst
 
         self.canvas.configure(bg=theme["bg_surface"])
         # Scrollbars färben sich selbst (bw-gui-Primitive mit Theme-Listener).

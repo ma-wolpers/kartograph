@@ -94,7 +94,7 @@ def test_grid_shortcuts_fire_with_numlock_and_are_blocked_by_ctrl_alt(window, ke
 def test_docs_symbol_shortcut_fires_with_numlock(window):
     _show_surface(window, "documentation")
     try:
-        tree = window.docs_tree
+        tree = window.docs_grid.key_widgets[1]  # Datumsbereich der Doku-Tabelle
         assert _press(window, tree, "a", NUMLOCK)
         assert _press(window, tree, "a", 0)
         assert not _press(window, tree, "a", CONTROL)

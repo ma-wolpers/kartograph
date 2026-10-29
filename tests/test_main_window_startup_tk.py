@@ -53,11 +53,15 @@ def test_canvas_arrows_move_and_expand_the_selection(window):
     assert window.selection.bounds() == (1, 0, 1, 1)
 
 
-def test_docs_tree_navigation_is_handled_by_the_widget_binder(window):
+def test_docs_grid_navigation_is_handled_by_the_widget_binder(window):
     _show_surface(window, "documentation")
     try:
-        assert press_key(window.docs_tree, "Down") is True
-        assert press_key(window.docs_tree, "Up", state=SHIFT) is True  # toleriert, nicht nativ
+        body = window.docs_grid.key_widgets[1]  # Datumsbereich
+        window._doc_selected_student_index = 0
+        assert press_key(body, "Down") is True
+        assert window._doc_selected_student_index == 1
+        assert press_key(body, "Up", state=SHIFT) is True  # Shift toleriert
+        assert window._doc_selected_student_index == 0
     finally:
         _show_surface(window, "grid")
 

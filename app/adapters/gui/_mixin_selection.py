@@ -186,13 +186,7 @@ class SelectionMixin:
             return EventResult.HANDLED
         if self.editor_view.winfo_ismapped():
             if self._editor_surface == "docs":
-                fixed_column_id = self._doc_selected_nondate_column_id
-                date_index = self._doc_selected_date_index
-                if self._doc_selected_nondate_column_id and self._doc_selected_nondate_column_id.startswith("grade_"):
-                    self._open_selected_docs_grade_cell_editor()
-                    self.after_idle(lambda: self._restore_docs_column_selection(fixed_column_id, date_index))
-                    return EventResult.HANDLED
-                self.after_idle(lambda: self._restore_docs_column_selection(fixed_column_id, date_index))
+                self._open_selected_docs_grade_cell_editor()  # wirkt nur auf Notenspalten
                 return EventResult.HANDLED
             if not self.selection.is_single():
                 self._collapse_selection_to_anchor()

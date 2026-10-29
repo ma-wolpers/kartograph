@@ -19,7 +19,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from app.adapters.gui.docs_table_model import DocsPane
 from app.core.intents.view_intents import SetEditorSurfaceIntent
 from app.infrastructure.repositories.v4.json_plan_repository_v4 import JsonSeatingPlanRepositoryV4
 from app.tools.isolated_window import open_isolated_window
@@ -53,6 +52,11 @@ def measure_steps(app, scenario: str, step: Callable[[int], object], steps: int)
             step(index)
             app.tk_root.update()
 
+    # Aufwärmen (ungemessen): einmalige Arbeit nach Plan-/Oberflächenwechsel
+    # (erster Render, Splitter-Platzierung) gehört nicht zum Schritt-Preis.
+    for index in (0, steps - 1):
+        step(index)
+        app.tk_root.update()
     started = time.perf_counter()
     calls = count_tcl_calls(run_all)
     elapsed = time.perf_counter() - started
@@ -71,7 +75,7 @@ def measure_docs_navigation(app, steps: int) -> list[StepMeasurement]:
     app.tk_root.update()
     half = steps // 2
     return [
-        measure_steps(app, "Doku runter/hoch", lambda i: app._on_docs_vertical_nav(1 if i < half else -1, source=DocsPane.MAIN), steps),
+        measure_steps(app, "Doku runter/hoch", lambda i: app._on_docs_vertical_nav(1 if i < half else -1), steps),
         measure_steps(app, "Doku rechts/links", lambda i: app._on_docs_horizontal_nav(1 if i < half else -1), steps),
     ]
 

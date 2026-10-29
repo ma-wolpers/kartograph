@@ -44,10 +44,6 @@ from app.core.usecases.v4.grade_usecases import (
     compute_latest_grades_by_student,
 )
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols_by_student
-from app.tools._perf_bench_docs_table_tk_checks import (
-    check_treeview_item_update_matches_reinsert,
-    count_tcl_calls_for_single_cell_edit,
-)
 
 
 # Wertebereich der Zufallsnoten aus der Skalen-Registry (SSOT), nicht hart kodiert.
@@ -287,17 +283,8 @@ def main() -> None:
         f"alt: {display_baseline_time * 1000:.2f} ms  neu: {display_new_time * 1000:.2f} ms  (×{display_speedup:.1f})"
     )
 
-    treeview_ok = check_treeview_item_update_matches_reinsert()
-    print(f"Treeview-Diff-Update-Mechanismus (item() vs. delete+insert): {'OK' if treeview_ok else 'ABWEICHUNG!'}")
-
-    old_calls, new_calls = count_tcl_calls_for_single_cell_edit(args.students)
-    print(
-        f"Tk-Aufrufe bei EINER geänderten Zeile ({args.students} Zeilen gesamt) — "
-        f"alt: {old_calls} (immer alle Zeilen löschen+neu einfügen)  "
-        f"neu: {new_calls} (nur die geänderte Zeile)"
-    )
-
-    if not grades_match or not rows_match or not display_match or not treeview_ok:
+    # Tk-seitige Kosten (Doku-Tabelle als bw-gui DataGrid) misst perf_bench_gui_nav am echten Fenster.
+    if not grades_match or not rows_match or not display_match:
         raise SystemExit(1)
 
 

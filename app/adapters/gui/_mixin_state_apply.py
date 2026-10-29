@@ -104,6 +104,8 @@ class StateApplyMixin:
         self.selection = state.selection
         self.selected_cell = state.selection.active_cell()
 
+        if hasattr(self, "docs_grid"):
+            self.docs_grid.set_width_scale(state.docs_width_scale)  # unveränderter Wert = No-op im Grid
         if state.cell_size != self.cell_size:
             self.cell_size = state.cell_size
             self._update_scroll_region()
@@ -143,7 +145,7 @@ class StateApplyMixin:
                 self._refresh_documentation_table()
                 if state.doc_selected_date is not None and state.doc_selected_date in self._doc_dates:
                     self._select_doc_date_column(self._doc_dates.index(state.doc_selected_date))
-                self._apply_doc_column_heading_highlight()
+                self._sync_docs_cursor()
 
         self._notify_sitzplan_popup(state.current_plan, self.theme_key, self.name_format)
 

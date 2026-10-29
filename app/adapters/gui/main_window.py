@@ -292,7 +292,7 @@ class KartographMainWindow(
         self._doc_selected_date_index: int = 0
         self._doc_student_coords: list[tuple[int, int]] = []
         self._doc_dates: list[str] = []
-        self._doc_tree_iid_by_student_index: dict[int, str] = {}
+        self._doc_row_id_by_student_index: dict[int, str] = {}
         self._doc_student_index_by_iid: dict[str, int] = {}
         self._doc_rows: dict[str, DocRow] = {}
         self._doc_axis: DocColumnAxis = DocColumnAxis((), ())
@@ -302,13 +302,10 @@ class KartographMainWindow(
         self._doc_selected_nondate_column_id: str | None = None
         self._doc_sort_column: str | None = None
         self._doc_sort_ascending: bool = True
-        self._docs_splitter_positioned: bool = False
         self._docs_inline_editor: tui.Entry | None = None
-        self._docs_inline_editor_tree: tui.Treeview | None = None
         self._docs_inline_editor_row_id: str | None = None
         self._docs_inline_editor_kind: str | None = None
         self._docs_inline_editor_model_column: str | None = None
-        self._docs_cell_overlay: ui.Label | None = None
         self._docs_symbol_dialog_last_index: int = 0
         self._ui_watchdog_last_tick = time.perf_counter()
         self._ui_watchdog_tick_count = 0

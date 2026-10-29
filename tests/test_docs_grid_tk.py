@@ -1,14 +1,11 @@
-"""Tk-Integrationstests für die Drei-Pane-Dokutabelle (NAMES / MAIN / RIGHT).
+"""Tk-Integrationstests der Doku-Tabelle auf dem bw-gui ``DataGrid`` (Namen | Daten | feste Spalten).
 
-Prüft die gemeinsamen Invarianten der drei Treeview-Projektionen an echten
-Tk-Widgets: gleiche iids und Reihenfolge, gleiche vertikale Position (aus
-jeder Quelle), synchrone Zeilenauswahl/Item-Fokus unabhängig von der aktiven
-Spalte, Sortierung über Rebuilds hinweg und Kopfklick-Sortierung.
-
-Robuster Aufbau: sichtbares Root-Fenster mit fester Geometrie, Widgets
-vollständig angelegt, ``update()`` vor jeder Geometrie-/Scroll-/Fokusprüfung.
-Den Tk-Widget-Fokus liest ``focus_lastfor()`` (unabhängig davon, ob die
-Test-App gerade den Desktop-Fokus hat).
+Prüft die fachlichen Invarianten an echten Widgets: angezeigte Reihenfolge =
+``sort_iids``, Zellinhalte = ``_doc_rows``, Zeilenauswahl unabhängig von der
+aktiven Spalte, Fokus folgt der aktiven Spalte über die Bereiche, Sortierung
+über Rebuilds hinweg, Kopfklick-Sortierung und Inline-Editor auf der Zelle.
+Die frühere Treeview-Mechanik (Scroll-Abgleich dreier Trees, Item-Fokus) gibt
+es nicht mehr — das Grid hat nur eine Zeilenposition.
 """
 
 from __future__ import annotations
@@ -24,37 +21,29 @@ from app.adapters.gui._mixin_docs_nav import DocsNavMixin
 from app.adapters.gui._mixin_docs_table import DocsTableMixin
 from app.adapters.gui._mixin_docs_view import DocsViewMixin
 from app.adapters.gui._mixin_layout_docs import LayoutDocsMixin
-from app.adapters.gui._mixin_viewport import ViewportMixin
-from app.adapters.gui.docs_table_model import DocColumnAxis, DocsPane
+from app.adapters.gui.docs_table_model import DocColumnAxis
 from app.adapters.gui.docs_table_rules import sort_iids
 from app.core.domain.models_v4 import Seat, Student, StudentId
 from app.tools.perf_bench_docs_table import build_synthetic_plan
+from bw_gui.widgets.data_grid import Region
 
 TODAY = "2026-01-01"
 
 
-class _DocsHost(
-    tk.Frame,
-    LayoutDocsMixin,
-    ViewportMixin,
-    DocsTableMixin,
-    DocsEventsMixin,
-    DocsNavMixin,
-    DocsViewMixin,
-    DocsEditMixin,
-):
-    """Schlanker Host: echte Doku-Widgets + Doku-Mixins, ohne restliches Hauptfenster."""
+class _DocsHost(tk.Frame, LayoutDocsMixin, DocsTableMixin, DocsEventsMixin, DocsNavMixin, DocsViewMixin, DocsEditMixin):
+    """Schlanker Host: echte Doku-Tabelle + Doku-Mixins, ohne restliches Hauptfenster."""
 
     def __init__(self, root: tk.Tk, plan) -> None:
         super().__init__(root)
         self.current_plan = plan
         self.theme_key = None
+        self.status_var = tk.StringVar(master=root, value="")
         self._doc_selection_status_var = tk.StringVar(master=root, value="")
         self._doc_selected_student_index = 0
         self._doc_selected_date_index = 0
         self._doc_student_coords = []
         self._doc_dates = []
-        self._doc_tree_iid_by_student_index = {}
+        self._doc_row_id_by_student_index = {}
         self._doc_student_index_by_iid = {}
         self._doc_rows = {}
         self._doc_axis = DocColumnAxis((), ())
@@ -64,13 +53,10 @@ class _DocsHost(
         self._doc_selected_nondate_column_id = None
         self._doc_sort_column = None
         self._doc_sort_ascending = True
-        self._docs_splitter_positioned = False
         self._docs_inline_editor = None
-        self._docs_inline_editor_tree = None
         self._docs_inline_editor_row_id = None
         self._docs_inline_editor_kind = None
         self._docs_inline_editor_model_column = None
-        self._docs_cell_overlay = None
         self.docs_container = tk.Frame(self)
         self.docs_container.pack(fill="both", expand=True)
         self._build_docs_tree_widgets()
@@ -88,7 +74,7 @@ class _DocsHost(
 @pytest.fixture(scope="module")
 def tk_root():
     root = tk.Tk()
-    root.geometry("900x400+0+0")
+    root.geometry("1000x420+0+0")
     yield root
     root.destroy()
 
@@ -100,59 +86,22 @@ def host(tk_root):
     win.pack(fill="both", expand=True)
     win._refresh_documentation_table()
     tk_root.update()
+    tk_root.update()
     yield win
     win.destroy()
     tk_root.update()
 
 
-def _trees(host):
-    return host._docs_trees_by_pane()
-
-
 def _assert_projection_consistent(host):
-    """Invarianten 1+2: gleiche iids, gleiche Reihenfolge = sort_iids, _doc_rows passt zum Tree-Inhalt."""
+    """Angezeigte Reihenfolge = sort_iids, und jede Zelle zeigt den Modellwert."""
     expected = sort_iids(host._doc_rows.values(), host._doc_sort_column, host._doc_sort_ascending, host._doc_axis)
-    for tree in _trees(host).values():
-        assert list(tree.get_children()) == expected
-    for iid, row in host._doc_rows.items():
-        assert host.docs_name_tree.item(iid, "text") == row.nachname
-        assert [str(v) for v in host.docs_tree.item(iid, "values")] == list(row.date_cells)
+    assert list(host.docs_grid.row_ids) == expected
+    for grid_row in host.docs_grid._rows:
+        assert dict(grid_row.cells) == host._doc_axis.cells_of(host._doc_rows[grid_row.row_id])
 
 
-class TestVerticalScrollSync:
-    @pytest.mark.parametrize("source", list(DocsPane))
-    def test_scrolling_any_pane_moves_all_three(self, host, tk_root, source):
-        calls = {"total": 0, "depth": 0, "max_depth": 0}
-        original = host._sync_docs_yscroll
-
-        def counting_sync(pane, first, last):
-            calls["total"] += 1
-            calls["depth"] += 1
-            calls["max_depth"] = max(calls["max_depth"], calls["depth"])
-            try:
-                original(pane, first, last)
-            finally:
-                calls["depth"] -= 1
-
-        host._sync_docs_yscroll = counting_sync
-        for pane, tree in _trees(host).items():
-            tree.configure(yscrollcommand=lambda f, l, p=pane: host._sync_docs_yscroll(p, f, l))
-
-        _trees(host)[source].yview_moveto(0.5)
-        tk_root.update()
-
-        firsts = {pane: round(tree.yview()[0], 6) for pane, tree in _trees(host).items()}
-        assert len(set(firsts.values())) == 1, firsts
-        assert firsts[source] > 0
-        assert round(float(host.docs_y_scroll.get()[0]), 6) == firsts[source]
-        assert calls["max_depth"] == 1  # kein rekursives Selbst-Auslösen
-        assert calls["total"] <= 6  # konvergiert, kein Ping-Pong
-
-    def test_shared_scrollbar_moves_all_three(self, host, tk_root):
-        host._docs_yview("moveto", "0.4")
-        tk_root.update()
-        firsts = {round(tree.yview()[0], 6) for tree in _trees(host).values()}
-        assert len(firsts) == 1 and firsts.pop() > 0
+def _row_y(host, visible_index: int) -> int:
+    return host.docs_grid._row_h * visible_index + 1
 
 
 class TestRowSelectionVsActiveColumn:
@@ -162,39 +111,39 @@ class TestRowSelectionVsActiveColumn:
         host._set_doc_active_column(active_key)
         anchor_before = host._doc_selected_date_index
         nondate_before = host._doc_selected_nondate_column_id
+        host.docs_grid._on_body_click(Region.LEFT, SimpleNamespace(x=5, y=_row_y(host, 3)), 0)
+        tk_root.update()
         iid = host._doc_row_order[3]
-        host.docs_name_tree.see(iid)
-        tk_root.update()
-        x, y, _w, h = host.docs_name_tree.bbox(iid, "#0")
-        host.docs_name_tree.event_generate("<Button-1>", x=x + 5, y=y + h // 2)
-        tk_root.update()
-
-        for tree in _trees(host).values():
-            assert tree.selection() == (iid,)  # Zeilenauswahl
-            assert tree.focus() == iid  # Treeview-Item-Fokus
+        assert host.docs_grid._selected_id == iid
         assert host._doc_active_column_key() == active_key
         assert host._doc_selected_date_index == anchor_before
         assert host._doc_selected_nondate_column_id == nondate_before
 
+    def test_vertical_nav_follows_display_order(self, host, tk_root):
+        host._sort_docs_table_by_key("nachname")
+        host._sort_docs_table_by_key("nachname")  # absteigend
+        host._select_docs_row(host._doc_row_order[0])
+        host._on_docs_vertical_nav(1)
+        tk_root.update()
+        assert host.docs_grid._selected_id == host._doc_row_order[1]
+
 
 class TestHorizontalNavigationFocus:
-    def test_focus_follows_active_column_across_panes(self, host, tk_root):
+    def test_focus_follows_active_column_across_regions(self, host, tk_root):
+        regions = host.docs_grid.regions
         host._select_doc_date_column(0)
-        host.docs_tree.focus_set()
-        tk_root.update()
-
         host._on_docs_horizontal_nav(-1)
         tk_root.update()
         assert host._doc_active_column_key() == "vorname"
-        assert tk_root.focus_lastfor() == host.docs_name_tree
-
+        assert tk_root.focus_lastfor() == regions[Region.LEFT].body
         host._on_docs_horizontal_nav(-1)
         assert host._doc_active_column_key() == "nachname"
         host._on_docs_horizontal_nav(1)
         host._on_docs_horizontal_nav(1)
         tk_root.update()
         assert host._doc_active_column_key() == "date_0"
-        assert tk_root.focus_lastfor() == host.docs_tree
+        assert tk_root.focus_lastfor() == regions[Region.SCROLL].body
+        assert host.docs_grid._cursor_key == "date_0"
 
     def test_left_from_first_grade_returns_to_current_anchor(self, host, tk_root):
         host._select_doc_date_column(7)
@@ -202,11 +151,11 @@ class TestHorizontalNavigationFocus:
         host._on_docs_horizontal_nav(-1)
         tk_root.update()
         assert host._doc_active_column_key() == "date_7"
-        assert tk_root.focus_lastfor() == host.docs_tree
+        assert tk_root.focus_lastfor() == host.docs_grid.regions[Region.SCROLL].body
 
 
 class TestRebuild:
-    def test_insert_delete_update_keep_three_trees_consistent(self, host, tk_root):
+    def test_insert_delete_update_keep_grid_consistent(self, host, tk_root):
         plan = host.current_plan
         removed = plan.classroom.students.pop(5)
         plan.classroom.students.append(
@@ -227,23 +176,18 @@ class TestRebuild:
 
     def test_sort_survives_rebuild(self, host, tk_root):
         host._sort_docs_table_by_key("nachname")
-        host._sort_docs_table_by_key("nachname")  # -> absteigend
-        assert (host._doc_sort_column, host._doc_sort_ascending) == ("nachname", False)
+        host._sort_docs_table_by_key("nachname")
         order_before = list(host._doc_row_order)
-
         plan = host.current_plan
         student = plan.classroom.students[0]
         plan.documentation.sessions[0].entries[student.student_id].symbols["beteiligung"] = 1
-        host._refresh_documentation_table()  # Fast Path
-        tk_root.update()
+        host._refresh_documentation_table()
         assert (host._doc_sort_column, host._doc_sort_ascending) == ("nachname", False)
         assert host._doc_row_order == order_before
-        _assert_projection_consistent(host)
-
-        plan.classroom.students.pop(0)  # Neuaufbau
+        assert host.docs_grid._sort == ("nachname", False)
+        plan.classroom.students.pop(0)
         host._refresh_documentation_table()
         tk_root.update()
-        assert (host._doc_sort_column, host._doc_sort_ascending) == ("nachname", False)
         assert host._doc_row_order == [iid for iid in order_before if iid != str(student.student_id)]
         _assert_projection_consistent(host)
 
@@ -252,8 +196,8 @@ class TestRebuild:
         host._set_doc_active_column("grade_col2")
         host._sort_docs_table_by_key("grade_col2")
         plan = host.current_plan
-        plan.documentation.grade_columns.pop()  # col2 weg
-        plan.documentation.sessions[:] = plan.documentation.sessions[:5]  # Datumsachse schrumpft
+        plan.documentation.grade_columns.pop()
+        plan.documentation.sessions[:] = plan.documentation.sessions[:5]
         host._refresh_documentation_table()
         tk_root.update()
         assert host._doc_sort_column is None and host._doc_sort_ascending is True
@@ -262,21 +206,26 @@ class TestRebuild:
         _assert_projection_consistent(host)
 
 
-class TestHeadingClickSort:
+class TestHeaderClickSortAndEditor:
     @pytest.mark.parametrize(
-        ("pane", "x", "expected_key"),
-        [
-            (DocsPane.NAMES, 10, "nachname"),
-            (DocsPane.NAMES, 160, "vorname"),
-            (DocsPane.MAIN, 130, "date_1"),
-            (DocsPane.RIGHT, 190, "grade_col0"),
-        ],
+        ("region", "x", "expected_key"),
+        [(Region.LEFT, 10, "nachname"), (Region.LEFT, 160, "vorname"), (Region.SCROLL, 130, "date_1"),
+         (Region.RIGHT, 190, "grade_col0")],
     )
-    def test_heading_click_sorts_all_three_trees(self, host, tk_root, pane, x, expected_key):
-        host._on_docs_pane_click(pane, SimpleNamespace(x=x, y=5))
+    def test_header_click_sorts(self, host, tk_root, region, x, expected_key):
+        view = host.docs_grid.regions[region]
+        host.docs_grid._on_header_click(view, SimpleNamespace(x=x))
         tk_root.update()
         assert (host._doc_sort_column, host._doc_sort_ascending) == (expected_key, True)
         _assert_projection_consistent(host)
-        host._on_docs_pane_click(pane, SimpleNamespace(x=x, y=5))
+        host.docs_grid._on_header_click(view, SimpleNamespace(x=x))
         assert (host._doc_sort_column, host._doc_sort_ascending) == (expected_key, False)
-        _assert_projection_consistent(host)
+
+    def test_double_click_on_grade_opens_editor_on_the_cell(self, host, tk_root):
+        host.docs_grid._on_body_click(Region.RIGHT, SimpleNamespace(x=190, y=_row_y(host, 2)), 1)
+        tk_root.update()
+        editor = host._docs_inline_editor
+        assert editor is not None and host._docs_inline_editor_model_column == "col0"
+        assert editor.master == host.docs_grid.regions[Region.RIGHT].body
+        assert int(editor.place_info()["y"]) == 2 * host.docs_grid._row_h
+        host._close_docs_inline_editor(apply_changes=False)

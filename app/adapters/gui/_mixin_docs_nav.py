@@ -1,68 +1,40 @@
 """Docs-Navigation-Mixin für das Kartograph-Hauptfenster (v4 intent-basiert).
 
-Stellt die Zell-Hervorhebung, die aktive logische Spalte (inkl. Datumsanker),
-Spaltenauswahl-Wiederherstellung, Inline-Editor-Schließung und Wert-Anwendung
+Stellt den Abgleich Auswahl → Doku-Tabelle (``_sync_docs_cursor``), die aktive
+logische Spalte (inkl. Datumsanker), Inline-Editor-Schließung und Wert-Anwendung
 für die Dokumentations-Tabelle bereit.
 """
 
 from __future__ import annotations
 
-from app.adapters.gui.ui_theme import kartograph_theme
 from app.core.domain.grade_scale import scale_for
 from app.core.intents.grade_intents import RecordGradeIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.contracts import EventResult
-from bw_gui.runtime import ui
 
 
 class DocsNavMixin:
-    """Mixin: Doku-Zell-Hervorhebung, Spaltenauswahl und Inline-Editor-Verwaltung (v4)."""
+    """Mixin: Doku-Cursor-Abgleich, Spaltenauswahl und Inline-Editor-Verwaltung (v4)."""
 
-    def _update_docs_cell_highlight(self) -> None:
-        """Legt ein Overlay-Label auf die aktive Doku-Zelle (aktive Zeile × aktive Spalte).
+    def _sync_docs_cursor(self) -> None:
+        """Einziger Abgleich Auswahl → Doku-Tabelle: Zeile, aktive Spalte, Sichtbarkeit, Statuszeile.
 
-        Entfernt ggf. ein vorhandenes Overlay und platziert ein neues, falls
-        kein Inline-Editor geöffnet ist. Treeview und Zellwert werden über die
-        Spaltenachse bzw. die logische Zeile (``self._doc_rows``) bestimmt,
-        nicht über Treeview-Werte. Die Farbe stammt aus dem aktiven Theme.
+        Ersetzt das frühere Zell-Overlay, das Neusetzen aller Spaltenköpfe und
+        den Auswahl-Abgleich über drei Treeviews: das Grid verschiebt nur sein
+        Auswahlband, den Zellcursor und die Spaltenmarke (wenige Tk-Aufrufe,
+        unabhängig von der Spaltenzahl) und scrollt bei Bedarf.
         """
-        if self._docs_cell_overlay is not None:
-            try:
-                if self._docs_cell_overlay.winfo_exists():
-                    self._docs_cell_overlay.destroy()
-            except Exception:
-                pass
-            self._docs_cell_overlay = None
-
-        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
-            return
-        if self._docs_inline_editor is not None:
-            return
-
-        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-        row_iid = self._doc_tree_iid_by_student_index.get(student_index)
-        row = self._doc_rows.get(row_iid) if row_iid is not None else None
-        column_key = self._doc_active_column_key()
-        if row is None or column_key is None or not self._doc_axis.has(column_key):
-            return
-        tree = self._docs_trees_by_pane()[self._doc_axis.pane_of(column_key)]
-        if row_iid not in tree.get_children():
-            return
-
-        bbox = tree.bbox(row_iid, self._doc_axis.tree_column(column_key))
-        if not bbox:
-            return
-        bx, by, bw, bh = bbox
-
-        theme = kartograph_theme(self.theme_key)
-        cell_bg = theme["accent_soft"]
-        cell_fg = theme["fg_primary"]
-        cell_text = self._doc_axis.value_of(row, column_key)
-        label = ui.Label(tree, text=cell_text, background=cell_bg, foreground=cell_fg, bd=1, relief="solid", anchor="w", padx=4, pady=0)
-        label.place(x=bx, y=by, width=bw, height=bh)
-        self._docs_cell_overlay = label
+        row_id = None
+        if self._doc_student_coords:
+            index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+            row_id = self._doc_row_id_by_student_index.get(index)
+        key = self._doc_active_column_key()
+        self.docs_grid.set_cursor(row_id, key)
+        if row_id is not None:
+            self.docs_grid.see(row_id, key)
+        self._refresh_doc_selection_status()
 
     def _close_docs_inline_editor(self, apply_changes: bool = False) -> None:
         """Schließt den Inline-Editor und wendet ggf. den eingegebenen Wert an.
@@ -78,11 +50,9 @@ class DocsNavMixin:
         if editor.winfo_exists():
             editor.destroy()
         self._docs_inline_editor = None
-        self._docs_inline_editor_tree = None
         self._docs_inline_editor_row_id = None
         self._docs_inline_editor_kind = None
         self._docs_inline_editor_model_column = None
-        self.after_idle(self._update_docs_cell_highlight)
 
     def _apply_docs_inline_editor_value(self) -> None:
         """Übernimmt den Wert aus dem aktiven Inline-Editor als Noteneintrag (v4).
@@ -142,8 +112,7 @@ class DocsNavMixin:
             _event: bw-gui-``KeyEvent`` (Inhalt wird nicht ausgewertet).
         """
         self._close_docs_inline_editor(apply_changes=True)
-        if self.docs_right_tree.winfo_exists():
-            self.docs_right_tree.focus_set()
+        self.docs_grid.focus(self._doc_active_column_key())
         return EventResult.HANDLED
 
     def _on_docs_inline_editor_escape(self, _event) -> EventResult:
@@ -153,15 +122,14 @@ class DocsNavMixin:
             _event: bw-gui-``KeyEvent`` (Inhalt wird nicht ausgewertet).
         """
         self._close_docs_inline_editor(apply_changes=False)
-        if self.docs_right_tree.winfo_exists():
-            self.docs_right_tree.focus_set()
+        self.docs_grid.focus(self._doc_active_column_key())
         return EventResult.HANDLED
 
     def _open_selected_docs_grade_cell_editor(self) -> None:
         """Öffnet den Inline-Noten-Editor für die aktuell ausgewählte Doku-Zelle."""
         if not self._doc_selected_nondate_column_id or not self._doc_selected_nondate_column_id.startswith("grade_"):
             return
-        selected_iid = self._doc_tree_iid_by_student_index.get(self._doc_selected_student_index)
+        selected_iid = self._doc_row_id_by_student_index.get(self._doc_selected_student_index)
         if selected_iid is None:
             return
         self._open_docs_inline_grade_editor(selected_iid, self._doc_selected_nondate_column_id)
@@ -241,24 +209,3 @@ class DocsNavMixin:
         self._doc_selected_date_index = max(0, min(self._doc_selected_date_index, max(0, date_count - 1)))
         if not self._is_valid_doc_nondate_column(self._doc_selected_nondate_column_id):
             self._doc_selected_nondate_column_id = None
-
-    def _restore_docs_column_selection(self, nondate_column_id: str | None, date_index: int) -> None:
-        """Stellt die gespeicherte Spaltenauswahl nach einer Treeview-Aktualisierung wieder her.
-
-        Args:
-            nondate_column_id: Gespeicherte Nicht-Datum-Spalte (oder ``None`` für den Datumsanker).
-            date_index: Gespeicherter Datumsanker.
-        """
-        if self._is_valid_doc_nondate_column(nondate_column_id):
-            self._select_doc_nondate_column(nondate_column_id)
-        else:
-            self._select_doc_nondate_column(None)
-            if self._doc_dates:
-                self._select_doc_date_column(max(0, min(date_index, len(self._doc_dates) - 1)))
-        self._apply_doc_column_heading_highlight()
-
-    def _preserve_docs_column_selection_after_keypress(self) -> None:
-        """Plant via ``after_idle`` die Wiederherstellung der Spaltenauswahl nach einer Tasteneingabe."""
-        nondate_column_id = self._doc_selected_nondate_column_id
-        date_index = self._doc_selected_date_index
-        self.after_idle(lambda: self._restore_docs_column_selection(nondate_column_id, date_index))

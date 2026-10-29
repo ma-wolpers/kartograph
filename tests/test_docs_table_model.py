@@ -36,15 +36,10 @@ class TestAxisStructure:
         assert axis.pane_of("grade_a") is DocsPane.RIGHT
         assert axis.pane_of("overall") is DocsPane.RIGHT
 
-    def test_pane_columns_match_treeview_configuration(self, axis):
-        assert axis.pane_columns(DocsPane.NAMES) == ("vorname",)
-        assert axis.pane_columns(DocsPane.MAIN) == DATES
-        assert axis.pane_columns(DocsPane.RIGHT) == FIXED
-
-    def test_tree_column_maps_only_nachname_to_tree_column(self, axis):
-        assert axis.tree_column("nachname") == "#0"
-        assert axis.tree_column("vorname") == "vorname"
-        assert axis.tree_column("date_0") == "date_0"
+    def test_columns_of_each_pane(self, axis):
+        assert axis.columns_of(DocsPane.NAMES) == ("nachname", "vorname")
+        assert axis.columns_of(DocsPane.MAIN) == DATES
+        assert axis.columns_of(DocsPane.RIGHT) == FIXED
 
     def test_summary_is_not_selectable(self, axis):
         assert not axis.is_selectable("summary")
@@ -83,31 +78,6 @@ class TestNeighbor:
         assert axis.neighbor(start, step) == expected
 
 
-class TestResolveClicked:
-    """Regression gegen Offset-Arithmetik: "#N" wird über das columns-Tupel des Widgets aufgelöst."""
-
-    def test_names_tree_column_is_nachname(self, axis):
-        assert axis.resolve_clicked(DocsPane.NAMES, "#0", ("vorname",)) == "nachname"
-
-    def test_names_first_column_is_vorname(self, axis):
-        assert axis.resolve_clicked(DocsPane.NAMES, "#1", ("vorname",)) == "vorname"
-
-    def test_main_first_column_is_first_date(self, axis):
-        assert axis.resolve_clicked(DocsPane.MAIN, "#1", DATES) == "date_0"
-        assert axis.resolve_clicked(DocsPane.MAIN, "#3", DATES) == "date_2"
-
-    def test_right_columns_resolve_to_fixed_keys(self, axis):
-        assert axis.resolve_clicked(DocsPane.RIGHT, "#1", FIXED) == "summary"
-        assert axis.resolve_clicked(DocsPane.RIGHT, "#5", FIXED) == "overall"
-
-    def test_tree_column_outside_names_pane_is_none(self, axis):
-        assert axis.resolve_clicked(DocsPane.MAIN, "#0", DATES) is None
-
-    def test_click_beside_columns_is_none(self, axis):
-        assert axis.resolve_clicked(DocsPane.MAIN, "", DATES) is None
-        assert axis.resolve_clicked(DocsPane.MAIN, "#9", DATES) is None
-
-
 class TestValuesAndProjections:
     def test_value_of_resolves_semantically(self, axis):
         row = _row("1", "Meier", "Ada", ("a", "b", "c"), ("S", "1.00", "2.00", "1.5", "1,7"))
@@ -118,11 +88,11 @@ class TestValuesAndProjections:
         assert axis.value_of(row, "overall") == "1,7"
         assert axis.value_of(row, "gibtsnicht") == ""
 
-    def test_projections_split_row_per_pane(self):
+    def test_cells_of_maps_every_column_key(self, axis):
         row = _row("1", "Meier", "Ada", ("a", "b", "c"), ("S", "1", "2", "3", "4"))
-        assert row.names_projection() == ("Meier", ["Ada"])
-        assert row.main_projection() == ["a", "b", "c"]
-        assert row.right_projection() == ["S", "1", "2", "3", "4"]
+        cells = axis.cells_of(row)
+        assert list(cells) == list(axis.keys)
+        assert cells["nachname"] == "Meier" and cells["date_2"] == "c" and cells["overall"] == "4"
 
 
 class TestSortSemantics:

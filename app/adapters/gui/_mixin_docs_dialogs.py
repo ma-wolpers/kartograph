@@ -127,7 +127,7 @@ class DocsDialogsMixin:
         if new_column_id:
             self._select_doc_nondate_column(f"grade_{new_column_id}")
         # Tabelle hat apply_state schon neu gebaut; nur die danach gewählte Spalte markieren.
-        self._apply_doc_column_heading_highlight()
+        self._sync_docs_cursor()
 
     def delete_grade_column_dialog(self) -> None:
         """Löscht eine Notenspalte nach Bestätigung (v4).

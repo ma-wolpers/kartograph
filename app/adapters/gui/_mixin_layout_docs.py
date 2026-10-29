@@ -1,32 +1,34 @@
 """Docs-Panel-Layout-Mixin für das Kartograph-Hauptfenster.
 
-Stellt die Widget-Bausteine der Dokumentationsansicht bereit:
-Toolbar (Aktionsbuttons, Status-Label), das fixierte Namens-Pane sowie den
-Treeview-Splitter (Datums-/Fixspalten) — drei synchronisierte Projektionen
-derselben logischen Dokutabelle.
+Stellt die Widget-Bausteine der Dokumentationsansicht bereit: Toolbar
+(Aktionsbuttons, Status-Label) und die Doku-Tabelle als bw-gui ``DataGrid``
+mit den Bereichen Namen | Datumsspalten | feste Spalten.
 """
 
 from __future__ import annotations
 
 from app.adapters.gui._local_keys import widget_keys
-from app.adapters.gui.docs_table_model import VORNAME_KEY, DocsPane
+from app.adapters.gui.docs_table_model import DocsPane
 from app.adapters.gui.ui_intents import UiIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.contracts import KeyModifiers, KeySpec
-from bw_gui.runtime import bind_click, bind_wheel, on_key, on_resize, on_treeview_select, ui, widgets as tui
+from bw_gui.contracts import KeySpec
+from bw_gui.runtime import widgets as tui
+from bw_gui.widgets.data_grid import DataGrid, Region
 
-# Pfeiltasten der Doku-Tabellen: tolerierte Zusatz-Modifier. Ohne Toleranz fiele
-# z. B. Shift+↑ an die native Treeview-Klassenbindung, die nur EINEN der drei
-# synchronisierten Trees bewegen würde. Alt+←/→ bleibt bewusst frei: das ist das
-# Fenster-Kürzel "voriges/nächstes Datum" (früher von <Left>/<Right> abgefangen).
+# Pfeiltasten der Doku-Tabelle: tolerierte Zusatz-Modifier (Shift+↑ navigiert wie ↑).
+# Alt+←/→ bleibt bewusst frei: das ist das Fenster-Kürzel "voriges/nächstes Datum".
 _DOCS_VERTICAL_TOLERANCE = "(tolerate: Ctrl, Alt, Shift)"
 _DOCS_HORIZONTAL_TOLERANCE = "(tolerate: Ctrl, Shift)"
 
+# Einzige Zuordnung der fachlichen Doku-Bereiche zu den DataGrid-Regionen.
+REGION_BY_PANE: dict[DocsPane, Region] = {DocsPane.NAMES: Region.LEFT, DocsPane.MAIN: Region.SCROLL, DocsPane.RIGHT: Region.RIGHT}
+PANE_BY_REGION: dict[Region, DocsPane] = {region: pane for pane, region in REGION_BY_PANE.items()}
+
 
 class LayoutDocsMixin:
-    """Mixin: Dokumentations-Panel mit Toolbar, Namens-Pane, Splitter und drei Treeviews."""
+    """Mixin: Dokumentations-Panel mit Toolbar und Doku-Tabelle (``DataGrid``)."""
 
     def _build_docs_panel_widgets(self) -> None:
         """Orchestriert den Aufbau des Dokumentations-Panels in zwei Phasen."""
@@ -122,158 +124,29 @@ class LayoutDocsMixin:
         tui.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
 
     def _build_docs_tree_widgets(self) -> None:
-        """Erstellt Namens-Pane, Splitter, die drei Doku-Treeviews, Scrollbars und Event-Bindings.
+        """Erstellt die Doku-Tabelle als bw-gui ``DataGrid`` und bindet die Pfeiltasten.
 
-        Die Dokutabelle ist eine logische Tabelle, die in drei Treeviews
-        projiziert wird: ``docs_name_tree`` (NAMES: Nachname/Vorname),
-        ``docs_tree`` (MAIN: Datumsspalten) und ``docs_right_tree`` (RIGHT:
-        Zusammenfassung/Noten).
-
-        UI-Invariante: Alle drei Treeviews nutzen denselben ttk-Style
-        ``Treeview`` (gleiche Zeilen- und Kopfhöhe), und jedes Pane hat unten
-        eine horizontale Scrollbar gleicher Höhe (alle sind die bw-gui-Primitive
-        ``tui.Scrollbar``, also gleich hoch). Nur so bilden sie denselben
-        vertikalen Dokumentraum ab und bleiben per ``yview_moveto``
-        zeilengenau synchron — kein Tree darf einen eigenen Style/``rowheight``
-        bekommen.
-
-        Das Namens-Pane liegt außerhalb des Splitters links und scrollt nie
-        mit den Datumsspalten mit ("fixiert"). Seine Breite ist die
-        Startbreite der Namensspalten; werden diese per Spaltentrenner
-        verbreitert, lässt sich der Inhalt innerhalb des Panes über dessen
-        eigene Scrollbar verschieben.
+        Ein Grid mit drei Bereichen (Namen | Datumsspalten | feste Spalten) und
+        zwei verschiebbaren Trennern ersetzt die früheren drei synchronisierten
+        Treeviews: eine Zeilenposition für alle Bereiche, nur sichtbare Zellen
+        als Canvas-Items. Klicks, Doppelklicks und Kopfklicks meldet das Grid
+        als (Zeile, Spaltenschlüssel); die Tasten bindet Kartograph selbst
+        (``widget_keys`` auf ``docs_grid.key_widgets``).
         """
-        self.docs_table_container = tui.Frame(self.docs_container)
-        self.docs_table_container.pack(fill="both", expand=True, padx=12, pady=(0, 12))
-
-        self.docs_names_pane = tui.Frame(self.docs_table_container)
-        self.docs_names_pane.pack(side="left", fill="y")
-        self.docs_name_tree = tui.Treeview(self.docs_names_pane, show="tree headings", columns=(VORNAME_KEY,))
-        self.docs_name_tree.pack(side="top", fill="both", expand=True)
-        self.docs_names_x_scroll = tui.Scrollbar(
-            self.docs_names_pane, orient="horizontal", command=self.docs_name_tree.xview, takefocus=False
+        self.docs_grid = DataGrid(
+            self.docs_container,
+            on_cell_click=lambda row_id, key, region: self._on_docs_cell_click(row_id, key, PANE_BY_REGION[region]),
+            on_cell_double_click=lambda row_id, key, region: self._on_docs_cell_double_click(row_id, key),
+            on_header_click=self._sort_docs_table_by_key,
         )
-        self.docs_names_x_scroll.pack(side="bottom", fill="x")
-        self.docs_name_tree.column("#0", width=150, anchor="w", stretch=False)
-        self.docs_name_tree.heading("#0", text="Nachname")
-        self.docs_name_tree.column(VORNAME_KEY, width=120, anchor="w", stretch=False)
-        self.docs_name_tree.heading(VORNAME_KEY, text="Vorname")
-
-        self.docs_splitter = ui.PanedWindow(
-            self.docs_table_container,
-            orient="horizontal",
-            sashwidth=10,
-            sashrelief="raised",
-            bd=0,
-        )
-        self.docs_splitter.pack(side="left", fill="both", expand=True)
-
-        self.docs_main_pane = tui.Frame(self.docs_splitter)
-        self.docs_fixed_pane = tui.Frame(self.docs_splitter)
-        self.docs_splitter.add(self.docs_main_pane, minsize=320)
-        self.docs_splitter.add(self.docs_fixed_pane, minsize=240)
-
-        self.docs_tree = tui.Treeview(self.docs_main_pane, show="headings")
-        self.docs_tree.pack(side="top", fill="both", expand=True)
-        self.docs_main_x_scroll = tui.Scrollbar(
-            self.docs_main_pane, orient="horizontal", command=self._docs_main_xview, takefocus=False
-        )
-        self.docs_main_x_scroll.pack(side="bottom", fill="x")
-
-        self.docs_right_tree = tui.Treeview(self.docs_fixed_pane, show="headings")
-        self.docs_right_tree.pack(side="top", fill="both", expand=True)
-        self.docs_right_x_scroll = tui.Scrollbar(
-            self.docs_fixed_pane, orient="horizontal", command=self._docs_right_xview, takefocus=False
-        )
-        self.docs_right_x_scroll.pack(side="bottom", fill="x")
-
-        self.docs_y_scroll = tui.Scrollbar(
-            self.docs_table_container, orient="vertical", command=self._docs_yview, takefocus=False
-        )
-        self.docs_y_scroll.pack(side="right", fill="y")
-
-        self._syncing_docs_scroll = False
-        self.docs_name_tree.configure(xscrollcommand=self.docs_names_x_scroll.set)
-        self.docs_tree.configure(xscrollcommand=self.docs_main_x_scroll.set)
-        self.docs_right_tree.configure(xscrollcommand=self.docs_right_x_scroll.set)
-        for pane, tree in self._docs_trees_by_pane().items():
-            self._bind_docs_pane_events(pane, tree)
-        bind_click(self.docs_right_tree, self._on_docs_right_tree_double_click, count=2)
-
-        on_resize(self.docs_splitter, lambda _event: self._position_docs_splitter_initial())
-
-    def _bind_docs_pane_events(self, pane: DocsPane, tree) -> None:
-        """Bindet die für alle drei Panes identischen Ereignisse an *tree*.
-
-        Die Handler bekommen das Pane mitgegeben, statt pro Pane eigene,
-        kopierte Handler zu haben.
-
-        Args:
-            pane: Pane, das *tree* darstellt.
-            tree: Der Treeview dieses Panes.
-        """
-        tree.configure(yscrollcommand=lambda first, last, p=pane: self._sync_docs_yscroll(p, first, last))
-        on_treeview_select(tree, lambda _change, p=pane: self._on_docs_pane_select(p))
-        bind_click(tree, lambda event, p=pane: self._on_docs_pane_click(p, event))
-        keys = widget_keys(tree)
-        for name, handler in (
-            (f"Up {_DOCS_VERTICAL_TOLERANCE}", lambda _e, p=pane: self._on_docs_vertical_nav(-1, source=p)),
-            (f"Down {_DOCS_VERTICAL_TOLERANCE}", lambda _e, p=pane: self._on_docs_vertical_nav(1, source=p)),
-            (f"Left {_DOCS_HORIZONTAL_TOLERANCE}", lambda _e: self._on_docs_horizontal_nav(-1)),
-            (f"Right {_DOCS_HORIZONTAL_TOLERANCE}", lambda _e: self._on_docs_horizontal_nav(1)),
-        ):
-            spec = KeySpec.parse(name)
-            keys.bind(spec, handler, binding_id=f"docs.nav.{spec.key.value}", intent="docs.nav")
-        on_key(tree, self._on_docs_pane_keypress)
-        bind_wheel(tree, self._on_docs_tree_wheel)
-
-    def _on_docs_tree_wheel(self, event):
-        """Mausrad über einem Doku-Tree: Shift scrollt horizontal, sonst nativ vertikal.
-
-        Vertikal scrollt die native Treeview-Bindung (``NOT_HANDLED``); danach wird
-        nur die Zellmarkierung nachgezogen.
-
-        Args:
-            event: bw-gui-``WheelEvent``.
-
-        Returns:
-            ``EventResult`` des Shift-Handlers bzw. ``None`` (= ``NOT_HANDLED``).
-        """
-        if isinstance(event.modifiers, KeyModifiers) and event.modifiers.shift:
-            return self._on_docs_shift_mouse_wheel(event)
-        self.after_idle(self._update_docs_cell_highlight)
-        return None
-
-    def _docs_trees_by_pane(self) -> dict[DocsPane, object]:
-        """Liefert die drei Doku-Treeviews, geordnet von links nach rechts.
-
-        Returns:
-            Dict ``DocsPane → Treeview``.
-        """
-        return {
-            DocsPane.NAMES: self.docs_name_tree,
-            DocsPane.MAIN: self.docs_tree,
-            DocsPane.RIGHT: self.docs_right_tree,
-        }
-
-    def _pane_of_docs_widget(self, widget) -> DocsPane | None:
-        """Ermittelt, welchem Pane ein Widget (Ereignisquelle) gehört.
-
-        Args:
-            widget: Beliebiges Tk-Widget.
-
-        Returns:
-            Das Pane des Treeviews oder ``None``, falls *widget* keiner der drei Trees ist.
-        """
-        for pane, tree in self._docs_trees_by_pane().items():
-            if widget == tree:
-                return pane
-        return None
-
-    def _focus_docs_pane(self, pane: DocsPane) -> None:
-        """Setzt den Tk-Widget-Fokus auf den Treeview von *pane* (dünner Tk-Wrapper).
-
-        Args:
-            pane: Ziel-Pane.
-        """
-        self._docs_trees_by_pane()[pane].focus_set()
+        self.docs_grid.frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        for widget in self.docs_grid.key_widgets:
+            keys = widget_keys(widget)
+            for name, handler in (
+                (f"Up {_DOCS_VERTICAL_TOLERANCE}", lambda _e: self._on_docs_vertical_nav(-1)),
+                (f"Down {_DOCS_VERTICAL_TOLERANCE}", lambda _e: self._on_docs_vertical_nav(1)),
+                (f"Left {_DOCS_HORIZONTAL_TOLERANCE}", lambda _e: self._on_docs_horizontal_nav(-1)),
+                (f"Right {_DOCS_HORIZONTAL_TOLERANCE}", lambda _e: self._on_docs_horizontal_nav(1)),
+            ):
+                spec = KeySpec.parse(name)
+                keys.bind(spec, handler, binding_id=f"docs.nav.{spec.key.value}", intent="docs.nav")

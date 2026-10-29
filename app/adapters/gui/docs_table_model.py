@@ -1,7 +1,7 @@
 """Logisches Tabellenmodell der Dokuansicht (reines Python, kein Tk).
 
-Die Dokuansicht ist fachlich **eine logische Tabelle**, die in drei
-synchronisierte Treeviews projiziert wird (``DocsPane.NAMES`` / ``MAIN`` /
+Die Dokuansicht ist fachlich **eine logische Tabelle**, dargestellt in
+drei Bereichen eines bw-gui ``DataGrid`` (``DocsPane.NAMES`` / ``MAIN`` /
 ``RIGHT``). Dieses Modul hält die Struktur dieser Tabelle, unabhängig von
 jedem Widget:
 
@@ -16,9 +16,9 @@ Datumsanker) liegen getrennt davon in ``docs_table_rules``.
 
 Grenze der Positionsrepräsentation: ``DocRow.date_cells`` und
 ``DocRow.fixed_cells`` sind intern positionsbasierte Tupel. **Nur**
-``DocColumnAxis.value_of`` / ``DocColumnAxis.sort_value`` und die
-``DocRow.*_projection``-Methoden dürfen einen Tupelindex einer Spalte zuordnen;
-alles außerhalb dieses Moduls arbeitet ausschließlich mit Spaltenschlüsseln.
+``DocColumnAxis.value_of`` (und darauf aufbauend ``cells_of``/``sort_value``)
+darf einen Tupelindex einer Spalte zuordnen; alles außerhalb dieses Moduls
+arbeitet ausschließlich mit Spaltenschlüsseln.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ _ColumnKind = Literal["name", "date", "summary", "grade", "total"]
 
 
 class DocsPane(Enum):
-    """Die drei visuellen Projektionen (Treeviews) der Dokutabelle."""
+    """Die drei Bereiche der Dokutabelle (Namen | Datumsspalten | feste Spalten)."""
 
     NAMES = "names"
     MAIN = "main"
@@ -47,7 +47,7 @@ class DocRow:
     """Eine logische Zeile der Dokutabelle (reine Anzeige-Strings).
 
     Attributes:
-        iid: Zeilen-ID, in allen drei Treeviews identisch (Schüler-ID als String).
+        iid: Zeilen-ID (Schüler-ID als String).
         nachname: Angezeigter Nachname (inkl. Fallback ``"(x,y)"`` bei leerem Nachnamen).
         vorname: Angezeigter Vorname.
         date_cells: Zelltexte der Datumsspalten, in Achsenreihenfolge.
@@ -60,30 +60,6 @@ class DocRow:
     vorname: str
     date_cells: tuple[str, ...]
     fixed_cells: tuple[str, ...]
-
-    def names_projection(self) -> tuple[str, list[str]]:
-        """Liefert ``(text, values)`` für das NAMES-Pane (``#0`` = Nachname, ``vorname``).
-
-        Returns:
-            Tupel aus Baumspalten-Text und Werteliste für ``Treeview.insert``/``item``.
-        """
-        return self.nachname, [self.vorname]
-
-    def main_projection(self) -> list[str]:
-        """Liefert die Werteliste für das MAIN-Pane (nur Datumsspalten).
-
-        Returns:
-            Zelltexte in der Reihenfolge der MAIN-Treeview-Spalten.
-        """
-        return list(self.date_cells)
-
-    def right_projection(self) -> list[str]:
-        """Liefert die Werteliste für das RIGHT-Pane (feste Spalten).
-
-        Returns:
-            Zelltexte in der Reihenfolge der RIGHT-Treeview-Spalten.
-        """
-        return list(self.fixed_cells)
 
 
 @dataclass(frozen=True)
@@ -183,36 +159,6 @@ class DocColumnAxis:
         """
         return self._column(key).pane
 
-    def pane_columns(self, pane: DocsPane) -> tuple[str, ...]:
-        """Liefert die ``columns``-Konfiguration des Treeviews für *pane*.
-
-        Die Baumspalte ``#0`` (Nachname) gehört nicht zu ``columns``.
-
-        Args:
-            pane: Ziel-Pane.
-
-        Returns:
-            Spaltenschlüssel in Treeview-Reihenfolge.
-        """
-        if pane is DocsPane.NAMES:
-            return (VORNAME_KEY,)
-        if pane is DocsPane.MAIN:
-            return self._date_ids
-        return self._fixed_ids
-
-    def tree_column(self, key: str) -> str:
-        """Übersetzt einen Spaltenschlüssel in die Treeview-Spaltenkennung.
-
-        Einzige Stelle, die die Baumspalte ``#0`` kennt.
-
-        Args:
-            key: Existierender Spaltenschlüssel.
-
-        Returns:
-            ``"#0"`` für den Nachnamen, sonst der Schlüssel selbst.
-        """
-        return "#0" if key == NACHNAME_KEY else key
-
     def is_selectable(self, key: str | None) -> bool:
         """Prüft, ob *key* per Klick/Navigation aktive Spalte werden darf.
 
@@ -306,33 +252,27 @@ class DocColumnAxis:
             position += step
         return None
 
-    def resolve_clicked(self, pane: DocsPane, identify_result: str, tree_columns: Sequence[str]) -> str | None:
-        """Übersetzt ``Treeview.identify_column()`` in einen Spaltenschlüssel.
-
-        ``"#N"`` wird über das Widget-eigene ``columns``-Tupel aufgelöst statt
-        über einen hart codierten Offset; ``"#0"`` ist nur im NAMES-Pane der
-        Nachname.
+    def columns_of(self, pane: DocsPane) -> tuple[str, ...]:
+        """Spaltenschlüssel eines Panes in Achsenreihenfolge.
 
         Args:
-            pane: Pane, in dem geklickt wurde.
-            identify_result: Rückgabe von ``identify_column`` (``"#0"``, ``"#1"``, … oder ``""``).
-            tree_columns: ``columns``-Tupel des geklickten Treeviews.
+            pane: Ziel-Pane.
 
         Returns:
-            Spaltenschlüssel oder ``None`` bei Klick außerhalb einer Spalte.
+            Schlüssel der Spalten, die *pane* darstellt.
         """
-        if not identify_result.startswith("#"):
-            return None
-        try:
-            raw_index = int(identify_result[1:])
-        except ValueError:
-            return None
-        if raw_index == 0:
-            return NACHNAME_KEY if pane is DocsPane.NAMES else None
-        if raw_index - 1 < len(tree_columns):
-            key = str(tree_columns[raw_index - 1])
-            return key if self.has(key) else None
-        return None
+        return tuple(column.key for column in self._columns if column.pane is pane)
+
+    def cells_of(self, row: DocRow) -> dict[str, str]:
+        """Alle Zelltexte einer Zeile nach Spaltenschlüssel (für die Grid-Projektion).
+
+        Args:
+            row: Tabellenzeile.
+
+        Returns:
+            Spaltenschlüssel → Anzeigetext, für jede Spalte der Achse.
+        """
+        return {column.key: self.value_of(row, column.key) for column in self._columns}
 
     def value_of(self, row: DocRow, key: str) -> str:
         """Liefert den Anzeigetext der Zelle (*row*, *key*).

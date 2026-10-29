@@ -155,7 +155,8 @@ class DocsViewMixin:
             self._select_doc_date_column(len(self._doc_dates) - 1)
         if self.selected_cell is not None:
             self._sync_doc_selection_from_grid(*self.selected_cell)
-        self.docs_tree.focus_set()
+        self._sync_docs_cursor()
+        self.docs_grid.focus(self._doc_active_column_key())
 
     def _sync_doc_selection_from_grid(self, x: int, y: int) -> None:
         """Übernimmt die Doku-Auswahl von der Grid-Zelle (x, y).
@@ -170,9 +171,8 @@ class DocsViewMixin:
         idx = _resolve_doc_student_index_for_cell(self._doc_student_coords, x, y)
         if idx is None:
             return
-        row_id = self._doc_tree_iid_by_student_index.get(idx)
-        if row_id is not None:
-            self._set_docs_row_selection(row_id)
+        self._doc_selected_student_index = idx
+        self._sync_docs_cursor()
 
     def _sync_grid_selection_from_doc(self) -> None:
         """Übernimmt die Grid-Auswahl vom aktuell in der Dokutabelle ausgewählten Schüler.
@@ -279,10 +279,8 @@ class DocsViewMixin:
         if self._doc_selected_nondate_column_id:
             label = self._doc_column_label(self._doc_selected_nondate_column_id)
             self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {label}")
-            self.after_idle(self._update_docs_cell_highlight)
             return
         self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {self._doc_dates[date_index]}")
-        self.after_idle(self._update_docs_cell_highlight)
 
     def _selected_docs_coordinates_and_date(self) -> tuple[int, int, str] | None:
         """Gibt (x, y, date_key) für die aktuell ausgewählte Doku-Zelle zurück.
@@ -297,29 +295,8 @@ class DocsViewMixin:
         x, y = self._doc_student_coords[student_index]
         return x, y, self._doc_dates[date_index]
 
-    def _apply_doc_column_heading_highlight(self) -> None:
-        """Aktualisiert alle Spaltenköpfe der drei Doku-Treeviews (Sortierpfeil, aktive Spalte).
-
-        Läuft über die logische Spaltenachse: ``> `` markiert die aktive
-        Spalte (Name, Datumsanker oder Fixspalte), ``▲``/``▼`` die Sortierspalte.
-        """
-        if not hasattr(self, "docs_name_tree"):
-            return
-        sort_arrow = "▲ " if self._doc_sort_ascending else "▼ "
-        active_key = self._doc_active_column_key()
-        trees = self._docs_trees_by_pane()
-        for key in self._doc_axis.keys:
-            label = self._doc_column_label(key)
-            if key == active_key:
-                label = f"> {label}"
-            if self._doc_sort_column == key:
-                label = f"{sort_arrow}{label}"
-            trees[self._doc_axis.pane_of(key)].heading(self._doc_axis.tree_column(key), text=label)
-
-        self._refresh_doc_selection_status()
-
     def _sort_docs_table_by_key(self, key: str) -> None:
-        """Wendet die Sortier-Klickregel auf *key* an und ordnet alle drei Treeviews neu.
+        """Wendet die Sortier-Klickregel auf *key* an und ordnet die Doku-Tabelle neu.
 
         Ändert nur die Sortierspezifikation (``next_sort_spec``: gleiche Spalte
         → Richtung umkehren, neue Spalte → aufsteigend); die Reihenfolge wird
@@ -332,4 +309,4 @@ class DocsViewMixin:
             self._doc_sort_column, self._doc_sort_ascending, key
         )
         self._apply_doc_row_order()
-        self._apply_doc_column_heading_highlight()
+        self._sync_docs_cursor()

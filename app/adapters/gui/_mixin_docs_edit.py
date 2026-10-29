@@ -24,28 +24,23 @@ class DocsEditMixin:
     def _open_docs_inline_grade_editor(self, row_id: str, grade_column_key: str) -> None:
         """Öffnet einen Entry-Inline-Editor in der Noten-Zelle (*row_id*, *grade_column_key*).
 
-        Die Zellgeometrie kommt aus ``bbox`` des für die Spalte zuständigen
-        Treeviews; die Spalte wird über ``DocColumnAxis.tree_column`` statt
-        über eine Index-Rechnung adressiert.
+        Die Zellgeometrie liefert ``DataGrid.cell_bbox`` (scrollt die Zelle
+        sichtbar und rendert vorher ausstehende Änderungen, damit die Position
+        stimmt); der Editor liegt direkt auf dem Bereich, der die Spalte zeigt.
 
         Args:
-            row_id: Zeilen-ID (iid), in allen drei Treeviews identisch.
+            row_id: Zeilen-ID (Schüler-ID als String).
             grade_column_key: Spaltenschlüssel einer Notenspalte, z. B. ``"grade_<id>"``.
         """
         if not self.current_plan:
             return
         if not self._doc_axis.is_grade(grade_column_key):
             return
-        tree = self._docs_trees_by_pane()[self._doc_axis.pane_of(grade_column_key)]
-        if row_id not in tree.get_children():
-            return
-
         self._close_docs_inline_editor(apply_changes=False)
-
-        bbox = tree.bbox(row_id, self._doc_axis.tree_column(grade_column_key))
-        if not bbox:
+        box = self.docs_grid.cell_bbox(row_id, grade_column_key)
+        if box is None:
             return
-        x, y, width, height = bbox
+        host, x, y, width, height = box
 
         selected = self._selected_docs_coordinates_and_date()
         if selected is None:
@@ -64,7 +59,7 @@ class DocsEditMixin:
                     if value is not None:
                         current_text = scale_for(self.current_plan.documentation.grade_scale).format_input(value)
 
-        editor = tui.Entry(tree)
+        editor = tui.Entry(host)
         editor.insert(0, current_text)
         editor.place(x=x, y=y, width=width, height=height)
         editor.focus_set()
@@ -75,7 +70,6 @@ class DocsEditMixin:
         on_focus_change(editor, on_lost=lambda _change: self._close_docs_inline_editor(apply_changes=True))
 
         self._docs_inline_editor = editor
-        self._docs_inline_editor_tree = tree
         self._docs_inline_editor_row_id = row_id
         self._docs_inline_editor_kind = "grade"
         self._docs_inline_editor_model_column = model_column_id

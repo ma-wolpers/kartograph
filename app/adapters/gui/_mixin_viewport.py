@@ -1,23 +1,14 @@
 """Viewport-Mixin für das Kartograph-Hauptfenster.
 
-Stellt alle Scroll-Handler für Canvas und Dokumentations-Treeviews bereit:
-horizontale und vertikale Scrollbefehle, synchronisiertes Docs-Scrolling
-(drei Treeviews, ein vertikaler Dokumentraum) sowie die Initialisierung des
-Docs-Splitters.
+Stellt die Scroll-Handler des Sitzplan-Canvas bereit. Die Doku-Tabelle
+(bw-gui ``DataGrid``) scrollt sich selbst.
 """
 
 from __future__ import annotations
 
-from app.adapters.gui.docs_table_model import DocsPane
-from app.adapters.gui.main_window_constants import DOCS_HORIZONTAL_SCROLLBAR_UNITS, DOCS_HORIZONTAL_WHEEL_UNITS
-from bw_libs.shared_gui_core import ensure_bw_gui_on_path
-
-ensure_bw_gui_on_path()
-from bw_gui.contracts import EventResult
-
 
 class ViewportMixin:
-    """Mixin: Scroll-Handler für Canvas, Docs-Treeview und Splitter."""
+    """Mixin: Scroll-Handler für den Sitzplan-Canvas."""
 
     def _xview(self, *args) -> None:
         """Leitet horizontale Scroll-Befehle an den Canvas weiter und zeichnet das Raster neu.
@@ -36,119 +27,6 @@ class ViewportMixin:
         """
         self.canvas.yview(*args)
         self.redraw_grid()
-
-    def _docs_yview(self, *args) -> None:
-        """Leitet Befehle der gemeinsamen vertikalen Scrollbar an alle drei Docs-Treeviews weiter.
-
-        Args:
-            *args: Tkinter-Scrollbar-Kommando-Argumente (z. B. ``"scroll", n, "units"``).
-        """
-        for tree in self._docs_trees_by_pane().values():
-            tree.yview(*args)
-
-    def _position_docs_splitter_initial(self) -> None:
-        """Setzt die Splitter-Position beim ersten Configure-Ereignis auf 68 % links."""
-        if self._docs_splitter_positioned:
-            return
-        if not hasattr(self, "docs_splitter") or not self.docs_splitter.winfo_exists():
-            return
-        total_width = self.docs_splitter.winfo_width()
-        if total_width <= 1:
-            return
-        left_width = max(320, min(total_width - 240, int(total_width * 0.68)))
-        try:
-            self.docs_splitter.sash_place(0, left_width, 0)
-        except Exception:
-            return
-        self._docs_splitter_positioned = True
-
-    def _docs_main_xview(self, *args) -> None:
-        """Horizontaler Scroll-Handler für den linken Docs-Treeview mit Schritt-Multiplikator.
-
-        Args:
-            *args: Tkinter-Scrollbar-Kommando-Argumente (z. B. ``"scroll", n, "units"``).
-        """
-        if len(args) >= 3 and args[0] == "scroll" and str(args[2]) == "units":
-            try:
-                amount = int(float(args[1]))
-            except (TypeError, ValueError):
-                self.docs_tree.xview(*args)
-            else:
-                self.docs_tree.xview_scroll(amount * DOCS_HORIZONTAL_SCROLLBAR_UNITS, "units")
-        else:
-            self.docs_tree.xview(*args)
-        self.after_idle(self._update_docs_cell_highlight)
-
-    def _docs_right_xview(self, *args) -> None:
-        """Horizontaler Scroll-Handler für den rechten Docs-Treeview mit Schritt-Multiplikator.
-
-        Args:
-            *args: Tkinter-Scrollbar-Kommando-Argumente (z. B. ``"scroll", n, "units"``).
-        """
-        if len(args) >= 3 and args[0] == "scroll" and str(args[2]) == "units":
-            try:
-                amount = int(float(args[1]))
-            except (TypeError, ValueError):
-                self.docs_right_tree.xview(*args)
-            else:
-                self.docs_right_tree.xview_scroll(amount * DOCS_HORIZONTAL_SCROLLBAR_UNITS, "units")
-        else:
-            self.docs_right_tree.xview(*args)
-        self.after_idle(self._update_docs_cell_highlight)
-
-    def _docs_horizontal_wheel_units(self, steps: float) -> int:
-        """Berechnet die Scroll-Einheitenzahl aus normalisierten Mausrad-Rasten.
-
-        Jedes Ereignis scrollt mindestens um eine Raste (wie früher bei kleinen
-        Deltas), größere Ereignisse um ihre ganzen Rasten.
-
-        Args:
-            steps: ``WheelEvent.steps`` (positiv = nach rechts bzw. zum Inhaltsende).
-
-        Returns:
-            Vorzeichenbehaftete Scroll-Einheitenanzahl.
-        """
-        direction = 1 if steps > 0 else -1
-        return direction * max(1, int(abs(steps))) * DOCS_HORIZONTAL_WHEEL_UNITS
-
-    def _on_docs_shift_mouse_wheel(self, event) -> EventResult:
-        """Handler für Shift+Mausrad: horizontales Scrollen im aktiven Docs-Treeview.
-
-        Args:
-            event: bw-gui-``WheelEvent`` mit Ziel-Widget und Rasten.
-        """
-        pane = self._pane_of_docs_widget(event.widget) or DocsPane.MAIN
-        target = self._docs_trees_by_pane()[pane]
-        target.xview_scroll(self._docs_horizontal_wheel_units(event.steps), "units")
-        self.after_idle(self._update_docs_cell_highlight)
-        return EventResult.HANDLED
-
-    def _sync_docs_yscroll(self, source: DocsPane, first: str, last: str) -> None:
-        """Hält alle drei Docs-Treeviews auf derselben vertikalen Position.
-
-        Invariante: Die drei Treeviews repräsentieren denselben vertikalen
-        Dokumentraum (gleiche Zeilen, gleiche Zeilenhöhe) und müssen dieselbe
-        sichtbare Zeilenposition einnehmen. Wird *source* gescrollt, setzt
-        diese Methode die gemeinsame Scrollbar und zieht die beiden anderen
-        Trees per ``yview_moveto(first)`` nach. ``_syncing_docs_scroll``
-        verhindert, dass deren eigene ``yscrollcommand``-Rückmeldungen erneut
-        synchronisieren (Rekursionsschutz).
-
-        Args:
-            source: Pane, dessen Treeview gescrollt wurde.
-            first: Obere Scrollbar-Grenze (Anteil 0..1).
-            last: Untere Scrollbar-Grenze (Anteil 0..1).
-        """
-        self.docs_y_scroll.set(first, last)
-        if self._syncing_docs_scroll:
-            return
-        self._syncing_docs_scroll = True
-        try:
-            for pane, tree in self._docs_trees_by_pane().items():
-                if pane is not source:
-                    tree.yview_moveto(float(first))
-        finally:
-            self._syncing_docs_scroll = False
 
     def _on_canvas_xscroll(self, first: str, last: str) -> None:
         """Aktualisiert die horizontale Scrollbar und zeichnet das Raster neu.

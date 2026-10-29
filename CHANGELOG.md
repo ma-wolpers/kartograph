@@ -36,6 +36,8 @@ The format is based on Keep a Changelog.
 - Schueler-Felder unterstuetzen jetzt einen separaten "Nachname" neben dem Vornamen; PDF-Export, Legenden und Dokumentationsansicht verwenden automatisch beide Felder.
 
 ### Changed
+- **Doku-Tabelle deutlich schneller:** Pfeiltasten, Klicks und Sortieren reagieren jetzt sofort, auch bei vielen Doku-Tagen (vorher je nach Plan 1–6 Sekunden pro Schritt). Die Tabelle sieht aus wie bisher: Namen links, Datumsspalten in der Mitte, Noten und Summen rechts, beide Trenner lassen sich verschieben; die ausgewählte Zeile ist farbig hinterlegt, die aktive Zelle umrandet, die aktive Spalte im Kopf markiert. Zu lange Einträge werden mit „…“ gekürzt.
+- **Spaltenbreiten-Zoom statt Ziehen einzelner Spalten:** In der Doku-Ansicht machen `Strg`+`+`/`Strg`+`-` alle Spalten auf einmal breiter oder schmaler, `Strg`+`0` setzt zurück. Das einzelne Ziehen von Spaltentrennern entfällt.
 - Bei Schulnoten kann jetzt auch 0,7 (1+) eingetragen werden.
 - Werte außerhalb der Skala (z. B. 7 bei Schulnoten oder 16 bei Punkten) werden mit einem Hinweis abgelehnt, statt still auf den Rand gesetzt zu werden.
 - Eine eingetragene 0 (Punkte) bleibt beim erneuten Öffnen der Zelle sichtbar, statt als leeres Feld zu erscheinen.

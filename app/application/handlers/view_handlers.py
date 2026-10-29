@@ -25,6 +25,22 @@ DEFAULT_CELL_SIZE = 92
 MIN_CELL_SIZE = 44
 MAX_CELL_SIZE = 160
 CELL_SIZE_STEP = 8
+# Spaltenbreiten-Zoom der Doku-Tabelle: dieselben Zoom-Intents wirken je nach Oberfläche.
+DEFAULT_DOCS_WIDTH_SCALE = 1.0
+MIN_DOCS_WIDTH_SCALE = 0.5
+MAX_DOCS_WIDTH_SCALE = 2.0
+DOCS_WIDTH_SCALE_STEP = 0.1
+
+
+def _with_docs_width_scale(state: AppState, scale: float) -> AppState:
+    """Setzt den Doku-Spaltenbreiten-Zoom, geklemmt und auf eine Nachkommastelle gerundet.
+
+    Args:
+        state: Aktueller AppState.
+        scale: Gewünschter Faktor.
+    """
+    clamped = max(MIN_DOCS_WIDTH_SCALE, min(MAX_DOCS_WIDTH_SCALE, round(scale, 1)))
+    return dataclasses.replace(state, docs_width_scale=clamped)
 
 
 def handle_set_editor_surface(intent: SetEditorSurfaceIntent, state: AppState, ctx: HandlerContext) -> AppState:
@@ -53,35 +69,43 @@ def handle_toggle_editor_surface(intent: ToggleEditorSurfaceIntent, state: AppSt
 
 
 def handle_zoom_in(intent: ZoomInIntent, state: AppState, ctx: HandlerContext) -> AppState:
-    """Erhöht die Zellgröße um einen Schritt, geklemmt auf MAX_CELL_SIZE.
+    """Zoomt hinein: Raster → größere Zellen; Doku-Ansicht → breitere Spalten.
 
     Args:
         intent: Trägt keine Felder.
         state: Aktueller AppState.
         ctx: Handler-Kontext (von diesem Handler nicht benötigt).
     """
+    if state.editor_surface == EditorSurface.DOCUMENTATION:
+        return _with_docs_width_scale(state, state.docs_width_scale + DOCS_WIDTH_SCALE_STEP)
     return dataclasses.replace(state, cell_size=min(MAX_CELL_SIZE, state.cell_size + CELL_SIZE_STEP))
 
 
 def handle_zoom_out(intent: ZoomOutIntent, state: AppState, ctx: HandlerContext) -> AppState:
-    """Verkleinert die Zellgröße um einen Schritt, geklemmt auf MIN_CELL_SIZE.
+    """Zoomt heraus: Raster → kleinere Zellen; Doku-Ansicht → schmalere Spalten.
 
     Args:
         intent: Trägt keine Felder.
         state: Aktueller AppState.
         ctx: Handler-Kontext (von diesem Handler nicht benötigt).
     """
+    if state.editor_surface == EditorSurface.DOCUMENTATION:
+        return _with_docs_width_scale(state, state.docs_width_scale - DOCS_WIDTH_SCALE_STEP)
     return dataclasses.replace(state, cell_size=max(MIN_CELL_SIZE, state.cell_size - CELL_SIZE_STEP))
 
 
 def handle_reset_view(intent: ResetViewIntent, state: AppState, ctx: HandlerContext) -> AppState:
-    """Setzt die Zellgröße auf DEFAULT_CELL_SIZE zurück (Auswahl/Viewport-Zentrierung sind GUI-seitig).
+    """Setzt den Zoom der sichtbaren Oberfläche zurück (Raster: Zellgröße, Doku: Spaltenbreiten).
+
+    Auswahl/Viewport-Zentrierung des Rasters sind GUI-seitig.
 
     Args:
         intent: Trägt keine Felder.
         state: Aktueller AppState.
         ctx: Handler-Kontext (von diesem Handler nicht benötigt).
     """
+    if state.editor_surface == EditorSurface.DOCUMENTATION:
+        return _with_docs_width_scale(state, DEFAULT_DOCS_WIDTH_SCALE)
     return dataclasses.replace(state, cell_size=DEFAULT_CELL_SIZE)
 
 
