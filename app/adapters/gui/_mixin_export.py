@@ -193,4 +193,4 @@ class ExportMixin:
             pass
         finally:
             if self.winfo_exists():
-                self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
+                self._schedule_recurring("backup", DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)

@@ -73,7 +73,7 @@ from bw_libs.ui_contract.keybinding import KeybindingRegistry
 ensure_bw_gui_on_path()
 from bw_gui.contracts.screen_geometry import Size
 from bw_gui.runtime.screen_placement import place_on_pointer_monitor
-from bw_gui.runtime import BwBaseWindow, on_resize, ui, widgets as tui
+from bw_gui.runtime import BwBaseWindow, on_destroy, on_resize, ui, widgets as tui
 from bw_gui.menu import section_spec
 from app.adapters.gui._mixin_state_apply import StateApplyMixin
 
@@ -167,6 +167,7 @@ class KartographMainWindow(
         # unten ctx.plan_save_scheduler sofort scharf schaltet.
         self._pending_plan_save: tuple[SeatingPlan, Path] | None = None
         self._plan_save_after_id: str | None = None
+        self._recurring_after_ids: dict[str, str] = {}
         self._controller.set_plan_save_scheduler(self._schedule_plan_save)
 
         # AppState.settings ist beim Controller-Start bereits aus dem
@@ -348,8 +349,9 @@ class KartographMainWindow(
         self._bind_shortcuts()
         # within=True: wie frueher am Toplevel-Tag -- auch Layoutaenderungen im Fenster verschieben das Overlay.
         on_resize(self.tk_root, lambda _event: self._position_tablegroup_overlay(), within=True)
-        self.after(DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
-        self.after(DEFAULT_UI_WATCHDOG_INTERVAL_MS, self._ui_watchdog_tick)
+        self._schedule_recurring("backup", DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, self._periodic_backup_tick)
+        self._schedule_recurring("watchdog", DEFAULT_UI_WATCHDOG_INTERVAL_MS, self._ui_watchdog_tick)
+        on_destroy(self.tk_root, lambda _root: self._cancel_scheduled_callbacks())
 
         self._apply_kartograph_theme()
         self.after_idle(self._initialize_startup_view)
@@ -455,6 +457,35 @@ class KartographMainWindow(
         self._ui_watchdog_tick_count += 1
         if self._ui_watchdog_tick_count % 60 == 0:
             LOGGER.info("UI watchdog heartbeat ok: mode=%s surface=%s plan=%s", self.interaction_mode, self._editor_surface, self.current_plan_path)
-        self.after(DEFAULT_UI_WATCHDOG_INTERVAL_MS, self._ui_watchdog_tick)
+        self._schedule_recurring("watchdog", DEFAULT_UI_WATCHDOG_INTERVAL_MS, self._ui_watchdog_tick)
+
+    def _schedule_recurring(self, name: str, delay_ms: int, callback) -> None:
+        """Plant einen wiederkehrenden Rückruf und merkt sich seine ID (abmeldbar beim Zerstören).
+
+        Args:
+            name: Schlüssel des Timers (z. B. ``"watchdog"``); ein neuer Plan ersetzt den alten.
+            delay_ms: Verzögerung in Millisekunden.
+            callback: Rückruf; plant sich bei Bedarf selbst über diese Methode neu.
+        """
+        self._recurring_after_ids[name] = self.after(delay_ms, callback)
+
+    def _cancel_scheduled_callbacks(self) -> None:
+        """Meldet beim Zerstören des Fensters alle geplanten Rückrufe ab (nichts überlebt das Fenster).
+
+        Gespeichert wurde vorher im regulären Schließweg (``_on_shell_close``);
+        hier wird nur abgemeldet, damit kein ``after`` mehr in einen zerstörten
+        Interpreter feuert.
+        """
+        after_ids = [*self._recurring_after_ids.values(), self._plan_save_after_id, getattr(self, "_sitzplan_popup_after_id", None)]
+        for after_id in after_ids:
+            if after_id is not None:
+                try:
+                    self.after_cancel(after_id)
+                except Exception:
+                    pass
+        self._recurring_after_ids.clear()
+        self._plan_save_after_id = None
+        for pending in self._pending_edits:
+            pending.cancel()
 
 

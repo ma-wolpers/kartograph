@@ -72,6 +72,20 @@ class PendingFieldSave:
         if pending is not None:
             self._apply(*pending)
 
+    def cancel(self) -> None:
+        """Verwirft den geplanten Rückruf ohne zu speichern (nur beim Zerstören des Fensters).
+
+        Der reguläre Schließweg hat ausstehende Werte vorher per ``flush``
+        gespeichert (``_on_shell_close`` → ``_commit_pending_edits``); hier geht
+        es nur darum, dass kein ``after``-Rückruf das Fenster überlebt.
+        """
+        if self._after_id is not None:
+            try:
+                self._window.after_cancel(self._after_id)
+            except Exception:
+                pass
+            self._after_id = None
+
     def _reschedule(self) -> None:
         if self._after_id is not None:
             try:
