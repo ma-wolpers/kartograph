@@ -99,7 +99,7 @@ class ExportMixin:
                 settings=dataclasses.replace(self._controller.state.settings, grid_visible_symbols=tuple(selected))
             ))
             dialog.destroy()
-            self.redraw_grid()
+            self._request_grid_redraw()
             self._refresh_details_panel()
 
         bind_action(dialog_keys(dialog), ENTER, apply_filter, binding_id="dialog.confirm")

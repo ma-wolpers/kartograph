@@ -13,6 +13,7 @@ from pathlib import Path
 from app.app_info import APP_INFO
 from app.adapters.gui._mixin_canvas_events import CanvasEventsMixin
 from app.adapters.gui._mixin_details import DetailsMixin
+from app.adapters.gui._mixin_details_buttons import DetailsButtonsMixin
 from app.adapters.gui._mixin_details_layout import DetailsLayoutMixin
 from app.adapters.gui._mixin_docs_dialogs import DocsDialogsMixin
 from app.adapters.gui._mixin_docs_edit import DocsEditMixin
@@ -98,6 +99,7 @@ class KartographMainWindow(
     DocsNavMixin,
     DocsViewMixin,
     DetailsMixin,
+    DetailsButtonsMixin,
     DetailsLayoutMixin,
     SelectionMixin,
     GridHelpersMixin,
@@ -150,17 +152,13 @@ class KartographMainWindow(
         self.plan_repository = controller.plan_repository
         self.default_plans_dir = controller.default_plans_dir
 
-        # Redraw-Memoization (_mixin_grid_render.py): über state_version +
-        # relevante Einstellungen gekeyte Caches, damit reine Cursor-
-        # Navigation/Drag/Scroll nicht bei jedem Tick Namen/Geometrie/
-        # Schriftgröße neu berechnet. Cache-Wert ist erst nach dem ersten
-        # redraw_grid()-Aufruf gültig; der Key-Vergleich schlägt beim
-        # allerersten Aufruf immer fehl (None != echter Schlüssel), das
-        # erzwingt korrekt eine initiale Berechnung.
-        self._grid_names_cache_key: tuple | None = None
-        self._grid_names_cache_value: dict | None = None
-        self._grid_geometry_cache_key: int | None = None
-        self._grid_geometry_cache_value: list | None = None
+        # Raster-Render (_mixin_grid_render.py): abgeleitete Plandaten kommen aus
+        # controller.derived() (eine Quelle pro content_version); hier liegen nur
+        # die GUI-eigenen Schlüssel: Schriftgröße und Inhaltsschlüssel der Tisch-Ebene.
+        self._grid_content_key: tuple | None = None
+        # apply_state: zuletzt angewandter Inhaltsstand und Planliste (Render nur bei Änderung).
+        self._applied_content_version = -1
+        self._applied_plan_list = None
         self._grid_font_size_cache_key: tuple | None = None
         self._grid_font_size_cache_value: int | None = None
 
@@ -287,6 +285,12 @@ class KartographMainWindow(
         self._tg_status_var: ui.StringVar | None = None
         self._tg_last_changed_field: str = "shift_x"
         self._color_marker_buttons: list[ui.Button] = []
+        # Details-Knöpfe (DetailsButtonsMixin): dauerhaft, Neuaufbau nur bei geänderter Menge.
+        self._detail_buttons_key: tuple | None = None
+        self._symbol_buttons: dict = {}
+        self._color_buttons: dict = {}
+        self._widget_options: dict = {}
+        self._legend_lines: dict = {}
         self._editor_surface: str = "grid"
         self._doc_selected_student_index: int = 0
         self._doc_selected_date_index: int = 0

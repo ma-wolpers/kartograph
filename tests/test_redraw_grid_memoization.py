@@ -28,13 +28,24 @@ from app.adapters.gui._mixin_grid_render import GridRenderMixin
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.student_id import StudentId
 from app.core.usecases.v4.grade_usecases import add_grade_column, record_grade
+from app.application.plan_derived_data import PlanDerivedData
 from bw_gui.widgets.canvas_item_pool import CanvasItemPool
 from tests.conftest import make_plan, make_student
 
 
 class _FakeController:
-    def __init__(self) -> None:
-        self.state_version = 0
+    """Wie KartographAppController: ein PlanDerivedData-Objekt pro content_version."""
+
+    def __init__(self, window) -> None:
+        self.content_version = 0
+        self._window = window
+        self._derived = None
+
+    def derived(self) -> PlanDerivedData:
+        plan = self._window.current_plan
+        if self._derived is None or self._derived[0] != self.content_version or self._derived[1].plan is not plan:
+            self._derived = (self.content_version, PlanDerivedData(plan))
+        return self._derived[1]
 
 
 class _GridTestWindow(tk.Frame, GridRenderMixin, GridHelpersMixin):
@@ -47,7 +58,7 @@ class _GridTestWindow(tk.Frame, GridRenderMixin, GridHelpersMixin):
         self.pack()
         root.update()
 
-        self._controller = _FakeController()
+        self._controller = _FakeController(self)
         self.current_plan = plan
         self.theme_key = "light"
         self.name_format = "Vorname Nachname"
@@ -56,10 +67,7 @@ class _GridTestWindow(tk.Frame, GridRenderMixin, GridHelpersMixin):
         self.canvas_radius = 10
         self.selection = RectSelection(0, 0)
 
-        self._grid_names_cache_key = None
-        self._grid_names_cache_value = None
-        self._grid_geometry_cache_key = None
-        self._grid_geometry_cache_value = None
+        self._grid_content_key = None
         self._grid_font_size_cache_key = None
         self._grid_font_size_cache_value = None
         self._grid_tile_pool = CanvasItemPool(self.canvas, "rectangle", tags=("grid",))
@@ -130,48 +138,53 @@ def test_grade_is_rendered_on_desk(tk_root):
         win.destroy()
 
 
-def test_cache_is_reused_when_state_version_unchanged(tk_root):
+def _items(win, tag):
+    return {(win.canvas.type(i), tuple(win.canvas.coords(i)), win.canvas.itemcget(i, "text") if win.canvas.type(i) == "text" else "")
+            for i in win.canvas.find_withtag(tag)}
+
+
+def test_derived_data_is_reused_while_content_version_is_unchanged(tk_root):
     plan, _sid, _col = _make_plan_with_grade()
     win = _GridTestWindow(tk_root, plan)
     try:
         win.redraw_grid()
-        names_value_1 = win._grid_names_cache_value
-        geometry_value_1 = win._grid_geometry_cache_value
-        font_value_1 = win._grid_font_size_cache_value
-
-        win.redraw_grid()  # state_version unveraendert (0) -> muss denselben Cache treffen
-
-        assert win._grid_names_cache_value is names_value_1
-        assert win._grid_geometry_cache_value is geometry_value_1
-        assert win._grid_font_size_cache_value == font_value_1
+        derived = win._controller.derived()
+        geometries = derived.seat_geometries
+        win.redraw_grid()
+        assert win._controller.derived() is derived and derived.seat_geometries is geometries
     finally:
         win.destroy()
 
 
-def test_cache_invalidates_when_state_version_changes(tk_root):
+def test_new_content_version_redraws_with_new_values(tk_root):
     plan, sid, col = _make_plan_with_grade()
     win = _GridTestWindow(tk_root, plan)
     try:
         win.redraw_grid()
-        names_value_1 = win._grid_names_cache_value
-        geometry_value_1 = win._grid_geometry_cache_value
-
-        # Simuliert einen echten Edit: neuer Planzustand + gebumpter Versionszaehler
-        # (KartographAppController.dispatch() macht beides zusammen, s. app_controller.py).
-        # Gleiches Datum wie beim urspruenglichen Grade -> ueberschreibt ihn (statt
-        # eine zweite Note hinzuzufuegen, die gemittelt wuerde und "(3)" ergaebe).
+        # Echter Edit: neuer Plan + neue content_version (wie KartographAppController.dispatch()).
         win.current_plan = record_grade(plan, sid, "2025-09-01", col, 4.0)
-        win._controller.state_version = 1
+        win._controller.content_version = 1
+        win.redraw_grid(selection_only=True)  # Inhalt geändert -> Tische trotzdem neu
+        texts = [t for kind, _c, t in _items(win, "grid_transient") if kind == "text"]
+        assert "(4)" in texts
+    finally:
+        win.destroy()
+
+
+def test_selection_only_redraw_keeps_desks_and_matches_full_redraw(tk_root):
+    """Äquivalenztest: inkrementell (nur Auswahl) ergibt exakt dieselbe Darstellung wie komplett."""
+    plan, _sid, _col = _make_plan_with_grade()
+    win = _GridTestWindow(tk_root, plan)
+    try:
         win.redraw_grid()
-
-        assert win._grid_names_cache_value is not names_value_1
-        assert win._grid_geometry_cache_value is not geometry_value_1
-
-        texts = [
-            win.canvas.itemcget(item, "text")
-            for item in win.canvas.find_withtag("grid")
-            if win.canvas.type(item) == "text"
-        ]
-        assert "(4)" in texts  # neuer Wert wird tatsaechlich gezeichnet, nicht der gecachte alte
+        desk_ids = set(win.canvas.find_withtag("grid_transient"))
+        win.selection = RectSelection(1, 1)
+        win.redraw_grid(selection_only=True)
+        win.redraw_grid(selection_only=True)  # zweimal: Auswahl-Items dürfen sich nicht stapeln
+        assert set(win.canvas.find_withtag("grid_transient")) == desk_ids  # Tische unangetastet
+        incremental = (_items(win, "grid_transient"), _items(win, "grid_selection"), len(win.canvas.find_withtag("grid_selection")))
+        win.redraw_grid()
+        full = (_items(win, "grid_transient"), _items(win, "grid_selection"), len(win.canvas.find_withtag("grid_selection")))
+        assert incremental == full
     finally:
         win.destroy()

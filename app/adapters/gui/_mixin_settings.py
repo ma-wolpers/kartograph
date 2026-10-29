@@ -300,7 +300,7 @@ class SettingsMixin:
         )))
         self._update_scroll_region()
         self._set_selection_single(*self.selection.active_cell())
-        self.redraw_grid()
+        self._request_grid_redraw()
         self._refresh_details_panel()
         self.refresh_plan_list()
         self.status_var.set("Einstellungen aktualisiert")

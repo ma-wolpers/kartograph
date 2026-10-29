@@ -124,7 +124,7 @@ class SelectionMixin:
         self._commit_pending_edits()
         self._controller.dispatch(MoveSelectionIntent(dx=cx - x, dy=cy - y))
         if self._follow_selection_viewport(*self.selection.active_cell()):
-            self.redraw_grid()
+            self._request_grid_redraw()
         self._update_selection_no_open()
 
     def expand_selection(self, dx: int, dy: int) -> None:
@@ -141,7 +141,7 @@ class SelectionMixin:
         self._commit_pending_edits()
         self._controller.dispatch(MoveSelectionIntent(dx=cx - x, dy=cy - y, expand=True))
         if self._follow_selection_viewport(*self.selection.active_cell()):
-            self.redraw_grid()
+            self._request_grid_redraw()
         self._update_selection_no_open()
 
     def _follow_selection_viewport(self, x: int, y: int) -> bool:
@@ -190,7 +190,7 @@ class SelectionMixin:
                 return EventResult.HANDLED
             if not self.selection.is_single():
                 self._collapse_selection_to_anchor()
-                self.redraw_grid()
+                self._request_grid_redraw()
                 self._refresh_details_panel()
             return self._handle_intent(UiIntent.CONFIRM_SELECTION)
         if self.interaction_mode == LIST_ACTIVE:

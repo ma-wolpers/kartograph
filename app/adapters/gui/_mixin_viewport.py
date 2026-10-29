@@ -17,7 +17,7 @@ class ViewportMixin:
             *args: Tkinter-Scrollbar-Kommando-Argumente (z. B. ``"scroll", n, "units"``).
         """
         self.canvas.xview(*args)
-        self.redraw_grid()
+        self._request_grid_redraw()
 
     def _yview(self, *args) -> None:
         """Leitet vertikale Scroll-Befehle an den Canvas weiter und zeichnet das Raster neu.
@@ -26,7 +26,7 @@ class ViewportMixin:
             *args: Tkinter-Scrollbar-Kommando-Argumente (z. B. ``"scroll", n, "units"``).
         """
         self.canvas.yview(*args)
-        self.redraw_grid()
+        self._request_grid_redraw()
 
     def _on_canvas_xscroll(self, first: str, last: str) -> None:
         """Aktualisiert die horizontale Scrollbar und zeichnet das Raster neu.
@@ -36,7 +36,7 @@ class ViewportMixin:
             last: Untere Scrollbar-Grenze.
         """
         self.x_scroll.set(first, last)
-        self.redraw_grid()
+        self._request_grid_redraw()
 
     def _on_canvas_yscroll(self, first: str, last: str) -> None:
         """Aktualisiert die vertikale Scrollbar und zeichnet das Raster neu.
@@ -46,4 +46,4 @@ class ViewportMixin:
             last: Untere Scrollbar-Grenze.
         """
         self.y_scroll.set(first, last)
-        self.redraw_grid()
+        self._request_grid_redraw()

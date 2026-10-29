@@ -143,6 +143,6 @@ class TablegroupLogicMixin:
         if self._tg_status_var:
             self._tg_status_var.set(status)
 
-        self.redraw_grid()
+        self._request_grid_redraw()
         self._refresh_details_panel()
         self._refresh_tablegroup_overlay()

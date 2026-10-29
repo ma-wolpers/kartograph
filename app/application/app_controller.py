@@ -16,7 +16,8 @@ import logging
 from pathlib import Path
 from typing import Any, Callable
 
-from app.application.app_state import AppState
+from app.application.app_state import AppState, content_changed
+from app.application.plan_derived_data import PlanDerivedData
 from app.application.handler_context import HandlerContext
 from app.application.intent_registry import IntentRegistry
 from app.core.domain.models_v4 import SeatingPlan
@@ -217,6 +218,8 @@ class KartographAppController:
         symbol_definitions, self.symbol_catalog_warning = load_symbol_definitions(symbols_path)
         self._state: AppState = AppState(settings=initial_settings, symbol_catalog=tuple(symbol_definitions))
         self._state_version = 0
+        self._content_version = 0
+        self._derived: tuple[int, PlanDerivedData] | None = None
         self._on_state_changed = on_state_changed
         self._registry = IntentRegistry()
         self._register_handlers()
@@ -244,6 +247,31 @@ class KartographAppController:
         aber kein Bestandteil dieses einfachen Zählers.
         """
         return self._state_version
+
+    @property
+    def content_version(self) -> int:
+        """Wie ``state_version``, zählt aber nur, wenn sich darstellungsrelevanter Inhalt ändert.
+
+        Reine Auswahl-/Statusänderungen (``app_state.PRESENTATION_ONLY_FIELDS``)
+        lassen ihn unverändert. Schlüssel für alle Caches und Render-
+        Entscheidungen, die nur vom *Inhalt* abhängen (abgeleitete Plandaten,
+        Raster-Tische, Doku-Tabellenmodell, Details-Panel) — eine
+        Cursorbewegung verwirft sie damit nicht mehr.
+        """
+        return self._content_version
+
+    def derived(self) -> PlanDerivedData | None:
+        """Abgeleitete Anzeigedaten des aktuellen Plans für den aktuellen Inhaltsstand.
+
+        Genau ein Objekt pro ``content_version`` (lazy, s. ``PlanDerivedData``);
+        ``None`` ohne geöffneten Plan.
+        """
+        plan = self._state.current_plan
+        if plan is None:
+            return None
+        if self._derived is None or self._derived[0] != self._content_version or self._derived[1].plan is not plan:
+            self._derived = (self._content_version, PlanDerivedData(plan))
+        return self._derived[1]
 
     @property
     def plan_repository(self) -> Any:
@@ -295,6 +323,7 @@ class KartographAppController:
         import dataclasses
         self._state = dataclasses.replace(self._state, current_plan=plan)
         self._state_version += 1
+        self._content_version += 1
 
     def dispatch(self, intent: Intent) -> None:
         """Dispatcht *intent*, aktualisiert ``state`` und ruft den Callback.
@@ -308,6 +337,8 @@ class KartographAppController:
         """
         new_state = self._registry.dispatch(intent, self._state)
         if new_state is not self._state:
+            if content_changed(self._state, new_state):
+                self._content_version += 1
             self._state = new_state
             self._state_version += 1
             try:

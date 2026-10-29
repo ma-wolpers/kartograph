@@ -44,7 +44,7 @@ class CanvasEventsMixin:
             on_end=self._on_canvas_release,
         )
         bind_click(self.canvas, self._on_canvas_double_click, count=2)
-        on_resize(self.canvas, lambda _event: self.redraw_grid())
+        on_resize(self.canvas, lambda _event: self._request_grid_redraw())
         bind_wheel(self.canvas, self._on_canvas_wheel)
 
     def _on_canvas_click(self, event) -> None:
@@ -180,7 +180,7 @@ class CanvasEventsMixin:
             self.canvas.xview_scroll(steps, "units")
         else:
             self.canvas.yview_scroll(steps, "units")
-        self.redraw_grid()
+        self._request_grid_redraw()
         return EventResult.HANDLED
 
     def zoom_in(self) -> None:
@@ -198,7 +198,7 @@ class CanvasEventsMixin:
             return  # in der Doku-Ansicht setzt ResetView nur die Spaltenbreiten zurück
         self._set_selection_single(0, 0)
         self.center_on_cell(0, 0)
-        self.redraw_grid()
+        self._request_grid_redraw()
         self._refresh_details_panel()
 
     def center_on_cell(self, x: int, y: int) -> None:

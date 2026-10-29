@@ -72,6 +72,10 @@ class StateApplyMixin:
             state: Neuer, vollständiger Anwendungszustand.
         """
         old_plan = self.current_plan
+        old_plan_path = self.current_plan_path
+        old_selection = self.selection
+        # Nur Auswahl/Status geändert? Dann bleiben Tische, Doku-Modell und Details stehen.
+        content_same = self._controller.content_version == self._applied_content_version
         self.current_plan = state.current_plan
         self.current_plan_path = state.current_plan_path
         self._close_submission_viewer_if_plan_changed()
@@ -83,8 +87,7 @@ class StateApplyMixin:
             new_theme = normalize_theme_key(state.settings.theme)
             BwBaseWindow.apply_theme(self, new_theme)  # updates self.theme_key via the shell
             self.theme_var.set(self.theme_key)
-            self._apply_kartograph_theme()
-            self.redraw_grid()
+            self._apply_kartograph_theme()  # Raster: Theme steht im Inhaltsschlüssel, s. Render-Block unten
 
         settings = state.settings
         self.canvas_radius = settings.canvas_radius
@@ -108,8 +111,7 @@ class StateApplyMixin:
             self.docs_grid.set_width_scale(state.docs_width_scale)  # unveränderter Wert = No-op im Grid
         if state.cell_size != self.cell_size:
             self.cell_size = state.cell_size
-            self._update_scroll_region()
-            self.redraw_grid()
+            self._update_scroll_region()  # Raster: Zellgröße steht im Inhaltsschlüssel, s. Render-Block unten
             self.center_on_cell(*state.selection.active_cell())
 
         new_editor_surface = "docs" if state.editor_surface == EditorSurface.DOCUMENTATION else "grid"
@@ -121,9 +123,10 @@ class StateApplyMixin:
         elif old_plan is not None:
             self.plan_name_var.set("")
 
-        # Update plan listbox from state
-        if state.plan_list is not None:
+        # Planliste nur bei geänderter Liste oder anderem Plan neu befüllen (nicht bei jedem Dispatch).
+        if state.plan_list is not None and (state.plan_list is not self._applied_plan_list or old_plan_path != self.current_plan_path):
             self._apply_plan_list(state.plan_list)
+            self._applied_plan_list = state.plan_list
 
         # View transition
         if old_plan is None and state.current_plan is not None:
@@ -137,15 +140,19 @@ class StateApplyMixin:
             else:
                 self.show_grid_surface()
 
-        # Re-render editor if visible
+        # Re-render editor if visible — nur, was sich geändert hat und sichtbar ist.
         if hasattr(self, "editor_view") and self.editor_view.winfo_ismapped():
-            self.redraw_grid()
-            self._refresh_details_panel()
+            if self._editor_surface == "grid":
+                self.redraw_grid(selection_only=content_same)
+            if not content_same or state.selection != old_selection:
+                self._refresh_details_panel()
             if self._editor_surface == "docs" and state.current_plan is not None:
-                self._refresh_documentation_table()
+                if not content_same:
+                    self._refresh_documentation_table()
                 if state.doc_selected_date is not None and state.doc_selected_date in self._doc_dates:
                     self._select_doc_date_column(self._doc_dates.index(state.doc_selected_date))
                 self._sync_docs_cursor()
+        self._applied_content_version = self._controller.content_version
 
         self._notify_sitzplan_popup(state.current_plan, self.theme_key, self.name_format)
 

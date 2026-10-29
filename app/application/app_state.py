@@ -8,6 +8,7 @@ an alle Mixins weitergereicht wird.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
@@ -87,3 +88,43 @@ class AppState:
     # --- Konfiguration (Phase D) ----------------------------------------------
     settings: KartographSettings = field(default_factory=KartographSettings)
     symbol_catalog: tuple[SymbolDefinition, ...] = field(default_factory=tuple)
+
+
+# Felder, die nur beeinflussen, *was markiert ist*, nicht *was dargestellt wird*.
+# Einzige Liste dieser Art: ``content_changed`` (und damit ``content_version``)
+# beruht darauf. Im Zweifel gehört ein Feld NICHT hierher (lieber zu oft neu zeichnen).
+PRESENTATION_ONLY_FIELDS: frozenset[str] = frozenset({
+    "selection",
+    "doc_selected_student_id",
+    "doc_selected_date",
+    "doc_selected_column_id",
+    "status_message",
+    "can_undo",
+    "can_redo",
+})
+
+
+def content_changed(old: AppState, new: AppState) -> bool:
+    """Prüft, ob sich zwischen *old* und *new* mehr als nur Auswahl/Status geändert hat.
+
+    Der Plan wird ausschließlich über seine Identität verglichen (Usecases
+    liefern bei jeder Änderung ein neues Objekt; ein Tiefenvergleich wäre bei
+    jedem Dispatch teuer). Alle übrigen Felder: erst Identität, dann ``==``.
+
+    Args:
+        old: Zustand vor dem Dispatch.
+        new: Zustand danach.
+
+    Returns:
+        ``True``, wenn sich darstellungsrelevanter Inhalt geändert hat.
+    """
+    for state_field in dataclasses.fields(AppState):
+        name = state_field.name
+        if name in PRESENTATION_ONLY_FIELDS:
+            continue
+        before, after = getattr(old, name), getattr(new, name)
+        if before is after:
+            continue
+        if name == "current_plan" or before != after:
+            return True
+    return False

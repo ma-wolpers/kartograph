@@ -111,12 +111,13 @@ class DocsEventsMixin:
         """
         if not self._shortcut_scope_allows("docs"):
             return EventResult.HANDLED
-        target = resolve_horizontal_target(
-            self._doc_axis, self._doc_active_column_key(), self._doc_selected_date_index, delta
-        )
+        previous = self._doc_active_column_key()
+        target = resolve_horizontal_target(self._doc_axis, previous, self._doc_selected_date_index, delta)
         if target is None:
             return EventResult.HANDLED
         self._set_doc_active_column(target)
-        self.docs_grid.focus(target)
+        # Fokus nur beim Wechsel des Bereichs umsetzen: jeder focus_set löst Fokus-Ereignisse aus.
+        if previous is None or self._doc_axis.pane_of(previous) is not self._doc_axis.pane_of(target):
+            self.docs_grid.focus(target)
         self._sync_docs_cursor()
         return EventResult.HANDLED

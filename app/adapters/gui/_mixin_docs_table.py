@@ -16,13 +16,6 @@ from app.adapters.gui.docs_table_model import NACHNAME_KEY, SUMMARY_KEY, VORNAME
 from app.adapters.gui.docs_table_rules import sort_iids
 from app.adapters.gui.main_window_constants import LOGGER
 from app.core.domain.grade_scale import scale_for
-from app.core.usecases.v4.grade_usecases import (
-    collect_grade_value_lists_by_student,
-    compute_grade_display_by_student,
-    compute_grade_subtotal_display_by_student,
-    compute_latest_grades_by_student,
-)
-from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols_by_student
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -74,31 +67,18 @@ class DocsTableMixin:
 
         self.docs_grid.set_columns(self._doc_grid_columns())
 
-        # Einmalig vorberechnen statt (wie zuvor) pro Schüler x Spalte erneut zu
-        # sortieren/scannen: session_for_date() als Dict, sowie die jeweils
-        # neuesten Noten/Symbole für ALLE Schüler in einem Durchlauf. Das ist
-        # der Kern des O(Schüler x Sessions²)-Fixes — siehe compute_latest_grades_by_student
-        # und summarize_latest_symbols_by_student.
+        # Einmalig vorberechnet statt pro Schüler x Spalte: session_for_date() als Dict.
         sessions_by_date = {s.date: s for s in self.current_plan.documentation.sessions}
         students_by_coord = {(s.seat.x, s.seat.y): s for s in self.current_plan.classroom.students}
-        latest_grades_by_student = compute_latest_grades_by_student(self.current_plan)
+        # Abgeleitete Notendaten aus der gemeinsamen Quelle (eine Berechnung pro
+        # content_version, geteilt mit dem Raster) statt eigener Bulk-Aufrufe.
+        derived = self._controller.derived()
+        latest_grades_by_student = derived.latest_grades
         grade_scale = scale_for(self.current_plan.documentation.grade_scale)
-        latest_symbols_by_student = summarize_latest_symbols_by_student(self.current_plan)
-        # Einmal sammeln, an alle drei Anzeige-Funktionen weiterreichen — sonst
-        # würde jede für sich nochmal alle Sessions scannen (siehe Docstring
-        # von collect_grade_value_lists_by_student).
-        grade_value_lists = collect_grade_value_lists_by_student(self.current_plan)
-        overall_display_by_student = compute_grade_display_by_student(
-            self.current_plan, value_lists=grade_value_lists
-        )
-        written_subtotal_by_student = (
-            compute_grade_subtotal_display_by_student(self.current_plan, "schriftlich", value_lists=grade_value_lists)
-            if "written_total" in fixed_columns else {}
-        )
-        sonstige_subtotal_by_student = (
-            compute_grade_subtotal_display_by_student(self.current_plan, "sonstig", value_lists=grade_value_lists)
-            if "sonstige_total" in fixed_columns else {}
-        )
+        latest_symbols_by_student = derived.latest_symbols
+        overall_display_by_student = derived.grade_display
+        written_subtotal_by_student = derived.subtotal_display("schriftlich") if "written_total" in fixed_columns else {}
+        sonstige_subtotal_by_student = derived.subtotal_display("sonstig") if "sonstige_total" in fixed_columns else {}
 
         rows: dict[str, DocRow] = {}
         iid_by_coord_index: dict[int, str] = {}

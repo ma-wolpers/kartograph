@@ -20,7 +20,6 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.runtime import reset_text_modified, ui
-from bw_gui.runtime import widgets as tui
 
 
 class DetailsMixin:
@@ -29,20 +28,11 @@ class DetailsMixin:
     def _refresh_details_panel(self) -> None:
         """Aktualisiert den gesamten Inhalt des Details-Panels für die aktuelle Auswahl.
 
+        Ruft ``apply_state`` nur bei geändertem Inhalt oder geänderter Auswahl auf.
         Liest ausschließlich den vorhandenen ``_desk_detail_state`` und stellt ihn dar --
         mutiert ihn nicht selbst (das übernehmen ausschließlich die State-Funnel-Methoden
         ``_set_desk_detail_state``/``_clear_desk_detail_state``/``_reconcile_desk_detail_state``).
         """
-        self._color_marker_buttons = []
-        for child in self.symbols_frame.winfo_children():
-            child.destroy()
-        for child in self.symbol_legend_frame.winfo_children():
-            child.destroy()
-        for child in self.colors_frame.winfo_children():
-            child.destroy()
-        for child in self.color_legend_frame.winfo_children():
-            child.destroy()
-
         if not self.current_plan:
             self._set_details_panel_visible(False)
             self._selected_marker_var.set("")
@@ -92,75 +82,14 @@ class DetailsMixin:
         self.nickname_entry.configure(state="normal")
         self._set_accommodations_field(student)
 
-        symbol_cols = self._details_button_columns()
-        self._populate_symbol_buttons(student, symbol_cols)
-        active_lines = self._symbol_legend_lines(student.diagnostic.symbols)
-        if active_lines:
-            for line in active_lines:
-                tui.Label(self.symbol_legend_frame, text=line, wraplength=self._details_legend_wraplength(), justify="left").pack(anchor="w")
-
-        color_cols = self._details_button_columns()
-        self._populate_color_buttons(student, color_cols)
-        self._apply_color_button_theme()
-        for line in self._color_legend_lines(self.current_plan, student.diagnostic.color_tags):
-            tui.Label(self.color_legend_frame, text=line, wraplength=self._details_legend_wraplength(), justify="left").pack(anchor="w")
+        # Knöpfe bestehen dauerhaft (Neuaufbau nur bei geänderter Menge, s. DetailsButtonsMixin).
+        columns = self._details_button_columns()
+        self._ensure_detail_buttons(columns, columns)
+        self._update_detail_buttons(student)
+        self._set_legend_lines(self.symbol_legend_frame, self._symbol_legend_lines(student.diagnostic.symbols))
+        self._set_legend_lines(self.color_legend_frame, self._color_legend_lines(self.current_plan, student.diagnostic.color_tags))
 
         self._refresh_tablegroup_overlay()
-
-    def _populate_symbol_buttons(self, student, symbol_cols: int) -> None:
-        """Erstellt die Symbol-Toggle-Buttons im ``symbols_frame``.
-
-        Args:
-            student: Schüler, dessen Symbolstatus angezeigt wird.
-            symbol_cols: Anzahl der Spalten im Button-Raster.
-        """
-        tui.Label(self.symbols_frame, text="Symbole").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
-        for symbol in self.diagnostic_symbol_catalog:
-            count = int(student.diagnostic.symbols.get(symbol, 0))
-            icon = self._symbol_glyph(symbol)
-            shortcut = self._symbol_by_meaning.get(symbol).shortcut if self._symbol_by_meaning.get(symbol) else None
-            caption = f"{icon} {symbol}" if count == 0 else f"{icon} {symbol} x{count}"
-            idx = self.diagnostic_symbol_catalog.index(symbol)
-            row = 1 + (idx // symbol_cols)
-            col = idx % symbol_cols
-            button = tui.Button(
-                self.symbols_frame,
-                text=caption,
-                command=lambda s=symbol: self._toggle_selected_symbol(s),
-            )
-            button.grid(row=row, column=col, sticky="ew", padx=(0, 6), pady=(0, 4))
-            self._attach_hover_help(button, label=f"Symbol {symbol} umschalten", shortcut=shortcut.upper() if shortcut else None)
-        for col in range(symbol_cols):
-            self.symbols_frame.columnconfigure(col, weight=1)
-
-    def _populate_color_buttons(self, student, color_cols: int) -> None:
-        """Erstellt die Farbpunkt-Toggle-Buttons im ``colors_frame``.
-
-        Args:
-            student: Schüler, dessen Farbpunkt-Status angezeigt wird.
-            color_cols: Anzahl der Spalten im Button-Raster.
-        """
-        tui.Label(self.colors_frame, text="Farbpunkte").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
-        for key, color_key, label, hex_color in self.color_palette:
-            active = color_key in student.diagnostic.color_tags
-            caption = label if not active else f"{label}*"
-            idx = int(key) - 1
-            row = 1 + (idx // color_cols)
-            col = idx % color_cols
-            button = ui.Button(
-                self.colors_frame,
-                text=caption,
-                command=lambda ck=color_key: self._toggle_selected_color(ck),
-                fg=hex_color,
-                relief="sunken" if active else "raised",
-                padx=6,
-                pady=2,
-            )
-            button.grid(row=row, column=col, sticky="ew", padx=(0, 6), pady=(0, 4))
-            self._color_marker_buttons.append(button)
-            self._attach_hover_help(button, label=f"Farbpunkt {label} umschalten", shortcut=key)
-        for col in range(color_cols):
-            self.colors_frame.columnconfigure(col, weight=1)
 
     def _set_details_panel_visible(self, visible: bool) -> None:
         """Blendet das ``details_frame`` ein oder aus.
@@ -276,7 +205,7 @@ class DetailsMixin:
 
         if not self.selection.is_single():
             self._collapse_selection_to_anchor()
-            self.redraw_grid()
+            self._request_grid_redraw()
             self._refresh_details_panel()
 
         x, y = self.selected_cell
@@ -302,7 +231,7 @@ class DetailsMixin:
 
         if not self.selection.is_single():
             self._collapse_selection_to_anchor()
-            self.redraw_grid()
+            self._request_grid_redraw()
             self._refresh_details_panel()
 
         x, y = self.selected_cell
@@ -315,7 +244,7 @@ class DetailsMixin:
         student = self.current_plan.student_at(x, y)
         if not student:
             self._controller.dispatch(CreateStudentIntent(x=x, y=y))
-            self.redraw_grid()
+            self._request_grid_redraw()
 
         # Re-read from updated state
         student = self.current_plan.student_at(x, y)

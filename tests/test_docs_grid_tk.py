@@ -23,6 +23,7 @@ from app.adapters.gui._mixin_docs_view import DocsViewMixin
 from app.adapters.gui._mixin_layout_docs import LayoutDocsMixin
 from app.adapters.gui.docs_table_model import DocColumnAxis
 from app.adapters.gui.docs_table_rules import sort_iids
+from app.application.plan_derived_data import PlanDerivedData
 from app.core.domain.models_v4 import Seat, Student, StudentId
 from app.tools.perf_bench_docs_table import build_synthetic_plan
 from bw_gui.widgets.data_grid import Region
@@ -37,6 +38,8 @@ class _DocsHost(tk.Frame, LayoutDocsMixin, DocsTableMixin, DocsEventsMixin, Docs
         super().__init__(root)
         self.current_plan = plan
         self.theme_key = None
+        # Wie der Controller: abgeleitete Plandaten (hier ohne Versions-Cache, frisch je Aufruf).
+        self._controller = SimpleNamespace(derived=lambda: PlanDerivedData(self.current_plan))
         self.status_var = tk.StringVar(master=root, value="")
         self._doc_selection_status_var = tk.StringVar(master=root, value="")
         self._doc_selected_student_index = 0

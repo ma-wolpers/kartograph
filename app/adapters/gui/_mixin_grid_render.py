@@ -8,111 +8,114 @@ Die Inhalts-Zeichnung einzelner Schülertische ist in ``_mixin_grid_helpers.py``
 from __future__ import annotations
 
 from app.adapters.gui.ui_theme import kartograph_theme
-from app.core.domain.student_naming import compute_display_names
 from app.core.domain.table_groups import (
-    build_seat_geometries_v4,
     group_bounds_from_geometries_v4,
     list_tablegroup_numbers_v4,
     selection_bounds_from_geometries_v4,
 )
-from app.core.usecases.v4.grade_usecases import compute_grade_display_by_student
-from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols_by_student
 
 
 class GridRenderMixin:
     """Mixin: Rasterzeichnung und Auswahl-Indikatoren (v4).
 
     ``redraw_grid()`` läuft auf jeder Cursor-Navigation, jedem Drag-Tick und
-    jedem Scroll/Zoom — mit Abstand der höchstfrequenteste Hot Path der App.
-    Zwei getrennte Optimierungsebenen greifen hier ineinander:
+    jedem Scroll/Zoom — der häufigste Render-Pfad der App. Drei Ebenen der
+    Sparsamkeit:
 
-    1. Pro-Aufruf-Redundanz beseitigt: früher rief ``_draw_student_desk_content()``
-       pro sichtbarem Schüler einzeln ``summarize_latest_symbols()``/
-       ``compute_grade_display()`` auf (je ein eigener Sessions-Resort) und
-       ``session_for_date(heute)`` mehrfach mit demselben Datum. Jetzt werden
-       diese drei Werte einmal pro ``redraw_grid()``-Aufruf für ALLE Schüler
-       vorberechnet (Bulk-Funktionen aus Item 1 des Perf-Fixes) und nur noch
-       per Dict-Lookup weitergereicht.
-    2. Cache über mehrere Aufrufe hinweg: ``compute_display_names()``,
-       ``build_seat_geometries_v4()`` und die Schriftgrößen-Berechnung hängen
-       nur von ``state_version`` (s. ``KartographAppController``) plus wenigen
-       GUI-Einstellungen ab, nicht vom konkreten Navigations-/Drag-Ereignis —
-       bei reiner Cursor-Bewegung ändert sich keiner dieser Werte, das
-       Neuberechnen war reine Verschwendung.
-    3. Canvas-Item-Wiederverwendung (Item 5, Stufe A, bislang nur Kacheln):
-       ``canvas.delete("grid")`` + Neuerzeugung ALLER sichtbaren Items bei
-       jedem Aufruf war selbst bei reinem Scrollen/Zoomen teuer. Die
-       Hintergrundkacheln (dominante Item-Anzahl, bis zu ~1500 bei starkem
-       Auszoomen) werden jetzt über ``_grid_tile_pool`` (bw-gui ``CanvasItemPool``) wiederverwendet
-       (``coords()``/``itemconfigure()`` statt ``create_rectangle()``);
-       überzählige Kacheln werden versteckt (``state="hidden"``), nie
-       gelöscht. Andere Canvas-Items (Pulte, Auswahl-Indikatoren) tragen
-       zusätzlich den Tag ``"grid_transient"`` und werden weiterhin bei jedem
-       Aufruf gelöscht+neu erzeugt -- das ist eine bewusste Zwischenstufe,
-       kein Versehen; ob sich die Wiederverwendung auch dafür lohnt, wird
-       erst nach Messung dieser Stufe entschieden (s. ``perf_bench_redraw_grid.py``).
+    1. Abgeleitete Plandaten (Anzeigenamen, Sitzgeometrien, neueste Symbole,
+       Gesamtnoten) kommen aus ``controller.derived()`` — einmal berechnet pro
+       ``content_version``, gemeinsam mit der Doku-Tabelle; eine Cursorbewegung
+       ändert die ``content_version`` nicht.
+    2. Zwei Ebenen: Die Tisch-Ebene (``grid_transient``) wird nur neu gezeichnet,
+       wenn sich ihr Inhaltsschlüssel ändert; bei reiner Auswahländerung aus
+       ``apply_state`` wird nur die Auswahl-Ebene (``grid_selection``) erneuert.
+    3. Hintergrundkacheln laufen über den bw-gui ``CanvasItemPool``
+       (wiederverwendet, Tk bekommt nur Änderungen).
     """
 
-    def redraw_grid(self) -> None:
-        """Zeichnet das gesamte Raster neu auf dem Canvas."""
-        self.canvas.delete("grid_transient")
+    def _request_grid_redraw(self) -> None:
+        """Fordert ein vollständiges Raster-Neuzeichnen für den nächsten Idle-Zyklus an.
+
+        Einziger Weg für GUI-Code außerhalb von ``apply_state``: mehrere
+        Anforderungen in einem Zyklus (Scroll-Ereignisse, Drag-Ticks, mehrere
+        Änderungen in einem Handler) kosten genau einen Render
+        (``IdleRenderScheduler``). ``tests/test_render_entry_points.py``
+        erzwingt, dass niemand sonst ``redraw_grid`` direkt aufruft.
+        """
+        self._grid_scheduler.mark("grid", self.redraw_grid)
+
+    def redraw_grid(self, *, selection_only: bool = False) -> None:
+        """Zeichnet das Raster: Tische nur bei geändertem Inhalt, die Auswahl-Ebene immer.
+
+        Zwei Ebenen: Tische/Kacheln (Tag ``grid_transient``) hängen nur von
+        ``content_version``, Zellgröße, Theme, sichtbarem Ausschnitt und dem
+        heutigen Datum ab (geprüft: das Tische-Zeichnen liest keinen
+        Auswahlzustand); die Auswahl-Ebene (Tag ``grid_selection``: Fokusrahmen,
+        Tischgruppen-Rahmen/-Beschriftungen) wird immer neu gezeichnet.
+
+        Args:
+            selection_only: Nur ``apply_state`` darf das setzen — dann werden die
+                Tische übersprungen, *falls* ihr Inhaltsschlüssel unverändert ist.
+                Alle anderen Aufrufer zeichnen vollständig.
+        """
         if not self.current_plan:
+            self.canvas.delete("grid_transient")
+            self.canvas.delete("grid_selection")
             self._grid_tile_pool.begin()
             self._grid_tile_pool.end()
+            self._grid_content_key = None
             return
 
         theme = kartograph_theme(self.theme_key)
-        state_version = self._controller.state_version
-
-        names_key = (state_version, self.name_format, self.disambiguate_colliding_names)
-        if names_key != self._grid_names_cache_key:
-            self._grid_names_cache_value = compute_display_names(
-                self.current_plan.classroom.students, self.name_format, self.disambiguate_colliding_names
-            )
-            self._grid_names_cache_key = names_key
-        self._display_names = self._grid_names_cache_value
-
-        if state_version != self._grid_geometry_cache_key:
-            self._grid_geometry_cache_value = build_seat_geometries_v4(self.current_plan)
-            self._grid_geometry_cache_key = state_version
-        geometries = self._grid_geometry_cache_value
-
-        font_key = (names_key, self.cell_size)
-        if font_key != self._grid_font_size_cache_key:
-            self._grid_font_size_cache_value = self._compute_uniform_student_name_font_size()
-            self._grid_font_size_cache_key = font_key
-        student_name_font_size = self._grid_font_size_cache_value
-
-        # Pro Aufruf einmal für alle Schüler vorberechnen statt pro sichtbarem
-        # Schüler einzeln (siehe Klassendocstring, Punkt 1).
-        today_session = self.current_plan.documentation.session_for_date(self._today_doc_date())
-        latest_symbols_by_student = summarize_latest_symbols_by_student(self.current_plan)
-        overall_grade_by_student = compute_grade_display_by_student(self.current_plan)
+        derived = self._controller.derived()
+        self._display_names = derived.display_names(self.name_format, self.disambiguate_colliding_names)
+        geometries = derived.seat_geometries
 
         left = self.canvas.canvasx(0)
         top = self.canvas.canvasy(0)
         right = self.canvas.canvasx(self.canvas.winfo_width())
         bottom = self.canvas.canvasy(self.canvas.winfo_height())
+        today = self._today_doc_date()
+        content_key = (self._controller.content_version, self.cell_size, self.theme_key, left, top, right, bottom, today)
 
-        start_x = max(self._grid_min(), int(left // self.cell_size) - 1)
-        end_x = min(self._grid_max(), int(right // self.cell_size) + 1)
-        start_y = max(self._grid_min(), int(top // self.cell_size) - 1)
-        end_y = min(self._grid_max(), int(bottom // self.cell_size) + 1)
+        if not (selection_only and content_key == self._grid_content_key):
+            self._draw_desks(theme, derived, geometries, (left, top, right, bottom), today)
+            self._grid_content_key = content_key
 
-        geometry_by_coord = {(g.x, g.y): g for g in geometries if not g.is_teacher}
         selected_cells = set(self.selection.cells())
         selected_tablegroups: set[int] = {
             g.group_id
             for g in geometries
             if not g.is_teacher and (g.x, g.y) in selected_cells and g.group_id is not None
         }
-
-        self._draw_desk_cells(
-            start_x, end_x, start_y, end_y, theme,
-            (left, top, right, bottom), geometry_by_coord, student_name_font_size,
-            today_session, latest_symbols_by_student, overall_grade_by_student,
-        )
+        self.canvas.delete("grid_selection")
         self._draw_selection_indicators(geometries, selected_cells, selected_tablegroups, theme)
+
+    def _draw_desks(self, theme: dict, derived, geometries: list, viewport: tuple[float, float, float, float], today: str) -> None:
+        """Inhalts-Ebene: Kacheln und alle sichtbaren Tische neu zeichnen.
+
+        Args:
+            theme: Farbwerte des aktuellen Themes.
+            derived: ``PlanDerivedData`` des aktuellen Inhaltsstands.
+            geometries: Sitzgeometrien.
+            viewport: Sichtbarer Canvas-Ausschnitt ``(left, top, right, bottom)``.
+            today: Heutiges Doku-Datum.
+        """
+        self.canvas.delete("grid_transient")
+        font_key = (self._controller.content_version, self.name_format, self.disambiguate_colliding_names, self.cell_size)
+        if font_key != self._grid_font_size_cache_key:
+            self._grid_font_size_cache_value = self._compute_uniform_student_name_font_size()
+            self._grid_font_size_cache_key = font_key
+        left, top, right, bottom = viewport
+        start_x = max(self._grid_min(), int(left // self.cell_size) - 1)
+        end_x = min(self._grid_max(), int(right // self.cell_size) + 1)
+        start_y = max(self._grid_min(), int(top // self.cell_size) - 1)
+        end_y = min(self._grid_max(), int(bottom // self.cell_size) + 1)
+        geometry_by_coord = {(g.x, g.y): g for g in geometries if not g.is_teacher}
+        self._draw_desk_cells(
+            start_x, end_x, start_y, end_y, theme, viewport, geometry_by_coord, self._grid_font_size_cache_value,
+            self.current_plan.documentation.session_for_date(today), derived.latest_symbols, derived.grade_display,
+        )
 
     def _draw_desk_cells(
         self,
@@ -230,7 +233,7 @@ class GridRenderMixin:
                 min_x * self.cell_size, min_y * self.cell_size,
                 max_x * self.cell_size, max_y * self.cell_size,
                 outline=theme["fg_muted"], width=1, dash=(4, 2),
-                tags=("grid", "grid_transient"),
+                tags=("grid", "grid_selection"),
             )
 
         for group_id in list_tablegroup_numbers_v4(self.current_plan):
@@ -244,7 +247,7 @@ class GridRenderMixin:
                 label_x * self.cell_size, label_y * self.cell_size,
                 text=f"TG {group_id}", fill=theme["fg_muted"],
                 font=("Segoe UI", max(7, int(self.cell_size * 0.09)), "bold"),
-                tags=("grid", "grid_transient"),
+                tags=("grid", "grid_selection"),
             )
 
         selection_bounds = selection_bounds_from_geometries_v4(geometries, selected_cells)
@@ -263,7 +266,7 @@ class GridRenderMixin:
 
         self.canvas.create_rectangle(
             x1, y1, x2, y2, outline=theme["focus_ring"], width=3,
-            tags=("grid", "grid_transient"),
+            tags=("grid", "grid_selection"),
         )
 
     def _sync_tile_pool(self, cell_positions: list[tuple[float, float]], theme: dict) -> None:
