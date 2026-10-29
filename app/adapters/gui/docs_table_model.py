@@ -6,6 +6,8 @@ drei Bereichen eines bw-gui ``DataGrid`` (``DocsPane.NAMES`` / ``MAIN`` /
 jedem Widget:
 
 - ``DocRow``: eine Tabellenzeile (Anzeige-Strings) je Schüler.
+- ``GradeCellTarget``: der Noteneintrag, den ein Inline-Editor bearbeitet
+  (beim Öffnen festgelegt).
 - ``DocColumnAxis``: die eine logische horizontale Spaltenachse
   ``nachname → vorname → date_0 … date_n → summary → grade_* → totals → overall``
   inkl. Pane-Zuordnung, Nachbarschaft und Sortierwerten. Rein strukturell —
@@ -26,6 +28,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import Literal, Sequence
+
+from app.core.domain.models_v4 import StudentId
 
 NACHNAME_KEY = "nachname"
 VORNAME_KEY = "vorname"
@@ -60,6 +64,21 @@ class DocRow:
     vorname: str
     date_cells: tuple[str, ...]
     fixed_cells: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class GradeCellTarget:
+    """Ziel eines Inline-Noteneditors -- festgelegt beim Öffnen, nie aus der späteren Auswahl.
+
+    Attributes:
+        student_id: Schüler, dessen Note bearbeitet wird.
+        date: Datum (YYYY-MM-DD) des Noteneintrags.
+        column_id: Modell-ID der Notenspalte (ohne ``grade_``-Präfix).
+    """
+
+    student_id: StudentId
+    date: str
+    column_id: str
 
 
 @dataclass(frozen=True)

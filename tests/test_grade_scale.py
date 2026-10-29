@@ -8,6 +8,7 @@ from app.core.domain.grade_scale import (
     SCALE_SCHOOL_1_6,
     convert_value,
     grade_to_points,
+    parse_grade_input,
     points_to_grade,
     scale_for,
 )
@@ -97,3 +98,19 @@ class TestConversion:
         assert convert_value(3.2, SCALE_SCHOOL_1_6, SCALE_POINTS_0_15) == 7.0
         assert convert_value(7.5, SCALE_POINTS_0_15, SCALE_SCHOOL_1_6) == 3.15
         assert convert_value(2.3, SCALE_SCHOOL_1_6, SCALE_SCHOOL_1_6) == 2.3
+
+
+@pytest.mark.parametrize(
+    ("text", "scale_id", "expected"),
+    [
+        ("2,3", SCALE_SCHOOL_1_6, (True, 2.3)),
+        (" 1.7 ", SCALE_SCHOOL_1_6, (True, 1.7)),
+        ("", SCALE_SCHOOL_1_6, (True, None)),  # leer = Note löschen
+        ("12", SCALE_SCHOOL_1_6, (False, None)),  # außerhalb der Skala, nicht still geclampt
+        ("2-", SCALE_SCHOOL_1_6, (False, None)),
+        ("0", SCALE_POINTS_0_15, (True, 0.0)),  # 0 Punkte ist gültig
+        ("16", SCALE_POINTS_0_15, (False, None)),
+    ],
+)
+def test_parse_grade_input(text, scale_id, expected):
+    assert parse_grade_input(text, scale_for(scale_id)) == expected

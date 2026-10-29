@@ -88,9 +88,7 @@ class DocsEventsMixin:
         if not self._shortcut_scope_allows("docs") or not self._doc_row_order:
             return EventResult.HANDLED
         order = self._doc_row_order
-        current = self._doc_row_id_by_student_index.get(
-            max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-        )
+        current = self._doc_row_id_by_student_index.get(self._selected_docs_student_index())
         position = order.index(current) if current in order else 0
         self._select_docs_row(order[max(0, min(position + delta, len(order) - 1))])
         self._sync_docs_cursor()

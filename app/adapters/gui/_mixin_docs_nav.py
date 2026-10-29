@@ -7,12 +7,13 @@ für die Dokumentations-Tabelle bereit.
 
 from __future__ import annotations
 
-from app.core.domain.grade_scale import scale_for
+from app.core.domain.grade_scale import parse_grade_input, scale_for
 from app.core.intents.grade_intents import RecordGradeIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.contracts import EventResult
+from bw_gui.runtime import ui
 
 
 class DocsNavMixin:
@@ -26,93 +27,62 @@ class DocsNavMixin:
         Auswahlband, den Zellcursor und die Spaltenmarke (wenige Tk-Aufrufe,
         unabhängig von der Spaltenzahl) und scrollt bei Bedarf.
         """
-        row_id = None
-        if self._doc_student_coords:
-            index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-            row_id = self._doc_row_id_by_student_index.get(index)
+        index = self._selected_docs_student_index()
+        row_id = self._doc_row_id_by_student_index.get(index) if index is not None else None
         key = self._doc_active_column_key()
         self.docs_grid.set_cursor(row_id, key)
         if row_id is not None:
             self.docs_grid.see(row_id, key)
         self._refresh_doc_selection_status()
 
-    def _close_docs_inline_editor(self, apply_changes: bool = False) -> None:
-        """Schließt den Inline-Editor und wendet ggf. den eingegebenen Wert an.
+    def _close_docs_inline_editor(self, apply_changes: bool = False, *, keep_open_on_invalid: bool = False) -> bool:
+        """Schließt den Inline-Editor und trägt ggf. den Wert in das beim Öffnen festgelegte Ziel ein.
+
+        Reihenfolge: prüfen → abkoppeln → eintragen → zerstören. Abgekoppelt wird
+        vor dem Eintragen und Zerstören, damit ein dabei ausgelöstes erneutes
+        Schließen (Fokusverlust beim Zerstören, Tabellen-Neuaufbau nach dem
+        Dispatch) nichts mehr vorfindet und nicht doppelt speichert.
 
         Args:
-            apply_changes: Falls ``True``, wird ``_apply_docs_inline_editor_value`` aufgerufen.
+            apply_changes: Eingegebenen Wert übernehmen.
+            keep_open_on_invalid: Bei ungültiger Eingabe offen bleiben (Enter),
+                statt sie mit Hinweis zu verwerfen (Fokusverlust).
+
+        Returns:
+            ``True``, wenn der Editor jetzt geschlossen ist.
         """
-        editor = self._docs_inline_editor
+        editor, target = self._docs_inline_editor, self._docs_inline_editor_target
         if editor is None:
-            return
-        if apply_changes:
-            self._apply_docs_inline_editor_value()
+            return True
+        grade_value: float | None = None
+        if apply_changes and target is not None and self.current_plan and editor.winfo_exists():
+            scale = scale_for(self.current_plan.documentation.grade_scale)
+            valid, grade_value = parse_grade_input(editor.get(), scale)
+            if not valid:
+                self.status_var.set(scale.input_hint)
+                if keep_open_on_invalid:
+                    editor.selection_range(0, ui.END)
+                    return False
+                apply_changes = False
+        self._docs_inline_editor = None
+        self._docs_inline_editor_target = None
+        if apply_changes and target is not None:
+            self._controller.dispatch(RecordGradeIntent(
+                student_id=target.student_id, date=target.date, column_id=target.column_id, grade=grade_value,
+            ))
+            self.status_var.set("Note gelöscht" if grade_value is None else "Note aktualisiert")
         if editor.winfo_exists():
             editor.destroy()
-        self._docs_inline_editor = None
-        self._docs_inline_editor_row_id = None
-        self._docs_inline_editor_kind = None
-        self._docs_inline_editor_model_column = None
-
-    def _apply_docs_inline_editor_value(self) -> None:
-        """Übernimmt den Wert aus dem aktiven Inline-Editor als Noteneintrag (v4).
-
-        Parst den Text als Dezimalzahl (Komma oder Punkt) und dispatcht
-        ``RecordGradeIntent``. Bei leerem Text wird die Note gelöscht
-        (``grade=None``). Werte außerhalb der Plan-Skala werden mit dem
-        Hinweis der Skala abgelehnt statt still geclampt — sonst würde z. B.
-        eine versehentlich eingetippte Punktzahl 12 in einem Notenplan
-        unbemerkt als 6.0 gespeichert.
-        """
-        if not self.current_plan:
-            return
-        if self._docs_inline_editor is None or self._docs_inline_editor_kind != "grade":
-            return
-
-        selected = self._selected_docs_coordinates_and_date()
-        if selected is None:
-            return
-        x, y, date_key = selected
-
-        column_id = self._docs_inline_editor_model_column
-        if not column_id:
-            return
-        raw_text = self._docs_inline_editor.get().strip()
-        scale = scale_for(self.current_plan.documentation.grade_scale)
-        grade_value: float | None
-        if not raw_text:
-            grade_value = None
-        else:
-            try:
-                grade_value = float(raw_text.replace(",", "."))
-            except ValueError:
-                grade_value = None
-            if grade_value is None or not scale.contains(grade_value):
-                self.status_var.set(scale.input_hint)
-                return
-
-        student = self.current_plan.student_at(x, y)
-        if not student:
-            return
-        self._controller.dispatch(
-            RecordGradeIntent(
-                student_id=student.student_id,
-                date=date_key,
-                column_id=column_id,
-                grade=grade_value,
-            )
-        )
-        status = "Note geloescht" if grade_value is None else "Note aktualisiert"
-        self.status_var.set(status)
+        return True
 
     def _on_docs_inline_editor_return(self, _event) -> EventResult:
-        """Schließt den Inline-Editor mit Übernahme (Return/KP_Enter).
+        """Übernimmt den Wert (Return/KP_Enter); bei ungültiger Eingabe bleibt der Editor offen.
 
         Args:
             _event: bw-gui-``KeyEvent`` (Inhalt wird nicht ausgewertet).
         """
-        self._close_docs_inline_editor(apply_changes=True)
-        self.docs_grid.focus(self._doc_active_column_key())
+        if self._close_docs_inline_editor(apply_changes=True, keep_open_on_invalid=True):
+            self.docs_grid.focus(self._doc_active_column_key())
         return EventResult.HANDLED
 
     def _on_docs_inline_editor_escape(self, _event) -> EventResult:

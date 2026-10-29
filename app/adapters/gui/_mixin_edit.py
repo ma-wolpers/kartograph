@@ -182,16 +182,12 @@ class EditMixin:
         Args:
             rating: Zu setzende Bewertung ("+"/"o"/"-").
         """
-        if not self._doc_student_coords:
+        student = self._selected_docs_student()
+        if student is None:
             return
-        idx = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-        x, y = self._doc_student_coords[idx]
-        student = self.current_plan.student_at(x, y)
-        if not student or not student.is_named():
-            return
+        # Kein eigener Tabellen-Refresh: apply_state rendert die sichtbare Doku-Ansicht nach dem Dispatch.
         self._controller.dispatch(SetParticipationRatingIntent(
             student_id=student.student_id, date=self._today_doc_date(), rating=rating))
-        self._refresh_documentation_table()
 
     def _on_participation_rating_shortcut(self, event, rating: ParticipationRating) -> EventResult | None:
         """Tastatur-Shortcut-Handler (+/-/0): Mitarbeit-Bewertung heute setzen/löschen.

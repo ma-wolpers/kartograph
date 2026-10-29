@@ -11,7 +11,7 @@ from pathlib import Path
 
 from app.adapters.gui.docs_table_model import NACHNAME_KEY, VORNAME_KEY
 from app.adapters.gui.docs_table_rules import next_sort_spec
-from app.core.domain.models_v4 import ParticipationRating
+from app.core.domain.models_v4 import ParticipationRating, Student
 from app.core.intents.navigation_intents import ClearSelectionIntent
 from app.core.intents.session_intents import GoToTodayIntent
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
@@ -267,11 +267,10 @@ class DocsViewMixin:
 
     def _refresh_doc_selection_status(self) -> None:
         """Aktualisiert die Status-Statusvariable mit Name und Datum der aktuellen Doku-Zelle."""
-        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+        student_index, date_key = self._selected_docs_student_index(), self._doc_anchor_date()
+        if not self.current_plan or student_index is None or date_key is None:
             self._doc_selection_status_var.set("Doku-Zelle: -")
             return
-        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-        date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
         x, y = self._doc_student_coords[student_index]
         student = self.current_plan.student_at(x, y)
         # Einzige Formatierung "Nachname, Vorname" (mit Koordinaten-Fallback) liegt in Student.display_name().
@@ -280,20 +279,38 @@ class DocsViewMixin:
             label = self._doc_column_label(self._doc_selected_nondate_column_id)
             self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {label}")
             return
-        self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {self._doc_dates[date_index]}")
+        self._doc_selection_status_var.set(f"Doku-Zelle: {display_name} | {date_key}")
 
-    def _selected_docs_coordinates_and_date(self) -> tuple[int, int, str] | None:
-        """Gibt (x, y, date_key) für die aktuell ausgewählte Doku-Zelle zurück.
-
-        Returns:
-            Tuple aus Koordinaten und Datums-Schlüssel, oder ``None`` wenn keine Auswahl.
-        """
-        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+    def _selected_docs_student_index(self) -> int | None:
+        """Index der ausgewählten Zeile in ``_doc_student_coords`` (geklemmt), ``None`` ohne Zeilen."""
+        if not self._doc_student_coords:
             return None
-        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-        date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
-        x, y = self._doc_student_coords[student_index]
-        return x, y, self._doc_dates[date_index]
+        return max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
+
+    def _doc_anchor_date(self) -> str | None:
+        """Datum des Datumsankers (geklemmt), ``None`` ohne Datumsspalten.
+
+        Einzige Auflösung des Ankers: Ziel von Symbolaktionen, Löschen, Abgaben
+        zählen und Noteneingabe -- auch wenn gerade eine Namens-/Notenspalte aktiv ist.
+        """
+        if not self._doc_dates:
+            return None
+        return self._doc_dates[max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))]
+
+    def _selected_docs_student(self) -> Student | None:
+        """Benannter Schüler der ausgewählten Zeile, sonst ``None`` (unbenannter Tisch, keine Zeilen)."""
+        return self._named_docs_student(self._selected_docs_student_index())
+
+    def _named_docs_student(self, student_index: int | None) -> Student | None:
+        """Benannter Schüler zur Zeile *student_index* (Index in ``_doc_student_coords``), sonst ``None``.
+
+        Args:
+            student_index: Zeilenindex oder ``None``.
+        """
+        if not self.current_plan or student_index is None:
+            return None
+        student = self.current_plan.student_at(*self._doc_student_coords[student_index])
+        return student if student is not None and student.is_named() else None
 
     def _sort_docs_table_by_key(self, key: str) -> None:
         """Wendet die Sortier-Klickregel auf *key* an und ordnet die Doku-Tabelle neu.

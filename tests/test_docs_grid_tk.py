@@ -57,9 +57,7 @@ class _DocsHost(tk.Frame, LayoutDocsMixin, DocsTableMixin, DocsEventsMixin, Docs
         self._doc_sort_column = None
         self._doc_sort_ascending = True
         self._docs_inline_editor = None
-        self._docs_inline_editor_row_id = None
-        self._docs_inline_editor_kind = None
-        self._docs_inline_editor_model_column = None
+        self._docs_inline_editor_target = None
         self.docs_container = tk.Frame(self)
         self.docs_container.pack(fill="both", expand=True)
         self._build_docs_tree_widgets()
@@ -228,7 +226,7 @@ class TestHeaderClickSortAndEditor:
         host.docs_grid._on_body_click(Region.RIGHT, SimpleNamespace(x=190, y=_row_y(host, 2)), 1)
         tk_root.update()
         editor = host._docs_inline_editor
-        assert editor is not None and host._docs_inline_editor_model_column == "col0"
+        assert editor is not None and host._docs_inline_editor_target.column_id == "col0"
         assert editor.master == host.docs_grid.regions[Region.RIGHT].body
         assert int(editor.place_info()["y"]) == 2 * host.docs_grid._row_h
         host._close_docs_inline_editor(apply_changes=False)

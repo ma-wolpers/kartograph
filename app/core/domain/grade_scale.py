@@ -133,6 +133,30 @@ def scale_for(scale_id: str | None) -> GradeScale:
     return GRADE_SCALES.get(str(scale_id or "").strip(), GRADE_SCALES[DEFAULT_SCALE_ID])
 
 
+def parse_grade_input(text: str, scale: GradeScale) -> tuple[bool, float | None]:
+    """Liest eine Noteneingabe (Komma oder Punkt) für *scale*.
+
+    Leerer Text bedeutet "Note löschen". Werte außerhalb der Skala gelten als
+    ungültig statt still geclampt zu werden -- sonst würde z. B. eine
+    versehentlich eingetippte Punktzahl 12 in einem Notenplan unbemerkt 6,0.
+
+    Args:
+        text: Rohe Eingabe.
+        scale: Notenskala des Plans.
+
+    Returns:
+        ``(gültig, Wert)``; der Wert ist ``None`` für "löschen" oder ungültig.
+    """
+    raw = text.strip()
+    if not raw:
+        return True, None
+    try:
+        value = float(raw.replace(",", "."))
+    except ValueError:
+        return False, None
+    return (True, value) if scale.contains(value) else (False, None)
+
+
 # Ankertabelle: Punkte → Schulnote (Index = Punktzahl).
 POINTS_TO_GRADE: tuple[Decimal, ...] = tuple(
     Decimal(v) for v in (

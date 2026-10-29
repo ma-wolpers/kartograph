@@ -297,13 +297,9 @@ class DocsDialogsMixin:
             messagebox.showinfo("Keine Symbole", "Es sind keine Symbole konfiguriert.", parent=self)
             return
 
-        student_index = max(0, min(self._doc_selected_student_index, len(self._doc_student_coords) - 1))
-        date_index = max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))
-        x, y = self._doc_student_coords[student_index]
-        date_key = self._doc_dates[date_index]
-        student = self.current_plan.student_at(x, y)
+        student, date_key = self._selected_docs_student(), self._doc_anchor_date()
         preferred_symbol: str | None = None
-        if student is not None and student.is_named():
+        if student is not None:
             session = self.current_plan.documentation.session_for_date(date_key)
             entry = session.entry_for(student.student_id) if session else None
             if entry and entry.symbols:

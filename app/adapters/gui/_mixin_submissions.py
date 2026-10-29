@@ -60,7 +60,7 @@ class SubmissionsMixin:
             return None
         if self._doc_selected_nondate_column_id is not None:
             return None
-        return self._doc_dates[max(0, min(self._doc_selected_date_index, len(self._doc_dates) - 1))]
+        return self._doc_anchor_date()
 
     def count_submissions_dialog(self) -> None:
         """Startet "Abgaben zählen" für das aktive Datum (Dateidialog, Abgleich, Rückfrage, Startdialog).
