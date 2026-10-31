@@ -35,7 +35,7 @@ class GoToTodayIntent(Intent):
 
 @dataclass(frozen=True)
 class ClearDocEntryIntent(Intent):
-    """Löscht den Dokumentationseintrag (Symbole, Noten, Notiz) eines Schülers an *date*."""
+    """Löscht den Dokumentationseintrag (Symbole, Mitarbeit, Notiz) eines Schülers an *date*."""
 
     student_id: StudentId
     date: str

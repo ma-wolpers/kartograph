@@ -1158,14 +1158,11 @@ class TestHandleGradeColumnHandlers:
             AddGradeColumnIntent(category="schriftlich", title="Mathearbeit 1"), state, ctx
         )
         column_id = state.current_plan.documentation.grade_columns[0].column_id
-        state.current_plan.documentation.sessions.append(
-            Session(date="2025-09-01", entries={student.student_id: SessionEntry(grades={column_id: 2.0})})
-        )
+        state.current_plan.documentation.set_grade(student.student_id, column_id, 2.0)
 
         result = handle_delete_grade_column(DeleteGradeColumnIntent(column_id=column_id), state, ctx)
 
-        session = result.current_plan.documentation.session_for_date("2025-09-01")
-        assert column_id not in session.entry_for(student.student_id).grades
+        assert result.current_plan.documentation.grade_of(student.student_id, column_id) is None
 
     def test_delete_grade_column_clears_selected_column_in_state(self):
         plan = make_plan()
@@ -1203,7 +1200,7 @@ class TestHandleGradeScale:
         )
         column_id = state.current_plan.documentation.grade_columns[0].column_id
         state = handle_record_grade(
-            RecordGradeIntent(student_id=student.student_id, date="2025-09-01", column_id=column_id, grade=grade),
+            RecordGradeIntent(student_id=student.student_id, column_id=column_id, grade=grade),
             state,
             ctx,
         )
@@ -1211,9 +1208,7 @@ class TestHandleGradeScale:
 
     @staticmethod
     def _grade(state, sid, column_id):
-        session = state.current_plan.documentation.session_for_date("2025-09-01")
-        entry = session.entry_for(sid) if session else None
-        return entry.grades.get(column_id) if entry else None
+        return state.current_plan.documentation.grade_of(sid, column_id)
 
     def test_set_grade_scale_converts_and_is_undoable(self):
         state, ctx, sid, col = self._state_with_grade(3.15)
@@ -1232,7 +1227,7 @@ class TestHandleGradeScale:
         assert self._grade(state, sid, col) == 0.0
 
         deleted = handle_record_grade(
-            RecordGradeIntent(student_id=sid, date="2025-09-01", column_id=col, grade=None), state, ctx
+            RecordGradeIntent(student_id=sid, column_id=col, grade=None), state, ctx
         )
         assert self._grade(deleted, sid, col) is None
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.adapters.gui.docs_table_model import NACHNAME_KEY, VORNAME_KEY
+from app.adapters.gui.docs_table_model import NACHNAME_KEY, VORNAME_KEY, grade_column_id
 from app.adapters.gui.docs_table_rules import next_sort_spec
 from app.core.domain.models_v4 import ParticipationRating, Student
 from app.core.intents.navigation_intents import ClearSelectionIntent
@@ -247,8 +247,8 @@ class DocsViewMixin:
             return "Schriftlich gesamt"
         if column_id == "sonstige_total":
             return "Sonstig gesamt"
-        if column_id.startswith("grade_"):
-            raw_id = column_id[len("grade_"):]
+        raw_id = grade_column_id(column_id)
+        if raw_id is not None:
             for grade in self.current_plan.documentation.grade_columns if self.current_plan else []:
                 if grade.column_id == raw_id:
                     return grade.title
@@ -290,8 +290,8 @@ class DocsViewMixin:
     def _doc_anchor_date(self) -> str | None:
         """Datum des Datumsankers (geklemmt), ``None`` ohne Datumsspalten.
 
-        Einzige Auflösung des Ankers: Ziel von Symbolaktionen, Löschen, Abgaben
-        zählen und Noteneingabe -- auch wenn gerade eine Namens-/Notenspalte aktiv ist.
+        Einzige Auflösung des Ankers: Ziel von Symbolaktionen und Abgaben zählen
+        -- auch wenn gerade eine Namens-/Notenspalte aktiv ist.
         """
         if not self._doc_dates:
             return None

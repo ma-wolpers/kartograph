@@ -31,6 +31,7 @@ from app.core.domain.models_v4 import (
 from app.core.domain.grade_scale import scale_for
 from app.core.domain.student_id import StudentId
 from app.core.domain.symbol_renames import merge_symbol_strength
+from app.infrastructure.repositories.v4.grade_store_codec import read_grade_store
 from app.infrastructure.repositories.v4.snapshot_load_issue import SnapshotLoadIssue
 
 
@@ -58,7 +59,9 @@ def deserialize_plan(payload: dict) -> SeatingPlan:
     tablegroups = _deserialize_tablegroups(payload.get("tablegroups") or [])
     color_palette = _deserialize_color_palette(payload.get("color_palette") or {})
     custom_symbols = _deserialize_custom_symbols(payload.get("custom_symbols") or {})
-    documentation = _deserialize_documentation(payload.get("documentation") or {})
+    documentation = _deserialize_documentation(
+        payload.get("documentation") or {}, [student.student_id for student in classroom.students]
+    )
     snapshots, _issues = _deserialize_snapshots(payload.get("snapshots") or [])
 
     return SeatingPlan(
@@ -305,24 +308,29 @@ def _deserialize_custom_symbols(raw: dict) -> dict[str, CustomSymbolDefinition]:
 # Dokumentation
 # ---------------------------------------------------------------------------
 
-def _deserialize_documentation(raw: dict) -> DocumentationBlock:
+def _deserialize_documentation(raw: dict, student_ids: list[StudentId]) -> DocumentationBlock:
     """Liest Notenspalten, Gewichtung, Notenskala und Sessions aus *raw* zu einem ``DocumentationBlock`` zusammen.
 
     Fehlt ``grade_scale`` (Pläne vor Einführung der Skala) oder ist die ID
     unbekannt, gilt über ``scale_for`` die Standardskala Schulnoten — die
-    gespeicherten Werte bleiben dadurch unverändert gültig.
+    gespeicherten Werte bleiben dadurch unverändert gültig. Noten liest
+    ``read_grade_store`` (übernimmt auch das alte Format).
 
     Args:
         raw: Roh-Dict des ``documentation``-Feldes aus der Plandatei.
+        student_ids: Schüler des Plans.
     """
     grade_columns = _deserialize_grade_columns(raw.get("grade_columns") or [])
     weighting = _deserialize_weighting(raw.get("grade_weighting") or {})
     sessions = _deserialize_sessions(raw.get("sessions") or [])
+    grades, grade_conflicts = read_grade_store(raw, [col.column_id for col in grade_columns], student_ids)
     return DocumentationBlock(
         grade_columns=grade_columns,
         weighting=weighting,
         sessions=sessions,
         grade_scale=scale_for(raw.get("grade_scale")).scale_id,
+        grades=grades,
+        grade_conflicts=grade_conflicts,
     )
 
 
@@ -419,22 +427,12 @@ def _deserialize_entries(raw: dict) -> dict[StudentId, SessionEntry]:
             if 1 <= parsed <= 3:
                 merge_symbol_strength(symbols, name, parsed)
 
-        grades: dict[str, float] = {}
-        for col_id, grade in (raw_entry.get("grades") or {}).items():
-            col_id = str(col_id).strip()
-            if not col_id:
-                continue
-            try:
-                grades[col_id] = float(grade)
-            except (TypeError, ValueError):
-                continue
-
         note = str(raw_entry.get("note") or "").strip()
 
         raw_participation = raw_entry.get("participation")
         participation = raw_participation if raw_participation in ("+", "o", "-", "☆") else None
 
-        entry = SessionEntry(symbols=symbols, grades=grades, note=note, participation=participation)
+        entry = SessionEntry(symbols=symbols, note=note, participation=participation)
         if entry.has_content():
             entries[sid] = entry
     return entries

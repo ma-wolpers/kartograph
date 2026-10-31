@@ -170,7 +170,7 @@ class TestRebuild:
         first_session = plan.documentation.sessions[0]
         some_student = plan.classroom.students[0]
         first_session.entries[some_student.student_id].symbols["beteiligung"] = 3
-        first_session.entries[some_student.student_id].grades["col0"] = 1.0
+        plan.documentation.set_grade(some_student.student_id, "col0", 1.0)
         host._refresh_documentation_table()
         tk_root.update()
         _assert_projection_consistent(host)

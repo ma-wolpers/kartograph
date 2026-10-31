@@ -8,6 +8,7 @@ sobald das Limit pro Plan überschritten wird.
 from __future__ import annotations
 
 import os
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -38,6 +39,23 @@ class PlanBackupWriter:
         if appdata:
             return Path(appdata) / APP_INFO.appdata_folder / "backups"
         return Path.home() / f".{APP_INFO.appdata_folder.lower()}" / "backups"
+
+    def keep_original(self, plan_path: Path, label: str, root_dir: Path | None = None) -> None:
+        """Bewahrt die Plandatei unverändert auf, bevor sie in einem neuen Format überschrieben wird.
+
+        Liegt in ``<backup_root>/<plan_stem>/<label>/`` und damit außerhalb der
+        Rotation von :meth:`write_backup`. Eine vorhandene Kopie bleibt bestehen.
+
+        Args:
+            plan_path: Zu sichernde Plandatei.
+            label: Name des Unterordners (Anlass der Sicherung).
+            root_dir: Überschreibt das Backup-Wurzelverzeichnis (für Tests/Repository-Hooks).
+        """
+        target = (root_dir if root_dir is not None else self.backup_root_dir()) / plan_path.stem / label / plan_path.name
+        if target.exists():
+            return
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(plan_path, target)
 
     def write_backup(self, plan_path: Path, payload: dict, root_dir: Path | None = None) -> None:
         """Schreibt einen Snapshot von *payload* als Backup-Datei.

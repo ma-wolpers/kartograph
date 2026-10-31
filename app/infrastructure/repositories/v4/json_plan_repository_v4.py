@@ -22,12 +22,16 @@ from app.core.domain.models_v4 import (
     TeacherSeat,
 )
 from app.infrastructure.repositories.plan_backup import PlanBackupWriter
+from app.infrastructure.repositories.v4.grade_store_codec import has_legacy_session_grades
 from app.infrastructure.repositories.v4.deserializer_v4 import (
     deserialize_plan,
     deserialize_snapshot_load_issues,
 )
 from app.infrastructure.repositories.v4.serializer_v4 import serialize_plan
 from app.infrastructure.repositories.v4.snapshot_load_issue import SnapshotLoadIssue
+
+
+LEGACY_GRADES_BACKUP_LABEL = "vor-notenumstellung"
 
 
 def _now_iso() -> str:
@@ -173,8 +177,28 @@ class JsonSeatingPlanRepositoryV4:
         """
         plan.meta.last_modified = _now_iso()
         payload = serialize_plan(plan)
+        self._keep_legacy_grades_original(plan_path)
         atomic_write_json(plan_path, payload)
         self._backup.write_backup(plan_path, payload, root_dir=self._backup_root_dir())
+
+    def _keep_legacy_grades_original(self, plan_path: Path) -> None:
+        """Sichert eine Plandatei im alten Notenformat, bevor sie erstmals überschrieben wird.
+
+        Nach der Umstellung enthält die Datei keine Altnoten mehr, die Prüfung
+        ändert dann nichts mehr. Schlägt die Sicherung fehl, bricht das Speichern
+        ab: Ohne sie ginge das Datum jeder Altnote unwiederbringlich verloren.
+
+        Args:
+            plan_path: Datei, die gleich überschrieben oder entfernt wird.
+        """
+        if not plan_path.exists():
+            return
+        try:
+            payload = json.loads(plan_path.read_text(encoding="utf-8"))
+        except ValueError:
+            return
+        if has_legacy_session_grades(payload):
+            self._backup.keep_original(plan_path, LEGACY_GRADES_BACKUP_LABEL, root_dir=self._backup_root_dir())
 
     def backup_plan_snapshot(self, plan: SeatingPlan, plan_path: Path) -> None:
         """Erstellt einen Backup-Snapshot, ohne die Hauptdatei zu ändern.
@@ -253,6 +277,7 @@ class JsonSeatingPlanRepositoryV4:
             self.save_plan(plan, source_path)
             return source_path, plan
 
+        self._keep_legacy_grades_original(source_path)
         self.save_plan(plan, target_path)
         source_path.unlink(missing_ok=True)
         return target_path, plan

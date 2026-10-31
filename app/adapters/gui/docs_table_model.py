@@ -35,7 +35,27 @@ NACHNAME_KEY = "nachname"
 VORNAME_KEY = "vorname"
 SUMMARY_KEY = "summary"
 
+_GRADE_PREFIX = "grade_"
+
 _ColumnKind = Literal["name", "date", "summary", "grade", "total"]
+
+
+def grade_column_key(column_id: str) -> str:
+    """Spaltenschlüssel der Tabelle zur Notenspalte *column_id*.
+
+    Args:
+        column_id: Modell-ID der Notenspalte.
+    """
+    return f"{_GRADE_PREFIX}{column_id}"
+
+
+def grade_column_id(key: str | None) -> str | None:
+    """Modell-ID der Notenspalte zum Spaltenschlüssel *key*, ``None`` bei anderen Spalten.
+
+    Args:
+        key: Spaltenschlüssel der Tabelle.
+    """
+    return key[len(_GRADE_PREFIX):] if key and key.startswith(_GRADE_PREFIX) else None
 
 
 class DocsPane(Enum):
@@ -72,12 +92,10 @@ class GradeCellTarget:
 
     Attributes:
         student_id: Schüler, dessen Note bearbeitet wird.
-        date: Datum (YYYY-MM-DD) des Noteneintrags.
         column_id: Modell-ID der Notenspalte (ohne ``grade_``-Präfix).
     """
 
     student_id: StudentId
-    date: str
     column_id: str
 
 
@@ -107,7 +125,7 @@ def _fixed_column_kind(key: str) -> _ColumnKind:
     """
     if key == SUMMARY_KEY:
         return "summary"
-    if key.startswith("grade_"):
+    if grade_column_id(key) is not None:
         return "grade"
     return "total"
 

@@ -7,6 +7,7 @@ für die Dokumentations-Tabelle bereit.
 
 from __future__ import annotations
 
+from app.adapters.gui.docs_table_model import grade_column_id
 from app.core.domain.grade_scale import parse_grade_input, scale_for
 from app.core.intents.grade_intents import RecordGradeIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -68,7 +69,7 @@ class DocsNavMixin:
         self._docs_inline_editor_target = None
         if apply_changes and target is not None:
             self._controller.dispatch(RecordGradeIntent(
-                student_id=target.student_id, date=target.date, column_id=target.column_id, grade=grade_value,
+                student_id=target.student_id, column_id=target.column_id, grade=grade_value,
             ))
             self.status_var.set("Note gelöscht" if grade_value is None else "Note aktualisiert")
         if editor.winfo_exists():
@@ -97,7 +98,7 @@ class DocsNavMixin:
 
     def _open_selected_docs_grade_cell_editor(self) -> None:
         """Öffnet den Inline-Noten-Editor für die aktuell ausgewählte Doku-Zelle."""
-        if not self._doc_selected_nondate_column_id or not self._doc_selected_nondate_column_id.startswith("grade_"):
+        if grade_column_id(self._doc_selected_nondate_column_id) is None:
             return
         selected_iid = self._doc_row_id_by_student_index.get(self._doc_selected_student_index)
         if selected_iid is None:

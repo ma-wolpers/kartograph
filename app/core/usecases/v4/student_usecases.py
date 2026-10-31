@@ -82,6 +82,7 @@ def delete_student(plan: SeatingPlan, student_id: StudentId) -> SeatingPlan:
     # Session-Einträge bereinigen
     for session in next_plan.documentation.sessions:
         session.entries.pop(student_id, None)
+    next_plan.documentation.remove_student_grades(student_id)
 
     return next_plan
 

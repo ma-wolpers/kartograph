@@ -16,22 +16,28 @@ class AddGradeColumnIntent(Intent):
 
 @dataclass(frozen=True)
 class DeleteGradeColumnIntent(Intent):
-    """Löscht die Notenspalte *column_id* inkl. aller darin erfassten Noten aus allen Sessions."""
+    """Löscht die Notenspalte *column_id* inkl. aller darin erfassten Noten."""
 
     column_id: str
 
 
 @dataclass(frozen=True)
 class RecordGradeIntent(Intent):
-    """Trägt für einen Schüler an *date* in Spalte *column_id* den Wert *grade* ein (None = löschen).
+    """Trägt für einen Schüler in Spalte *column_id* den Wert *grade* ein (None = löschen).
 
     ``None`` statt ``0.0`` als Lösch-Signal, weil 0 Punkte ein gültiger Wert ist.
     """
 
     student_id: StudentId
-    date: str
     column_id: str
     grade: float | None  # None = löschen
+
+
+@dataclass(frozen=True)
+class ResolveGradeConflictsIntent(Intent):
+    """Legt für alte Mehrfachnoten die gültige Note fest (*choices*: Schüler, Spalte, Note)."""
+
+    choices: tuple[tuple[StudentId, str, float], ...]
 
 
 @dataclass(frozen=True)

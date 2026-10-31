@@ -45,6 +45,7 @@ from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
     DeleteGradeColumnIntent,
     RecordGradeIntent,
+    ResolveGradeConflictsIntent,
     SetGradeScaleIntent,
     UpdateGradeWeightingIntent,
 )
@@ -118,6 +119,7 @@ __all__ = [
     "AddGradeColumnIntent",
     "DeleteGradeColumnIntent",
     "RecordGradeIntent",
+    "ResolveGradeConflictsIntent",
     "SetGradeScaleIntent",
     "UpdateGradeWeightingIntent",
     # Abgaben

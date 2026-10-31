@@ -1,4 +1,4 @@
-"""Inline-Noteneditor der Doku-Tabelle: das Ziel steht beim Öffnen fest (echtes Fenster, synthetischer Plan).
+"""Noten in der Doku-Tabelle: Editorziel, Löschen der aktiven Zelle, Konfliktdialog (echtes Fenster, synthetischer Plan).
 
 Früher las das Speichern Schüler und Datum aus der *aktuellen* Auswahl: Ein
 Klick in eine andere Zeile wählte diese zuerst aus, dann schloss der
@@ -8,9 +8,16 @@ bearbeitete Zelle zeigte weiter die alte Note.
 
 from __future__ import annotations
 
+import tkinter as tk
+from tkinter import ttk
+
 import pytest
 
 from app.adapters.gui.docs_table_model import DocsPane
+from app.core.domain.grade_scale import scale_for
+from app.core.domain.models_v4 import GradeConflict
+from app.core.intents.edit_intents import UndoIntent
+from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
 from app.core.intents.view_intents import SetEditorSurfaceIntent
 from app.tools.isolated_window import open_isolated_window
 from app.tools.perf_bench_docs_table import build_synthetic_plan
@@ -26,11 +33,9 @@ def window(tmp_path):
     close()
 
 
-def _grade(app, row_id: str, date: str, column: str = "col0"):
+def _grade(app, row_id: str, column: str = "col0"):
     student = next(s for s in app.current_plan.classroom.students if str(s.student_id) == row_id)
-    session = app.current_plan.documentation.session_for_date(date)
-    entry = session.entry_for(student.student_id) if session else None
-    return entry.grades.get(column) if entry else None
+    return app.current_plan.documentation.grade_of(student.student_id, column)
 
 
 def _open_editor(app, row_id: str, text: str):
@@ -44,27 +49,25 @@ def _open_editor(app, row_id: str, text: str):
 
 def test_focus_loss_after_clicking_another_row_saves_to_the_edited_row(window):
     first, second = window._doc_row_order[0], window._doc_row_order[1]
-    date = window._doc_dates[window._doc_selected_date_index]
-    before_second = _grade(window, second, date)
+    before_second = _grade(window, second)
     _open_editor(window, first, "2,3")
 
     window._on_docs_cell_click(second, "vorname", DocsPane.NAMES)  # Klick wählt zuerst die andere Zeile
     window._close_docs_inline_editor(apply_changes=True)  # ... dann schließt der Fokusverlust
 
-    assert _grade(window, first, date) == 2.3
-    assert _grade(window, second, date) == before_second
+    assert _grade(window, first) == 2.3
+    assert _grade(window, second) == before_second
 
 
 def test_invalid_input_on_return_keeps_the_editor_open(window):
     row = window._doc_row_order[0]
-    date = window._doc_dates[window._doc_selected_date_index]
-    before = _grade(window, row, date)
+    before = _grade(window, row)
     editor = _open_editor(window, row, "12")
 
     window._on_docs_inline_editor_return(None)
 
     assert window._docs_inline_editor is editor and editor.get() == "12"
-    assert _grade(window, row, date) == before
+    assert _grade(window, row) == before
     window._close_docs_inline_editor(apply_changes=False)
 
 
@@ -83,3 +86,98 @@ def test_reentrant_close_during_destroy_saves_once(window, monkeypatch):
     monkeypatch.setattr(editor, "destroy", destroy_with_focus_out)
     window._close_docs_inline_editor(apply_changes=True)
     assert len(dispatched) == 1
+
+
+class TestDeleteActsOnTheActiveCell:
+    def _entry(self, app, row_id, date):
+        student = next(s for s in app.current_plan.classroom.students if str(s.student_id) == row_id)
+        session = app.current_plan.documentation.session_for_date(date)
+        return session.entry_for(student.student_id) if session else None
+
+    def _with_symbol(self, app, row_id):
+        """Setzt am Datumsanker ein Symbol für die Zeile, damit es dort etwas zu verlieren gibt."""
+        student = next(s for s in app.current_plan.classroom.students if str(s.student_id) == row_id)
+        date = app._doc_anchor_date()
+        app._controller.dispatch(RecordDocumentationSymbolIntent(
+            student_id=student.student_id, date=date, symbol="beteiligung", strength=1,
+        ))
+        assert self._entry(app, row_id, date).symbols
+        return date
+
+    def test_grade_column_deletes_only_this_grade(self, window):
+        row = window._doc_row_order[0]
+        date = self._with_symbol(window, row)
+        window._on_docs_cell_click(row, "grade_col0", DocsPane.RIGHT)
+        assert _grade(window, row) is not None
+
+        window.clear_selected_documentation_symbol()
+
+        assert _grade(window, row) is None
+        assert self._entry(window, row, date).symbols  # die Datumsspalte daneben bleibt unberührt
+
+    def test_date_column_clears_the_day_but_keeps_the_grade(self, window):
+        row = window._doc_row_order[0]
+        date = self._with_symbol(window, row)
+        window._on_docs_cell_click(row, window._doc_axis.date_key(window._doc_selected_date_index), DocsPane.MAIN)
+        before = _grade(window, row)
+
+        window.clear_selected_documentation_symbol()
+
+        assert self._entry(window, row, date) is None
+        assert _grade(window, row) == before
+
+    @pytest.mark.parametrize("key", ["vorname", "summary", "overall"])
+    def test_other_columns_delete_nothing(self, window, key):
+        row = window._doc_row_order[0]
+        date = self._with_symbol(window, row)
+        window._on_docs_cell_click(row, key, DocsPane.NAMES if key == "vorname" else DocsPane.RIGHT)
+        window._set_doc_active_column(key)
+        before = _grade(window, row)
+
+        window.clear_selected_documentation_symbol()
+
+        assert _grade(window, row) == before and self._entry(window, row, date).symbols
+        assert "nichts zu löschen" in window.status_var.get()
+
+
+def _widgets(parent):
+    for child in parent.winfo_children():
+        yield child
+        yield from _widgets(child)
+
+
+class TestConflictDialog:
+    @pytest.fixture
+    def conflicted(self, tmp_path):
+        plan = build_synthetic_plan(3, 2, 1)
+        sid = plan.classroom.students[0].student_id
+        plan.documentation.set_grade(sid, "col0", 4.0)
+        plan.documentation.grade_conflicts.append(GradeConflict(sid, "col0", (("2026-01-01", 2.0), ("2026-01-02", 4.0))))
+        app, close = open_isolated_window(tmp_path, plan)
+        yield app, sid
+        close()
+
+    @staticmethod
+    def _dialog(app):
+        return next(w for w in app.tk_root.winfo_children() if isinstance(w, tk.Toplevel))
+
+    def _press(self, app, text):
+        next(w for w in _widgets(self._dialog(app)) if isinstance(w, ttk.Button) and w.cget("text") == text).invoke()
+
+    def test_later_changes_nothing(self, conflicted):
+        app, sid = conflicted
+        self._press(app, "Später")
+        assert len(app.current_plan.documentation.grade_conflicts) == 1
+        assert app.current_plan.documentation.grade_of(sid, "col0") == 4.0
+
+    def test_choice_is_applied_and_can_be_undone(self, conflicted):
+        app, sid = conflicted
+        box = next(w for w in _widgets(self._dialog(app)) if isinstance(w, ttk.Combobox))
+        assert box.get().startswith(scale_for(app.current_plan.documentation.grade_scale).format_value(4.0))  # neueste vorbelegt
+        box.current(1)
+        self._press(app, "Übernehmen")
+        assert app.current_plan.documentation.grade_of(sid, "col0") == 2.0
+        assert app.current_plan.documentation.grade_conflicts == []
+        app._controller.dispatch(UndoIntent())
+        assert app.current_plan.documentation.grade_of(sid, "col0") == 4.0
+        assert len(app.current_plan.documentation.grade_conflicts) == 1

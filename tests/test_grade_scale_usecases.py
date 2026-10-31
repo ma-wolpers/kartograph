@@ -7,21 +7,26 @@ from app.core.usecases.v4.grade_usecases import add_grade_column, record_grade
 from tests.conftest import make_plan, make_student
 
 
+def _with_columns(plan, count):
+    columns = []
+    for index in range(count):
+        plan, column = add_grade_column(plan, "schriftlich", f"Arbeit {index}")
+        columns.append(column)
+    return (plan, *columns)
+
+
 def _plan_with_grades():
     sid = StudentId.new()
     plan = make_plan(students=[make_student(student_id=sid)])
-    plan, col = add_grade_column(plan, "schriftlich", "Arbeit 1")
-    plan = record_grade(plan, sid, "2025-09-01", col, 3.2)
-    plan = record_grade(plan, sid, "2025-09-08", col, 3.15)
-    plan = record_grade(plan, sid, "2025-09-15", col, 2.5)
-    return plan, sid, col
+    plan, *cols = _with_columns(plan, 3)
+    plan = record_grade(plan, sid, cols[0], 3.2)
+    plan = record_grade(plan, sid, cols[1], 3.15)
+    plan = record_grade(plan, sid, cols[2], 2.5)
+    return plan, sid, cols
 
 
-def _values(plan, sid, col):
-    return [
-        plan.documentation.session_for_date(d).entries[sid].grades[col]
-        for d in ("2025-09-01", "2025-09-08", "2025-09-15")
-    ]
+def _values(plan, sid, cols):
+    return [plan.documentation.grade_of(sid, col) for col in cols]
 
 
 def test_count_grades_over_all_sessions():

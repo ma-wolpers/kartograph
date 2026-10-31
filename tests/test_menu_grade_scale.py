@@ -7,7 +7,6 @@ import pytest
 import app.adapters.gui._mixin_menu as menu_module
 from app.adapters.gui._mixin_menu import MenuMixin
 from app.core.domain.grade_scale import SCALE_POINTS_0_15, SCALE_SCHOOL_1_6
-from app.core.domain.models_v4 import Session, SessionEntry
 from app.core.intents.grade_intents import SetGradeScaleIntent
 from tests.conftest import make_plan, make_student
 
@@ -39,9 +38,7 @@ class _Window(MenuMixin):
 def _plan_with_grade():
     student = make_student()
     plan = make_plan(students=[student])
-    plan.documentation.sessions.append(
-        Session(date="2025-09-01", entries={student.student_id: SessionEntry(grades={"c1": 3.2})})
-    )
+    plan.documentation.grades[student.student_id] = {"c1": 3.2}
     return plan
 
 

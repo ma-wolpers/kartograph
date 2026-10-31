@@ -231,13 +231,12 @@ class SessionEntry:
     """Beobachtungen eines einzelnen Schülers an einem Unterrichtstag."""
 
     symbols: dict[str, int] = field(default_factory=dict)
-    grades: dict[str, float] = field(default_factory=dict)
     note: str = ""
     participation: ParticipationRating | None = None
 
     def has_content(self) -> bool:
-        """Prüft, ob der Eintrag Symbole, Noten, eine Notiz oder eine Mitarbeit-Bewertung enthält."""
-        return bool(self.symbols or self.grades or self.note.strip() or self.participation is not None)
+        """Prüft, ob der Eintrag Symbole, eine Notiz oder eine Mitarbeit-Bewertung enthält."""
+        return bool(self.symbols or self.note.strip() or self.participation is not None)
 
 
 @dataclass(slots=True)
@@ -269,20 +268,91 @@ class Session:
         return self.entries[student_id]
 
 
+@dataclass(frozen=True, slots=True)
+class GradeConflict:
+    """Mehrere Altnoten derselben Person in einer Spalte, bis die Nutzerin entschieden hat.
+
+    Entsteht nur beim Lesen alter Pläne (s. ``grade_store_codec``). Bis dahin gilt
+    in ``DocumentationBlock.grades`` die neueste Note.
+
+    Attributes:
+        student_id: Betroffene Person.
+        column_id: Betroffene Notenspalte.
+        candidates: ``(Datum, Wert)`` aufsteigend nach Datum.
+    """
+
+    student_id: StudentId
+    column_id: str
+    candidates: tuple[tuple[str, float], ...]
+
+
 @dataclass(slots=True)
 class DocumentationBlock:
-    """Alle Dokumentationsdaten eines Plans: Spalten, Gewichtung, Skala, Sessions.
+    """Alle Dokumentationsdaten eines Plans: Spalten, Gewichtung, Skala, Noten, Sessions.
 
+    ``grades`` hält genau eine Note je Person und Spalte -- unabhängig von den
+    Sessions: Datum löschen oder Tageseintrag leeren berührt keine Noten.
     ``grade_scale`` ist die planweite Notenskala (ID aus
-    ``app/core/domain/grade_scale.py``); alle Werte in ``SessionEntry.grades``
-    sind in dieser Skala gespeichert. Ein Wechsel läuft ausschließlich über
-    ``set_grade_scale``, das alle Werte mitkonvertiert.
+    ``app/core/domain/grade_scale.py``); alle Notenwerte sind in dieser Skala
+    gespeichert. Ein Wechsel läuft ausschließlich über ``set_grade_scale``, das
+    alle Werte mitkonvertiert.
     """
 
     grade_columns: list[GradeColumn] = field(default_factory=list)
     weighting: GradeWeighting = field(default_factory=GradeWeighting)
     sessions: list[Session] = field(default_factory=list)
     grade_scale: str = DEFAULT_SCALE_ID
+    grades: dict[StudentId, dict[str, float]] = field(default_factory=dict)
+    grade_conflicts: list[GradeConflict] = field(default_factory=list)
+
+    def grade_of(self, student_id: StudentId, column_id: str) -> float | None:
+        """Gibt die Note der Person in der Spalte zurück, oder None.
+
+        Args:
+            student_id: ID der Person.
+            column_id: ID der Notenspalte.
+        """
+        return self.grades.get(student_id, {}).get(column_id)
+
+    def set_grade(self, student_id: StudentId, column_id: str, value: float | None) -> None:
+        """Setzt oder löscht (``None``) die Note; ein offener Konflikt der Zelle ist damit entschieden.
+
+        Args:
+            student_id: ID der Person.
+            column_id: ID der Notenspalte.
+            value: Neue Note oder ``None``.
+        """
+        columns = self.grades.setdefault(student_id, {})
+        if value is None:
+            columns.pop(column_id, None)
+        else:
+            columns[column_id] = value
+        if not columns:
+            del self.grades[student_id]
+        self.grade_conflicts = [
+            c for c in self.grade_conflicts if (c.student_id, c.column_id) != (student_id, column_id)
+        ]
+
+    def remove_student_grades(self, student_id: StudentId) -> None:
+        """Entfernt alle Noten und offenen Konflikte einer Person.
+
+        Args:
+            student_id: ID der Person.
+        """
+        self.grades.pop(student_id, None)
+        self.grade_conflicts = [c for c in self.grade_conflicts if c.student_id != student_id]
+
+    def remove_column_grades(self, column_id: str) -> None:
+        """Entfernt alle Noten und offenen Konflikte einer Spalte.
+
+        Args:
+            column_id: ID der Notenspalte.
+        """
+        for student_id in list(self.grades):
+            self.grades[student_id].pop(column_id, None)
+            if not self.grades[student_id]:
+                del self.grades[student_id]
+        self.grade_conflicts = [c for c in self.grade_conflicts if c.column_id != column_id]
 
     def session_for_date(self, date: str) -> Session | None:
         """Gibt die Session zum Datum *date* zurück, oder None.

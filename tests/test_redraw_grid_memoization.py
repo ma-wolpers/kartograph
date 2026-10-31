@@ -108,7 +108,7 @@ def _make_plan_with_grade() -> tuple:
     sid = StudentId.new()
     plan = make_plan(students=[make_student(student_id=sid, x=1, y=1)])
     plan, col = add_grade_column(plan, "schriftlich", "Arbeit")
-    plan = record_grade(plan, sid, "2025-09-01", col, 2.0)
+    plan = record_grade(plan, sid, col, 2.0)
     return plan, sid, col
 
 
@@ -162,7 +162,7 @@ def test_new_content_version_redraws_with_new_values(tk_root):
     try:
         win.redraw_grid()
         # Echter Edit: neuer Plan + neue content_version (wie KartographAppController.dispatch()).
-        win.current_plan = record_grade(plan, sid, "2025-09-01", col, 4.0)
+        win.current_plan = record_grade(plan, sid, col, 4.0)
         win._controller.content_version = 1
         win.redraw_grid(selection_only=True)  # Inhalt geändert -> Tische trotzdem neu
         texts = [t for kind, _c, t in _items(win, "grid_transient") if kind == "text"]

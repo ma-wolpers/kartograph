@@ -1,8 +1,8 @@
 """PlanDerivedData — alle aus dem Plan abgeleiteten Anzeigedaten, einmal pro Inhaltsstand.
 
 Einzige Quelle für Werte, die Raster, Doku-Tabelle und Details aus dem
-aktuellen Plan berechnen (neueste Symbole, Notenlisten/-anzeigen, neueste
-Noten, Sitzgeometrien, Anzeigenamen). Der Controller hält genau ein Objekt
+aktuellen Plan berechnen (neueste Symbole, Notenlisten/-anzeigen,
+Sitzgeometrien, Anzeigenamen). Der Controller hält genau ein Objekt
 pro ``content_version``; jede Größe wird erst beim ersten Zugriff berechnet
 und danach wiederverwendet. Eine reine Cursorbewegung ändert die
 ``content_version`` nicht und kostet hier daher nichts. Tk-frei.
@@ -19,7 +19,6 @@ from app.core.usecases.v4.grade_usecases import (
     collect_grade_value_lists_by_student,
     compute_grade_display_by_student,
     compute_grade_subtotal_display_by_student,
-    compute_latest_grades_by_student,
 )
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols_by_student
 
@@ -51,11 +50,6 @@ class PlanDerivedData:
     def grade_display(self) -> dict:
         """Gesamtnoten-Anzeige je Schüler (inkl. vorläufiger Klammernoten)."""
         return compute_grade_display_by_student(self.plan, value_lists=self.grade_value_lists)
-
-    @cached_property
-    def latest_grades(self) -> dict:
-        """Zuletzt eingetragene Note je Schüler und Notenspalte."""
-        return compute_latest_grades_by_student(self.plan)
 
     @cached_property
     def seat_geometries(self) -> list:

@@ -8,13 +8,14 @@ eingehalten bleibt. Die Umrechnungsregeln selbst liegen ausschließlich in
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 
 from app.core.domain.grade_scale import convert_value, scale_for
 from app.core.domain.models_v4 import SeatingPlan
 
 
 def count_grades(plan: SeatingPlan) -> int:
-    """Zählt alle eingetragenen Notenwerte des Plans über alle Sessions.
+    """Zählt alle eingetragenen Noten des Plans.
 
     Grundlage für die Warnung vor einem Skalenwechsel: bei ``0`` kann ohne
     Rückfrage umgeschaltet werden, sonst nennt die Warnung die Anzahl.
@@ -22,17 +23,13 @@ def count_grades(plan: SeatingPlan) -> int:
     Args:
         plan: Plan, aus dem gelesen wird.
     """
-    return sum(
-        len(entry.grades)
-        for session in plan.documentation.sessions
-        for entry in session.entries.values()
-    )
+    return sum(len(columns) for columns in plan.documentation.grades.values())
 
 
 def set_grade_scale(plan: SeatingPlan, scale_id: str) -> SeatingPlan:
     """Stellt die Notenskala des Plans um und rechnet alle Werte mit um.
 
-    Jeder Wert in ``SessionEntry.grades`` wird über
+    Jede Note und jeder Wert offener Konflikte wird über
     :func:`~app.core.domain.grade_scale.convert_value` in die Zielskala
     übertragen (z. B. 3.2 → 7 Punkte, 3.15 → 7.5 Punkte). Die Gesamt- und
     Teilnoten folgen automatisch, da sie stets aus den Einzelwerten
@@ -51,11 +48,14 @@ def set_grade_scale(plan: SeatingPlan, scale_id: str) -> SeatingPlan:
     target = scale_for(scale_id).scale_id
     if source == target:
         return next_plan
-    for session in next_plan.documentation.sessions:
-        for entry in session.entries.values():
-            entry.grades = {
-                col_id: convert_value(value, source, target)
-                for col_id, value in entry.grades.items()
-            }
-    next_plan.documentation.grade_scale = target
+    doc = next_plan.documentation
+    doc.grades = {
+        sid: {col_id: convert_value(value, source, target) for col_id, value in columns.items()}
+        for sid, columns in doc.grades.items()
+    }
+    doc.grade_conflicts = [
+        replace(c, candidates=tuple((date, convert_value(value, source, target)) for date, value in c.candidates))
+        for c in doc.grade_conflicts
+    ]
+    doc.grade_scale = target
     return next_plan

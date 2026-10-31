@@ -77,7 +77,6 @@ def rename_session_date(plan: SeatingPlan, old_date: str, new_date: str) -> Seat
             new_session.entries[student_id] = deepcopy(old_entry)
         else:
             existing.symbols.update(old_entry.symbols)
-            existing.grades.update(old_entry.grades)
             if old_entry.note.strip() and not existing.note.strip():
                 existing.note = old_entry.note.strip()
             if old_entry.participation is not None and existing.participation is None:

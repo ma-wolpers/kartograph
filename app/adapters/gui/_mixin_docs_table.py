@@ -12,7 +12,14 @@ from __future__ import annotations
 import time
 
 from app.adapters.gui._mixin_layout_docs import REGION_BY_PANE
-from app.adapters.gui.docs_table_model import NACHNAME_KEY, SUMMARY_KEY, VORNAME_KEY, DocColumnAxis, DocRow
+from app.adapters.gui.docs_table_model import (
+    NACHNAME_KEY,
+    SUMMARY_KEY,
+    VORNAME_KEY,
+    DocColumnAxis,
+    DocRow,
+    grade_column_key,
+)
 from app.adapters.gui.docs_table_rules import sort_iids
 from app.adapters.gui.main_window_constants import LOGGER
 from app.core.domain.grade_scale import scale_for
@@ -55,7 +62,7 @@ class DocsTableMixin:
         sonstige_columns = [c for c in grade_columns if c.category == "sonstig"]
 
         fixed_columns: list[str] = ["summary"]
-        fixed_columns.extend([f"grade_{c.column_id}" for c in grade_columns])
+        fixed_columns.extend([grade_column_key(c.column_id) for c in grade_columns])
         if len(written_columns) > 1:
             fixed_columns.append("written_total")
         if len(sonstige_columns) > 1:
@@ -73,7 +80,7 @@ class DocsTableMixin:
         # Abgeleitete Notendaten aus der gemeinsamen Quelle (eine Berechnung pro
         # content_version, geteilt mit dem Raster) statt eigener Bulk-Aufrufe.
         derived = self._controller.derived()
-        latest_grades_by_student = derived.latest_grades
+        grades_by_student = self.current_plan.documentation.grades
         grade_scale = scale_for(self.current_plan.documentation.grade_scale)
         latest_symbols_by_student = derived.latest_symbols
         overall_display_by_student = derived.grade_display
@@ -96,9 +103,9 @@ class DocsTableMixin:
                 )
             summary_symbols = latest_symbols_by_student.get(student.student_id, {})
             fixed_values: list[str] = [self._documentation_cell_text(summary_symbols)]
-            student_latest_grades = latest_grades_by_student.get(student.student_id, {})
+            student_grades = grades_by_student.get(student.student_id, {})
             for grade in grade_columns:
-                raw_grade = student_latest_grades.get(grade.column_id)
+                raw_grade = student_grades.get(grade.column_id)
                 fixed_values.append(grade_scale.format_value(raw_grade) if raw_grade is not None else "")
             if "written_total" in fixed_columns:
                 fixed_values.append(written_subtotal_by_student.get(student.student_id, ""))

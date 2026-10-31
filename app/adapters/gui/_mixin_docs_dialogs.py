@@ -6,6 +6,7 @@ Symbol-Auswahl und Gewichtungskonfiguration bereit.
 
 from __future__ import annotations
 
+from app.adapters.gui.docs_table_model import grade_column_id, grade_column_key
 from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys, widget_keys
 from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.adapters.gui.main_window_constants import SPACE_SHORTCUT
@@ -60,8 +61,8 @@ class DocsDialogsMixin:
 
         Schließt die in Architekturplan v2, Abschnitt 13.2 (T7) dokumentierte
         Lücke: ``DeleteSessionIntent``/``handle_delete_session`` waren bereits
-        vollständig implementiert (inkl. Entfernen aller Symbol-/Noten-Einträge
-        und Notizen dieses Datums aus ``plan.documentation.sessions``), hatten
+        vollständig implementiert (inkl. Entfernen aller Symbol-Einträge
+        und Notizen dieses Datums; Noten hängen nicht am Datum aus ``plan.documentation.sessions``), hatten
         aber bislang keinen Auslöser in der GUI — es gab nur "Datum umbenennen"
         (``rename_selected_documentation_date_dialog``), keinen Löschen-Pfad.
 
@@ -125,7 +126,7 @@ class DocsDialogsMixin:
         self._controller.dispatch(AddGradeColumnIntent(category=clean_category, title=title or ""))
         new_column_id = self._controller.state.doc_selected_column_id
         if new_column_id:
-            self._select_doc_nondate_column(f"grade_{new_column_id}")
+            self._select_doc_nondate_column(grade_column_key(new_column_id))
         # Tabelle hat apply_state schon neu gebaut; nur die danach gewählte Spalte markieren.
         self._sync_docs_cursor()
 
@@ -151,12 +152,11 @@ class DocsDialogsMixin:
             return
 
         column: GradeColumn | None = None
-        if self._doc_selected_nondate_column_id and self._doc_selected_nondate_column_id.startswith("grade_"):
-            raw_id = self._doc_selected_nondate_column_id[len("grade_"):]
-            for item in grade_columns:
-                if item.column_id == raw_id:
-                    column = item
-                    break
+        raw_id = grade_column_id(self._doc_selected_nondate_column_id)
+        for item in grade_columns:
+            if item.column_id == raw_id:
+                column = item
+                break
         if column is None and len(grade_columns) == 1:
             column = grade_columns[0]
 
@@ -225,7 +225,7 @@ class DocsDialogsMixin:
             selected_column_id: Wenn angegeben, wird diese Spalte bevorzugt; sonst
                 wird die aktuell ausgewählte feste Spalte oder die erste Notenspalte genommen.
         """
-        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+        if not self.current_plan or not self._doc_student_coords:
             return
         grade_columns = self.current_plan.documentation.grade_columns
         if not grade_columns:
@@ -238,15 +238,14 @@ class DocsDialogsMixin:
                     column = item
                     break
         if column is None:
-            if self._doc_selected_nondate_column_id and self._doc_selected_nondate_column_id.startswith("grade_"):
-                raw_id = self._doc_selected_nondate_column_id[len("grade_"):]
-                for item in grade_columns:
-                    if item.column_id == raw_id:
-                        column = item
-                        break
+            raw_id = grade_column_id(self._doc_selected_nondate_column_id)
+            for item in grade_columns:
+                if item.column_id == raw_id:
+                    column = item
+                    break
             if column is None:
                 column = grade_columns[0]
-        self._select_doc_nondate_column(f"grade_{column.column_id}")
+        self._select_doc_nondate_column(grade_column_key(column.column_id))
         self._refresh_doc_selection_status()
         self._open_selected_docs_grade_cell_editor()
 

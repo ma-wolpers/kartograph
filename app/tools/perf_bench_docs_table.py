@@ -1,8 +1,7 @@
 """Perf-Benchmark + Regressionscheck für die Dokumentationstabelle (v4).
 
-Vergleicht die alte, pro (Schüler x Notenspalte) neu sortierende Berechnung
-gegen die aktuelle Implementierung (ein Durchlauf über alle Sessions für
-alle Schüler gleichzeitig, siehe ``compute_latest_grades_by_student`` /
+Vergleicht die pro Schüler neu scannende Berechnung gegen die aktuelle
+Implementierung (ein Durchlauf für alle Schüler gleichzeitig, siehe
 ``summarize_latest_symbols_by_student`` in ``app.core.usecases.v4``).
 
 Nutzt ausschließlich synthetische Testdaten (erfundene Namen) — niemals
@@ -41,7 +40,6 @@ from app.core.usecases.v4.grade_usecases import (
     compute_grade_display_by_student,
     compute_grade_subtotal_display,
     compute_grade_subtotal_display_by_student,
-    compute_latest_grades_by_student,
 )
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols_by_student
 
@@ -86,13 +84,17 @@ def build_synthetic_plan(num_students: int, num_sessions: int, num_grade_columns
         entries: dict[StudentId, SessionEntry] = {}
         for student in students:
             entry = SessionEntry()
-            col = grade_columns[day % len(grade_columns)]
-            entry.grades[col.column_id] = round(rng.uniform(_GRADES.min_value, _GRADES.max_value), 1)
             entry.symbols["beteiligung"] = rng.randint(1, 3)
             entries[student.student_id] = entry
         sessions.append(Session(date=date_key, entries=entries))
 
-    documentation = DocumentationBlock(grade_columns=grade_columns, sessions=sessions)
+    grades = {
+        student.student_id: {
+            col.column_id: round(rng.uniform(_GRADES.min_value, _GRADES.max_value), 1) for col in grade_columns
+        }
+        for student in students
+    }
+    documentation = DocumentationBlock(grade_columns=grade_columns, sessions=sessions, grades=grades)
     return SeatingPlan(
         format_version=4,
         plan_id="perf-bench-synthetic",
@@ -105,43 +107,6 @@ def build_synthetic_plan(num_students: int, num_sessions: int, num_grade_columns
 # --- Baseline: originalgetreue Kopie der vor dem Fix entfernten Logik ------
 # (nur Funktionen, die im Produktivcode nicht mehr existieren; noch lebende
 # Logik wie die Notenformel wird direkt aufgerufen, nicht kopiert)
-
-def _baseline_latest_grade_value(plan: SeatingPlan, student_id: StudentId, column_id: str) -> str:
-    """Wie die entfernte ``_latest_grade_value_for_column`` — sortiert bei jedem Aufruf neu."""
-    latest: float | None = None
-    for session in sorted(plan.documentation.sessions, key=lambda s: s.date):
-        entry = session.entry_for(student_id)
-        if entry is None:
-            continue
-        value = entry.grades.get(column_id)
-        if value is None:
-            continue
-        latest = float(value)
-    return "" if latest is None else f"{latest:.2f}"
-
-
-def run_baseline_latest_grades(plan: SeatingPlan) -> dict[tuple[StudentId, str], str]:
-    """Reproduziert den alten O(Schüler x Spalten x Sessions log Sessions)-Pfad."""
-    results: dict[tuple[StudentId, str], str] = {}
-    for student in plan.classroom.students:
-        for col in plan.documentation.grade_columns:
-            results[(student.student_id, col.column_id)] = _baseline_latest_grade_value(
-                plan, student.student_id, col.column_id
-            )
-    return results
-
-
-def run_new_latest_grades(plan: SeatingPlan) -> dict[tuple[StudentId, str], str]:
-    """Nutzt die aktuelle Bulk-Berechnung (ein Durchlauf für alle Schüler)."""
-    latest = compute_latest_grades_by_student(plan)
-    results: dict[tuple[StudentId, str], str] = {}
-    for student in plan.classroom.students:
-        per_student = latest.get(student.student_id, {})
-        for col in plan.documentation.grade_columns:
-            raw = per_student.get(col.column_id)
-            results[(student.student_id, col.column_id)] = "" if raw is None else f"{raw:.2f}"
-    return results
-
 
 def _baseline_summarize_latest_symbols(plan: SeatingPlan, student_id: StudentId) -> dict[str, int]:
     """Wie die ungeänderte ``summarize_latest_symbols`` — pro Aufruf neu sortieren (Einzelschüler-API)."""
@@ -157,14 +122,14 @@ def run_baseline_full_row_computation(plan: SeatingPlan) -> dict[StudentId, tupl
     """Reproduziert die *gesamte* pro-Zeile-Berechnung, wie sie ``_refresh_documentation_table``
 
     vor dem Fix ausführte: für jeden Schüler einzeln neuestes-Symbol-Update,
-    neueste Note je Spalte, sowie die Gesamtnoten-Anzeige — jeweils mit
-    eigenem Sessions-Resort statt einer geteilten Vorberechnung.
+    Note je Spalte sowie die Gesamtnoten-Anzeige — mit eigenem Sessions-Resort
+    statt einer geteilten Vorberechnung.
     """
     results: dict[StudentId, tuple] = {}
     for student in plan.classroom.students:
         summary = _baseline_summarize_latest_symbols(plan, student.student_id)
         grades = tuple(
-            _baseline_latest_grade_value(plan, student.student_id, col.column_id)
+            "" if (raw := plan.documentation.grade_of(student.student_id, col.column_id)) is None else f"{raw:.2f}"
             for col in plan.documentation.grade_columns
         )
         overall = compute_grade_display(plan, student.student_id)
@@ -174,13 +139,13 @@ def run_baseline_full_row_computation(plan: SeatingPlan) -> dict[StudentId, tupl
 
 def run_new_full_row_computation(plan: SeatingPlan) -> dict[StudentId, tuple]:
     """Reproduziert dieselbe pro-Zeile-Berechnung mit den aktuellen Bulk-Funktionen."""
-    latest_grades = compute_latest_grades_by_student(plan)
+    grades_by_student = plan.documentation.grades
     latest_symbols = summarize_latest_symbols_by_student(plan)
     overall_by_student = compute_grade_display_by_student(plan)
     results: dict[StudentId, tuple] = {}
     for student in plan.classroom.students:
         summary = latest_symbols.get(student.student_id, {})
-        per_student_grades = latest_grades.get(student.student_id, {})
+        per_student_grades = grades_by_student.get(student.student_id, {})
         grades = tuple(
             "" if (raw := per_student_grades.get(col.column_id)) is None else f"{raw:.2f}"
             for col in plan.documentation.grade_columns
@@ -247,11 +212,6 @@ def main() -> None:
     print(f"Synthetischer Plan: {args.students} Schüler, {args.sessions} Sessions, {args.grade_columns} Notenspalten")
     plan = build_synthetic_plan(args.students, args.sessions, args.grade_columns)
 
-    baseline_result = run_baseline_latest_grades(plan)
-    new_result = run_new_latest_grades(plan)
-    grades_match = baseline_result == new_result
-    print(f"Korrektheit (letzte Note je Spalte, alt vs. neu): {'OK' if grades_match else 'ABWEICHUNG!'}")
-
     baseline_row_result = run_baseline_full_row_computation(plan)
     new_row_result = run_new_full_row_computation(plan)
     rows_match = baseline_row_result == new_row_result
@@ -264,11 +224,6 @@ def main() -> None:
         "Komplette Zeilenberechnung (Kernstück von _refresh_documentation_table) — "
         f"alt: {baseline_row_time * 1000:.2f} ms  neu: {new_row_time * 1000:.2f} ms  (×{row_speedup:.1f})"
     )
-
-    baseline_time = _timeit(lambda: run_baseline_latest_grades(plan), args.repeats)
-    new_time = _timeit(lambda: run_new_latest_grades(plan), args.repeats)
-    speedup = baseline_time / new_time if new_time > 0 else float("inf")
-    print(f"Letzte Note je Spalte — alt: {baseline_time * 1000:.2f} ms  neu: {new_time * 1000:.2f} ms  (×{speedup:.1f})")
 
     display_baseline_result = run_grade_display_baseline(plan)
     display_new_result = run_grade_display_new(plan)
@@ -284,7 +239,7 @@ def main() -> None:
     )
 
     # Tk-seitige Kosten (Doku-Tabelle als bw-gui DataGrid) misst perf_bench_gui_nav am echten Fenster.
-    if not grades_match or not rows_match or not display_match:
+    if not rows_match or not display_match:
         raise SystemExit(1)
 
 

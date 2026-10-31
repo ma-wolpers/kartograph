@@ -11,6 +11,7 @@ from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
     DeleteGradeColumnIntent,
     RecordGradeIntent,
+    ResolveGradeConflictsIntent,
     SetGradeScaleIntent,
     UpdateGradeWeightingIntent,
 )
@@ -18,12 +19,13 @@ from app.core.usecases.v4.grade_scale_usecases import set_grade_scale
 from app.core.usecases.v4.grade_usecases import (
     add_grade_column,
     record_grade,
+    resolve_grade_conflicts,
     set_grade_weighting,
 )
 
 
 def _delete_grade_column(plan: SeatingPlan, column_id: str) -> SeatingPlan:
-    """Entfernt die Notenspalte *column_id* und löscht zugehörige Noten aus allen Sessions (Kaskade).
+    """Entfernt die Notenspalte *column_id* samt ihrer Noten und offenen Konflikte.
 
     Args:
         plan: Plan, aus dem die Spalte entfernt wird.
@@ -33,9 +35,7 @@ def _delete_grade_column(plan: SeatingPlan, column_id: str) -> SeatingPlan:
     next_plan.documentation.grade_columns = [
         c for c in next_plan.documentation.grade_columns if c.column_id != column_id
     ]
-    for session in next_plan.documentation.sessions:
-        for entry in session.entries.values():
-            entry.grades.pop(column_id, None)
+    next_plan.documentation.remove_column_grades(column_id)
     return next_plan
 
 
@@ -80,16 +80,31 @@ def handle_record_grade(intent: RecordGradeIntent, state: AppState, ctx: Handler
     """Trägt die Note aus *intent* ein (``None`` löscht den Eintrag, s. ``record_grade``-Usecase).
 
     Args:
-        intent: Schüler-ID, Datum, Spalte und einzutragende Note.
+        intent: Schüler-ID, Spalte und einzutragende Note.
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
     if state.current_plan is None or state.current_plan_path is None:
         return state
-    next_plan = record_grade(
-        state.current_plan, intent.student_id, intent.date, intent.column_id, intent.grade
-    )
+    next_plan = record_grade(state.current_plan, intent.student_id, intent.column_id, intent.grade)
     _record_and_save(next_plan, state.current_plan_path, "grade.record", ctx)
+    return _with_plan(state, next_plan, ctx)
+
+
+def handle_resolve_grade_conflicts(
+    intent: ResolveGradeConflictsIntent, state: AppState, ctx: HandlerContext
+) -> AppState:
+    """Übernimmt die im Dialog gewählten Noten für alte Mehrfachnoten (ein Undo-Schritt).
+
+    Args:
+        intent: Gewählte Noten.
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository, History).
+    """
+    if state.current_plan is None or state.current_plan_path is None:
+        return state
+    next_plan = resolve_grade_conflicts(state.current_plan, intent.choices)
+    _record_and_save(next_plan, state.current_plan_path, "grade.conflicts.resolve", ctx, coalesce=False)
     return _with_plan(state, next_plan, ctx)
 
 

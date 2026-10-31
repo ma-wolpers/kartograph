@@ -1,24 +1,22 @@
 """Usecases für Noten-Operationen (Spalten, Einzelnoten, Gewichtung, Anzeige).
 
-Noten werden über ``column_id`` (Spalte) und ``StudentId`` (Schüler) adressiert,
-nicht mehr über (x, y)-Koordinaten. Sessions übernehmen die Rolle der alten
-``documentation_entries``-Dicts.
+Noten werden über ``column_id`` (Spalte) und ``StudentId`` (Schüler) adressiert;
+je Person und Spalte gibt es genau eine Note (``DocumentationBlock.grades``).
 """
 
 from __future__ import annotations
 
 import uuid
 from copy import deepcopy
+from typing import Iterable
 
 from app.core.domain.grade_scale import scale_for
 from app.core.domain.models_v4 import GradeCategory, GradeColumn, GradeWeighting, SeatingPlan
 from app.core.domain.student_id import StudentId
 from app.core.usecases.v4._shared import (
-    _normalize_doc_date,
     _round_half_up_to_int,
     _round_half_up_to_two_decimals,
 )
-from app.core.usecases.v4.session_usecases import ensure_session
 
 
 def add_grade_column(
@@ -59,52 +57,50 @@ def add_grade_column(
 def record_grade(
     plan: SeatingPlan,
     student_id: StudentId,
-    date: str | None,
     column_id: str,
     grade: float | None,
 ) -> SeatingPlan:
-    """Setzt oder löscht eine Note für einen Schüler an einem Datum.
+    """Setzt oder löscht die Note einer Person in einer Spalte (eine Note je Spalte).
 
     ``grade=None`` entfernt die Note (``0`` ist bei Punkten ein gültiger Wert).
     Werte werden auf den Bereich der planweiten Notenskala geclampt
     (``plan.documentation.grade_scale``) — als letzte Sicherung, die GUI
-    lehnt ungültige Eingaben bereits vorher ab. Die Session wird bei Bedarf angelegt.
+    lehnt ungültige Eingaben bereits vorher ab.
 
     Args:
         plan: Ausgangsplan.
         student_id: ID des betroffenen Schülers.
-        date: Datum im Format YYYY-MM-DD (None = heute).
         column_id: ID der Notenspalte.
         grade: Neue Note oder None zum Löschen.
 
     Returns:
         Neuer Plan mit der aktualisierten Note.
     """
+    next_plan = deepcopy(plan)
+    doc = next_plan.documentation
     clean_col = str(column_id or "").strip()
-    if not clean_col:
-        return deepcopy(plan)
-    if plan.documentation.column_by_id(clean_col) is None:
-        return deepcopy(plan)
-
-    next_plan = ensure_session(plan, date)
     student = next_plan.classroom.student_by_id(student_id)
-    if student is None or not student.is_named():
+    if doc.column_by_id(clean_col) is None or student is None or not student.is_named():
         return next_plan
+    doc.set_grade(student_id, clean_col, None if grade is None else scale_for(doc.grade_scale).clamp(grade))
+    return next_plan
 
-    date_key = _normalize_doc_date(date)
-    session = next_plan.documentation.session_for_date(date_key)
-    if session is None:
-        return next_plan
 
-    entry = session.ensure_entry(student_id)
-    if grade is None:
-        entry.grades.pop(clean_col, None)
-    else:
-        entry.grades[clean_col] = scale_for(next_plan.documentation.grade_scale).clamp(grade)
+def resolve_grade_conflicts(
+    plan: SeatingPlan, choices: Iterable[tuple[StudentId, str, float]]
+) -> SeatingPlan:
+    """Übernimmt die gewählten Noten für alte Mehrfachnoten; die Konflikte sind damit erledigt.
 
-    if not entry.has_content():
-        session.entries.pop(student_id, None)
+    Args:
+        plan: Ausgangsplan.
+        choices: ``(Schüler, Spalte, gewählte Note)``.
 
+    Returns:
+        Neuer Plan.
+    """
+    next_plan = deepcopy(plan)
+    for student_id, column_id, value in choices:
+        next_plan.documentation.set_grade(student_id, column_id, value)
     return next_plan
 
 
@@ -186,14 +182,30 @@ def compute_grade_subtotal_display(
     return _subtotal_display(_value_lists_for_student(plan, student_id)[clean_cat])
 
 
+def _lists_by_category(
+    columns: dict[str, float], category_by_column: dict[str, GradeCategory]
+) -> dict[GradeCategory, list[float]]:
+    """Ordnet die Noten einer Person ihren Kategorien zu (Spalten ohne Kategorie zählen nicht).
+
+    Args:
+        columns: Spalte → Note.
+        category_by_column: Spalte → Kategorie.
+
+    Returns:
+        Dict mit beiden Kategorien als Schlüssel (ggf. leere Listen).
+    """
+    lists: dict[GradeCategory, list[float]] = {"schriftlich": [], "sonstig": []}
+    for column_id, value in columns.items():
+        category = category_by_column.get(column_id)
+        if category in lists:
+            lists[category].append(float(value))
+    return lists
+
+
 def _value_lists_for_student(
     plan: SeatingPlan, student_id: StudentId
 ) -> dict[GradeCategory, list[float]]:
     """Sammelt alle Notenwerte eines Schülers je Kategorie.
-
-    Einzelschüler-Gegenstück zu :func:`collect_grade_value_lists_by_student`;
-    scannt nur den Eintrag dieses Schülers pro Session. Die Reihenfolge der
-    Werte ist irrelevant (nur Summe/Anzahl zählen), daher kein ``sorted()``.
 
     Args:
         plan: Plan, aus dem gelesen wird.
@@ -202,17 +214,9 @@ def _value_lists_for_student(
     Returns:
         Dict mit beiden Kategorien als Schlüssel (ggf. leere Listen).
     """
-    cat_by_col = {col.column_id: col.category for col in plan.documentation.grade_columns}
-    lists: dict[GradeCategory, list[float]] = {"schriftlich": [], "sonstig": []}
-    for session in plan.documentation.sessions:
-        entry = session.entry_for(student_id)
-        if entry is None:
-            continue
-        for col_id, grade_val in entry.grades.items():
-            cat = cat_by_col.get(col_id)
-            if cat in lists:
-                lists[cat].append(float(grade_val))
-    return lists
+    doc = plan.documentation
+    category_by_column = {col.column_id: col.category for col in doc.grade_columns}
+    return _lists_by_category(doc.grades.get(student_id, {}), category_by_column)
 
 
 def _overall_display(
@@ -259,70 +263,25 @@ def _subtotal_display(values: list[float]) -> str:
     return str(_round_half_up_to_int(sum(values) / len(values))) if values else ""
 
 
-def compute_latest_grades_by_student(
-    plan: SeatingPlan,
-) -> dict[StudentId, dict[str, float]]:
-    """Berechnet für alle Schüler gleichzeitig die zuletzt eingetragene Note je Spalte.
-
-    Iteriert alle Sessions genau einmal in Datumsreihenfolge (statt, wie ein
-    naiver pro-Schüler-x-Spalte-Aufruf es täte, für jede (Schüler, Spalte)-
-    Kombination erneut zu sortieren und zu scannen). Spätere Sessions
-    überschreiben frühere Werte für dieselbe (Schüler, Spalte)-Kombination,
-    sodass am Ende automatisch der jeweils neueste Wert übrig bleibt.
-
-    Args:
-        plan: Plan, aus dem gelesen wird.
-
-    Returns:
-        Dict von StudentId → (Dict von column_id → neueste Note). Schüler/Spalten
-        ohne Eintrag fehlen im Ergebnis (kein leerer Eintrag).
-    """
-    latest: dict[StudentId, dict[str, float]] = {}
-    for session in sorted(plan.documentation.sessions, key=lambda s: s.date):
-        for student_id, entry in session.entries.items():
-            if not entry.grades:
-                continue
-            per_student = latest.setdefault(student_id, {})
-            for col_id, grade_val in entry.grades.items():
-                per_student[col_id] = float(grade_val)
-    return latest
-
-
 def collect_grade_value_lists_by_student(
     plan: SeatingPlan,
 ) -> dict[StudentId, dict[GradeCategory, list[float]]]:
     """Sammelt für alle Schüler gleichzeitig alle Notenwerte je Kategorie (ein Durchlauf).
 
     Gemeinsame Grundlage für :func:`compute_grade_display_by_student` und
-    :func:`compute_grade_subtotal_display_by_student`. Wird ein Aufrufer
-    (wie die Doku-Tabelle) mehrere dieser Funktionen für denselben Plan
-    hintereinander aufrufen, sollte er dieses Ergebnis einmal berechnen und
-    per ``value_lists=`` an alle weiterreichen — sonst scannt jeder einzelne
-    Aufruf alle Sessions erneut, obwohl das Ergebnis identisch wäre.
+    :func:`compute_grade_subtotal_display_by_student`. Ruft ein Aufrufer (wie die
+    Doku-Tabelle) mehrere dieser Funktionen für denselben Plan auf, berechnet er
+    dieses Ergebnis einmal und reicht es per ``value_lists=`` an alle weiter.
 
     Args:
         plan: Plan, aus dem gelesen wird.
 
     Returns:
         Dict von StudentId → (Dict von Kategorie → Liste aller Notenwerte).
-        Reihenfolge der Werte innerhalb einer Liste ist beliebig (Summe/
-        Durchschnitt sind ordnungsunabhängig).
     """
-    cat_by_col: dict[str, str] = {
-        col.column_id: col.category for col in plan.documentation.grade_columns
-    }
-    result: dict[StudentId, dict[GradeCategory, list[float]]] = {}
-    for session in plan.documentation.sessions:
-        for student_id, entry in session.entries.items():
-            if not entry.grades:
-                continue
-            for col_id, grade_val in entry.grades.items():
-                cat = cat_by_col.get(col_id)
-                if cat not in ("schriftlich", "sonstig"):
-                    continue
-                per_student = result.setdefault(student_id, {"schriftlich": [], "sonstig": []})
-                per_student[cat].append(float(grade_val))
-    return result
+    doc = plan.documentation
+    category_by_column = {col.column_id: col.category for col in doc.grade_columns}
+    return {sid: _lists_by_category(columns, category_by_column) for sid, columns in doc.grades.items()}
 
 
 def compute_grade_display_by_student(

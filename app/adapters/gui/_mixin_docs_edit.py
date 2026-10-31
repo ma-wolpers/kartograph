@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from app.core.domain.grade_scale import scale_for
 from app.core.domain.symbol_toggle import next_symbol_toggle_strength
+from app.core.intents.grade_intents import RecordGradeIntent
 from app.core.intents.session_intents import ClearDocEntryIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
 from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
-from app.adapters.gui.docs_table_model import GradeCellTarget
+from app.adapters.gui.docs_table_model import GradeCellTarget, grade_column_id
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -46,10 +47,9 @@ class DocsEditMixin:
         target = self._grade_edit_target(row_id, grade_column_key)
         if target is None:
             return
-        session = self.current_plan.documentation.session_for_date(target.date)
-        entry = session.entry_for(target.student_id) if session is not None else None
-        value = entry.grades.get(target.column_id) if entry is not None else None
-        current_text = "" if value is None else scale_for(self.current_plan.documentation.grade_scale).format_input(value)
+        doc = self.current_plan.documentation
+        value = doc.grade_of(target.student_id, target.column_id)
+        current_text = "" if value is None else scale_for(doc.grade_scale).format_input(value)
 
         editor = tui.Entry(host)
         editor.insert(0, current_text)
@@ -65,23 +65,22 @@ class DocsEditMixin:
         self._docs_inline_editor_target = target
 
     def _grade_edit_target(self, row_id: str, grade_column_key: str) -> GradeCellTarget | None:
-        """Einzige Regel, *welcher* Noteneintrag eine Notenzelle bearbeitet.
+        """Einzige Regel, *welche* Note eine Notenzelle bearbeitet: Zeile und Spalte der Zelle.
 
-        Schüler = die Zeile der Zelle (nicht die spätere Auswahl), Datum = der
-        Datumsanker zum Zeitpunkt des Öffnens.
+        Nie die spätere Auswahl; ein Datum spielt keine Rolle (eine Note je Spalte).
 
         Args:
             row_id: Zeilen-ID (Schüler-ID als String).
             grade_column_key: Spaltenschlüssel ``"grade_<id>"``.
 
         Returns:
-            Das Ziel oder ``None`` (unbekannte Zeile, unbenannter Tisch, keine Daten).
+            Das Ziel oder ``None`` (unbekannte Zeile, unbenannter Tisch, keine Notenspalte).
         """
         student = self._named_docs_student(self._doc_student_index_by_iid.get(row_id))
-        date_key = self._doc_anchor_date()
-        if student is None or date_key is None:
+        column_id = grade_column_id(grade_column_key)
+        if student is None or column_id is None:
             return None
-        return GradeCellTarget(student.student_id, date_key, grade_column_key[len("grade_"):])
+        return GradeCellTarget(student.student_id, column_id)
 
     def _toggle_documentation_symbol_for_student(self, student, symbol: str, date: str) -> None:
         """Schaltet *symbol* für *student* am *date* um (v4).
@@ -138,11 +137,20 @@ class DocsEditMixin:
         self._toggle_documentation_symbol_for_student(student, symbol, date_key)
 
     def clear_selected_documentation_symbol(self) -> None:
-        """Löscht alle aktiven Symbole und Noten für die aktuelle Doku-Zelle (v4).
+        """Löscht genau die aktive Zelle der Doku-Tabelle.
 
-        Dispatcht ClearDocEntryIntent für die ausgewählte Student-/Datumskombination.
+        Notenspalte: nur diese Note. Datumsspalte: der Tageseintrag (Symbole,
+        Mitarbeit, Notiz). Name, Zusammenfassung, Teil- und Gesamtnote sind nicht
+        löschbar -- dort bleibt alles unverändert, die Statuszeile sagt es.
         """
-        student, date_key = self._selected_docs_student(), self._doc_anchor_date()
-        if student is None or date_key is None:
+        student, key = self._selected_docs_student(), self._doc_active_column_key()
+        if student is None or key is None:
             return
-        self._controller.dispatch(ClearDocEntryIntent(student_id=student.student_id, date=date_key))
+        column_id = grade_column_id(key)
+        if column_id is not None:
+            self._controller.dispatch(RecordGradeIntent(student_id=student.student_id, column_id=column_id, grade=None))
+            self.status_var.set("Note gelöscht")
+        elif self._doc_axis.is_date(key):
+            self._controller.dispatch(ClearDocEntryIntent(student_id=student.student_id, date=self._doc_anchor_date()))
+        else:
+            self.status_var.set("In dieser Spalte gibt es nichts zu löschen.")

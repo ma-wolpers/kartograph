@@ -8,6 +8,7 @@ Sessions werden komplett übersprungen.
 from __future__ import annotations
 
 from app.core.domain.models_v4 import SeatingPlan
+from app.infrastructure.repositories.v4.grade_store_codec import serialize_grade_store
 
 
 def serialize_plan(plan: SeatingPlan) -> dict:
@@ -157,6 +158,7 @@ def _serialize_documentation(plan: SeatingPlan) -> dict:
             "sonstige_percent": doc.weighting.sonstige_percent,
         },
         "grade_scale": doc.grade_scale,
+        **serialize_grade_store(doc),
         "sessions": _serialize_sessions(doc),
     }
 
@@ -212,21 +214,11 @@ def _serialize_sessions(doc) -> list:
                     continue
                 if 1 <= parsed <= 3:
                     entry_symbols[symbol] = parsed
-            entry_grades: dict[str, float] = {}
-            for col_id, grade in entry.grades.items():
-                col_id = str(col_id).strip()
-                if not col_id:
-                    continue
-                try:
-                    entry_grades[col_id] = float(grade)
-                except (TypeError, ValueError):
-                    continue
             note = entry.note.strip()
-            if not entry_symbols and not entry_grades and not note and entry.participation is None:
+            if not entry_symbols and not note and entry.participation is None:
                 continue
             serialized_entries[str(student_id)] = {
                 "symbols": entry_symbols,
-                "grades":  entry_grades,
                 "note":    note,
                 "participation": entry.participation,
             }

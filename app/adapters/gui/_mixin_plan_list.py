@@ -85,7 +85,9 @@ class PlanListMixin:
             )
 
         self._controller.dispatch(OpenPlanIntent(plan_path=plan_path))
-        self._report_custom_shortcut_conflicts()
+        # Immer nur ein modaler Dialog: Kürzelkonflikte erscheinen sonst beim nächsten Öffnen.
+        if not self._report_grade_conflicts():
+            self._report_custom_shortcut_conflicts()
         LOGGER.info("open_plan finished in %.3fs", time.perf_counter() - started)
 
     def create_new_plan_dialog(self) -> None:
