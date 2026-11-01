@@ -22,6 +22,7 @@ from app.core.usecases.v4.student_usecases import (
     set_nickname,
 )
 
+
 @requires_open_plan
 def handle_create_student(intent: CreateStudentIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Legt einen neuen Schüler an und wechselt direkt in den Namenseditier-Modus.
