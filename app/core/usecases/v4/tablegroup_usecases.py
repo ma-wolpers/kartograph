@@ -27,6 +27,22 @@ class TableGroupSettings:
     rotation: float
 
 
+RESET_ALL_TRANSFORMS = "all"
+
+
+@dataclass(frozen=True)
+class TablegroupApplyResult:
+    """Ergebnis von ``apply_tablegroup_settings``.
+
+    Attributes:
+        plan: Neuer Plan; ``None``, wenn an der Position keine Tischgruppe liegt.
+        reset_field: Wegen Überlappung zurückgesetztes Feld, ``RESET_ALL_TRANSFORMS`` oder ``None``.
+    """
+
+    plan: SeatingPlan | None
+    reset_field: str | None
+
+
 def _build_seat_components(plan: SeatingPlan) -> list[list[tuple[int, int]]]:
     """Gruppiert alle Schüler-Sitzplätze nach 4-Wege-Rasternachbarschaft.
 
@@ -64,7 +80,7 @@ def normalize_tablegroups(plan: SeatingPlan) -> SeatingPlan:
     """Gibt eine Kopie von *plan* mit aus der Sitznachbarschaft neu aufgebauten Tischgruppen zurück.
 
     Kopierende Hülle um ``compute_normalized_tablegroups()`` für Aufrufer,
-    die den Eingabeplan nicht verändern dürfen (Exporte, Tischgruppen-Overlay).
+    die den Eingabeplan nicht verändern dürfen (Exporte).
 
     Args:
         plan: Ausgangsplan (bleibt unverändert).
@@ -244,29 +260,26 @@ def set_tablegroup_number_with_cascade(plan: SeatingPlan, source_number: int, ta
     return next_plan
 
 
-def set_tablegroup_transforms(
+def _set_transforms_in_place(
     plan: SeatingPlan,
     group_id: int,
     *,
     shift_x: float | None = None,
     shift_y: float | None = None,
     rotation: float | None = None,
-) -> SeatingPlan:
-    """Setzt Geometrie-Offsets aller Sitzplätze einer Tischgruppe.
+) -> None:
+    """Setzt Geometrie-Offsets aller Sitzplätze einer Tischgruppe direkt im kopierten *plan*.
 
     ``None``-Werte lassen das jeweilige Feld unverändert.
 
     Args:
-        plan: Ausgangsplan, dessen Tischgruppe verändert wird.
+        plan: Bereits kopierter Plan, dessen Tischgruppe verändert wird.
         group_id: ID der zu verändernden Tischgruppe.
         shift_x: Neuer X-Versatz; bleibt unverändert, wenn None.
         shift_y: Neuer Y-Versatz; bleibt unverändert, wenn None.
         rotation: Neue Rotation; bleibt unverändert, wenn None.
     """
-    next_plan = deepcopy(plan)
-    if group_id <= 0:
-        return next_plan
-    for group in next_plan.tablegroups:
+    for group in plan.tablegroups:
         if group.group_id != group_id:
             continue
         for gs in group.seats:
@@ -276,7 +289,54 @@ def set_tablegroup_transforms(
                 gs.shift_y = _sanitize_shift(shift_y)
             if rotation is not None:
                 gs.rotation = _sanitize_rotation(rotation)
-    return next_plan
+
+
+def apply_tablegroup_settings(
+    plan: SeatingPlan,
+    x: int,
+    y: int,
+    *,
+    number: int,
+    shift_x: float,
+    shift_y: float,
+    rotation: float,
+    last_changed_field: str,
+) -> TablegroupApplyResult:
+    """Übernimmt Nummer und Geometrie für die Tischgruppe an (*x*, *y*) und löst Überlappungen auf.
+
+    Überlappt die Gruppe danach Lehrertisch oder andere Tische, wird zuerst das zuletzt
+    bearbeitete Feld zurückgesetzt (bei der Nummer: x-shift), und wenn das nicht reicht,
+    die ganze Geometrie.
+
+    Args:
+        plan: Ausgangsplan (bleibt unverändert).
+        x: Spalte eines Sitzplatzes der Gruppe.
+        y: Zeile eines Sitzplatzes der Gruppe.
+        number: Gewünschte Gruppennummer.
+        shift_x: Neuer X-Versatz.
+        shift_y: Neuer Y-Versatz.
+        rotation: Neue Rotation.
+        last_changed_field: Zuletzt bearbeitetes Formularfeld.
+
+    Returns:
+        Ergebnis mit neuem Plan und zurückgesetztem Feld; ohne Tischgruppe an der Position ist ``plan`` ``None``.
+    """
+    source_number = tablegroup_number_at(plan, x, y)
+    if source_number is None:
+        return TablegroupApplyResult(plan=None, reset_field=None)
+
+    next_plan = set_tablegroup_number_with_cascade(plan, source_number, number)
+    _set_transforms_in_place(next_plan, number, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
+    if not any(detect_overlaps_for_tablegroup(next_plan, number)):
+        return TablegroupApplyResult(plan=next_plan, reset_field=None)
+
+    reset_field = last_changed_field if last_changed_field in ("shift_y", "rotation") else "shift_x"
+    _set_transforms_in_place(next_plan, number, **{reset_field: 0.0})
+    if not any(detect_overlaps_for_tablegroup(next_plan, number)):
+        return TablegroupApplyResult(plan=next_plan, reset_field=reset_field)
+
+    _set_transforms_in_place(next_plan, number, shift_x=0.0, shift_y=0.0, rotation=0.0)
+    return TablegroupApplyResult(plan=next_plan, reset_field=RESET_ALL_TRANSFORMS)
 
 
 def detect_overlaps_for_tablegroup(plan: SeatingPlan, group_id: int) -> tuple[bool, bool]:

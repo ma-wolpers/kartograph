@@ -202,8 +202,8 @@ class StateApplyMixin:
     def _replace_current_plan(self, plan) -> None:
         """Ersetzt den aktuellen Plan im AppState und im GUI-Zustand synchron.
 
-        Für History-freie Vorab-Anpassungen (z. B. Tischgruppen-Normalisierung,
-        Farbpaletten-Bedeutung), die keinen ``on_state_changed``-Callback über
+        Für History-freie Vorab-Anpassungen (z. B. Farbpaletten-Bedeutung, die der
+        nächste Intent mit aufzeichnet), die keinen ``on_state_changed``-Callback über
         ``apply_state()`` auslösen (s. ``KartographAppController.replace_plan_in_state``).
         Einziger Weg für diese Art Ersetzung, damit ``self.current_plan`` nie
         vergessen wird nachzuziehen.

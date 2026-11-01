@@ -35,6 +35,7 @@ from app.core.intents.symbol_intents import (
 )
 from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.color_intents import ToggleColorIntent
+from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
 from app.core.intents.custom_symbol_intents import (
     AddCustomSymbolIntent,
     DeleteCustomSymbolIntent,
@@ -112,6 +113,7 @@ __all__ = [
     "SetParticipationRatingIntent",
     # Color
     "ToggleColorIntent",
+    "ApplyTablegroupSettingsIntent",
     "AddCustomSymbolIntent",
     "UpdateCustomSymbolIntent",
     "DeleteCustomSymbolIntent",

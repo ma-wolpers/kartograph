@@ -166,21 +166,6 @@ class ExportMixin:
 
         dialog.after(1, _apply_focus)
 
-    def _save_current_plan(self, status: str) -> None:
-        """Speichert den aktuellen Plan auf Disk und aktualisiert die Statuszeile.
-
-        Args:
-            status: Statusmeldung die nach erfolgreichem Speichern angezeigt wird.
-        """
-        if not self.current_plan or not self.current_plan_path:
-            return
-        try:
-            self._write_plan_now(self.current_plan, self.current_plan_path)
-            self.status_var.set(f"Gespeichert: {status}")
-            self.refresh_plan_list()
-        except Exception as exc:
-            self.status_var.set(f"Speichern fehlgeschlagen: {exc}")
-
     def _periodic_backup_tick(self) -> None:
         """Erstellt ein zeitgestempeltes Backup-Snapshot und plant den nächsten Tick.
 

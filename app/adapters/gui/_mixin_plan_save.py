@@ -81,24 +81,6 @@ class PlanSaveMixin:
                 pass
             self._plan_save_after_id = None
 
-    def _write_plan_now(self, plan: SeatingPlan, path: Path) -> None:
-        """Schreibt *plan* sofort und verwirft einen ausstehenden, älteren Schreibvorgang.
-
-        Für Änderungen, die sofort auf die Platte müssen. Bliebe der ausstehende
-        Vorgang stehen, schriebe er danach den älteren Stand zurück. Schlägt das
-        Schreiben fehl, bleibt er erhalten, damit nichts verloren geht.
-
-        Args:
-            plan: Zu speichernder Plan, der neuer ist als ein ausstehender.
-            path: Zieldatei für den Schreibvorgang.
-
-        Raises:
-            Exception: Fehler des Repositorys werden an den Aufrufer weitergereicht.
-        """
-        self._controller.plan_repository.save_plan(plan, path)
-        self._cancel_plan_save_timer()
-        self._pending_plan_save = None
-
     def _flush_pending_plan_save(self) -> None:
         """Schreibt einen ausstehenden Speichervorgang sofort, falls vorhanden.
 

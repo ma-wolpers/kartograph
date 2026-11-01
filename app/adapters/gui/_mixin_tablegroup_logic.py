@@ -9,14 +9,8 @@ from __future__ import annotations
 
 from app.adapters.gui.dialog_services import messagebox
 from app.core.domain.table_groups import TG_ROTATION_LIMIT
-from app.core.usecases.v4.tablegroup_usecases import (
-    detect_overlaps_for_tablegroup,
-    get_tablegroup_settings,
-    normalize_tablegroups,
-    set_tablegroup_number_with_cascade,
-    set_tablegroup_transforms,
-    tablegroup_number_at,
-)
+from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
+from app.core.usecases.v4.tablegroup_usecases import get_tablegroup_settings, tablegroup_number_at
 
 
 class TablegroupLogicMixin:
@@ -31,8 +25,6 @@ class TablegroupLogicMixin:
         if not self._tg_number_var or not self._tg_shift_x_var or not self._tg_shift_y_var or not self._tg_rotation_var:
             return
 
-        normalized = normalize_tablegroups(self.current_plan)
-        self._replace_current_plan(normalized)
         x, y = self.selection.active_cell()
         number = tablegroup_number_at(self.current_plan, x, y)
         if number is None:
@@ -47,12 +39,12 @@ class TablegroupLogicMixin:
         settings = get_tablegroup_settings(self.current_plan, number)
         if settings is None:
             return
-        self._tg_number_var.set(str(settings.number))
+        self._tg_number_var.set(str(settings.group_id))
         self._tg_shift_x_var.set(f"{settings.shift_x:.2f}")
         self._tg_shift_y_var.set(f"{settings.shift_y:.2f}")
         self._tg_rotation_var.set(f"{settings.rotation:.2f}")
         if self._tg_status_var:
-            self._tg_status_var.set(f"Aktive Gruppe: TG {settings.number}")
+            self._tg_status_var.set(f"Aktive Gruppe: TG {settings.group_id}")
 
     def _parse_tablegroup_overlay_values(self) -> tuple[int, float, float, float] | None:
         """Liest und validiert die Formulareingaben des Tischgruppen-Overlays.
@@ -94,7 +86,7 @@ class TablegroupLogicMixin:
         return number, shift_x, shift_y, rotation
 
     def _apply_tablegroup_overlay_values(self) -> None:
-        """Liest die Formulareingaben, wendet die Tischgruppen-Werte an und speichert (v4)."""
+        """Liest die Formulareingaben und übernimmt die Tischgruppen-Werte als einen Undo-Schritt (v4)."""
         if not self.current_plan or not self.current_plan_path:
             return
 
@@ -102,47 +94,19 @@ class TablegroupLogicMixin:
         if parsed is None:
             return
 
-        target_number, shift_x, shift_y, rotation = parsed
+        number, shift_x, shift_y, rotation = parsed
         x, y = self.selection.active_cell()
-        next_plan = normalize_tablegroups(self.current_plan)
-
-        source_number = tablegroup_number_at(next_plan, x, y)
-        if source_number is None:
-            if self._tg_status_var:
-                self._tg_status_var.set("Nur Schuelertische gehoeren zu Tischgruppen")
-            return
-
-        if source_number != target_number:
-            next_plan = set_tablegroup_number_with_cascade(next_plan, source_number, target_number)
-            source_number = target_number
-
-        next_plan = set_tablegroup_transforms(next_plan, source_number, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
-
-        teacher_overlap, student_overlap = detect_overlaps_for_tablegroup(next_plan, source_number)
-        if teacher_overlap or student_overlap:
-            if self._tg_last_changed_field == "shift_y":
-                next_plan = set_tablegroup_transforms(next_plan, source_number, shift_y=0.0)
-                reset_label = "y-shift"
-            elif self._tg_last_changed_field == "rotation":
-                next_plan = set_tablegroup_transforms(next_plan, source_number, rotation=0.0)
-                reset_label = "rotation"
-            else:
-                next_plan = set_tablegroup_transforms(next_plan, source_number, shift_x=0.0)
-                reset_label = "x-shift"
-
-            teacher_overlap, student_overlap = detect_overlaps_for_tablegroup(next_plan, source_number)
-            if teacher_overlap or student_overlap:
-                next_plan = set_tablegroup_transforms(next_plan, source_number, shift_x=0.0, shift_y=0.0, rotation=0.0)
-                reset_label = "x/y-shift und rotation"
-            status = f"Ueberlappung erkannt: {reset_label} auf 0 gesetzt"
-        else:
-            status = f"TG {source_number} gespeichert"
-
-        self._write_plan_now(next_plan, self.current_plan_path)
-        self._replace_current_plan(next_plan)
-        if self._tg_status_var:
-            self._tg_status_var.set(status)
-
-        self._request_grid_redraw()
-        self._refresh_details_panel()
+        self._controller.dispatch(
+            ApplyTablegroupSettingsIntent(
+                x=x,
+                y=y,
+                number=number,
+                shift_x=shift_x,
+                shift_y=shift_y,
+                rotation=rotation,
+                last_changed_field=self._tg_last_changed_field,
+            )
+        )
         self._refresh_tablegroup_overlay()
+        if self._tg_status_var:
+            self._tg_status_var.set(self._controller.state.status_message)

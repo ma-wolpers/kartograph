@@ -29,6 +29,7 @@ from app.infrastructure.symbol_config_loader import load_symbol_definitions
 # --- Handler-Imports --------------------------------------------------------
 from app.application.handlers.accommodation_handlers import handle_set_accommodations
 from app.application.handlers.color_handlers import handle_toggle_color
+from app.application.handlers.tablegroup_handlers import handle_apply_tablegroup_settings
 from app.application.handlers.custom_symbol_handlers import (
     handle_add_custom_symbol,
     handle_delete_custom_symbol,
@@ -110,6 +111,7 @@ from app.application.handlers.view_handlers import (
 # --- Intent-Imports ---------------------------------------------------------
 from app.core.intents.accommodation_intents import SetAccommodationsIntent
 from app.core.intents.color_intents import ToggleColorIntent
+from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
 from app.core.intents.custom_symbol_intents import (
     AddCustomSymbolIntent,
     DeleteCustomSymbolIntent,
@@ -388,6 +390,7 @@ class KartographAppController:
 
         # Color
         r.register(ToggleColorIntent, lambda i, s: handle_toggle_color(i, s, ctx))
+        r.register(ApplyTablegroupSettingsIntent, lambda i, s: handle_apply_tablegroup_settings(i, s, ctx))
 
         # Custom Symbol
         r.register(AddCustomSymbolIntent, lambda i, s: handle_add_custom_symbol(i, s, ctx))

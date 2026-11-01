@@ -135,21 +135,6 @@ class TestUndoIsAtomicInTheRealWindow:
         assert saved.documentation.grade_of(student.student_id, "col0") == before
 
 
-    def test_immediate_write_is_not_overwritten_by_an_older_pending_save(self, window):
-        row = window._doc_row_order[0]
-        student = next(s for s in window.current_plan.classroom.students if str(s.student_id) == row)
-        before = _grade(window, row)
-        newer = window.current_plan
-        _open_editor(window, row, "3,3")
-        window._close_docs_inline_editor(apply_changes=True)  # plant einen verzögerten Schreibvorgang
-
-        window._write_plan_now(newer, window.current_plan_path)
-        window._flush_pending_plan_save()
-
-        saved = window._controller.plan_repository.load_plan(window.current_plan_path)
-        assert saved.documentation.grade_of(student.student_id, "col0") == before
-
-
 class TestDeleteActsOnTheActiveCell:
     def _entry(self, app, row_id, date):
         student = next(s for s in app.current_plan.classroom.students if str(s.student_id) == row_id)
