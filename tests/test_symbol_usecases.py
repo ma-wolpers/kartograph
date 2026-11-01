@@ -17,20 +17,20 @@ SYM = "Beteiligung"
 
 class TestToggleDiagnosticSymbol:
     def test_first_toggle_sets_1(self, anna_id, plan_with_anna):
-        result = toggle_diagnostic_symbol(plan_with_anna, anna_id, "Laptop")
+        result = toggle_diagnostic_symbol(plan_with_anna, anna_id, DATE, "Laptop")
         s = result.student_by_id(anna_id)
         assert s.diagnostic.symbols.get("Laptop") == 1
 
     def test_cycles_1_2_3_then_removes(self, anna_id, plan_with_anna):
         plan = plan_with_anna
         for expected in [1, 2, 3]:
-            plan = toggle_diagnostic_symbol(plan, anna_id, "Laptop")
+            plan = toggle_diagnostic_symbol(plan, anna_id, DATE, "Laptop")
             assert plan.student_by_id(anna_id).diagnostic.symbols.get("Laptop") == expected
-        plan = toggle_diagnostic_symbol(plan, anna_id, "Laptop")
+        plan = toggle_diagnostic_symbol(plan, anna_id, DATE, "Laptop")
         assert "Laptop" not in plan.student_by_id(anna_id).diagnostic.symbols
 
     def test_no_effect_for_unknown_student(self, plan):
-        result = toggle_diagnostic_symbol(plan, StudentId.new(), "Laptop")
+        result = toggle_diagnostic_symbol(plan, StudentId.new(), DATE, "Laptop")
         assert result.classroom.students == []
 
 

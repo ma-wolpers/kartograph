@@ -32,7 +32,7 @@ def handle_create_snapshot(intent: CreateSnapshotIntent, state: AppState, ctx: H
     result = create_snapshot(state.current_plan, intent.name)
     if not result.created:
         return dataclasses.replace(state, status_message="Dieser Sitzplan ist bereits als Snapshot gespeichert")
-    _record_and_save(result.plan, state.current_plan_path, "snapshot.create", ctx)
+    _record_and_save(result.plan, state.current_plan_path, ctx)
     return _with_plan(state, result.plan, ctx, status="Snapshot gespeichert")
 
 
@@ -49,7 +49,7 @@ def handle_delete_snapshot(intent: DeleteSnapshotIntent, state: AppState, ctx: H
     result = delete_snapshot(state.current_plan, intent.snapshot_id)
     if not result.changed:
         return state
-    _record_and_save(result.plan, state.current_plan_path, "snapshot.delete", ctx)
+    _record_and_save(result.plan, state.current_plan_path, ctx)
     return _with_plan(state, result.plan, ctx, status="Snapshot gelöscht")
 
 
@@ -66,7 +66,7 @@ def handle_rename_snapshot(intent: RenameSnapshotIntent, state: AppState, ctx: H
     result = rename_snapshot(state.current_plan, intent.snapshot_id, intent.new_name)
     if not result.changed:
         return state
-    _record_and_save(result.plan, state.current_plan_path, "snapshot.rename", ctx)
+    _record_and_save(result.plan, state.current_plan_path, ctx)
     return _with_plan(state, result.plan, ctx)
 
 
@@ -83,5 +83,5 @@ def handle_restore_snapshot(intent: RestoreSnapshotIntent, state: AppState, ctx:
     result = restore_snapshot(state.current_plan, intent.snapshot_id)
     if not result.changed:
         return state
-    _record_and_save(result.plan, state.current_plan_path, "snapshot.restore", ctx)
+    _record_and_save(result.plan, state.current_plan_path, ctx)
     return _with_plan(state, result.plan, ctx, status="Snapshot geladen")

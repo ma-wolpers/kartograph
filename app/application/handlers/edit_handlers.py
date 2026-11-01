@@ -6,7 +6,7 @@ from pathlib import Path
 
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _can_redo, _can_undo, _record_and_save, _refresh_plan_list, _with_plan
+from app.application.handlers._shared import _record_and_save, _refresh_plan_list, _with_plan
 from app.core.domain.list_action_history import DeletePlanAction, DuplicatePlanAction
 from app.core.intents.edit_intents import (
     CopySelectionIntent,
@@ -50,7 +50,7 @@ def _list_history_flags(ctx: HandlerContext) -> tuple[bool, bool]:
     """Leitet (can_undo, can_redo) für ``ctx.list_history`` aus deren aktuellem Zustand ab.
 
     Reine Ableitung ohne Nebenwirkung (Peek auf beide Stacks), analog zu
-    ``_can_undo``/``_can_redo`` in ``_shared.py`` für die Raster-History
+    ``PlanHistory.can_undo``/``can_redo`` für die Raster-History
     (``ctx.history``) — nur für die separate Listen-Aktionen-History
     (Rename/Delete/Duplicate). Wird nach jedem erfolgreichen
     ``confirm_undo()``/``confirm_redo()`` aufgerufen, damit ``AppState``
@@ -213,8 +213,8 @@ def handle_undo(intent: UndoIntent, state: AppState, ctx: HandlerContext) -> App
     return dataclasses.replace(
         state,
         current_plan=restored,
-        can_undo=_can_undo(ctx),
-        can_redo=_can_redo(ctx),
+        can_undo=ctx.history.can_undo,
+        can_redo=ctx.history.can_redo,
         status_message="Rückgängig",
     )
 
@@ -242,8 +242,8 @@ def handle_redo(intent: RedoIntent, state: AppState, ctx: HandlerContext) -> App
     return dataclasses.replace(
         state,
         current_plan=restored,
-        can_undo=_can_undo(ctx),
-        can_redo=_can_redo(ctx),
+        can_undo=ctx.history.can_undo,
+        can_redo=ctx.history.can_redo,
         status_message="Wiederhergestellt",
     )
 
@@ -314,7 +314,7 @@ def handle_paste_selection(intent: PasteSelectionIntent, state: AppState, ctx: H
         message = "Lehrertisch blockiert das Einfügen" if teacher_conflict else "Nichts eingefügt"
         return dataclasses.replace(state, status_message=message)
 
-    _record_and_save(next_plan, state.current_plan_path, "clipboard.paste", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     message = f"{pasted} Schüler eingefügt"
     if teacher_conflict:
         message += " (Lehrertisch übersprungen)"

@@ -42,7 +42,7 @@ def handle_add_custom_symbol(intent: AddCustomSymbolIntent, state: AppState, ctx
         intent.shortcut,
         reserved_symbol_letters(state.symbol_catalog),
     )
-    _record_and_save(next_plan, state.current_plan_path, "custom_symbol.add", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)
 
 
@@ -64,7 +64,7 @@ def handle_update_custom_symbol(intent: UpdateCustomSymbolIntent, state: AppStat
         intent.shortcut,
         reserved_symbol_letters(state.symbol_catalog),
     )
-    _record_and_save(next_plan, state.current_plan_path, "custom_symbol.update", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)
 
 
@@ -79,5 +79,5 @@ def handle_delete_custom_symbol(intent: DeleteCustomSymbolIntent, state: AppStat
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = delete_custom_symbol(state.current_plan, intent.symbol_id)
-    _record_and_save(next_plan, state.current_plan_path, "custom_symbol.delete", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)

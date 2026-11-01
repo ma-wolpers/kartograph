@@ -29,11 +29,10 @@ class UndoRedoMixin:
         self._controller.dispatch(UndoIntent())
 
     def undo_last_five_changes(self) -> None:
-        """Macht die letzten fünf Rasteränderungen in einem Schritt rückgängig."""
+        """Macht die letzten fünf Änderungen auf einmal rückgängig."""
         if not self.current_plan or not self.current_plan_path:
             return
-        for _ in range(5):
-            self._controller.dispatch(UndoIntent())
+        self._controller.dispatch(UndoIntent(steps=5))
 
     def redo_last_change(self) -> None:
         """Wiederholt die zuletzt rückgängig gemachte Änderung (v4: RedoIntent).

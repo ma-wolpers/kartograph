@@ -5,7 +5,7 @@ import logging
 
 from app.application.app_state import AppState, InteractionMode
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _can_redo, _can_undo, _refresh_plan_list
+from app.application.handlers._shared import _refresh_plan_list
 from app.core.domain.list_action_history import DeletePlanAction, DuplicatePlanAction, RenamePlanAction
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import resolve_plans_dir
@@ -53,8 +53,8 @@ def handle_open_plan(intent: OpenPlanIntent, state: AppState, ctx: HandlerContex
     drop_unused_palette_entries(plan)
 
     if ctx.history.plan_path == intent.plan_path:
-        can_undo = _can_undo(ctx)
-        can_redo = _can_redo(ctx)
+        can_undo = ctx.history.can_undo
+        can_redo = ctx.history.can_redo
     else:
         ctx.history.reset(plan, intent.plan_path)
         can_undo = False

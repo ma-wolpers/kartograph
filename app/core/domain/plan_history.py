@@ -1,21 +1,37 @@
 from __future__ import annotations
 
+from collections.abc import Hashable
 from copy import deepcopy
 from pathlib import Path
 
 from app.core.domain.models_v4 import SeatingPlan
 
+DEFAULT_MAX_UNDO_STEPS = 100
+
 
 class PlanHistory:
-    """Undo/Redo-Verlauf für einen Sitzplan auf Basis vollständiger Plan-Snapshots."""
+    """Undo/Redo-Verlauf für einen Sitzplan auf Basis vollständiger Plan-Snapshots.
 
-    def __init__(self, max_undo_steps: int = 20):
+    Grundsatz: ein Schritt je Nutzeraktion. Zusammengefasst wird nur, was der
+    Aufrufer ausdrücklich als dieselbe laufende Eingabe kennzeichnet (``merge_key``).
+    """
+
+    def __init__(self, max_undo_steps: int = DEFAULT_MAX_UNDO_STEPS):
         self.max_undo_steps = max(1, int(max_undo_steps))
         self.plan_path: Path | None = None
         self._states: list[SeatingPlan] = []
-        self._action_kinds: list[str | None] = []
         self._redo_states: list[SeatingPlan] = []
-        self._redo_kinds: list[str | None] = []
+        self._open_merge_key: Hashable | None = None
+
+    @property
+    def can_undo(self) -> bool:
+        """Ob es mehr als den Ausgangszustand gibt, also etwas rückgängig zu machen ist."""
+        return len(self._states) > 1
+
+    @property
+    def can_redo(self) -> bool:
+        """Ob rückgängig gemachte Zustände zum Wiederholen bereitliegen."""
+        return bool(self._redo_states)
 
     def reset(self, plan: SeatingPlan, plan_path: Path) -> None:
         """Setzt den Verlauf auf *plan* als einzigen Zustand zurück; löscht Undo/Redo.
@@ -31,9 +47,8 @@ class PlanHistory:
         """
         self.plan_path = plan_path
         self._states = [deepcopy(plan)]
-        self._action_kinds = [None]
         self._redo_states = []
-        self._redo_kinds = []
+        self._open_merge_key = None
 
     def discard(self) -> None:
         """Verwirft den gesamten Verlauf und die Plan-Identität (kein Plan mehr getrackt).
@@ -44,9 +59,8 @@ class PlanHistory:
         """
         self.plan_path = None
         self._states = []
-        self._action_kinds = []
         self._redo_states = []
-        self._redo_kinds = []
+        self._open_merge_key = None
 
     def rename(self, new_path: Path) -> None:
         """Aktualisiert den getrackten Pfad nach einer Umbenennung; Verlauf bleibt erhalten.
@@ -62,21 +76,17 @@ class PlanHistory:
         """
         self.plan_path = new_path
 
-    def record(self, plan: SeatingPlan, action_kind: str, *, coalesce: bool = True) -> None:
-        """Merkt sich *plan* als neuen Verlaufszustand und löscht den Redo-Stack.
+    def record(self, plan: SeatingPlan, *, merge_key: Hashable | None = None) -> None:
+        """Legt *plan* als eigenen Verlaufsschritt an und löscht den Redo-Stack.
 
-        Identische Zustände werden ignoriert. Folgen mehrere Aufrufe mit
-        demselben *action_kind* unmittelbar aufeinander (z. B. Tippen),
-        wird der letzte Zustand überschrieben statt einen neuen Schritt
-        anzulegen, damit Undo nicht in Einzelbuchstaben zerfällt.
+        Identische Zustände werden ignoriert. Nur wenn *merge_key* gesetzt ist und
+        dem unmittelbar vorigen Aufruf entspricht, wird dessen Schritt überschrieben.
+        Jeder andere Schritt und jedes Undo oder Redo beendet das Zusammenfassen.
 
         Args:
             plan: Aktueller Sitzplan, der als Snapshot gespeichert wird.
-            action_kind: Kennung der Aktion, die zur Zusammenfassung
-                aufeinanderfolgender gleichartiger Schritte dient.
-            coalesce: ``False`` legt immer einen eigenen Schritt an — für
-                einzelne Entscheidungen (z. B. je eine Abgabe-Bewertung),
-                die einzeln rückgängig machbar sein sollen.
+            merge_key: Kennzeichnet eine laufende Eingabe, z. B. Tippen in dasselbe
+                Feld derselben Person, damit Undo nicht in Wortteile zerfällt.
         """
         if not self._states:
             self.reset(plan, self.plan_path)
@@ -86,18 +96,16 @@ class PlanHistory:
         if candidate == self._states[-1]:
             return
 
-        if coalesce and len(self._states) > 1 and self._action_kinds[-1] == action_kind:
+        if merge_key is not None and merge_key == self._open_merge_key:
             self._states[-1] = candidate
         else:
             self._states.append(candidate)
-            self._action_kinds.append(action_kind)
             overflow = len(self._states) - (self.max_undo_steps + 1)
             if overflow > 0:
                 self._states = self._states[overflow:]
-                self._action_kinds = self._action_kinds[overflow:]
 
+        self._open_merge_key = merge_key
         self._redo_states = []
-        self._redo_kinds = []
 
     def undo(self, steps: int = 1) -> SeatingPlan | None:
         """Macht bis zu *steps* Verlaufsschritte rückgängig.
@@ -117,9 +125,9 @@ class PlanHistory:
         performed = 0
         while performed < steps and len(self._states) > 1:
             self._redo_states.append(self._states.pop())
-            self._redo_kinds.append(self._action_kinds.pop())
             performed += 1
 
+        self._open_merge_key = None
         return deepcopy(self._states[-1])
 
     def redo(self, steps: int = 1) -> SeatingPlan | None:
@@ -140,7 +148,7 @@ class PlanHistory:
         performed = 0
         while performed < steps and self._redo_states:
             self._states.append(self._redo_states.pop())
-            self._action_kinds.append(self._redo_kinds.pop())
             performed += 1
 
+        self._open_merge_key = None
         return deepcopy(self._states[-1])

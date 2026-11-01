@@ -64,7 +64,7 @@ from app.application.handlers.session_handlers import (
 )
 from app.application.handlers.student_handlers import (
     handle_create_student,
-    handle_delete_student,
+    handle_delete_students,
     handle_rename_student,
     handle_set_nickname,
 )
@@ -124,7 +124,7 @@ from app.core.intents.plan_intents import (
 from app.core.intents.session_intents import AddSessionIntent, GoToTodayIntent, NavigateSessionIntent
 from app.core.intents.student_intents import (
     CreateStudentIntent,
-    DeleteStudentIntent,
+    DeleteStudentsIntent,
     MoveStudentIntent,
     RenameStudentIntent,
     SetNicknameIntent,
@@ -944,7 +944,7 @@ class TestHandleStudentHandlers:
         ctx = make_ctx({path: plan})
         state = make_state_with_plan(plan, path)
 
-        result = handle_delete_student(DeleteStudentIntent(student_id=student.student_id), state, ctx)
+        result = handle_delete_students(DeleteStudentsIntent(student_ids=(student.student_id,)), state, ctx)
 
         assert result.current_plan.student_by_id(student.student_id) is None
 
@@ -1726,7 +1726,7 @@ class TestHandleUndoRedo:
         ctx.history.reset(plan, path)
         student = make_student(x=1, y=0)
         plan_v2 = make_plan(students=[student])
-        ctx.history.record(plan_v2, "student.create")
+        ctx.history.record(plan_v2)
         return AppState(current_plan=plan_v2, current_plan_path=path)
 
     def test_undo_restores_previous_plan(self):

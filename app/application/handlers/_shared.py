@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Hashable
 from pathlib import Path
 
 from app.application.app_state import AppState, PlanListEntry
@@ -14,33 +15,14 @@ from app.core.usecases.v4.color_usecases import drop_unused_palette_entries
 from app.core.usecases.v4.tablegroup_usecases import apply_normalized_tablegroups
 
 
-def _can_undo(ctx: HandlerContext) -> bool:
-    """Prüft, ob mehr als der initiale History-Zustand vorhanden ist (also rückgängig machbar).
-
-    Args:
-        ctx: Handler-Kontext mit Zugriff auf die ``PlanHistory``.
-    """
-    return len(ctx.history._states) > 1  # noqa: SLF001
-
-
-def _can_redo(ctx: HandlerContext) -> bool:
-    """Prüft, ob die History bereits rückgängig gemachte Zustände zum Wiederholen vorhält.
-
-    Args:
-        ctx: Handler-Kontext mit Zugriff auf die ``PlanHistory``.
-    """
-    return bool(ctx.history._redo_states)  # noqa: SLF001
-
-
 def _record_and_save(
     plan: SeatingPlan,
     path: Path,
-    action_kind: str,
     ctx: HandlerContext,
     *,
-    coalesce: bool = True,
+    merge_key: Hashable | None = None,
 ) -> None:
-    """Schreibt *plan* in die History (unter *action_kind*) und persistiert ihn unter *path*.
+    """Schreibt *plan* als eigenen Undo-Schritt in die History und persistiert ihn unter *path*.
 
     Vorher werden die Tischgruppen von *plan* in-place aus der aktuellen
     Sitznachbarschaft neu berechnet (``apply_normalized_tablegroups``). Weil
@@ -64,13 +46,12 @@ def _record_and_save(
     Args:
         plan: Neuer Planzustand.
         path: Zieldatei für die Persistenz.
-        action_kind: Kurzbezeichner der Aktion für den History-Eintrag (z. B. ``"student.move"``).
         ctx: Handler-Kontext mit Zugriff auf History und Repository.
-        coalesce: An ``PlanHistory.record`` durchgereicht; ``False`` = immer eigener Undo-Schritt.
+        merge_key: An ``PlanHistory.record`` durchgereicht; nur für laufende Texteingaben.
     """
     apply_normalized_tablegroups(plan)
     drop_unused_palette_entries(plan)
-    ctx.history.record(plan, action_kind, coalesce=coalesce)
+    ctx.history.record(plan, merge_key=merge_key)
     if ctx.plan_save_scheduler is not None:
         ctx.plan_save_scheduler(plan, path)
     else:
@@ -95,8 +76,8 @@ def _with_plan(
     return dataclasses.replace(
         state,
         current_plan=plan,
-        can_undo=_can_undo(ctx),
-        can_redo=_can_redo(ctx),
+        can_undo=ctx.history.can_undo,
+        can_redo=ctx.history.can_redo,
         status_message=status,
     )
 

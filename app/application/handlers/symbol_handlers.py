@@ -13,17 +13,17 @@ from app.core.usecases.v4.symbol_usecases import record_symbol, toggle_diagnosti
 def handle_toggle_diagnostic_symbol(
     intent: ToggleDiagnosticSymbolIntent, state: AppState, ctx: HandlerContext
 ) -> AppState:
-    """Schaltet ein Diagnose-Symbol im Schülerprofil um (unabhängig von der Dokumentations-Historie).
+    """Schaltet ein Diagnose-Symbol um und trägt es am Datum ein, als ein Undo-Schritt.
 
     Args:
-        intent: Schüler-ID und umzuschaltendes Symbol.
+        intent: Schüler-ID, Datum des Doku-Eintrags und umzuschaltendes Symbol.
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
     if state.current_plan is None or state.current_plan_path is None:
         return state
-    next_plan = toggle_diagnostic_symbol(state.current_plan, intent.student_id, intent.symbol)
-    _record_and_save(next_plan, state.current_plan_path, "symbol.diagnostic.toggle", ctx)
+    next_plan = toggle_diagnostic_symbol(state.current_plan, intent.student_id, intent.date, intent.symbol)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)
 
 
@@ -42,5 +42,5 @@ def handle_record_documentation_symbol(
     next_plan = record_symbol(
         state.current_plan, intent.student_id, intent.date, intent.symbol, intent.strength
     )
-    _record_and_save(next_plan, state.current_plan_path, "symbol.doc.record", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)

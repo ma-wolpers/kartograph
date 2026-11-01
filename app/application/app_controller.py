@@ -82,7 +82,7 @@ from app.application.handlers.session_handlers import (
 )
 from app.application.handlers.student_handlers import (
     handle_create_student,
-    handle_delete_student,
+    handle_delete_students,
     handle_move_student,
     handle_rename_student,
     handle_set_nickname,
@@ -161,7 +161,7 @@ from app.core.intents.session_intents import (
 )
 from app.core.intents.student_intents import (
     CreateStudentIntent,
-    DeleteStudentIntent,
+    DeleteStudentsIntent,
     MoveStudentIntent,
     RenameStudentIntent,
     SetNicknameIntent,
@@ -376,7 +376,7 @@ class KartographAppController:
         r.register(MoveStudentIntent,    lambda i, s: handle_move_student(i, s, ctx))
         r.register(RenameStudentIntent,  lambda i, s: handle_rename_student(i, s, ctx))
         r.register(SetNicknameIntent,    lambda i, s: handle_set_nickname(i, s, ctx))
-        r.register(DeleteStudentIntent,  lambda i, s: handle_delete_student(i, s, ctx))
+        r.register(DeleteStudentsIntent, lambda i, s: handle_delete_students(i, s, ctx))
         r.register(SetTeacherSeatIntent, lambda i, s: handle_set_teacher_seat(i, s, ctx))
 
         # Symbol

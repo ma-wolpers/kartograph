@@ -20,5 +20,5 @@ def handle_set_accommodations(
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = set_accommodations(state.current_plan, intent.student_id, intent.accommodations)
-    _record_and_save(next_plan, state.current_plan_path, "accommodation.set", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx, merge_key=("accommodations", intent.student_id))
     return _with_plan(state, next_plan, ctx)

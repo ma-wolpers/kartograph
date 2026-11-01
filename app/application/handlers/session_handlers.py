@@ -59,7 +59,7 @@ def handle_add_session(intent: AddSessionIntent, state: AppState, ctx: HandlerCo
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = ensure_session(state.current_plan, intent.date)
-    _record_and_save(next_plan, state.current_plan_path, "session.add", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return dataclasses.replace(
         _with_plan(state, next_plan, ctx),
         doc_selected_date=intent.date,
@@ -77,7 +77,7 @@ def handle_delete_session(intent: DeleteSessionIntent, state: AppState, ctx: Han
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = _delete_session(state.current_plan, intent.date)
-    _record_and_save(next_plan, state.current_plan_path, "session.delete", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     cleared_date = None if state.doc_selected_date == intent.date else state.doc_selected_date
     return dataclasses.replace(
         _with_plan(state, next_plan, ctx),
@@ -138,5 +138,5 @@ def handle_clear_doc_entry(intent: ClearDocEntryIntent, state: AppState, ctx: Ha
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = _clear_entry(state.current_plan, intent.student_id, intent.date)
-    _record_and_save(next_plan, state.current_plan_path, "doc.entry.clear", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)

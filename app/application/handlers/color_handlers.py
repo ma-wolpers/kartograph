@@ -18,5 +18,5 @@ def handle_toggle_color(intent: ToggleColorIntent, state: AppState, ctx: Handler
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = toggle_color_tag(state.current_plan, intent.student_id, intent.color_key)
-    _record_and_save(next_plan, state.current_plan_path, "color.toggle", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)

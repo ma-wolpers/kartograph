@@ -14,11 +14,10 @@ from app.core.domain.models_v4 import ParticipationRating
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.student_intents import (
-    DeleteStudentIntent,
+    DeleteStudentsIntent,
     SetTeacherSeatIntent,
 )
 from app.core.intents.symbol_intents import (
-    RecordDocumentationSymbolIntent,
     ToggleDiagnosticSymbolIntent,
 )
 from app.core.usecases.v4.color_usecases import palette_meaning, set_palette_meaning
@@ -106,19 +105,8 @@ class EditMixin:
         if symbol not in self.diagnostic_symbol_catalog:
             self.status_var.set("Dieses Symbol ist nur fuer die Dokumentation verfuegbar")
             return
-        self._controller.dispatch(ToggleDiagnosticSymbolIntent(student_id=student.student_id, symbol=symbol))
-        # Sync doc entry: get new strength after toggle
-        updated_student = self._controller.state.current_plan.student_at(x, y) if self._controller.state.current_plan else None
-        new_strength = 0
-        if updated_student is not None:
-            new_strength = int(updated_student.diagnostic.symbols.get(symbol, 0))
         self._controller.dispatch(
-            RecordDocumentationSymbolIntent(
-                student_id=student.student_id,
-                date=self._today_doc_date(),
-                symbol=symbol,
-                strength=new_strength,
-            )
+            ToggleDiagnosticSymbolIntent(student_id=student.student_id, date=self._today_doc_date(), symbol=symbol)
         )
 
     def _on_space_symbol_shortcut(self, event) -> EventResult | None:
@@ -307,10 +295,10 @@ class EditMixin:
         has_teacher = any(ts.x == x and ts.y == y for x, y in targets)
         if has_teacher:
             self.status_var.set("Lehrertisch kann nicht geloescht werden")
-        for x, y in targets:
-            student = self.current_plan.student_at(x, y)
-            if student is not None:
-                self._controller.dispatch(DeleteStudentIntent(student_id=student.student_id))
+        students = (self.current_plan.student_at(x, y) for x, y in targets)
+        student_ids = tuple(student.student_id for student in students if student is not None)
+        if student_ids:
+            self._controller.dispatch(DeleteStudentsIntent(student_ids=student_ids))
         self.canvas.focus_set()
         self._set_selection_single(*self.selection.anchor_cell())
 

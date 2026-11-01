@@ -8,9 +8,10 @@ from app.core.intents.base import Intent
 
 @dataclass(frozen=True)
 class ToggleDiagnosticSymbolIntent(Intent):
-    """Schaltet ein Diagnose-Symbol im Schülerprofil um (unabhängig von der Dokumentations-Historie)."""
+    """Schaltet ein Diagnose-Symbol im Schülerprofil um und trägt es am Datum ein (ein Undo-Schritt)."""
 
     student_id: StudentId
+    date: str | None
     symbol: str
 
 

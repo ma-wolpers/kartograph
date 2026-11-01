@@ -47,10 +47,10 @@ class SetNicknameIntent(Intent):
 
 
 @dataclass(frozen=True)
-class DeleteStudentIntent(Intent):
-    """Entfernt einen Schüler vollständig aus dem Plan (inkl. Diagnoseprofil)."""
+class DeleteStudentsIntent(Intent):
+    """Entfernt die Schüler einer Auswahl vollständig aus dem Plan (inkl. Diagnoseprofil), als ein Undo-Schritt."""
 
-    student_id: StudentId
+    student_ids: tuple[StudentId, ...]
 
 
 @dataclass(frozen=True)

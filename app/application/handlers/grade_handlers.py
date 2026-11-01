@@ -50,7 +50,7 @@ def handle_add_grade_column(intent: AddGradeColumnIntent, state: AppState, ctx: 
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan, _column_id = add_grade_column(state.current_plan, intent.category, intent.title)
-    _record_and_save(next_plan, state.current_plan_path, "grade.column.add", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return dataclasses.replace(
         _with_plan(state, next_plan, ctx),
         doc_selected_column_id=_column_id or state.doc_selected_column_id,
@@ -68,7 +68,7 @@ def handle_delete_grade_column(intent: DeleteGradeColumnIntent, state: AppState,
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = _delete_grade_column(state.current_plan, intent.column_id)
-    _record_and_save(next_plan, state.current_plan_path, "grade.column.delete", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     cleared_col = None if state.doc_selected_column_id == intent.column_id else state.doc_selected_column_id
     return dataclasses.replace(
         _with_plan(state, next_plan, ctx),
@@ -87,7 +87,7 @@ def handle_record_grade(intent: RecordGradeIntent, state: AppState, ctx: Handler
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = record_grade(state.current_plan, intent.student_id, intent.column_id, intent.grade)
-    _record_and_save(next_plan, state.current_plan_path, "grade.record", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)
 
 
@@ -104,7 +104,7 @@ def handle_resolve_grade_conflicts(
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = resolve_grade_conflicts(state.current_plan, intent.choices)
-    _record_and_save(next_plan, state.current_plan_path, "grade.conflicts.resolve", ctx, coalesce=False)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)
 
 
@@ -121,7 +121,7 @@ def handle_update_grade_weighting(
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = set_grade_weighting(state.current_plan, intent.written_percent, intent.sonstige_percent)
-    _record_and_save(next_plan, state.current_plan_path, "grade.weighting.update", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)
 
 
@@ -139,5 +139,5 @@ def handle_set_grade_scale(intent: SetGradeScaleIntent, state: AppState, ctx: Ha
     if state.current_plan is None or state.current_plan_path is None:
         return state
     next_plan = set_grade_scale(state.current_plan, intent.scale_id)
-    _record_and_save(next_plan, state.current_plan_path, "grade.scale.set", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)

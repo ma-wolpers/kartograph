@@ -16,30 +16,34 @@ from app.core.usecases.v4.session_usecases import ensure_session
 
 
 def toggle_diagnostic_symbol(
-    plan: SeatingPlan, student_id: StudentId, symbol: str
+    plan: SeatingPlan, student_id: StudentId, date: str | None, symbol: str
 ) -> SeatingPlan:
-    """Wechselt den Zähler eines diagnostischen Symbols zyklisch (0→1→2→3→0).
+    """Wechselt den Zähler eines diagnostischen Symbols zyklisch (0→1→2→3→0) und dokumentiert ihn.
 
-    Bei Zähler 0 wird der Eintrag entfernt.
+    Profil und Doku-Eintrag des Datums ändern sich gemeinsam, damit ein
+    Tastendruck genau ein Undo-Schritt ist. Bei Zähler 0 verschwinden beide Einträge.
 
     Args:
         plan: Ausgangsplan.
         student_id: ID des betroffenen Schülers.
+        date: Datum des Doku-Eintrags im Format YYYY-MM-DD (None = heute).
         symbol: Symbolname (z.B. ``"Laptop"``).
 
     Returns:
-        Neuer Plan mit dem aktualisierten Symbolzähler.
+        Neuer Plan mit dem aktualisierten Symbolzähler; bei unbekannter ID unverändert.
     """
-    next_plan = deepcopy(plan)
-    student = next_plan.classroom.student_by_id(student_id)
+    student = plan.classroom.student_by_id(student_id)
     if student is None:
-        return next_plan
+        return deepcopy(plan)
     current = int(student.diagnostic.symbols.get(symbol, 0))
     next_count = next_symbol_toggle_strength(current, is_diagnostic=True)
+
+    next_plan = record_symbol(plan, student_id, date, symbol, next_count)
+    symbols = next_plan.classroom.student_by_id(student_id).diagnostic.symbols
     if next_count == 0:
-        student.diagnostic.symbols.pop(symbol, None)
+        symbols.pop(symbol, None)
     else:
-        student.diagnostic.symbols[symbol] = next_count
+        symbols[symbol] = next_count
     return next_plan
 
 

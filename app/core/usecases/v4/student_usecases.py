@@ -7,6 +7,7 @@ die GUI, nicht als primärer Schlüssel.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from copy import deepcopy
 
 from app.core.domain.models_v4 import (
@@ -62,27 +63,48 @@ def delete_student(plan: SeatingPlan, student_id: StudentId) -> SeatingPlan:
     Returns:
         Neuer Plan ohne den Schüler.
     """
+    return delete_students(plan, (student_id,))
+
+
+def delete_students(plan: SeatingPlan, student_ids: Iterable[StudentId]) -> SeatingPlan:
+    """Entfernt mehrere Schüler mit einer einzigen Plankopie (siehe ``delete_student``).
+
+    Args:
+        plan: Ausgangsplan.
+        student_ids: IDs der zu löschenden Schüler; unbekannte werden übergangen.
+
+    Returns:
+        Neuer Plan ohne diese Schüler.
+    """
     next_plan = deepcopy(plan)
-    student = next_plan.classroom.student_by_id(student_id)
+    for student_id in student_ids:
+        _delete_student_in_place(next_plan, student_id)
+    return next_plan
+
+
+def _delete_student_in_place(plan: SeatingPlan, student_id: StudentId) -> None:
+    """Entfernt einen Schüler direkt aus dem bereits kopierten *plan*.
+
+    Args:
+        plan: Bereits kopierter Plan, der verändert wird.
+        student_id: ID des zu löschenden Schülers.
+    """
+    student = plan.classroom.student_by_id(student_id)
     if student is None:
-        return next_plan
+        return
 
     seat_x, seat_y = student.seat.x, student.seat.y
-    next_plan.classroom.students = [
-        s for s in next_plan.classroom.students if s.student_id != student_id
-    ]
+    plan.classroom.students = [s for s in plan.classroom.students if s.student_id != student_id]
 
     # Tischgruppen-Sitzplatz entfernen
-    for group in next_plan.tablegroups:
+    for group in plan.tablegroups:
         group.seats = [s for s in group.seats if not (s.x == seat_x and s.y == seat_y)]
-    next_plan.tablegroups = [g for g in next_plan.tablegroups if g.seats]
+    plan.tablegroups = [g for g in plan.tablegroups if g.seats]
 
     # Session-Einträge bereinigen
-    for session in next_plan.documentation.sessions:
+    for session in plan.documentation.sessions:
         session.entries.pop(student_id, None)
-    next_plan.documentation.remove_student_grades(student_id)
-
-    return next_plan
+    plan.documentation.remove_student_grades(student_id)
 
 
 def move_student(plan: SeatingPlan, student_id: StudentId, new_x: int, new_y: int) -> SeatingPlan:

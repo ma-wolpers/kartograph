@@ -189,13 +189,13 @@ class TestSnapshotHistoryUndoRedo:
         history.reset(plan, plan_path=None)
 
         created = create_snapshot(plan, "Montag")
-        history.record(created.plan, "snapshot.create")
+        history.record(created.plan)
         assert len(created.plan.snapshots) == 1
 
         restored = restore_snapshot(created.plan, created.snapshot_id)
         # Move the student away, then restore -- ensures restore is a real change.
         restored.plan.student_by_id(anna_id).seat = Seat(x=9, y=9)
-        history.record(restored.plan, "student.move")
+        history.record(restored.plan)
 
         undone = history.undo()
         assert undone is not None

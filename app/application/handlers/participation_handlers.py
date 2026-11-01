@@ -22,5 +22,5 @@ def handle_set_participation_rating(
     next_plan = set_participation_rating(
         state.current_plan, intent.student_id, intent.date, intent.rating
     )
-    _record_and_save(next_plan, state.current_plan_path, "participation.set", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)

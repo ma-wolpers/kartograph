@@ -88,6 +88,39 @@ def test_reentrant_close_during_destroy_saves_once(window, monkeypatch):
     assert len(dispatched) == 1
 
 
+class TestUndoIsAtomicInTheRealWindow:
+    def test_two_grades_in_the_editor_are_two_steps(self, window):
+        row = window._doc_row_order[0]
+        before = _grade(window, row)
+        for text in ("2,3", "3,3"):
+            _open_editor(window, row, text)
+            window._close_docs_inline_editor(apply_changes=True)
+
+        window.undo_last_change()
+        assert _grade(window, row) == 2.3
+        window.undo_last_change()
+        assert _grade(window, row) == before
+
+    def test_grid_symbol_is_undone_with_one_press(self, window):
+        window._controller.dispatch(SetEditorSurfaceIntent(surface="grid"))
+        student = window.current_plan.classroom.students[0]
+        symbol = window.diagnostic_symbol_catalog[0]
+        window._set_selection_single(student.seat.x, student.seat.y)
+        date = window._today_doc_date()
+
+        window._toggle_selected_symbol(symbol)
+        current = window.current_plan.student_by_id(student.student_id)
+        assert current.diagnostic.symbols[symbol] == 1
+        assert window.current_plan.documentation.session_for_date(date).entry_for(student.student_id).symbols[symbol] == 1
+
+        window.undo_last_change()
+        current = window.current_plan.student_by_id(student.student_id)
+        assert symbol not in current.diagnostic.symbols
+        session = window.current_plan.documentation.session_for_date(date)
+        entry = session.entry_for(student.student_id) if session else None
+        assert entry is None or symbol not in entry.symbols
+
+
 class TestDeleteActsOnTheActiveCell:
     def _entry(self, app, row_id, date):
         student = next(s for s in app.current_plan.classroom.students if str(s.student_id) == row_id)

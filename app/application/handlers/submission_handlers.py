@@ -46,7 +46,7 @@ def handle_apply_missing_submissions(
         mark_absent=intent.mark_absent,
         mode="complement" if intent.mode == "complement" else "replace",
     )
-    _record_and_save(next_plan, state.current_plan_path, "submission.missing.apply", ctx)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)
 
 
@@ -66,5 +66,5 @@ def handle_set_submission_status(intent: SetSubmissionStatusIntent, state: AppSt
         return dataclasses.replace(state, status_message=str(err))
     next_plan = set_submission_status(state.current_plan, intent.student_id, intent.date, intent.status, names)
     # Jede Bewertung ist eine eigene Entscheidung: nie mit der vorigen zusammenfassen.
-    _record_and_save(next_plan, state.current_plan_path, "submission.status.set", ctx, coalesce=False)
+    _record_and_save(next_plan, state.current_plan_path, ctx)
     return _with_plan(state, next_plan, ctx)

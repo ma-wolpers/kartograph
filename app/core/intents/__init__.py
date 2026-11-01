@@ -26,7 +26,7 @@ from app.core.intents.student_intents import (
     CreateStudentIntent,
     MoveStudentIntent,
     RenameStudentIntent,
-    DeleteStudentIntent,
+    DeleteStudentsIntent,
     SetTeacherSeatIntent,
 )
 from app.core.intents.symbol_intents import (
@@ -103,7 +103,7 @@ __all__ = [
     "CreateStudentIntent",
     "MoveStudentIntent",
     "RenameStudentIntent",
-    "DeleteStudentIntent",
+    "DeleteStudentsIntent",
     "SetTeacherSeatIntent",
     # Symbol
     "ToggleDiagnosticSymbolIntent",
