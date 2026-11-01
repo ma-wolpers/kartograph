@@ -162,6 +162,20 @@ def test_different_text_fields_of_one_person_are_separate_steps(setup):
     assert state.current_plan.student_by_id(first).diagnostic.accommodations == []
 
 
+def test_undo_and_redo_replace_a_pending_delayed_save(setup):
+    """Früher schrieb Undo direkt und ließ das verzögerte Speichern stehen, das danach den alten Stand zurückschrieb."""
+    ctx, state, first, _, _ = setup
+    scheduled = []
+    ctx.plan_save_scheduler = lambda plan, _path: scheduled.append(plan)
+    state = _symbol(state, ctx, first)
+
+    state = _undo(state, ctx)
+    assert scheduled[-1] == state.current_plan
+
+    state = handle_redo(RedoIntent(), state, ctx)
+    assert scheduled[-1] == state.current_plan
+
+
 def test_handlers_leave_the_state_alone_without_an_open_plan(setup):
     ctx, _, first, _, column_id = setup
     state = AppState()

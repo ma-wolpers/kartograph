@@ -67,6 +67,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Rückgängig innerhalb der Speicherverzögerung (2 s): Die Änderung schien zurückgenommen, wurde aber kurz danach wieder in die Plandatei geschrieben und war beim nächsten Öffnen wieder da. Ebenso konnte ein noch ausstehendes Speichern eine gerade gesicherte Tischgruppen-Einstellung in der Datei überschreiben.
 - Dokumentationsansicht: Eine Note landet immer bei der Person, deren Zelle bearbeitet wurde. Vorher trug der Editor beim Klick in eine andere Zeile die Note dort ein, und die bearbeitete Zelle zeigte weiter die alte Note.
 - Dokumentationsansicht: Eine ungültige Note (z. B. „12“ bei Schulnoten) lässt das Eingabefeld nach Enter offen; vorher schloss es sich und die Eingabe war verloren.
 - **Gedrehte/verschobene Tischgruppen** sehen im Sitzplan-Raster und in der Sitzplan-Vorschau jetzt immer so aus wie im PDF- und Sitzkärtchen-Export. Bisher behielt ein Tisch, der neben eine Gruppe umgesetzt oder dort neu angelegt wurde, im Editor die Drehung seiner alten Gruppe bzw. blieb ungedreht, bis das Tischgruppen-Fenster geöffnet wurde. Der Export ordnete ihn dagegen schon der neuen Gruppe zu. Jetzt übernimmt er die Drehung und Verschiebung der Gruppe sofort. Auch ältere Pläne mit veralteter Gruppenzuordnung werden beim Öffnen richtig angezeigt.

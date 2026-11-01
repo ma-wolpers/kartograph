@@ -9,6 +9,7 @@ from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import (
     _commit_plan_change,
     _refresh_plan_list,
+    _save_plan,
     _with_plan,
     requires_open_plan,
 )
@@ -218,7 +219,7 @@ def _apply_restored_plan(
     if restored is None:
         return dataclasses.replace(state, status_message=nothing_status)
     try:
-        ctx.plan_repository.save_plan(restored, state.current_plan_path)
+        _save_plan(restored, state.current_plan_path, ctx)
     except Exception:
         _log.exception("Speichern nach Undo/Redo fehlgeschlagen")
     return _with_plan(state, restored, ctx, status=status)

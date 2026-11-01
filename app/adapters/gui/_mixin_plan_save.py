@@ -64,6 +64,16 @@ class PlanSaveMixin:
                 mehr mutiert wird).
             path: Zieldatei für den Schreibvorgang.
         """
+        self._cancel_plan_save_timer()
+        self._pending_plan_save = (plan, path)
+        delay_ms = int(getattr(self, "save_delay", DEFAULT_SAVE_DELAY) * 1000)
+        if delay_ms <= 0:
+            self._flush_pending_plan_save()
+            return
+        self._plan_save_after_id = self.after(delay_ms, self._flush_pending_plan_save)
+
+    def _cancel_plan_save_timer(self) -> None:
+        """Bricht den geplanten Rückruf ab, falls einer läuft."""
         if self._plan_save_after_id is not None:
             try:
                 self.after_cancel(self._plan_save_after_id)
@@ -71,12 +81,23 @@ class PlanSaveMixin:
                 pass
             self._plan_save_after_id = None
 
-        self._pending_plan_save = (plan, path)
-        delay_ms = int(getattr(self, "save_delay", DEFAULT_SAVE_DELAY) * 1000)
-        if delay_ms <= 0:
-            self._flush_pending_plan_save()
-            return
-        self._plan_save_after_id = self.after(delay_ms, self._flush_pending_plan_save)
+    def _write_plan_now(self, plan: SeatingPlan, path: Path) -> None:
+        """Schreibt *plan* sofort und verwirft einen ausstehenden, älteren Schreibvorgang.
+
+        Für Änderungen, die sofort auf die Platte müssen. Bliebe der ausstehende
+        Vorgang stehen, schriebe er danach den älteren Stand zurück. Schlägt das
+        Schreiben fehl, bleibt er erhalten, damit nichts verloren geht.
+
+        Args:
+            plan: Zu speichernder Plan, der neuer ist als ein ausstehender.
+            path: Zieldatei für den Schreibvorgang.
+
+        Raises:
+            Exception: Fehler des Repositorys werden an den Aufrufer weitergereicht.
+        """
+        self._controller.plan_repository.save_plan(plan, path)
+        self._cancel_plan_save_timer()
+        self._pending_plan_save = None
 
     def _flush_pending_plan_save(self) -> None:
         """Schreibt einen ausstehenden Speichervorgang sofort, falls vorhanden.
@@ -89,13 +110,7 @@ class PlanSaveMixin:
         sichtbar gemacht, statt in einem Tk-``after()``-Callback still zu
         verschwinden.
         """
-        if self._plan_save_after_id is not None:
-            try:
-                self.after_cancel(self._plan_save_after_id)
-            except Exception:
-                pass
-            self._plan_save_after_id = None
-
+        self._cancel_plan_save_timer()
         pending = self._pending_plan_save
         self._pending_plan_save = None
         if pending is None:

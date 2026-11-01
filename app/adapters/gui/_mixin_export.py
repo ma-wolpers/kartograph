@@ -175,7 +175,7 @@ class ExportMixin:
         if not self.current_plan or not self.current_plan_path:
             return
         try:
-            self.plan_repository.save_plan(self.current_plan, self.current_plan_path)
+            self._write_plan_now(self.current_plan, self.current_plan_path)
             self.status_var.set(f"Gespeichert: {status}")
             self.refresh_plan_list()
         except Exception as exc:

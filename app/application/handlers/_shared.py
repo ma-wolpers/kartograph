@@ -78,6 +78,21 @@ def _record_and_save(
     apply_normalized_tablegroups(plan)
     drop_unused_palette_entries(plan)
     ctx.history.record(plan, merge_key=merge_key)
+    _save_plan(plan, path, ctx)
+
+
+def _save_plan(plan: SeatingPlan, path: Path, ctx: HandlerContext) -> None:
+    """Persistiert *plan* über den einen Speicherweg: verzögert, falls eingerichtet, sonst sofort.
+
+    Jeder Plan, der den angezeigten Stand ersetzt, muss hier durchlaufen. Ein neuer
+    verzögerter Schreibvorgang ersetzt den ausstehenden; wer direkt schreibt, ließe
+    den ausstehenden stehen, und der schriebe danach den älteren Stand zurück.
+
+    Args:
+        plan: Zu speichernder Plan.
+        path: Zieldatei für die Persistenz.
+        ctx: Handler-Kontext mit Scheduler und Repository.
+    """
     if ctx.plan_save_scheduler is not None:
         ctx.plan_save_scheduler(plan, path)
     else:

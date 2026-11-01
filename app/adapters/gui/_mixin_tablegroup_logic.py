@@ -138,7 +138,7 @@ class TablegroupLogicMixin:
         else:
             status = f"TG {source_number} gespeichert"
 
-        self.plan_repository.save_plan(next_plan, self.current_plan_path)
+        self._write_plan_now(next_plan, self.current_plan_path)
         self._replace_current_plan(next_plan)
         if self._tg_status_var:
             self._tg_status_var.set(status)
