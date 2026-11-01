@@ -5,7 +5,6 @@ Stellt Methoden zum Umbenennen, Löschen und Duplizieren von Sitzplänen bereit.
 
 from __future__ import annotations
 
-from pathlib import Path
 
 from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.core.intents.plan_intents import (

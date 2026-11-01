@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from app.core.domain.models_v4 import SeatingPlan, Session, SessionEntry
-from app.core.domain.student_id import StudentId
+from app.core.domain.models_v4 import SeatingPlan, Session
 from app.core.usecases.v4._shared import _normalize_doc_date
 
 

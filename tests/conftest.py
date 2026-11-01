@@ -16,7 +16,6 @@ from app.core.domain.models_v4 import (
     Classroom,
     DiagnosticProfile,
     DocumentationBlock,
-    GradeColumn,
     PlanMeta,
     SeatingPlan,
     SeatingSnapshot,

@@ -1,6 +1,5 @@
 """Tests für v4 student_usecases."""
 
-import pytest
 
 from app.core.domain.models_v4 import GroupSeat, Session, SessionEntry, TableGroup
 from app.core.domain.student_id import StudentId

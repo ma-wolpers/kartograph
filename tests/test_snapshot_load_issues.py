@@ -17,7 +17,7 @@ from app.infrastructure.repositories.v4.deserializer_v4 import (
 )
 from app.infrastructure.repositories.v4.json_plan_repository_v4 import JsonSeatingPlanRepositoryV4
 from app.infrastructure.repositories.v4.serializer_v4 import serialize_plan
-from tests.conftest import make_plan, make_student
+from tests.conftest import make_plan
 
 
 def _base_payload() -> dict:

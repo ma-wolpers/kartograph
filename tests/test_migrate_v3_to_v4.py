@@ -1,8 +1,6 @@
 """Tests für das Migrationsskript v3 → v4."""
 
 import json
-import shutil
-from pathlib import Path
 
 import pytest
 

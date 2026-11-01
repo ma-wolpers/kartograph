@@ -7,7 +7,7 @@ from pathlib import Path
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import _can_redo, _can_undo, _record_and_save, _refresh_plan_list, _with_plan
-from app.core.domain.list_action_history import DeletePlanAction, DuplicatePlanAction, RenamePlanAction
+from app.core.domain.list_action_history import DeletePlanAction, DuplicatePlanAction
 from app.core.intents.edit_intents import (
     CopySelectionIntent,
     CutSelectionIntent,

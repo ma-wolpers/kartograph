@@ -10,7 +10,6 @@ from app.core.domain.models_v4 import (
     Session,
     SessionEntry,
     TableGroup,
-    TeacherSeat,
 )
 from app.core.domain.student_clipboard import StudentClipboard
 from app.core.domain.student_id import StudentId

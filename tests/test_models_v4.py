@@ -3,10 +3,7 @@
 from app.core.domain.models_v4 import (
     Classroom,
     DocumentationBlock,
-    PaletteEntry,
-    SeatingPlan,
     Session,
-    SessionEntry,
     TeacherSeat,
 )
 from app.core.domain.student_id import StudentId

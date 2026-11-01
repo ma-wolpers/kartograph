@@ -3,9 +3,9 @@ from __future__ import annotations
 import dataclasses
 import logging
 
-from app.application.app_state import AppState, InteractionMode, PlanListEntry
+from app.application.app_state import AppState, InteractionMode
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _can_redo, _can_undo, _refresh_plan_list, _with_plan
+from app.application.handlers._shared import _can_redo, _can_undo, _refresh_plan_list
 from app.core.domain.list_action_history import DeletePlanAction, DuplicatePlanAction, RenamePlanAction
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import resolve_plans_dir

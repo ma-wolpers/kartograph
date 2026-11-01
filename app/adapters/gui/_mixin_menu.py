@@ -10,7 +10,6 @@ from __future__ import annotations
 import dataclasses
 
 from app.adapters.gui.dialog_services import messagebox
-from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.domain.grade_scale import GRADE_SCALES, scale_for
 from app.core.intents.grade_intents import SetGradeScaleIntent

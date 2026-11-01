@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from app.core.domain.models import Desk, SeatingPlan
 
 if TYPE_CHECKING:
-    from app.core.domain.models_v4 import SeatingPlan as SeatingPlanV4, Student
+    from app.core.domain.models_v4 import SeatingPlan as SeatingPlanV4
 
 TG_SHIFT_LIMIT = 0.49
 TG_ROTATION_LIMIT = 45.0
@@ -656,7 +656,6 @@ def build_seat_geometries_v4(plan: SeatingPlanV4) -> list[SeatGeometryV4]:
     Args:
         plan: v4-Sitzplan, dessen Sitzplatz-Geometrien berechnet werden.
     """
-    from app.core.domain.models_v4 import SeatingPlan as _SP  # local to avoid circular
 
     geometries: list[SeatGeometryV4] = []
 

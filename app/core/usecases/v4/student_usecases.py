@@ -10,11 +10,9 @@ from __future__ import annotations
 from copy import deepcopy
 
 from app.core.domain.models_v4 import (
-    Classroom,
     Seat,
     SeatingPlan,
     Student,
-    TableGroup,
     TeacherSeat,
 )
 from app.core.domain.student_id import StudentId

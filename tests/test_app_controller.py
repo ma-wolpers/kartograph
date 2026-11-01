@@ -13,7 +13,6 @@ from copy import deepcopy
 from datetime import date
 from pathlib import Path
 
-import pytest
 
 from app.application.app_controller import KartographAppController
 from app.application.app_state import AppState, EditorSurface, InteractionMode
