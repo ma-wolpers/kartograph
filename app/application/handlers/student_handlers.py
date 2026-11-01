@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import dataclasses
-import logging
 
 from app.application.app_state import AppState, InteractionMode
 from app.application.handler_context import HandlerContext
@@ -22,9 +21,6 @@ from app.core.usecases.v4.student_usecases import (
     rename_student,
     set_nickname,
 )
-
-_log = logging.getLogger("kartograph.handlers.student")
-
 
 @requires_open_plan
 def handle_create_student(intent: CreateStudentIntent, state: AppState, ctx: HandlerContext) -> AppState:
