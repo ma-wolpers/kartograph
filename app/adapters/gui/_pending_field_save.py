@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from app.adapters.gui.main_window_constants import DEFAULT_SAVE_DELAY
+from app.core.domain.settings import DEFAULT_SAVE_DELAY
 from app.core.domain.student_id import StudentId
 
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _record_and_save, _with_plan
+from app.application.handlers._shared import _commit_plan_change, requires_open_plan
 from app.core.domain.custom_symbol_validation import reserved_symbol_letters
 from app.core.intents.custom_symbol_intents import (
     AddCustomSymbolIntent,
@@ -25,6 +25,7 @@ from app.core.usecases.v4.custom_symbol_usecases import (
 )
 
 
+@requires_open_plan
 def handle_add_custom_symbol(intent: AddCustomSymbolIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Legt ein neues eigenes Doku-Symbol an, speichert und schreibt History.
 
@@ -33,8 +34,6 @@ def handle_add_custom_symbol(intent: AddCustomSymbolIntent, state: AppState, ctx
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan, _symbol_id = add_custom_symbol(
         state.current_plan,
         intent.glyph,
@@ -42,10 +41,10 @@ def handle_add_custom_symbol(intent: AddCustomSymbolIntent, state: AppState, ctx
         intent.shortcut,
         reserved_symbol_letters(state.symbol_catalog),
     )
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)
 
 
+@requires_open_plan
 def handle_update_custom_symbol(intent: UpdateCustomSymbolIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Ändert ein bestehendes eigenes Doku-Symbol, speichert und schreibt History.
 
@@ -54,8 +53,6 @@ def handle_update_custom_symbol(intent: UpdateCustomSymbolIntent, state: AppStat
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = update_custom_symbol(
         state.current_plan,
         intent.symbol_id,
@@ -64,10 +61,10 @@ def handle_update_custom_symbol(intent: UpdateCustomSymbolIntent, state: AppStat
         intent.shortcut,
         reserved_symbol_letters(state.symbol_catalog),
     )
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)
 
 
+@requires_open_plan
 def handle_delete_custom_symbol(intent: DeleteCustomSymbolIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Entfernt ein eigenes Doku-Symbol aus dem Katalog, speichert und schreibt History.
 
@@ -76,8 +73,5 @@ def handle_delete_custom_symbol(intent: DeleteCustomSymbolIntent, state: AppStat
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = delete_custom_symbol(state.current_plan, intent.symbol_id)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)

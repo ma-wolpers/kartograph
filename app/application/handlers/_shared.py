@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Hashable
+from collections.abc import Callable, Hashable
+from functools import wraps
 from pathlib import Path
+from typing import TypeVar
 
 from app.application.app_state import AppState, PlanListEntry
 from app.application.handler_context import HandlerContext
@@ -13,6 +15,30 @@ from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.settings import resolve_plans_dir
 from app.core.usecases.v4.color_usecases import drop_unused_palette_entries
 from app.core.usecases.v4.tablegroup_usecases import apply_normalized_tablegroups
+
+IntentT = TypeVar("IntentT")
+
+
+def requires_open_plan(
+    handler: Callable[[IntentT, AppState, HandlerContext], AppState],
+) -> Callable[[IntentT, AppState, HandlerContext], AppState]:
+    """Lässt einen Handler nur mit geöffnetem Plan laufen; sonst bleibt der Zustand unverändert.
+
+    Args:
+        handler: Handler, der einen geöffneten Plan voraussetzt.
+
+    Returns:
+        Der abgesicherte Handler.
+    """
+
+    @wraps(handler)
+    def guarded(intent: IntentT, state: AppState, ctx: HandlerContext) -> AppState:
+        """Prüft den geöffneten Plan und ruft erst dann den eigentlichen Handler auf."""
+        if state.current_plan is None or state.current_plan_path is None:
+            return state
+        return handler(intent, state, ctx)
+
+    return guarded
 
 
 def _record_and_save(
@@ -80,6 +106,30 @@ def _with_plan(
         can_redo=ctx.history.can_redo,
         status_message=status,
     )
+
+
+def _commit_plan_change(
+    state: AppState,
+    ctx: HandlerContext,
+    plan: SeatingPlan,
+    *,
+    merge_key: Hashable | None = None,
+    status: str = "",
+) -> AppState:
+    """Nimmt eine Planänderung auf, speichert sie und überträgt sie in den AppState.
+
+    Args:
+        state: Bisheriger AppState mit geöffnetem Plan.
+        ctx: Handler-Kontext (History, Repository).
+        plan: Neuer Planzustand.
+        merge_key: An ``_record_and_save`` durchgereicht.
+        status: Statusmeldung für die GUI.
+
+    Returns:
+        Neuer AppState mit dem geänderten Plan.
+    """
+    _record_and_save(plan, state.current_plan_path, ctx, merge_key=merge_key)
+    return _with_plan(state, plan, ctx, status=status)
 
 
 def _refresh_plan_list(state: AppState, ctx: HandlerContext) -> list[PlanListEntry]:

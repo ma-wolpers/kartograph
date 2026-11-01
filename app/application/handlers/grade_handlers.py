@@ -5,7 +5,7 @@ from copy import deepcopy
 
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _record_and_save, _with_plan
+from app.application.handlers._shared import _commit_plan_change, requires_open_plan
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
@@ -39,6 +39,7 @@ def _delete_grade_column(plan: SeatingPlan, column_id: str) -> SeatingPlan:
     return next_plan
 
 
+@requires_open_plan
 def handle_add_grade_column(intent: AddGradeColumnIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Legt eine neue Notenspalte an und markiert sie als ausgewählt.
 
@@ -47,16 +48,14 @@ def handle_add_grade_column(intent: AddGradeColumnIntent, state: AppState, ctx: 
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan, _column_id = add_grade_column(state.current_plan, intent.category, intent.title)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
     return dataclasses.replace(
-        _with_plan(state, next_plan, ctx),
+        _commit_plan_change(state, ctx, next_plan),
         doc_selected_column_id=_column_id or state.doc_selected_column_id,
     )
 
 
+@requires_open_plan
 def handle_delete_grade_column(intent: DeleteGradeColumnIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Löscht die Notenspalte aus *intent* und hebt die Auswahl auf, falls sie diese betraf.
 
@@ -65,17 +64,15 @@ def handle_delete_grade_column(intent: DeleteGradeColumnIntent, state: AppState,
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = _delete_grade_column(state.current_plan, intent.column_id)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
     cleared_col = None if state.doc_selected_column_id == intent.column_id else state.doc_selected_column_id
     return dataclasses.replace(
-        _with_plan(state, next_plan, ctx),
+        _commit_plan_change(state, ctx, next_plan),
         doc_selected_column_id=cleared_col,
     )
 
 
+@requires_open_plan
 def handle_record_grade(intent: RecordGradeIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Trägt die Note aus *intent* ein (``None`` löscht den Eintrag, s. ``record_grade``-Usecase).
 
@@ -84,13 +81,11 @@ def handle_record_grade(intent: RecordGradeIntent, state: AppState, ctx: Handler
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = record_grade(state.current_plan, intent.student_id, intent.column_id, intent.grade)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)
 
 
+@requires_open_plan
 def handle_resolve_grade_conflicts(
     intent: ResolveGradeConflictsIntent, state: AppState, ctx: HandlerContext
 ) -> AppState:
@@ -101,13 +96,11 @@ def handle_resolve_grade_conflicts(
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = resolve_grade_conflicts(state.current_plan, intent.choices)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)
 
 
+@requires_open_plan
 def handle_update_grade_weighting(
     intent: UpdateGradeWeightingIntent, state: AppState, ctx: HandlerContext
 ) -> AppState:
@@ -118,13 +111,11 @@ def handle_update_grade_weighting(
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = set_grade_weighting(state.current_plan, intent.written_percent, intent.sonstige_percent)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)
 
 
+@requires_open_plan
 def handle_set_grade_scale(intent: SetGradeScaleIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Stellt die Notenskala des Plans um und rechnet alle Werte um (undo-fähig).
 
@@ -136,8 +127,5 @@ def handle_set_grade_scale(intent: SetGradeScaleIntent, state: AppState, ctx: Ha
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = set_grade_scale(state.current_plan, intent.scale_id)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)

@@ -4,7 +4,7 @@ import dataclasses
 
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _record_and_save, _with_plan
+from app.application.handlers._shared import _commit_plan_change, requires_open_plan
 from app.core.intents.snapshot_intents import (
     CreateSnapshotIntent,
     DeleteSnapshotIntent,
@@ -19,6 +19,7 @@ from app.core.usecases.v4.snapshot_usecases import (
 )
 
 
+@requires_open_plan
 def handle_create_snapshot(intent: CreateSnapshotIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Legt einen neuen Snapshot an und speichert den Plan, sofern tatsächlich einer angelegt wurde.
 
@@ -27,15 +28,13 @@ def handle_create_snapshot(intent: CreateSnapshotIntent, state: AppState, ctx: H
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     result = create_snapshot(state.current_plan, intent.name)
     if not result.created:
         return dataclasses.replace(state, status_message="Dieser Sitzplan ist bereits als Snapshot gespeichert")
-    _record_and_save(result.plan, state.current_plan_path, ctx)
-    return _with_plan(state, result.plan, ctx, status="Snapshot gespeichert")
+    return _commit_plan_change(state, ctx, result.plan, status="Snapshot gespeichert")
 
 
+@requires_open_plan
 def handle_delete_snapshot(intent: DeleteSnapshotIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Löscht einen Snapshot und speichert den Plan, sofern tatsächlich etwas geändert wurde.
 
@@ -44,15 +43,13 @@ def handle_delete_snapshot(intent: DeleteSnapshotIntent, state: AppState, ctx: H
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     result = delete_snapshot(state.current_plan, intent.snapshot_id)
     if not result.changed:
         return state
-    _record_and_save(result.plan, state.current_plan_path, ctx)
-    return _with_plan(state, result.plan, ctx, status="Snapshot gelöscht")
+    return _commit_plan_change(state, ctx, result.plan, status="Snapshot gelöscht")
 
 
+@requires_open_plan
 def handle_rename_snapshot(intent: RenameSnapshotIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Benennt einen Snapshot um und speichert den Plan, sofern tatsächlich etwas geändert wurde.
 
@@ -61,15 +58,13 @@ def handle_rename_snapshot(intent: RenameSnapshotIntent, state: AppState, ctx: H
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     result = rename_snapshot(state.current_plan, intent.snapshot_id, intent.new_name)
     if not result.changed:
         return state
-    _record_and_save(result.plan, state.current_plan_path, ctx)
-    return _with_plan(state, result.plan, ctx)
+    return _commit_plan_change(state, ctx, result.plan)
 
 
+@requires_open_plan
 def handle_restore_snapshot(intent: RestoreSnapshotIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Stellt die Tischkoordinaten eines Snapshots wieder her und speichert den Plan.
 
@@ -78,10 +73,7 @@ def handle_restore_snapshot(intent: RestoreSnapshotIntent, state: AppState, ctx:
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     result = restore_snapshot(state.current_plan, intent.snapshot_id)
     if not result.changed:
         return state
-    _record_and_save(result.plan, state.current_plan_path, ctx)
-    return _with_plan(state, result.plan, ctx, status="Snapshot geladen")
+    return _commit_plan_change(state, ctx, result.plan, status="Snapshot geladen")

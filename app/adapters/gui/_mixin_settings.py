@@ -10,6 +10,11 @@ import dataclasses
 
 from app.adapters.gui.dialog_services import messagebox
 from app.adapters.gui.main_window_constants import (
+    MAX_SITZPLAN_POPUP_DELAY,
+    MIN_SITZPLAN_POPUP_DELAY,
+    RECOMMENDED_MAX_SAVE_DELAY,
+)
+from app.core.domain.settings import (
     DEFAULT_CANVAS_RADIUS,
     DEFAULT_DETAILS_OVERLAY_POSITION,
     DEFAULT_NAME_FORMAT,
@@ -18,16 +23,13 @@ from app.adapters.gui.main_window_constants import (
     DEFAULT_SYMBOL_STRENGTH,
     DEFAULT_TABLEGROUP_OVERLAY_POSITION,
     DEFAULT_VIEWPORT_FOLLOW_BUFFER,
-    NAME_FORMAT_OPTIONS,
     MAX_CANVAS_RADIUS,
     MAX_SAVE_DELAY,
-    MAX_SITZPLAN_POPUP_DELAY,
     MIN_CANVAS_RADIUS,
     MIN_SAVE_DELAY,
-    MIN_SITZPLAN_POPUP_DELAY,
-    RECOMMENDED_MAX_SAVE_DELAY,
+    NAME_FORMAT_OPTIONS,
+    resolve_plans_dir,
 )
-from app.core.domain.settings import resolve_plans_dir
 from app.core.intents.view_intents import OpenSettingsIntent, UpdateSettingsIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 

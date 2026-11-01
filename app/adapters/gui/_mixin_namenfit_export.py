@@ -10,8 +10,8 @@ from pathlib import Path
 
 from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import filedialog, messagebox
-from app.adapters.gui.main_window_constants import NAME_FORMAT_OPTIONS
 from app.core.domain.namenfit_csv_export import NamenfitExportError
+from app.core.domain.settings import NAME_FORMAT_OPTIONS
 from app.core.intents.view_intents import ExportNamenfitCsvIntent
 from app.infrastructure.exporters.namenfit_csv_exporter import export_namenfit_csv
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path

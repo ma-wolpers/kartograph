@@ -6,7 +6,7 @@ from datetime import date
 
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _record_and_save, _with_plan
+from app.application.handlers._shared import _commit_plan_change, requires_open_plan
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.student_id import StudentId
 from app.core.intents.session_intents import (
@@ -48,6 +48,7 @@ def _clear_entry(plan: SeatingPlan, student_id: StudentId, target_date: str) -> 
     return next_plan
 
 
+@requires_open_plan
 def handle_add_session(intent: AddSessionIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Stellt sicher, dass für *intent.date* eine Session existiert, und wählt sie aus.
 
@@ -56,16 +57,14 @@ def handle_add_session(intent: AddSessionIntent, state: AppState, ctx: HandlerCo
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = ensure_session(state.current_plan, intent.date)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
     return dataclasses.replace(
-        _with_plan(state, next_plan, ctx),
+        _commit_plan_change(state, ctx, next_plan),
         doc_selected_date=intent.date,
     )
 
 
+@requires_open_plan
 def handle_delete_session(intent: DeleteSessionIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Löscht die Session aus *intent*; hebt die Datumsauswahl auf, falls sie diese betraf.
 
@@ -74,13 +73,10 @@ def handle_delete_session(intent: DeleteSessionIntent, state: AppState, ctx: Han
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = _delete_session(state.current_plan, intent.date)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
     cleared_date = None if state.doc_selected_date == intent.date else state.doc_selected_date
     return dataclasses.replace(
-        _with_plan(state, next_plan, ctx),
+        _commit_plan_change(state, ctx, next_plan),
         doc_selected_date=cleared_date,
     )
 
@@ -127,6 +123,7 @@ def handle_go_to_today(intent: GoToTodayIntent, state: AppState, ctx: HandlerCon
     return dataclasses.replace(state, doc_selected_date=date.today().isoformat())
 
 
+@requires_open_plan
 def handle_clear_doc_entry(intent: ClearDocEntryIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Löscht den Dokumentationseintrag eines Schülers an *intent.date*.
 
@@ -135,8 +132,5 @@ def handle_clear_doc_entry(intent: ClearDocEntryIntent, state: AppState, ctx: Ha
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = _clear_entry(state.current_plan, intent.student_id, intent.date)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)

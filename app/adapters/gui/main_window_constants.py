@@ -17,36 +17,16 @@ from app.core.domain.custom_symbol_validation import SPACE_SHORTCUT  # noqa: F40
 
 MIN_WINDOW_WIDTH = 600
 MIN_WINDOW_HEIGHT = 400
-MAX_CANVAS_RADIUS = 50
-MIN_CANVAS_RADIUS = 1
-DEFAULT_CANVAS_RADIUS = 50
 DEFAULT_CELL_SIZE = 92
-DEFAULT_SYMBOL_STRENGTH = 1
-DEFAULT_VIEWPORT_FOLLOW_BUFFER = 0
 DEFAULT_PERIODIC_BACKUP_INTERVAL_MS = 5 * 60 * 1000
 DEFAULT_UI_WATCHDOG_INTERVAL_MS = 1000
 UI_WATCHDOG_WARN_DRIFT_SECONDS = 2.5
-DEFAULT_DETAILS_OVERLAY_POSITION = "bottom"
-DEFAULT_TABLEGROUP_OVERLAY_POSITION = "right"
-NAME_FORMAT_OPTIONS = ("Vorname", "Vorname N", "Vorname Nachname", "V. Nachname", "Nachname")
-DEFAULT_NAME_FORMAT = "Vorname Nachname"
-DEFAULT_SITZPLAN_POPUP_DELAY = 3
 MIN_SITZPLAN_POPUP_DELAY = 1
 MAX_SITZPLAN_POPUP_DELAY = 30
-# Debounce-Verzoegerung fuers Speichern -- gilt sowohl fuer Namensfelder
-# (Tippruhe) als auch fuer Noten-/Symbol-/Farb-Edits (buendelt eine schnelle
-# Serie von Aktionen, z. B. eine Notenspalte durchgehen, zu einem einzigen
-# Schreibvorgang statt vielen). MIN_SAVE_DELAY ist hart erzwungen (0.3s) --
-# darunter waere der Debounce faktisch wirkungslos. Ueber MAX_SAVE_DELAY
-# hinaus (harte Obergrenze) ist nichts sinnvoll konfigurierbar;
-# RECOMMENDED_MAX_SAVE_DELAY ist nur eine Empfehlung im Einstellungsdialog,
-# kein Hard-Cap -- laenger bedeutet ein groesseres Zeitfenster, in dem bei
-# einem harten Absturz noch nicht gespeicherte Aenderungen verloren gehen
-# koennten (Fensterschliessen/Planwechsel/Feld verlassen flushen weiterhin
-# sofort, unabhaengig von dieser Verzoegerung).
-DEFAULT_SAVE_DELAY = 2.0
-MIN_SAVE_DELAY = 0.3
-MAX_SAVE_DELAY = 30.0
+# Nur eine Empfehlung im Einstellungsdialog, kein Hard-Cap (die harten Grenzen
+# stehen in ``core/domain/settings.py``): laenger bedeutet ein groesseres
+# Zeitfenster, in dem bei einem harten Absturz noch nicht gespeicherte
+# Aenderungen verloren gehen koennten.
 RECOMMENDED_MAX_SAVE_DELAY = 10.0
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"

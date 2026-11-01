@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _record_and_save, _with_plan
+from app.application.handlers._shared import _commit_plan_change, requires_open_plan
 from app.core.intents.symbol_intents import (
     RecordDocumentationSymbolIntent,
     ToggleDiagnosticSymbolIntent,
@@ -10,6 +10,7 @@ from app.core.intents.symbol_intents import (
 from app.core.usecases.v4.symbol_usecases import record_symbol, toggle_diagnostic_symbol
 
 
+@requires_open_plan
 def handle_toggle_diagnostic_symbol(
     intent: ToggleDiagnosticSymbolIntent, state: AppState, ctx: HandlerContext
 ) -> AppState:
@@ -20,13 +21,11 @@ def handle_toggle_diagnostic_symbol(
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = toggle_diagnostic_symbol(state.current_plan, intent.student_id, intent.date, intent.symbol)
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)
 
 
+@requires_open_plan
 def handle_record_documentation_symbol(
     intent: RecordDocumentationSymbolIntent, state: AppState, ctx: HandlerContext
 ) -> AppState:
@@ -37,10 +36,7 @@ def handle_record_documentation_symbol(
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     next_plan = record_symbol(
         state.current_plan, intent.student_id, intent.date, intent.symbol, intent.strength
     )
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)

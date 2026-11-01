@@ -38,8 +38,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.adapters.gui.main_window_constants import DEFAULT_SAVE_DELAY, LOGGER
+from app.adapters.gui.main_window_constants import LOGGER
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.settings import DEFAULT_SAVE_DELAY
 
 
 class PlanSaveMixin:

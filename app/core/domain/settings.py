@@ -23,6 +23,14 @@ DEFAULT_DETAILS_OVERLAY_POSITION = "bottom"
 DEFAULT_TABLEGROUP_OVERLAY_POSITION = "right"
 DEFAULT_THEME_KEY = "mono_day"
 DEFAULT_SITZPLAN_POPUP_DELAY = 3
+# Debounce-Verzoegerung fuers Speichern -- gilt sowohl fuer Namensfelder
+# (Tippruhe) als auch fuer Noten-/Symbol-/Farb-Edits (buendelt eine schnelle
+# Serie von Aktionen, z. B. eine Notenspalte durchgehen, zu einem einzigen
+# Schreibvorgang statt vielen). MIN_SAVE_DELAY ist hart erzwungen (0.3s) --
+# darunter waere der Debounce faktisch wirkungslos. Ueber MAX_SAVE_DELAY
+# hinaus (harte Obergrenze) ist nichts sinnvoll konfigurierbar.
+# Fensterschliessen/Planwechsel/Feld verlassen flushen sofort, unabhaengig
+# von dieser Verzoegerung.
 DEFAULT_SAVE_DELAY = 2.0
 MIN_SAVE_DELAY = 0.3
 MAX_SAVE_DELAY = 30.0

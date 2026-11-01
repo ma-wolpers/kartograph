@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.application.app_state import AppState
 from app.application.handlers.accommodation_handlers import handle_set_accommodations
 from app.application.handlers.edit_handlers import handle_redo, handle_undo
 from app.application.handlers.grade_handlers import handle_record_grade
@@ -159,6 +160,15 @@ def test_different_text_fields_of_one_person_are_separate_steps(setup):
 
     assert state.current_plan.student_by_id(first).nickname == "Anni"
     assert state.current_plan.student_by_id(first).diagnostic.accommodations == []
+
+
+def test_handlers_leave_the_state_alone_without_an_open_plan(setup):
+    ctx, _, first, _, column_id = setup
+    state = AppState()
+    intent = RecordGradeIntent(student_id=first, column_id=column_id, grade=1.0)
+    assert handle_record_grade(intent, state, ctx) is state
+    assert handle_record_grade.__name__ == "handle_record_grade"  # der Dekorator verdeckt die Funktion nicht
+    assert not ctx.history.can_undo
 
 
 def test_undo_with_steps_goes_back_that_far_at_once(setup):

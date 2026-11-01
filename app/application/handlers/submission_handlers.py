@@ -6,7 +6,7 @@ import dataclasses
 
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _record_and_save, _with_plan
+from app.application.handlers._shared import _commit_plan_change, requires_open_plan
 from app.core.domain.submission_status import (
     ABSENT_CODEPOINT,
     CatalogSymbolMissing,
@@ -17,6 +17,7 @@ from app.core.intents.submission_intents import ApplyMissingSubmissionsIntent, S
 from app.core.usecases.v4.submission_usecases import apply_missing_submissions, set_submission_status
 
 
+@requires_open_plan
 def handle_apply_missing_submissions(
     intent: ApplyMissingSubmissionsIntent, state: AppState, ctx: HandlerContext
 ) -> AppState:
@@ -30,8 +31,6 @@ def handle_apply_missing_submissions(
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     try:
         names = submission_symbol_names(state.symbol_catalog)
         absent = resolve_symbol_name(state.symbol_catalog, ABSENT_CODEPOINT)
@@ -46,10 +45,10 @@ def handle_apply_missing_submissions(
         mark_absent=intent.mark_absent,
         mode="complement" if intent.mode == "complement" else "replace",
     )
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)
 
 
+@requires_open_plan
 def handle_set_submission_status(intent: SetSubmissionStatusIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Setzt den Abgabestatus einer Person (genau eines von ✓/◐/X).
 
@@ -58,13 +57,10 @@ def handle_set_submission_status(intent: SetSubmissionStatusIntent, state: AppSt
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     try:
         names = submission_symbol_names(state.symbol_catalog)
     except CatalogSymbolMissing as err:
         return dataclasses.replace(state, status_message=str(err))
     next_plan = set_submission_status(state.current_plan, intent.student_id, intent.date, intent.status, names)
     # Jede Bewertung ist eine eigene Entscheidung: nie mit der vorigen zusammenfassen.
-    _record_and_save(next_plan, state.current_plan_path, ctx)
-    return _with_plan(state, next_plan, ctx)
+    return _commit_plan_change(state, ctx, next_plan)

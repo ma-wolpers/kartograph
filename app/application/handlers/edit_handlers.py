@@ -6,8 +6,14 @@ from pathlib import Path
 
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _record_and_save, _refresh_plan_list, _with_plan
+from app.application.handlers._shared import (
+    _commit_plan_change,
+    _refresh_plan_list,
+    _with_plan,
+    requires_open_plan,
+)
 from app.core.domain.list_action_history import DeletePlanAction, DuplicatePlanAction
+from app.core.domain.models_v4 import SeatingPlan
 from app.core.intents.edit_intents import (
     CopySelectionIntent,
     CutSelectionIntent,
@@ -189,6 +195,35 @@ def _apply_list_redo(state: AppState, ctx: HandlerContext) -> AppState:
     )
 
 
+def _apply_restored_plan(
+    state: AppState,
+    ctx: HandlerContext,
+    restored: SeatingPlan | None,
+    *,
+    status: str,
+    nothing_status: str,
+) -> AppState:
+    """Übernimmt den Plan aus einem Undo oder Redo, speichert ihn und meldet das Ergebnis.
+
+    Args:
+        state: Bisheriger AppState mit geöffnetem Plan.
+        ctx: Handler-Kontext (Repository, History).
+        restored: Wiederhergestellter Plan; ``None``, wenn es nichts zu tun gab.
+        status: Statusmeldung nach erfolgter Wiederherstellung.
+        nothing_status: Statusmeldung, wenn es nichts zu tun gab.
+
+    Returns:
+        Neuer AppState.
+    """
+    if restored is None:
+        return dataclasses.replace(state, status_message=nothing_status)
+    try:
+        ctx.plan_repository.save_plan(restored, state.current_plan_path)
+    except Exception:
+        _log.exception("Speichern nach Undo/Redo fehlgeschlagen")
+    return _with_plan(state, restored, ctx, status=status)
+
+
 def handle_undo(intent: UndoIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Macht *intent.steps* Planänderungen rückgängig und persistiert den wiederhergestellten Plan.
 
@@ -203,19 +238,8 @@ def handle_undo(intent: UndoIntent, state: AppState, ctx: HandlerContext) -> App
     """
     if state.current_plan is None or state.current_plan_path is None:
         return _apply_list_undo(state, ctx)
-    restored = ctx.history.undo(intent.steps)
-    if restored is None:
-        return dataclasses.replace(state, status_message="Nichts rückgängig zu machen")
-    try:
-        ctx.plan_repository.save_plan(restored, state.current_plan_path)
-    except Exception:
-        _log.exception("handle_undo: save failed")
-    return dataclasses.replace(
-        state,
-        current_plan=restored,
-        can_undo=ctx.history.can_undo,
-        can_redo=ctx.history.can_redo,
-        status_message="Rückgängig",
+    return _apply_restored_plan(
+        state, ctx, ctx.history.undo(intent.steps), status="Rückgängig", nothing_status="Nichts rückgängig zu machen"
     )
 
 
@@ -232,19 +256,8 @@ def handle_redo(intent: RedoIntent, state: AppState, ctx: HandlerContext) -> App
     """
     if state.current_plan is None or state.current_plan_path is None:
         return _apply_list_redo(state, ctx)
-    restored = ctx.history.redo(intent.steps)
-    if restored is None:
-        return dataclasses.replace(state, status_message="Nichts wiederherzustellen")
-    try:
-        ctx.plan_repository.save_plan(restored, state.current_plan_path)
-    except Exception:
-        _log.exception("handle_redo: save failed")
-    return dataclasses.replace(
-        state,
-        current_plan=restored,
-        can_undo=ctx.history.can_undo,
-        can_redo=ctx.history.can_redo,
-        status_message="Wiederhergestellt",
+    return _apply_restored_plan(
+        state, ctx, ctx.history.redo(intent.steps), status="Wiederhergestellt", nothing_status="Nichts wiederherzustellen"
     )
 
 
@@ -288,6 +301,7 @@ def handle_cut_selection(intent: CutSelectionIntent, state: AppState, ctx: Handl
     return dataclasses.replace(state, status_message=f"{count} Schüler zum Verschieben markiert")
 
 
+@requires_open_plan
 def handle_paste_selection(intent: PasteSelectionIntent, state: AppState, ctx: HandlerContext) -> AppState:
     """Fügt den Inhalt von ``ctx.clipboard`` ab der Zielzelle in den Plan ein.
 
@@ -302,8 +316,6 @@ def handle_paste_selection(intent: PasteSelectionIntent, state: AppState, ctx: H
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History, Clipboard).
     """
-    if state.current_plan is None or state.current_plan_path is None:
-        return state
     if not ctx.clipboard.has_content():
         return dataclasses.replace(state, status_message="Zwischenablage ist leer")
 
@@ -314,8 +326,7 @@ def handle_paste_selection(intent: PasteSelectionIntent, state: AppState, ctx: H
         message = "Lehrertisch blockiert das Einfügen" if teacher_conflict else "Nichts eingefügt"
         return dataclasses.replace(state, status_message=message)
 
-    _record_and_save(next_plan, state.current_plan_path, ctx)
     message = f"{pasted} Schüler eingefügt"
     if teacher_conflict:
         message += " (Lehrertisch übersprungen)"
-    return _with_plan(state, next_plan, ctx, status=message)
+    return _commit_plan_change(state, ctx, next_plan, status=message)
