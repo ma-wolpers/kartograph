@@ -159,6 +159,41 @@ class TestToggleDocumentationSymbolDocsUsesSelectedColumn:
         assert window._controller.dispatched[-1].date == today
 
 
+class TestParticipationRatingDocsUsesSelectedColumn:
+    """Mitarbeit (+/o/-) in der Dokuansicht: wirkt auf den Datumsanker, nicht auf heute.
+
+    Regression: die Bewertung landete immer in der heutigen (= neuesten) Spalte,
+    weil der Doku-Pfad _today_doc_date() statt _doc_anchor_date() nutzte.
+    """
+
+    def _docs_window(self, *, dates: list[str], selected_index: int) -> KartographMainWindow:
+        student = make_student(x=0, y=0)
+        window = _window(plan=make_plan(students=[student]))
+        window.__dict__["_doc_student_coords"] = [(0, 0)]
+        window.__dict__["_doc_selected_student_index"] = 0
+        window.__dict__["_doc_dates"] = dates
+        window.__dict__["_doc_selected_date_index"] = selected_index
+        return window
+
+    def test_uses_selected_past_date_column_not_today(self):
+        window = KartographMainWindow.__new__(KartographMainWindow)
+        today = window._today_doc_date()
+        window = self._docs_window(dates=["2020-01-01", today], selected_index=0)
+
+        window._set_participation_rating_docs("+")
+
+        intent = window._controller.dispatched[-1]
+        assert intent.date == "2020-01-01"
+        assert intent.rating == "+"
+
+    def test_no_dispatch_without_date_columns(self):
+        window = self._docs_window(dates=[], selected_index=0)
+
+        window._set_participation_rating_docs("o")
+
+        assert window._controller.dispatched == []
+
+
 class TestOnSpaceSymbolShortcutDelegation:
     """_on_space_symbol_shortcut hat keine eigene Fachlogik mehr -- reiner Resolver+Delegator
     an _on_symbol_shortcut(), welches Symbol (falls ueberhaupt eines) die Leertaste

@@ -164,21 +164,27 @@ class EditMixin:
         self._controller.dispatch(SetParticipationRatingIntent(
             student_id=student.student_id, date=self._today_doc_date(), rating=rating))
 
-    def _set_participation_rating_today_docs(self, rating: ParticipationRating) -> None:
-        """Setzt/löscht die Mitarbeit-Bewertung heute für den ausgewählten Schüler in der Dokutabelle.
+    def _set_participation_rating_docs(self, rating: ParticipationRating) -> None:
+        """Setzt/löscht die Mitarbeit-Bewertung am Datumsanker der Dokutabelle für den ausgewählten Schüler.
+
+        Ziel ist -- wie bei Symbolen und Entf -- das ausgewählte Datum
+        (``_doc_anchor_date()``), nicht heute; nur das Raster ohne
+        Datums-Wähler bewertet immer heute.
 
         Args:
             rating: Zu setzende Bewertung ("+"/"o"/"-").
         """
-        student = self._selected_docs_student()
-        if student is None:
+        student, date_key = self._selected_docs_student(), self._doc_anchor_date()
+        if student is None or date_key is None:
             return
         # Kein eigener Tabellen-Refresh: apply_state rendert die sichtbare Doku-Ansicht nach dem Dispatch.
         self._controller.dispatch(SetParticipationRatingIntent(
-            student_id=student.student_id, date=self._today_doc_date(), rating=rating))
+            student_id=student.student_id, date=date_key, rating=rating))
 
     def _on_participation_rating_shortcut(self, event, rating: ParticipationRating) -> EventResult | None:
-        """Tastatur-Shortcut-Handler (+/-/0): Mitarbeit-Bewertung heute setzen/löschen.
+        """Tastatur-Shortcut-Handler (+/-/0): Mitarbeit-Bewertung setzen/löschen.
+
+        Raster: heute. Dokutabelle: am ausgewählten Datum (Datumsanker).
 
         Args:
             event: bw-gui-``KeyEvent`` (unbenutzt; Modifier-Gating übernimmt
@@ -192,7 +198,7 @@ class EditMixin:
         if self._editor_surface == "grid":
             self._set_participation_rating_today_grid(rating)
         elif self._editor_surface == "docs":
-            self._set_participation_rating_today_docs(rating)
+            self._set_participation_rating_docs(rating)
         else:
             return None
         return EventResult.HANDLED
