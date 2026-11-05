@@ -12,6 +12,7 @@ from app.core.intents.grade_intents import RecordGradeIntent
 from app.core.intents.session_intents import ClearDocEntryIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
 from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
+from app.adapters.gui.doc_action_target import DocActionTarget
 from app.adapters.gui.docs_table_model import GradeCellTarget, grade_column_id
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -82,28 +83,23 @@ class DocsEditMixin:
             return None
         return GradeCellTarget(student.student_id, column_id)
 
-    def _toggle_documentation_symbol_for_student(self, student, symbol: str, date: str) -> None:
-        """Schaltet *symbol* für *student* am *date* um (v4).
+    def _toggle_documentation_symbol_at(self, target: DocActionTarget, symbol: str) -> None:
+        """Schaltet *symbol* im Tageseintrag von *target* um (v4).
 
         Diagnosesymbole zyklen 0→1→2→3→0, Doku-Symbole (eingebaut wie eigen)
         togglen binär 0↔1 (siehe ``next_symbol_toggle_strength``). Reiner
-        Toggle-Kern ohne UI-Refresh und ohne eigene Schüler-/Datumsauflösung —
-        gemeinsam genutzt von der Dokuansicht (``_toggle_documentation_symbol``,
-        wirkt auf die dort gewählte Datumsspalte) und dem Raster
-        (``_toggle_documentation_symbol_today_grid`` in ``_mixin_edit.py``,
-        wirkt immer auf das heutige Datum) — beide unterscheiden sich nur
-        darin, woher *student* und *date* kommen.
+        Toggle-Kern ohne UI-Refresh und ohne eigene Zielauflösung; das Ziel
+        kommt aus ``_doc_action_target()``.
 
         Args:
-            student: Schüler, dessen Symbol umgeschaltet wird.
+            target: Schüler und Datum des Tageseintrags.
             symbol: Bezeichner des umzuschaltenden Symbols (eingebauter
                 Meaning-Text oder eigene Symbol-ID).
-            date: ISO-Datum der Doku-Session, auf die sich der Toggle bezieht.
         """
         current_strength = 0
-        session = self.current_plan.documentation.session_for_date(date)
+        session = self.current_plan.documentation.session_for_date(target.date)
         if session is not None:
-            entry = session.entry_for(student.student_id)
+            entry = session.entry_for(target.student_id)
             if entry is not None:
                 current_strength = int(entry.symbols.get(symbol, 0))
         next_strength = next_symbol_toggle_strength(
@@ -111,30 +107,26 @@ class DocsEditMixin:
         )
         self._controller.dispatch(
             RecordDocumentationSymbolIntent(
-                student_id=student.student_id,
-                date=date,
+                student_id=target.student_id,
+                date=target.date,
                 symbol=symbol,
                 strength=next_strength,
             )
         )
 
     def _toggle_documentation_symbol(self, symbol: str) -> None:
-        """Schaltet ein Dokumentationssymbol für die aktuelle Doku-Zellenauswahl um.
+        """Schaltet ein Doku-Symbol für das Ziel der aktiven Oberfläche um.
 
-        Löst Schüler und die aktuell in der Dokutabelle ausgewählte
-        Datumsspalte auf und delegiert an ``_toggle_documentation_symbol_for_student()``.
-        Gilt unabhängig davon, ob *symbol* per Tastenkürzel oder über den
-        "Symbol setzen"-Dialog gewählt wurde. Aktualisiert danach die
-        Doku-Tabelle.
+        Dokuansicht: ausgewählte Zeile am Datumsanker; Raster: markierter
+        Tisch heute (Regel allein in ``_doc_action_target()``).
 
         Args:
             symbol: Bezeichner des umzuschaltenden Symbols (eingebauter
                 Meaning-Text oder eigene Symbol-ID).
         """
-        student, date_key = self._selected_docs_student(), self._doc_anchor_date()
-        if student is None or date_key is None:
-            return
-        self._toggle_documentation_symbol_for_student(student, symbol, date_key)
+        target = self._doc_action_target("Symbole")
+        if target is not None:
+            self._toggle_documentation_symbol_at(target, symbol)
 
     def clear_selected_documentation_symbol(self) -> None:
         """Löscht genau die aktive Zelle der Doku-Tabelle.

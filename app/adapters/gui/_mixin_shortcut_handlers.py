@@ -134,12 +134,10 @@ class ShortcutHandlersMixin:
         auf (``resolve_custom_symbol_shortcut()``) — kein Rebind bei
         Planwechsel nötig, derselbe physische Tastenraum wird einmalig in
         ``_mixin_shortcut_bindings.py::_bind_shortcuts()`` gebunden (nur die aktuell
-        freien Buchstaben, s. ``reserved_symbol_letters()``). In der
-        Dokuansicht wirkt der Toggle auf die dort gewählte Datumsspalte
-        (``_toggle_documentation_symbol``); im Raster (kein Datums-Wähler)
-        auf das heutige Datum (``_toggle_documentation_symbol_today_grid``,
-        analog zu eingebauten Doku-Symbolen in ``_on_symbol_shortcut``,
-        ``_mixin_edit.py`` — eigene Symbole sind immer documentation-only).
+        freien Buchstaben, s. ``reserved_symbol_letters()``). Eigene Symbole
+        sind immer documentation-only und laufen über
+        ``_toggle_documentation_symbol``; Schüler und Datum (Dokuansicht:
+        Datumsanker, Raster: heute) bestimmt allein ``_doc_action_target()``.
 
         Args:
             letter: Der gedrückte Großbuchstabe (z. B. ``"K"``).
@@ -151,10 +149,5 @@ class ShortcutHandlersMixin:
         custom = resolve_custom_symbol_shortcut(self.current_plan, letter)
         if custom is None:
             return None
-        if self._editor_surface == "docs":
-            self._toggle_documentation_symbol(custom.id)
-        elif self._editor_surface == "grid":
-            self._toggle_documentation_symbol_today_grid(custom.id)
-        else:
-            return None
+        self._toggle_documentation_symbol(custom.id)
         return EventResult.HANDLED

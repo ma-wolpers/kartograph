@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import messagebox, simpledialog
+from app.adapters.gui.doc_action_target import DocActionTarget
 from app.adapters.gui.main_window_constants import NAME_EDITING, SPACE_SHORTCUT
 from app.core.domain.color_order import palette_color
 from app.core.domain.models_v4 import ParticipationRating
@@ -36,13 +37,11 @@ class EditMixin:
     def _on_symbol_shortcut(self, _event, symbol_name: str | None) -> EventResult | None:
         """Tastatur-Shortcut-Handler für Symbole.
 
-        In der Dokuansicht wirkt jedes Symbol auf die dort gewählte
-        Datumsspalte (``_toggle_documentation_symbol``). Im Raster gibt es
-        keinen Datums-Wähler: Diagnosesymbole togglen wie bisher am Schüler
-        selbst (``_toggle_selected_symbol``), Doku-Symbole (eingebaut wie
-        eigen) togglen für das heutige Datum
-        (``_toggle_documentation_symbol_today_grid``) — beide Symbolarten
-        sind damit im Raster per Kürzel nutzbar, nicht mehr nur Diagnose.
+        Schüler und Datum bestimmt allein ``_doc_action_target()``. Hier wird
+        nur die Aktion gewählt: Diagnosesymbole im Raster togglen zusätzlich
+        das Schülerprofil (``_toggle_selected_symbol``); sonst wird der
+        Tageseintrag umgeschaltet (``_toggle_documentation_symbol``) -- in der
+        Dokuansicht für jedes Symbol, im Raster für Doku-Symbole.
         Wird auch vom Leertaste-Resolver (``_on_space_symbol_shortcut``)
         aufgerufen, der *symbol_name* dynamisch aus dem Katalog auflöst.
 
@@ -58,18 +57,14 @@ class EditMixin:
             return None
         if not self.current_plan or not self.current_plan_path:
             return None
-        if self._editor_surface == "docs":
-            self._toggle_documentation_symbol(symbol_name)
-            return EventResult.HANDLED
-        if self._editor_surface != "grid":
-            return None
-        if symbol_name in self.diagnostic_symbol_catalog:
+        in_grid = self._editor_surface == "grid"
+        if in_grid and symbol_name in self.diagnostic_symbol_catalog:
             self._toggle_selected_symbol(symbol_name)
-            return EventResult.HANDLED
-        if symbol_name in self._documentation_only_symbols:
-            self._toggle_documentation_symbol_today_grid(symbol_name)
-            return EventResult.HANDLED
-        return None
+        elif not in_grid or symbol_name in self._documentation_only_symbols:
+            self._toggle_documentation_symbol(symbol_name)
+        else:
+            return None
+        return EventResult.HANDLED
 
     def _on_color_shortcut(self, event, color_key: str) -> EventResult | None:
         """Tastatur-Shortcut-Handler für Farbpunkte im Raster.
@@ -87,26 +82,29 @@ class EditMixin:
         return EventResult.HANDLED
 
     def _toggle_selected_symbol(self, symbol: str) -> None:
-        """Schaltet ein diagnostisches Symbol für den aktuell ausgewählten Schüler um (v4).
+        """Schaltet ein diagnostisches Symbol für das Ziel der aktiven Oberfläche um (v4).
 
         Args:
             symbol: Bezeichner des diagnostischen Symbols.
         """
         if not self.current_plan or not self.current_plan_path:
             return
-        if not self.selection.is_single():
-            self.status_var.set("Symbole nur bei Einzelauswahl")
-            return
-        x, y = self.selected_cell
-        student = self.current_plan.student_at(x, y)
-        if not student or not student.is_named():
-            self.status_var.set("Symbol nur für Schülertische")
-            return
+        target = self._doc_action_target("Symbole")
+        if target is not None:
+            self._toggle_diagnostic_symbol_at(target, symbol)
+
+    def _toggle_diagnostic_symbol_at(self, target: DocActionTarget, symbol: str) -> None:
+        """Schaltet *symbol* im Schülerprofil um und trägt es am Datum von *target* ein.
+
+        Args:
+            target: Schüler und Datum aus ``_doc_action_target()``.
+            symbol: Bezeichner des diagnostischen Symbols.
+        """
         if symbol not in self.diagnostic_symbol_catalog:
             self.status_var.set("Dieses Symbol ist nur fuer die Dokumentation verfuegbar")
             return
         self._controller.dispatch(
-            ToggleDiagnosticSymbolIntent(student_id=student.student_id, date=self._today_doc_date(), symbol=symbol)
+            ToggleDiagnosticSymbolIntent(student_id=target.student_id, date=target.date, symbol=symbol)
         )
 
     def _on_space_symbol_shortcut(self, event) -> EventResult | None:
@@ -124,67 +122,24 @@ class EditMixin:
         """
         return self._on_symbol_shortcut(event, self._shortcut_to_symbol.get(SPACE_SHORTCUT))
 
-    def _toggle_documentation_symbol_today_grid(self, symbol: str) -> None:
-        """Schaltet ein Doku-Symbol für den ausgewählten Schülertisch im Raster für heute um (v4).
+    def _set_participation_rating(self, rating: ParticipationRating) -> None:
+        """Setzt/löscht die Mitarbeit-Bewertung für das Ziel der aktiven Oberfläche (v4).
 
-        Raster-Pendant zu ``_toggle_documentation_symbol()`` (Dokuansicht):
-        das Raster hat keinen Datums-Wähler, daher wirkt der Toggle immer auf
-        das heutige Datum. Nutzt denselben Toggle-Kern
-        (``_toggle_documentation_symbol_for_student``, ``_mixin_docs_edit.py``)
-        wie die Dokuansicht — kein zweiter Toggle-Pfad.
-
-        Args:
-            symbol: Bezeichner des umzuschaltenden Doku-Symbols (eingebauter
-                Meaning-Text oder eigene Symbol-ID).
-        """
-        if not self.selection.is_single():
-            self.status_var.set("Symbole nur bei Einzelauswahl")
-            return
-        x, y = self.selected_cell
-        student = self.current_plan.student_at(x, y)
-        if not student or not student.is_named():
-            self.status_var.set("Symbol nur für Schülertische")
-            return
-        self._toggle_documentation_symbol_for_student(student, symbol, self._today_doc_date())
-
-    def _set_participation_rating_today_grid(self, rating: ParticipationRating) -> None:
-        """Setzt/löscht die Mitarbeit-Bewertung heute für den ausgewählten Schülertisch im Raster (v4).
+        Dokuansicht: ausgewählte Zeile am Datumsanker; Raster: markierter
+        Tisch heute (Regel allein in ``_doc_action_target()``).
 
         Args:
             rating: Zu setzende Bewertung ("+"/"o"/"-").
         """
-        if not self.selection.is_single():
-            self.status_var.set("Mitarbeit-Bewertung nur bei Einzelauswahl")
-            return
-        x, y = self.selected_cell
-        student = self.current_plan.student_at(x, y)
-        if not student or not student.is_named():
-            self.status_var.set("Mitarbeit-Bewertung nur fuer Schuelertische")
-            return
-        self._controller.dispatch(SetParticipationRatingIntent(
-            student_id=student.student_id, date=self._today_doc_date(), rating=rating))
-
-    def _set_participation_rating_docs(self, rating: ParticipationRating) -> None:
-        """Setzt/löscht die Mitarbeit-Bewertung am Datumsanker der Dokutabelle für den ausgewählten Schüler.
-
-        Ziel ist -- wie bei Symbolen und Entf -- das ausgewählte Datum
-        (``_doc_anchor_date()``), nicht heute; nur das Raster ohne
-        Datums-Wähler bewertet immer heute.
-
-        Args:
-            rating: Zu setzende Bewertung ("+"/"o"/"-").
-        """
-        student, date_key = self._selected_docs_student(), self._doc_anchor_date()
-        if student is None or date_key is None:
+        target = self._doc_action_target("Mitarbeit-Bewertung")
+        if target is None:
             return
         # Kein eigener Tabellen-Refresh: apply_state rendert die sichtbare Doku-Ansicht nach dem Dispatch.
         self._controller.dispatch(SetParticipationRatingIntent(
-            student_id=student.student_id, date=date_key, rating=rating))
+            student_id=target.student_id, date=target.date, rating=rating))
 
     def _on_participation_rating_shortcut(self, event, rating: ParticipationRating) -> EventResult | None:
         """Tastatur-Shortcut-Handler (+/-/0): Mitarbeit-Bewertung setzen/löschen.
-
-        Raster: heute. Dokutabelle: am ausgewählten Datum (Datumsanker).
 
         Args:
             event: bw-gui-``KeyEvent`` (unbenutzt; Modifier-Gating übernimmt
@@ -195,27 +150,16 @@ class EditMixin:
             return None
         if not self.current_plan or not self.current_plan_path:
             return None
-        if self._editor_surface == "grid":
-            self._set_participation_rating_today_grid(rating)
-        elif self._editor_surface == "docs":
-            self._set_participation_rating_docs(rating)
-        else:
-            return None
+        self._set_participation_rating(rating)
         return EventResult.HANDLED
 
     def add_symbol_to_selected_desk_dialog(self) -> None:
         """Öffnet einen Dialog zur Symbolauswahl für den markierten Schülerplatz (v4)."""
-        if not self.current_plan:
+        if not self.current_plan or not self.current_plan_path:
             return
-
-        if not self.selection.is_single():
-            self.status_var.set("Symbole nur bei Einzelauswahl")
-            return
-
-        x, y = self.selected_cell
-        student = self.current_plan.student_at(x, y)
-        if not student or not student.is_named():
-            self.status_var.set("Symbol nur für Schülertische")
+        # Ziel beim Öffnen festgelegt, nicht aus der späteren Auswahl.
+        target = self._doc_action_target("Symbole")
+        if target is None:
             return
 
         dialog = self._create_overlay_dialog("Symbol hinzufügen", "350x360")
@@ -235,7 +179,7 @@ class EditMixin:
             if not selected:
                 return
             symbol = self.diagnostic_symbol_catalog[int(selected[0])]
-            self._toggle_selected_symbol(symbol)
+            self._toggle_diagnostic_symbol_at(target, symbol)
             dialog.destroy()
 
         bind_action(dialog_keys(dialog), ENTER, apply_choice, binding_id="dialog.confirm")

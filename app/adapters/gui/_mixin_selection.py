@@ -1,13 +1,15 @@
 """Auswahl-Mixin für das Kartograph-Hauptfenster (v4-Modell).
 
-Stellt Raster-Grenzen, Scroll-Region, Auswahl-State, Viewport-Folge-Logik
-sowie Key-Handler für Namenseingabe und Return-Taste bereit.
+Stellt Raster-Grenzen, Scroll-Region, Auswahl-State, Viewport-Folge-Logik,
+Key-Handler für Namenseingabe und Return-Taste sowie das Ziel von
+Doku-Aktionen (``_doc_action_target``) bereit.
 """
 
 from __future__ import annotations
 
 from datetime import date
 
+from app.adapters.gui.doc_action_target import DocActionTarget
 from app.adapters.gui.main_window_constants import LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.domain.models_v4 import SeatingPlan
@@ -226,3 +228,34 @@ class SelectionMixin:
     def _today_doc_date(self) -> str:
         """Gibt das heutige Datum im ISO-Format als Dokumentations-Datums-Schlüssel zurück."""
         return date.today().isoformat()
+
+    def _doc_action_target(self, action_label: str) -> DocActionTarget | None:
+        """Einzige Regel, für wen und an welchem Datum eine Doku-Aktion wirkt.
+
+        Dokuansicht: ausgewählte Zeile am Datumsanker (``_doc_anchor_date()``).
+        Raster (kein Datums-Wähler): genau ein markierter, benannter Tisch,
+        immer heute; sonst eine Statusmeldung mit *action_label*.
+
+        Args:
+            action_label: Name der Aktion für die Statusmeldung, z. B. ``"Symbole"``.
+
+        Returns:
+            Das Ziel oder ``None`` (keine passende Auswahl, andere Oberfläche).
+        """
+        if not self.current_plan:
+            return None
+        if self._editor_surface == "docs":
+            student, date_key = self._selected_docs_student(), self._doc_anchor_date()
+            if student is None or date_key is None:
+                return None
+            return DocActionTarget(student.student_id, date_key)
+        if self._editor_surface != "grid":
+            return None
+        if not self.selection.is_single():
+            self.status_var.set(f"{action_label} nur bei Einzelauswahl")
+            return None
+        student = self.current_plan.student_at(*self.selected_cell)
+        if student is None or not student.is_named():
+            self.status_var.set(f"{action_label} nur für Schülertische")
+            return None
+        return DocActionTarget(student.student_id, self._today_doc_date())

@@ -287,7 +287,9 @@ class DocsDialogsMixin:
         durch eigene Doku-Symbole nicht verloren gehen. Unterstützt
         Zifferntasten 1–9 zur Schnellauswahl, Delete/Backspace/0 zum Löschen.
         """
-        if not self.current_plan or not self._doc_student_coords or not self._doc_dates:
+        # Ziel beim Öffnen festgelegt: Übernehmen und Löschen wirken auf denselben Eintrag.
+        target = self._doc_action_target("Symbole")
+        if target is None:
             return
         all_symbol_keys = self.symbol_catalog + [
             s.key for s in self.effective_documentation_symbols if s.is_custom
@@ -296,15 +298,13 @@ class DocsDialogsMixin:
             messagebox.showinfo("Keine Symbole", "Es sind keine Symbole konfiguriert.", parent=self)
             return
 
-        student, date_key = self._selected_docs_student(), self._doc_anchor_date()
         preferred_symbol: str | None = None
-        if student is not None:
-            session = self.current_plan.documentation.session_for_date(date_key)
-            entry = session.entry_for(student.student_id) if session else None
-            if entry and entry.symbols:
-                non_zero = [s for s in all_symbol_keys if int(entry.symbols.get(s, 0)) > 0]
-                if non_zero:
-                    preferred_symbol = non_zero[0]
+        session = self.current_plan.documentation.session_for_date(target.date)
+        entry = session.entry_for(target.student_id) if session else None
+        if entry and entry.symbols:
+            non_zero = [s for s in all_symbol_keys if int(entry.symbols.get(s, 0)) > 0]
+            if non_zero:
+                preferred_symbol = non_zero[0]
 
         dialog = self._create_overlay_dialog("Symbol setzen", "360x420")
         frame = tui.Frame(dialog)
@@ -351,12 +351,10 @@ class DocsDialogsMixin:
                 return
             idx = int(selected[0])
             self._docs_symbol_dialog_last_index = idx
-            self._toggle_documentation_symbol(all_symbol_keys[idx])
+            self._toggle_documentation_symbol_at(target, all_symbol_keys[idx])
             dialog.destroy()
 
         def clear_symbol() -> None:
-            if not self.current_plan or student is None:
-                return
             selected = symbol_listbox.curselection()
             if not selected:
                 return
@@ -364,7 +362,7 @@ class DocsDialogsMixin:
             self._docs_symbol_dialog_last_index = idx
             sym = all_symbol_keys[idx]
             self._controller.dispatch(
-                RecordDocumentationSymbolIntent(student_id=student.student_id, date=date_key, symbol=sym, strength=0)
+                RecordDocumentationSymbolIntent(student_id=target.student_id, date=target.date, symbol=sym, strength=0)
             )
             self.status_var.set(f"Dokumentation '{sym}' geloescht")
             dialog.destroy()
