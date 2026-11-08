@@ -19,6 +19,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 ensure_bw_gui_on_path()
 from bw_gui.runtime import ui
 from bw_gui.runtime import widgets as tui
+from bw_gui.widgets import RadioGroup
 
 
 class NamenfitExportMixin:
@@ -43,13 +44,12 @@ class NamenfitExportMixin:
         container.pack(fill="both", expand=True, padx=12, pady=12)
 
         format_var = ui.StringVar(value=self.name_format)
-        tui.Label(container, text="Namensformat").pack(anchor="w", pady=(0, 6))
-        first_format_button: ui.Widget | None = None
-        for option in NAME_FORMAT_OPTIONS:
-            button = tui.Radiobutton(container, text=option, value=option, variable=format_var)
-            button.pack(anchor="w")
-            if first_format_button is None:
-                first_format_button = button
+        format_group = RadioGroup(
+            container, title="Namensformat", variable=format_var,
+            options=[(option, option) for option in NAME_FORMAT_OPTIONS],
+        )
+        format_group.pack(anchor="w")
+        first_format_button = format_group.first_button
 
         tui.Label(
             container,

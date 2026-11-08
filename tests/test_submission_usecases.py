@@ -11,7 +11,12 @@ from app.core.domain.submission_status import (
     resolve_symbol_name,
     submission_symbol_names,
 )
-from app.core.usecases.v4.submission_usecases import apply_missing_submissions, rated_statuses, set_submission_status
+from app.core.usecases.v4.submission_usecases import (
+    apply_missing_submissions,
+    count_submission_statuses_by_student,
+    rated_statuses,
+    set_submission_status,
+)
 from app.core.usecases.v4.symbol_usecases import record_symbol
 from tests.conftest import make_plan, make_student
 
@@ -79,3 +84,20 @@ def test_replace_clears_old_ratings_complement_keeps_them():
     complemented = apply_missing_submissions(plan, DATE, [anna.student_id], NAMES, mode="complement", **kwargs)
     assert _symbols(complemented, cem.student_id) == {"Abgabe vollständig": 1}
     assert "Nicht abgegeben / verweigert" in _symbols(complemented, ben.student_id)
+
+
+def test_counts_days_per_status_across_sessions():
+    anna, ben = make_student(), make_student(first_name="Ben")
+    plan = make_plan(students=[anna, ben])
+    for date, status in [
+        ("2026-10-01", SubmissionStatus.MISSING),
+        ("2026-10-02", SubmissionStatus.MISSING),
+        ("2026-10-03", SubmissionStatus.COMPLETE),
+        ("2026-10-04", SubmissionStatus.PARTIAL),
+    ]:
+        plan = set_submission_status(plan, anna.student_id, date, status, NAMES)
+    # Statuswechsel am selben Tag zählt nur den letzten Status.
+    plan = set_submission_status(plan, anna.student_id, "2026-10-04", SubmissionStatus.COMPLETE, NAMES)
+    counts = count_submission_statuses_by_student(plan, NAMES)
+    assert counts[anna.student_id] == {SubmissionStatus.MISSING: 2, SubmissionStatus.COMPLETE: 2}
+    assert ben.student_id not in counts

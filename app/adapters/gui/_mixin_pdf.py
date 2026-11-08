@@ -17,14 +17,14 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 ensure_bw_gui_on_path()
 from bw_gui.runtime import ui
 from bw_gui.runtime import widgets as tui
-from bw_gui.widgets import Checkbox
+from bw_gui.widgets import Checkbox, RadioGroup
 
 
 class PdfMixin:
     """Mixin: Konfigurationsdialog für den PDF-Export eines Sitzplans."""
 
     def _build_orientation_radios(self, container: ui.Widget, variable: ui.StringVar) -> ui.Widget:
-        """Baut den Abschnitt "Ansicht wählen" mit je einem Radiobutton pro Ansicht.
+        """Baut den Abschnitt "Ansicht wählen" als bw-gui ``RadioGroup``.
 
         Gemeinsamer Baustein für den PDF-Export-Dialog und den
         Sitzplan-Vorschau-Dialog: Schlüssel und Labels kommen ausschließlich
@@ -33,21 +33,15 @@ class PdfMixin:
         bestimmt der Aufrufer über den Startwert von *variable*.
 
         Args:
-            container: Eltern-Widget, in das Überschrift und Radiobuttons
-                gepackt werden.
+            container: Eltern-Widget, in das die Gruppe gepackt wird.
             variable: ``StringVar``, die den gewählten Ansicht-Schlüssel hält.
 
         Returns:
             Den ersten Radiobutton, damit der Aufrufer ihn fokussieren kann.
         """
-        tui.Label(container, text="Ansicht wählen").pack(anchor="w", pady=(0, 6))
-        buttons = []
-        for index, (mode_key, label) in enumerate(ORIENTATION_MODES):
-            button = tui.Radiobutton(container, text=label, value=mode_key, variable=variable)
-            is_last = index == len(ORIENTATION_MODES) - 1
-            button.pack(anchor="w", pady=(4 if index else 0, 10 if is_last else 0))
-            buttons.append(button)
-        return buttons[0]
+        group = RadioGroup(container, title="Ansicht wählen", options=ORIENTATION_MODES, variable=variable)
+        group.pack(anchor="w", pady=(0, 10))
+        return group.first_button
 
     def export_plan_pdf_dialog(self) -> None:
         """Öffnet den PDF-Export-Dialog und exportiert den aktuellen Plan bei Bestätigung.
@@ -75,10 +69,14 @@ class PdfMixin:
 
         first_mode_button = self._build_orientation_radios(container, mode_var)
 
-        tui.Label(container, text="Noten").pack(anchor="w", pady=(0, 6))
-        tui.Radiobutton(container, text="Keine Noten (Standard)", value="none", variable=grade_mode_var).pack(anchor="w")
-        tui.Radiobutton(container, text="Nur fertige Gesamtnote", value="final_only", variable=grade_mode_var).pack(anchor="w", pady=(4, 0))
-        tui.Radiobutton(container, text="Gesamtnote inkl. Klammernoten", value="include_provisional", variable=grade_mode_var).pack(anchor="w", pady=(4, 10))
+        RadioGroup(
+            container, title="Noten", variable=grade_mode_var,
+            options=[
+                ("none", "Keine Noten (Standard)"),
+                ("final_only", "Nur fertige Gesamtnote"),
+                ("include_provisional", "Gesamtnote inkl. Klammernoten"),
+            ],
+        ).pack(anchor="w", pady=(0, 10))
 
         tui.Label(container, text="Symbole (nur im Plan vorhandene)").pack(anchor="w", pady=(0, 6))
         symbols_frame = tui.Frame(container)

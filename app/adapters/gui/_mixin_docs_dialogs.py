@@ -1,7 +1,8 @@
 """Docs-Dialog-Mixin für das Kartograph-Hauptfenster (v4 intent-basiert).
 
-Stellt Dialoge für Datum umbenennen, Notenspalte hinzufügen, Notenerfassung,
-Symbol-Auswahl und Gewichtungskonfiguration bereit.
+Stellt Dialoge für Datum umbenennen, Notenspalte löschen, Notenerfassung und
+Symbol-Auswahl bereit. Notenspalte anlegen und Gewichtung liegen in
+``_mixin_grade_dialogs.py``.
 """
 
 from __future__ import annotations
@@ -12,11 +13,7 @@ from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.adapters.gui.main_window_constants import SPACE_SHORTCUT
 from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import GradeColumn
-from app.core.intents.grade_intents import (
-    AddGradeColumnIntent,
-    DeleteGradeColumnIntent,
-    UpdateGradeWeightingIntent,
-)
+from app.core.intents.grade_intents import DeleteGradeColumnIntent
 from app.core.intents.session_intents import AddSessionIntent, DeleteSessionIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
 from app.core.usecases.v4.session_usecases import rename_session_date
@@ -29,7 +26,7 @@ from bw_gui.runtime import widgets as tui
 
 
 class DocsDialogsMixin:
-    """Mixin: Dokumentations-Dialoge (Datum, Noten, Symbole, Gewichtung) (v4)."""
+    """Mixin: Dokumentations-Dialoge (Datum, Notenspalte löschen, Noten, Symbole) (v4)."""
 
     def rename_selected_documentation_date_dialog(self) -> None:
         """Öffnet einen Dialog zum Umbenennen des aktuell ausgewählten Dokumentations-Datums (v4).
@@ -108,27 +105,6 @@ class DocsDialogsMixin:
             return
         self._controller.dispatch(DeleteSessionIntent(date=target_date))
         self.status_var.set(f"Dokumentationstermin '{target_date}' gelöscht")
-
-    def add_grade_column_dialog(self) -> None:
-        """Öffnet einen Dialog zum Hinzufügen einer neuen Notenspalte (schriftlich/sonstig) (v4)."""
-        if not self.current_plan or not self.current_plan_path:
-            return
-        category = simpledialog.askstring("Notenspalte", "Typ eingeben: schriftlich oder sonstig", parent=self)
-        if category is None:
-            return
-        clean_category = category.strip().lower()
-        if clean_category not in {"schriftlich", "sonstig"}:
-            messagebox.showerror("Ungueltige Eingabe", "Typ muss 'schriftlich' oder 'sonstig' sein.", parent=self)
-            return
-        title = simpledialog.askstring("Notenspalte", "Kurzer Titel:", parent=self)
-        if title is None:
-            return
-        self._controller.dispatch(AddGradeColumnIntent(category=clean_category, title=title or ""))
-        new_column_id = self._controller.state.doc_selected_column_id
-        if new_column_id:
-            self._select_doc_nondate_column(grade_column_key(new_column_id))
-        # Tabelle hat apply_state schon neu gebaut; nur die danach gewählte Spalte markieren.
-        self._sync_docs_cursor()
 
     def delete_grade_column_dialog(self) -> None:
         """Löscht eine Notenspalte nach Bestätigung (v4).
@@ -248,31 +224,6 @@ class DocsDialogsMixin:
         self._select_doc_nondate_column(grade_column_key(column.column_id))
         self._refresh_doc_selection_status()
         self._open_selected_docs_grade_cell_editor()
-
-    def configure_grade_weighting_dialog(self) -> None:
-        """Öffnet Dialoge zur Eingabe der Gewichtung für schriftliche und sonstige Noten (v4)."""
-        if not self.current_plan or not self.current_plan_path:
-            return
-        weighting = self.current_plan.documentation.weighting
-        written_text = simpledialog.askstring(
-            "Gewichtung", "Anteil schriftlich in %:", parent=self, initialvalue=str(weighting.written_percent)
-        )
-        if written_text is None:
-            return
-        sonstige_text = simpledialog.askstring(
-            "Gewichtung", "Anteil sonstig in %:", parent=self, initialvalue=str(weighting.sonstige_percent)
-        )
-        if sonstige_text is None:
-            return
-        try:
-            written_percent = int(written_text.strip())
-            sonstige_percent = int(sonstige_text.strip())
-        except ValueError:
-            messagebox.showerror("Ungueltige Eingabe", "Bitte ganze Prozentzahlen eingeben.", parent=self)
-            return
-        self._controller.dispatch(
-            UpdateGradeWeightingIntent(written_percent=written_percent, sonstige_percent=sonstige_percent)
-        )
 
     def set_selected_documentation_symbol_dialog(self) -> None:
         """Öffnet einen Dialog zur Symbolauswahl für die aktuelle Doku-Zelle (v4).

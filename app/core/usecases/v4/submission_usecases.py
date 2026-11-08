@@ -22,6 +22,32 @@ SubmissionMode = Literal["replace", "complement"]
 """``replace``: alte X/✓/◐ des Tages zuerst entfernen; ``complement``: nur Unbewertete ergänzen."""
 
 
+def count_submission_statuses_by_student(
+    plan: SeatingPlan, names: Mapping[SubmissionStatus, str]
+) -> dict[StudentId, dict[SubmissionStatus, int]]:
+    """Zählt je Person die Doku-Tage mit ✓, ◐ bzw. X (Abgabenbilanz der Zusammenfassung).
+
+    Doku-Symbole sind an/aus (``symbol_toggle``); gezählt wird daher je Tag
+    höchstens einmal pro Status. Ein Durchlauf über alle Sessions.
+
+    Args:
+        plan: Plan, aus dem gelesen wird.
+        names: Status → gespeicherter Symbolname (``submission_symbol_names``).
+
+    Returns:
+        ``StudentId → {Status: Anzahl}``; nur Status mit Anzahl > 0, Personen
+        ohne jede Abgabebewertung fehlen.
+    """
+    counts: dict[StudentId, dict[SubmissionStatus, int]] = {}
+    for session in plan.documentation.sessions:
+        for student_id, entry in session.entries.items():
+            for status in SubmissionStatus:
+                if entry.symbols.get(names[status]):
+                    per_student = counts.setdefault(student_id, {})
+                    per_student[status] = per_student.get(status, 0) + 1
+    return counts
+
+
 def rated_statuses(
     plan: SeatingPlan, date: str, names: Mapping[SubmissionStatus, str]
 ) -> dict[StudentId, SubmissionStatus]:

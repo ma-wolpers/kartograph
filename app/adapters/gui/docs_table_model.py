@@ -29,11 +29,15 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Literal, Sequence
 
-from app.core.domain.models_v4 import StudentId
+from app.core.domain.models_v4 import GradeCategory, StudentId
 
 NACHNAME_KEY = "nachname"
 VORNAME_KEY = "vorname"
 SUMMARY_KEY = "summary"
+OVERALL_KEY = "overall"
+# Einzige Zuordnung Kategorie -> Spaltenschlüssel der Teilnote ("… gesamt");
+# Tabellenaufbau und Spaltenkopf lesen nur diese Tabelle.
+CATEGORY_TOTAL_KEYS: dict[GradeCategory, str] = {"schriftlich": "written_total", "sonstig": "sonstige_total"}
 
 _GRADE_PREFIX = "grade_"
 

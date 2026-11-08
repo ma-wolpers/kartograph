@@ -1,7 +1,7 @@
 """PlanDerivedData — alle aus dem Plan abgeleiteten Anzeigedaten, einmal pro Inhaltsstand.
 
 Einzige Quelle für Werte, die Raster, Doku-Tabelle und Details aus dem
-aktuellen Plan berechnen (neueste Symbole, Notenlisten/-anzeigen,
+aktuellen Plan berechnen (neueste Symbole, Abgabenbilanz, Notenlisten/-anzeigen,
 Sitzgeometrien, Anzeigenamen). Der Controller hält genau ein Objekt
 pro ``content_version``; jede Größe wird erst beim ersten Zugriff berechnet
 und danach wiederverwendet. Eine reine Cursorbewegung ändert die
@@ -11,15 +11,18 @@ und danach wiederverwendet. Eine reine Cursorbewegung ändert die
 from __future__ import annotations
 
 from functools import cached_property
+from typing import Mapping
 
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.student_naming import compute_display_names
+from app.core.domain.submission_status import SubmissionStatus
 from app.core.domain.table_groups import build_seat_geometries_v4
 from app.core.usecases.v4.grade_usecases import (
     collect_grade_value_lists_by_student,
     compute_grade_display_by_student,
     compute_grade_subtotal_display_by_student,
 )
+from app.core.usecases.v4.submission_usecases import count_submission_statuses_by_student
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols_by_student
 
 
@@ -35,6 +38,18 @@ class PlanDerivedData:
         self.plan = plan
         self._names: dict[tuple[str, bool], dict] = {}
         self._subtotals: dict[str, dict] = {}
+        self._submission_counts: dict[tuple[str, ...], dict] = {}
+
+    def submission_counts(self, names: Mapping[SubmissionStatus, str]) -> dict:
+        """Abgabenbilanz je Schüler (``count_submission_statuses_by_student``), je Namenszuordnung einmal.
+
+        Args:
+            names: Status → gespeicherter Symbolname (aus dem Katalog aufgelöst).
+        """
+        key = tuple(names[status] for status in SubmissionStatus)
+        if key not in self._submission_counts:
+            self._submission_counts[key] = count_submission_statuses_by_student(self.plan, names)
+        return self._submission_counts[key]
 
     @cached_property
     def latest_symbols(self) -> dict:

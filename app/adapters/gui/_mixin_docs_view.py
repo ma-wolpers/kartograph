@@ -8,13 +8,27 @@ heutige Datumsauswahl.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Mapping
 
-from app.adapters.gui.docs_table_model import NACHNAME_KEY, VORNAME_KEY, grade_column_id
+from app.adapters.gui.docs_table_model import (
+    CATEGORY_TOTAL_KEYS,
+    NACHNAME_KEY,
+    OVERALL_KEY,
+    SUMMARY_KEY,
+    VORNAME_KEY,
+    grade_column_id,
+)
 from app.adapters.gui.docs_table_rules import next_sort_spec
-from app.core.domain.models_v4 import ParticipationRating, Student
+from app.core.domain.grade_weighting import format_factor
+from app.core.domain.models_v4 import (
+    DEFAULT_COLUMN_WEIGHT,
+    GRADE_CATEGORY_LABELS,
+    ParticipationRating,
+    Student,
+)
+from app.core.domain.submission_status import SubmissionStatus
 from app.core.intents.navigation_intents import ClearSelectionIntent
 from app.core.intents.session_intents import GoToTodayIntent
-from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -205,23 +219,34 @@ class DocsViewMixin:
             chunks.append(glyph * max(1, min(3, int(strength))))
         return " ".join(chunks)
 
-    def _documentation_summary_text(self, x: int, y: int) -> str:
-        """Erstellt den Zusammenfassungstext (neueste Symbole) für einen Schülertisch.
+    def _documentation_summary_cell_text(
+        self,
+        latest: dict[str, int],
+        counts: Mapping[SubmissionStatus, int],
+        names: Mapping[SubmissionStatus, str] | None,
+    ) -> str:
+        """Text der Zusammenfassungsspalte: neueste Symbole, dann die Abgabenbilanz (``✓5 ◐1 X3``).
+
+        Die drei Abgabesymbole erscheinen nicht als "neuester Stand", sondern
+        nur gezählt (Reihenfolge = ``SubmissionStatus``, Glyphen aus dem Katalog,
+        Status mit 0 entfallen). Ohne *names* (Abgabesymbol fehlt im Katalog)
+        bleibt die Zelle wie die übrigen Symbolzellen.
 
         Args:
-            x: Raster-x-Koordinate.
-            y: Raster-y-Koordinate.
-
-        Returns:
-            Glyph-String aus der letzten Dokumentations-Zusammenfassung oder Leerstring.
+            latest: Neueste Symbolstärken der Person.
+            counts: Anzahl der Doku-Tage je Abgabestatus.
+            names: Status → gespeicherter Symbolname oder ``None``.
         """
-        if not self.current_plan:
-            return ""
-        student = self.current_plan.student_at(x, y)
-        if student is None:
-            return ""
-        summary = summarize_latest_symbols(self.current_plan, student.student_id)
-        return self._documentation_cell_text(summary)
+        if names is None:
+            return self._documentation_cell_text(latest)
+        submission_names = set(names.values())
+        text = self._documentation_cell_text({k: v for k, v in latest.items() if k not in submission_names})
+        tally = [
+            f"{self._symbol_glyph(names[status])}{counts[status]}"
+            for status in SubmissionStatus
+            if counts.get(status)
+        ]
+        return " ".join(part for part in (text, " ".join(tally)) if part)
 
     def _doc_column_label(self, column_id: str) -> str:
         """Gibt den Anzeigenamen einer logischen Dokumentations-Spalte zurück.
@@ -239,19 +264,19 @@ class DocsViewMixin:
         date_index = self._doc_axis.date_index_of(column_id)
         if date_index is not None and date_index < len(self._doc_dates):
             return self._doc_dates[date_index]
-        if column_id == "summary":
+        if column_id == SUMMARY_KEY:
             return "Zusammenfassung"
-        if column_id == "overall":
+        if column_id == OVERALL_KEY:
             return "Gesamtnote"
-        if column_id == "written_total":
-            return "Schriftlich gesamt"
-        if column_id == "sonstige_total":
-            return "Sonstig gesamt"
+        for category, total_key in CATEGORY_TOTAL_KEYS.items():
+            if column_id == total_key:
+                return f"{GRADE_CATEGORY_LABELS[category]} gesamt"
         raw_id = grade_column_id(column_id)
-        if raw_id is not None:
-            for grade in self.current_plan.documentation.grade_columns if self.current_plan else []:
-                if grade.column_id == raw_id:
-                    return grade.title
+        column = self.current_plan.documentation.column_by_id(raw_id) if self.current_plan and raw_id else None
+        if column is not None:
+            if column.weight == DEFAULT_COLUMN_WEIGHT:
+                return column.title
+            return f"{column.title} ×{format_factor(column.weight)}"
         return column_id
 
     def select_today_documentation_date(self) -> None:

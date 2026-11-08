@@ -13,7 +13,9 @@ import time
 
 from app.adapters.gui._mixin_layout_docs import REGION_BY_PANE
 from app.adapters.gui.docs_table_model import (
+    CATEGORY_TOTAL_KEYS,
     NACHNAME_KEY,
+    OVERALL_KEY,
     SUMMARY_KEY,
     VORNAME_KEY,
     DocColumnAxis,
@@ -23,6 +25,8 @@ from app.adapters.gui.docs_table_model import (
 from app.adapters.gui.docs_table_rules import sort_iids
 from app.adapters.gui.main_window_constants import LOGGER
 from app.core.domain.grade_scale import scale_for
+from app.core.domain.models_v4 import GRADE_CATEGORIES
+from app.core.domain.submission_status import CatalogSymbolMissing, submission_symbol_names
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -58,16 +62,16 @@ class DocsTableMixin:
         self._doc_date_column_ids = [f"date_{index}" for index in range(len(all_dates))]
 
         grade_columns = self.current_plan.documentation.grade_columns
-        written_columns = [c for c in grade_columns if c.category == "schriftlich"]
-        sonstige_columns = [c for c in grade_columns if c.category == "sonstig"]
+        # Teilnote "… gesamt" nur für Kategorien mit mehr als einer Spalte.
+        total_categories = [
+            category for category in GRADE_CATEGORIES
+            if sum(1 for c in grade_columns if c.category == category) > 1
+        ]
 
-        fixed_columns: list[str] = ["summary"]
+        fixed_columns: list[str] = [SUMMARY_KEY]
         fixed_columns.extend([grade_column_key(c.column_id) for c in grade_columns])
-        if len(written_columns) > 1:
-            fixed_columns.append("written_total")
-        if len(sonstige_columns) > 1:
-            fixed_columns.append("sonstige_total")
-        fixed_columns.append("overall")
+        fixed_columns.extend(CATEGORY_TOTAL_KEYS[category] for category in total_categories)
+        fixed_columns.append(OVERALL_KEY)
         self._doc_fixed_column_ids = list(fixed_columns)
         self._doc_axis = DocColumnAxis(self._doc_date_column_ids, fixed_columns)
         self._validate_doc_sort_spec()
@@ -83,9 +87,13 @@ class DocsTableMixin:
         grades_by_student = self.current_plan.documentation.grades
         grade_scale = scale_for(self.current_plan.documentation.grade_scale)
         latest_symbols_by_student = derived.latest_symbols
+        try:
+            submission_names = submission_symbol_names(self._controller.state.symbol_catalog)
+        except CatalogSymbolMissing:
+            submission_names = None  # Abgabesymbol bewusst aus dem Katalog gelöscht: keine Bilanz
+        submission_counts = derived.submission_counts(submission_names) if submission_names else {}
         overall_display_by_student = derived.grade_display
-        written_subtotal_by_student = derived.subtotal_display("schriftlich") if "written_total" in fixed_columns else {}
-        sonstige_subtotal_by_student = derived.subtotal_display("sonstig") if "sonstige_total" in fixed_columns else {}
+        subtotals_by_category = {category: derived.subtotal_display(category) for category in total_categories}
 
         rows: dict[str, DocRow] = {}
         iid_by_coord_index: dict[int, str] = {}
@@ -102,15 +110,18 @@ class DocsTableMixin:
                     self._documentation_cell_text(entry.symbols, entry.participation) if entry else ""
                 )
             summary_symbols = latest_symbols_by_student.get(student.student_id, {})
-            fixed_values: list[str] = [self._documentation_cell_text(summary_symbols)]
+            fixed_values: list[str] = [
+                self._documentation_summary_cell_text(
+                    summary_symbols, submission_counts.get(student.student_id, {}), submission_names
+                )
+            ]
             student_grades = grades_by_student.get(student.student_id, {})
             for grade in grade_columns:
                 raw_grade = student_grades.get(grade.column_id)
                 fixed_values.append(grade_scale.format_value(raw_grade) if raw_grade is not None else "")
-            if "written_total" in fixed_columns:
-                fixed_values.append(written_subtotal_by_student.get(student.student_id, ""))
-            if "sonstige_total" in fixed_columns:
-                fixed_values.append(sonstige_subtotal_by_student.get(student.student_id, ""))
+            fixed_values.extend(
+                subtotals_by_category[category].get(student.student_id, "") for category in total_categories
+            )
             fixed_values.append(overall_display_by_student.get(student.student_id, ""))
 
             iid = str(student.student_id)

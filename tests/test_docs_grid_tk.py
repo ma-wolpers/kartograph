@@ -39,7 +39,10 @@ class _DocsHost(tk.Frame, LayoutDocsMixin, DocsTableMixin, DocsEventsMixin, Docs
         self.current_plan = plan
         self.theme_key = None
         # Wie der Controller: abgeleitete Plandaten (hier ohne Versions-Cache, frisch je Aufruf).
-        self._controller = SimpleNamespace(derived=lambda: PlanDerivedData(self.current_plan))
+        # Leerer Symbolkatalog: keine Abgabesymbole -> Zusammenfassung ohne Bilanz (Rückfallweg).
+        self._controller = SimpleNamespace(
+            derived=lambda: PlanDerivedData(self.current_plan), state=SimpleNamespace(symbol_catalog=())
+        )
         self.status_var = tk.StringVar(master=root, value="")
         self._doc_selection_status_var = tk.StringVar(master=root, value="")
         self._doc_selected_student_index = 0

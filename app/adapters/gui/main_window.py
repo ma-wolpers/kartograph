@@ -24,6 +24,7 @@ from app.adapters.gui._mixin_docs_view import DocsViewMixin
 from app.adapters.gui._mixin_edit import EditMixin
 from app.adapters.gui._mixin_export import ExportMixin
 from app.adapters.gui._mixin_grade_conflicts import GradeConflictsMixin
+from app.adapters.gui._mixin_grade_dialogs import GradeDialogsMixin
 from app.adapters.gui._mixin_grid_helpers import GridHelpersMixin
 from app.adapters.gui._mixin_grid_render import GridRenderMixin
 from app.adapters.gui._mixin_laufkern import LaufkernMixin
@@ -82,6 +83,7 @@ from app.adapters.gui._mixin_state_apply import StateApplyMixin
 class KartographMainWindow(
     StateApplyMixin,
     GradeConflictsMixin,
+    GradeDialogsMixin,
     PdfMixin,
     NamenfitExportMixin,
     StudentPngExportMixin,
