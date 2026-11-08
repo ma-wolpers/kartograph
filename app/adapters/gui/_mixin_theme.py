@@ -80,7 +80,7 @@ class ThemeMixin:
             bg=theme["bg_panel"],
             fg=theme["fg_primary"],
             selectbackground=theme["accent"],
-            selectforeground="#FFFFFF",
+            selectforeground=theme["fg_on_accent"],
             highlightbackground=theme["border"],
             highlightcolor=theme["focus_ring"],
             borderwidth=1,
@@ -89,7 +89,7 @@ class ThemeMixin:
 
         self.style.configure("Treeview", background=theme["bg_surface"], fieldbackground=theme["bg_surface"], foreground=theme["fg_primary"], bordercolor=theme["border"])
         self.style.configure("Treeview.Heading", background=theme["bg_panel"], foreground=theme["fg_primary"])
-        self.style.map("Treeview", background=[("selected", theme["accent"])], foreground=[("selected", "#FFFFFF")])
+        self.style.map("Treeview", background=[("selected", theme["accent"])], foreground=[("selected", theme["fg_on_accent"])])
 
         shared_theme_key = self._shared_menu_theme_key()
         active_tooltips: list[object] = []

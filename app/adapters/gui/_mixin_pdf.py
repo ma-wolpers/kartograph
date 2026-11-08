@@ -10,6 +10,7 @@ from pathlib import Path
 
 from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import filedialog, messagebox
+from app.core.domain.grade_display_mode import DEFAULT_GRADE_DISPLAY_MODE, GRADE_DISPLAY_MODES
 from app.core.domain.seat_orientation import ORIENTATION_MODES, TEACHER_BOTTOM
 from app.core.intents.view_intents import ExportPdfIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -61,7 +62,7 @@ class PdfMixin:
         container.pack(fill="both", expand=True, padx=12, pady=12)
 
         mode_var = ui.StringVar(value=TEACHER_BOTTOM)
-        grade_mode_var = ui.StringVar(value="none")
+        grade_mode_var = ui.StringVar(value=DEFAULT_GRADE_DISPLAY_MODE)
         include_color_markers_var = ui.BooleanVar(value=False)
         include_legend_var = ui.BooleanVar(value=False)
         available_symbols = self._collect_export_symbols(self.current_plan)
@@ -69,14 +70,9 @@ class PdfMixin:
 
         first_mode_button = self._build_orientation_radios(container, mode_var)
 
-        RadioGroup(
-            container, title="Noten", variable=grade_mode_var,
-            options=[
-                ("none", "Keine Noten (Standard)"),
-                ("final_only", "Nur fertige Gesamtnote"),
-                ("include_provisional", "Gesamtnote inkl. Klammernoten"),
-            ],
-        ).pack(anchor="w", pady=(0, 10))
+        RadioGroup(container, title="Noten", variable=grade_mode_var, options=GRADE_DISPLAY_MODES).pack(
+            anchor="w", pady=(0, 10)
+        )
 
         tui.Label(container, text="Symbole (nur im Plan vorhandene)").pack(anchor="w", pady=(0, 6))
         symbols_frame = tui.Frame(container)

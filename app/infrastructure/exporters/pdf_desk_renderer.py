@@ -8,6 +8,7 @@ der Fontregistrierung über ``set_symbol_font`` gesetzt.
 from __future__ import annotations
 
 from app.core.domain.color_order import FALLBACK_COLOR_HEX, order_color_keys, palette_by_key, palette_color, palette_order
+from app.core.domain.grade_display_mode import GradeDisplayMode, provisional_policy
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.table_groups import SeatGeometryV4
 from app.core.usecases.v4.grade_usecases import compute_grade_display
@@ -68,7 +69,7 @@ class PdfDeskRenderer:
         center: tuple[float, float],
         cell_size: float,
         export_plan: SeatingPlan,
-        grade_mode: str,
+        grade_mode: GradeDisplayMode,
         visible_symbols: set[str] | None,
         include_color_markers: bool,
         used_symbol_levels: dict[str, set[int]],
@@ -92,7 +93,7 @@ class PdfDeskRenderer:
             center: Mittelpunkt in PDF-Koordinaten.
             cell_size: Zellenbreite in Punkten (beeinflusst Schriftgröße).
             export_plan: Plan (für Notenberechnung).
-            grade_mode: ``"none"``, ``"final_only"`` oder ``"include_provisional"``.
+            grade_mode: Notenanzeige-Modus (``grade_display_mode.GRADE_DISPLAY_MODES``).
             visible_symbols: Sichtbare Symbole; None = alle.
             include_color_markers: Farbpunkte zeichnen.
             used_symbol_levels: Wird mit Symbolstärken befüllt (für Legende).
@@ -137,12 +138,11 @@ class PdfDeskRenderer:
         c.setFillColor(colors.black)
         student_name = display_names.get(student.student_id, "")
 
-        if grade_mode == "include_provisional":
-            overall_grade = compute_grade_display(export_plan, student.student_id, allow_provisional=True)
-        elif grade_mode == "final_only":
-            overall_grade = compute_grade_display(export_plan, student.student_id, allow_provisional=False)
-        else:
-            overall_grade = ""
+        allow_provisional = provisional_policy(grade_mode)
+        overall_grade = (
+            "" if allow_provisional is None
+            else compute_grade_display(export_plan, student.student_id, allow_provisional=allow_provisional)
+        )
 
         if overall_grade:
             c.setFont("Helvetica-Bold", max(6, int(min(box_width, box_height) * 0.12)))

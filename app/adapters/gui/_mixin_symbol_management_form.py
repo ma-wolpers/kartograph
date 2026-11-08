@@ -131,13 +131,13 @@ class SymbolManagementFormMixin:
             tui.Label(
                 frame,
                 text="Die Bedeutung kann nicht geändert werden (nur Symbol/Kürzel) —\nfür eine Umbenennung: löschen und neu anlegen.",
-                foreground="#666666",
+                style="Muted.TLabel",
                 justify="left",
             ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 0))
 
         status_var = ui.StringVar(value="")
         tui.Label(
-            frame, textvariable=status_var, foreground="#b00020", justify="left", wraplength=400
+            frame, textvariable=status_var, style="Error.TLabel", justify="left", wraplength=400
         ).grid(row=4, column=0, columnspan=2, sticky="w", pady=(8, 4))
 
         def submit() -> None:

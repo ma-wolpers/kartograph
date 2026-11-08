@@ -7,8 +7,12 @@ Koordiniert Fontregistrierung, Geometrieberechnung, Tischrendering
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
 
+from app.core.domain.grade_display_mode import (
+    DEFAULT_GRADE_DISPLAY_MODE,
+    GradeDisplayMode,
+    is_grade_display_mode,
+)
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.seat_orientation import is_orientation_mode, orient_geometries, world_bounds
 from app.core.domain.settings import DEFAULT_NAME_FORMAT
@@ -18,9 +22,6 @@ from app.core.usecases.v4.tablegroup_usecases import normalize_tablegroups
 from app.infrastructure.exporters.pdf_desk_renderer import PdfDeskRenderer
 from app.infrastructure.exporters.pdf_legend_renderer import PdfLegendRenderer
 from app.infrastructure.symbol_config_loader import SymbolDefinition
-
-GradeDisplayMode = Literal["none", "final_only", "include_provisional"]
-
 
 class PdfSeatingPlanExporter:
     """Exportiert einen Sitzplan als PDF-Datei (A4 quer).
@@ -82,7 +83,7 @@ class PdfSeatingPlanExporter:
         output_path: Path,
         orientation_mode: str,
         *,
-        grade_mode: GradeDisplayMode = "none",
+        grade_mode: GradeDisplayMode = DEFAULT_GRADE_DISPLAY_MODE,
         visible_symbols: set[str] | None = None,
         include_color_markers: bool = False,
         include_legend_page: bool = False,
@@ -122,7 +123,7 @@ class PdfSeatingPlanExporter:
 
         if not is_orientation_mode(orientation_mode):
             raise ValueError("Unbekannter Exportmodus")
-        if grade_mode not in {"none", "final_only", "include_provisional"}:
+        if not is_grade_display_mode(grade_mode):
             raise ValueError("Unbekannter Notenmodus")
 
         export_plan = normalize_tablegroups(plan)

@@ -70,6 +70,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- Ausgewählte Einträge in der Planliste und in Tabellen sind in dunklen Themes wie „Charcoal“ wieder gut lesbar (die Schrift folgt jetzt dem Theme statt immer weiß zu sein). Hinweis- und Fehlertexte in Dialogen passen sich ebenfalls dem Theme an.
 - Mitarbeit-Bewertung (`+`, `o`, `-`, `s`) in der Doku-Ansicht: Sie landet jetzt im ausgewählten Datum, wie die Symbole auch. Vorher wurde sie immer beim heutigen Datum (der neuesten Spalte) eingetragen. Im Sitzplan-Raster gilt sie weiterhin für heute.
 - Rückgängig innerhalb der Speicherverzögerung (2 s): Die Änderung schien zurückgenommen, wurde aber kurz danach wieder in die Plandatei geschrieben und war beim nächsten Öffnen wieder da.
 - Tischgruppen-Einstellungen (Strg+T): Das Fenster lässt sich auf Tischen mit Gruppe wieder benutzen, es brach dort beim Füllen des Formulars ab. Jedes „Übernehmen“ ist jetzt ein eigener Rückgängig-Schritt, und das Rückgängigmachen der nächsten Änderung nimmt die Einstellung nicht mehr mit. Die Meldung „Überlappung erkannt“ bleibt sichtbar.

@@ -261,7 +261,7 @@ class DocsDialogsMixin:
         frame = tui.Frame(dialog)
         frame.pack(fill="both", expand=True, padx=12, pady=12)
         tui.Label(frame, text="Symbol auswählen").pack(anchor="w", pady=(0, 6))
-        tui.Label(frame, text="Tastaturhilfe im Hover", foreground="#666666").pack(anchor="w", pady=(0, 6))
+        tui.Label(frame, text="Tastaturhilfe im Hover", style="Muted.TLabel").pack(anchor="w", pady=(0, 6))
 
         symbol_listbox = ui.Listbox(frame, selectmode="browse", exportselection=False, font=("Segoe UI", 11))
         symbol_listbox.pack(fill="both", expand=True)
