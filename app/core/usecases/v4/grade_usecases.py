@@ -2,25 +2,46 @@
 
 Noten werden über ``column_id`` (Spalte) und ``StudentId`` (Schüler) adressiert;
 je Person und Spalte gibt es genau eine Note (``DocumentationBlock.grades``).
+Jede Spalte trägt einen Faktor (``GradeColumn.weight``); die Regeln dazu
+(gewichteter Mittelwert, 50/50-Rückfall, Faktor-Bereinigung) stehen in
+``app/core/domain/grade_weighting.py``.
 """
 
 from __future__ import annotations
 
 import uuid
 from copy import deepcopy
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from app.core.domain.grade_scale import scale_for
-from app.core.domain.models_v4 import GradeCategory, GradeColumn, GradeWeighting, SeatingPlan
+from app.core.domain.grade_weighting import (
+    category_percents,
+    normalize_factor,
+    normalized_category_percents,
+    weighted_mean,
+)
+from app.core.domain.models_v4 import (
+    DEFAULT_COLUMN_WEIGHT,
+    GRADE_CATEGORIES,
+    GRADE_CATEGORY_LABELS,
+    DocumentationBlock,
+    GradeCategory,
+    GradeColumn,
+    GradeWeighting,
+    SeatingPlan,
+)
 from app.core.domain.student_id import StudentId
 from app.core.usecases.v4._shared import (
     _round_half_up_to_int,
     _round_half_up_to_two_decimals,
 )
 
+# (Notenwert, Spaltenfaktor) -- Eingabe für ``weighted_mean``.
+GradePairs = list[tuple[float, float]]
+
 
 def add_grade_column(
-    plan: SeatingPlan, category: str, title: str
+    plan: SeatingPlan, category: str, title: str, weight: float = DEFAULT_COLUMN_WEIGHT
 ) -> tuple[SeatingPlan, str]:
     """Legt eine neue Notenspalte an.
 
@@ -28,19 +49,21 @@ def add_grade_column(
 
     Args:
         plan: Ausgangsplan.
-        category: ``"schriftlich"`` oder ``"sonstig"``.
+        category: Eine von ``GRADE_CATEGORIES`` (``"schriftlich"``/``"sonstig"``).
         title: Anzeigetitel; leer ergibt einen Standardtitel.
+        weight: Faktor der Spalte innerhalb ihrer Kategorie (bereinigt über
+            ``normalize_factor``).
 
     Returns:
         Tupel aus (neuer Plan, neuer column_id).
     """
     clean_cat = str(category or "").strip().lower()
-    if clean_cat not in {"schriftlich", "sonstig"}:
+    if clean_cat not in GRADE_CATEGORIES:
         return deepcopy(plan), ""
 
     clean_title = (
         str(title or "").strip()
-        or f"{clean_cat.title()} {len(plan.documentation.grade_columns) + 1}"
+        or f"{GRADE_CATEGORY_LABELS[clean_cat]} {len(plan.documentation.grade_columns) + 1}"  # type: ignore[index]
     )
     next_plan = deepcopy(plan)
     column_id = uuid.uuid4().hex[:8]
@@ -49,6 +72,7 @@ def add_grade_column(
             column_id=column_id,
             category=clean_cat,  # type: ignore[arg-type]
             title=clean_title,
+            weight=normalize_factor(weight),
         )
     )
     return next_plan, column_id
@@ -105,28 +129,34 @@ def resolve_grade_conflicts(
 
 
 def set_grade_weighting(
-    plan: SeatingPlan, written_percent: int, sonstige_percent: int
+    plan: SeatingPlan,
+    written_percent: int,
+    sonstige_percent: int,
+    column_weights: Mapping[str, float] | None = None,
 ) -> SeatingPlan:
-    """Legt die Gewichtung schriftlicher vs. sonstiger Noten fest.
+    """Legt Kategorie-Prozente und Spaltenfaktoren in einem Schritt fest (ein Undo-Schritt).
 
-    Negative Werte werden auf 0 geclampt; sind beide 0, wird 50/50 verwendet.
+    Prozente werden über ``normalized_category_percents`` bereinigt (negativ → 0,
+    beide 0 → 50/50), Faktoren über ``normalize_factor``. Unbekannte Spalten-IDs
+    in *column_weights* werden ignoriert, nicht genannte Spalten behalten ihren Faktor.
 
     Args:
         plan: Ausgangsplan.
-        written_percent: Anteil der schriftlichen Note (0–100).
-        sonstige_percent: Anteil der sonstigen Note (0–100).
+        written_percent: Anteil der schriftlichen Note.
+        sonstige_percent: Anteil der sonstigen Note.
+        column_weights: ``column_id → Faktor`` (optional).
 
     Returns:
         Neuer Plan mit der aktualisierten Gewichtung.
     """
     next_plan = deepcopy(plan)
-    wp = max(0, int(written_percent))
-    sp = max(0, int(sonstige_percent))
-    if wp + sp <= 0:
-        wp, sp = 50, 50
-    next_plan.documentation.weighting = GradeWeighting(
-        written_percent=wp, sonstige_percent=sp
-    )
+    doc = next_plan.documentation
+    written, sonstige = normalized_category_percents(written_percent, sonstige_percent)
+    doc.weighting = GradeWeighting(written_percent=written, sonstige_percent=sonstige)
+    for column_id, weight in (column_weights or {}).items():
+        column = doc.column_by_id(column_id)
+        if column is not None:
+            column.weight = normalize_factor(weight)
     return next_plan
 
 
@@ -153,20 +183,18 @@ def compute_grade_display(
     if student is None or not student.is_named():
         return ""
     lists = _value_lists_for_student(plan, student_id)
-    return _overall_display(
-        lists["schriftlich"], lists["sonstig"], plan.documentation.weighting, allow_provisional
-    )
+    return _overall_display(lists, plan.documentation.weighting, allow_provisional)
 
 
 def compute_grade_subtotal_display(
     plan: SeatingPlan, student_id: StudentId, category: str
 ) -> str:
-    """Berechnet den Durchschnitt einer Notenkategorie für einen Schüler.
+    """Berechnet den (gewichteten) Durchschnitt einer Notenkategorie für einen Schüler.
 
     Args:
         plan: Plan, aus dem gelesen wird.
         student_id: ID des Schülers.
-        category: ``"schriftlich"`` oder ``"sonstig"``.
+        category: Eine von ``GRADE_CATEGORIES``.
 
     Returns:
         Gerundeter Durchschnitt als String (z.B. ``"3"``), oder ``""``.
@@ -176,97 +204,116 @@ def compute_grade_subtotal_display(
         return ""
 
     clean_cat = str(category or "").strip().lower()
-    if clean_cat not in {"schriftlich", "sonstig"}:
+    if clean_cat not in GRADE_CATEGORIES:
         return ""
 
-    return _subtotal_display(_value_lists_for_student(plan, student_id)[clean_cat])
+    return _subtotal_display(_value_lists_for_student(plan, student_id)[clean_cat])  # type: ignore[index]
+
+
+def _column_info(doc: DocumentationBlock) -> dict[str, tuple[GradeCategory, float]]:
+    """Spalte → (Kategorie, Faktor) für alle Notenspalten des Plans.
+
+    Args:
+        doc: Dokumentationsblock des Plans.
+    """
+    return {col.column_id: (col.category, col.weight) for col in doc.grade_columns}
 
 
 def _lists_by_category(
-    columns: dict[str, float], category_by_column: dict[str, GradeCategory]
-) -> dict[GradeCategory, list[float]]:
-    """Ordnet die Noten einer Person ihren Kategorien zu (Spalten ohne Kategorie zählen nicht).
+    columns: dict[str, float], column_info: dict[str, tuple[GradeCategory, float]]
+) -> dict[GradeCategory, GradePairs]:
+    """Ordnet die Noten einer Person ihren Kategorien zu, je mit Spaltenfaktor.
+
+    Spalten ohne Definition zählen nicht.
 
     Args:
         columns: Spalte → Note.
-        category_by_column: Spalte → Kategorie.
+        column_info: Spalte → (Kategorie, Faktor), siehe :func:`_column_info`.
 
     Returns:
-        Dict mit beiden Kategorien als Schlüssel (ggf. leere Listen).
+        Dict mit allen Kategorien als Schlüssel (ggf. leere Listen) und
+        ``(Note, Faktor)``-Paaren als Werten.
     """
-    lists: dict[GradeCategory, list[float]] = {"schriftlich": [], "sonstig": []}
+    lists: dict[GradeCategory, GradePairs] = {category: [] for category in GRADE_CATEGORIES}
     for column_id, value in columns.items():
-        category = category_by_column.get(column_id)
-        if category in lists:
-            lists[category].append(float(value))
+        info = column_info.get(column_id)
+        if info is not None:
+            category, weight = info
+            lists[category].append((float(value), weight))
     return lists
 
 
 def _value_lists_for_student(
     plan: SeatingPlan, student_id: StudentId
-) -> dict[GradeCategory, list[float]]:
-    """Sammelt alle Notenwerte eines Schülers je Kategorie.
+) -> dict[GradeCategory, GradePairs]:
+    """Sammelt alle ``(Note, Faktor)``-Paare eines Schülers je Kategorie.
 
     Args:
         plan: Plan, aus dem gelesen wird.
         student_id: ID des Schülers.
 
     Returns:
-        Dict mit beiden Kategorien als Schlüssel (ggf. leere Listen).
+        Dict mit allen Kategorien als Schlüssel (ggf. leere Listen).
     """
     doc = plan.documentation
-    category_by_column = {col.column_id: col.category for col in doc.grade_columns}
-    return _lists_by_category(doc.grades.get(student_id, {}), category_by_column)
+    return _lists_by_category(doc.grades.get(student_id, {}), _column_info(doc))
+
+
+def _category_mean(pairs: GradePairs) -> int | None:
+    """Gewichteter, auf eine ganze Zahl gerundeter Kategorie-Schnitt (``None`` ohne zählende Note).
+
+    Args:
+        pairs: ``(Note, Faktor)`` einer Kategorie.
+    """
+    mean = weighted_mean(pairs)
+    return None if mean is None else _round_half_up_to_int(mean)
 
 
 def _overall_display(
-    written_vals: list[float],
-    sonstige_vals: list[float],
+    lists: dict[GradeCategory, GradePairs],
     weighting: GradeWeighting,
     allow_provisional: bool,
 ) -> str:
-    """Formatiert die Gesamtnote aus den Wertelisten beider Kategorien (SSOT der Formel).
+    """Formatiert die Gesamtnote aus den Paaren aller Kategorien (SSOT der Formel).
 
-    Beide Kategorie-Schnitte werden zuerst auf ganze Zahlen gerundet und
-    dann gewichtet (``"3.67"``). Liegt nur eine Kategorie vor, entsteht eine
+    Jeder Kategorie-Schnitt wird mit den Spaltenfaktoren gewichtet, auf eine
+    ganze Zahl gerundet und dann mit den Kategorie-Prozenten gewichtet
+    (``"3.67"``). Zählt nur eine Kategorie (Faktorsumme > 0), entsteht eine
     vorläufige Note in Klammern (``"(3)"``) bzw. ``""`` ohne *allow_provisional*.
     Die Formel ist skalenneutral und gilt für Schulnoten wie Punkte.
 
     Args:
-        written_vals: Alle schriftlichen Werte.
-        sonstige_vals: Alle sonstigen Werte.
-        weighting: Gewichtung des Plans; Summe 0 wird als 100 behandelt.
+        lists: Kategorie → ``(Note, Faktor)``-Paare.
+        weighting: Kategorie-Prozente des Plans (bereinigt über ``category_percents``).
         allow_provisional: Vorläufige Noten in Klammern zurückgeben.
     """
-    if not written_vals and not sonstige_vals:
+    means = {category: _category_mean(lists.get(category, [])) for category in GRADE_CATEGORIES}
+    present = {category: mean for category, mean in means.items() if mean is not None}
+    if not present:
         return ""
-    if written_vals and sonstige_vals:
-        w = _round_half_up_to_int(sum(written_vals) / len(written_vals))
-        s = _round_half_up_to_int(sum(sonstige_vals) / len(sonstige_vals))
-        total = weighting.written_percent + weighting.sonstige_percent
-        if total <= 0:
-            total = 100
-        overall = (w * weighting.written_percent + s * weighting.sonstige_percent) / total
+    if len(present) == len(GRADE_CATEGORIES):
+        percents = category_percents(weighting)
+        overall = sum(present[c] * percents[c] for c in GRADE_CATEGORIES) / sum(percents.values())
         return f"{_round_half_up_to_two_decimals(overall):.2f}"
     if not allow_provisional:
         return ""
-    partial = written_vals or sonstige_vals
-    return f"({_round_half_up_to_int(sum(partial) / len(partial))})"
+    return f"({next(iter(present.values()))})"
 
 
-def _subtotal_display(values: list[float]) -> str:
-    """Formatiert den auf eine ganze Zahl gerundeten Schnitt einer Kategorie (``""`` ohne Werte).
+def _subtotal_display(pairs: GradePairs) -> str:
+    """Formatiert den gewichteten, auf eine ganze Zahl gerundeten Kategorie-Schnitt (``""`` ohne zählende Note).
 
     Args:
-        values: Alle Werte einer Kategorie für einen Schüler.
+        pairs: ``(Note, Faktor)`` einer Kategorie für einen Schüler.
     """
-    return str(_round_half_up_to_int(sum(values) / len(values))) if values else ""
+    mean = _category_mean(pairs)
+    return "" if mean is None else str(mean)
 
 
 def collect_grade_value_lists_by_student(
     plan: SeatingPlan,
-) -> dict[StudentId, dict[GradeCategory, list[float]]]:
-    """Sammelt für alle Schüler gleichzeitig alle Notenwerte je Kategorie (ein Durchlauf).
+) -> dict[StudentId, dict[GradeCategory, GradePairs]]:
+    """Sammelt für alle Schüler gleichzeitig alle ``(Note, Faktor)``-Paare je Kategorie (ein Durchlauf).
 
     Gemeinsame Grundlage für :func:`compute_grade_display_by_student` und
     :func:`compute_grade_subtotal_display_by_student`. Ruft ein Aufrufer (wie die
@@ -277,18 +324,18 @@ def collect_grade_value_lists_by_student(
         plan: Plan, aus dem gelesen wird.
 
     Returns:
-        Dict von StudentId → (Dict von Kategorie → Liste aller Notenwerte).
+        Dict von StudentId → (Dict von Kategorie → ``(Note, Faktor)``-Paaren).
     """
     doc = plan.documentation
-    category_by_column = {col.column_id: col.category for col in doc.grade_columns}
-    return {sid: _lists_by_category(columns, category_by_column) for sid, columns in doc.grades.items()}
+    column_info = _column_info(doc)
+    return {sid: _lists_by_category(columns, column_info) for sid, columns in doc.grades.items()}
 
 
 def compute_grade_display_by_student(
     plan: SeatingPlan,
     allow_provisional: bool = True,
     *,
-    value_lists: dict[StudentId, dict[GradeCategory, list[float]]] | None = None,
+    value_lists: dict[StudentId, dict[GradeCategory, GradePairs]] | None = None,
 ) -> dict[StudentId, str]:
     """Wie :func:`compute_grade_display`, aber für alle benannten Schüler in einem Durchlauf.
 
@@ -297,7 +344,7 @@ def compute_grade_display_by_student(
         allow_provisional: Vorläufige Noten in Klammern zurückgeben.
         value_lists: Optional vorberechnetes Ergebnis von
             :func:`collect_grade_value_lists_by_student`, um einen erneuten
-            Sessions-Scan zu vermeiden, wenn der Aufrufer ohnehin auch
+            Durchlauf zu vermeiden, wenn der Aufrufer ohnehin auch
             :func:`compute_grade_subtotal_display_by_student` für denselben
             Plan aufruft (siehe dortige Docstring).
 
@@ -312,12 +359,8 @@ def compute_grade_display_by_student(
     for student in plan.classroom.students:
         if not student.is_named():
             continue
-        lists = value_lists.get(student.student_id)
         results[student.student_id] = _overall_display(
-            lists["schriftlich"] if lists else [],
-            lists["sonstig"] if lists else [],
-            weighting,
-            allow_provisional,
+            value_lists.get(student.student_id, {}), weighting, allow_provisional
         )
     return results
 
@@ -326,16 +369,16 @@ def compute_grade_subtotal_display_by_student(
     plan: SeatingPlan,
     category: str,
     *,
-    value_lists: dict[StudentId, dict[GradeCategory, list[float]]] | None = None,
+    value_lists: dict[StudentId, dict[GradeCategory, GradePairs]] | None = None,
 ) -> dict[StudentId, str]:
     """Wie :func:`compute_grade_subtotal_display`, aber für alle benannten Schüler in einem Durchlauf.
 
     Args:
         plan: Plan, aus dem gelesen wird.
-        category: ``"schriftlich"`` oder ``"sonstig"``.
+        category: Eine von ``GRADE_CATEGORIES``.
         value_lists: Optional vorberechnetes Ergebnis von
             :func:`collect_grade_value_lists_by_student` (siehe dortige
-            Docstring) — vermeidet einen erneuten Sessions-Scan, wenn diese
+            Docstring) — vermeidet einen erneuten Durchlauf, wenn diese
             Funktion mehrfach (z. B. für beide Kategorien) oder zusammen mit
             :func:`compute_grade_display_by_student` für denselben Plan
             aufgerufen wird.
@@ -346,7 +389,7 @@ def compute_grade_subtotal_display_by_student(
     """
     clean_cat = str(category or "").strip().lower()
     results: dict[StudentId, str] = {}
-    if clean_cat not in {"schriftlich", "sonstig"}:
+    if clean_cat not in GRADE_CATEGORIES:
         for student in plan.classroom.students:
             if student.is_named():
                 results[student.student_id] = ""
@@ -357,10 +400,9 @@ def compute_grade_subtotal_display_by_student(
     else:
         has_columns = any(col.category == clean_cat for col in plan.documentation.grade_columns)
         resolved_lists = collect_grade_value_lists_by_student(plan) if has_columns else {}
-    value_lists = resolved_lists
     for student in plan.classroom.students:
         if not student.is_named():
             continue
-        lists = value_lists.get(student.student_id)
-        results[student.student_id] = _subtotal_display(lists[clean_cat] if lists else [])
+        lists = resolved_lists.get(student.student_id)
+        results[student.student_id] = _subtotal_display(lists[clean_cat] if lists else [])  # type: ignore[index]
     return results

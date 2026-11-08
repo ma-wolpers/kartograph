@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import uuid
 
+from app.core.domain.grade_weighting import normalize_factor, normalized_category_percents
 from app.core.domain.models_v4 import (
+    GRADE_CATEGORIES,
     Classroom,
     CustomSymbolDefinition,
     DiagnosticProfile,
@@ -350,28 +352,26 @@ def _deserialize_grade_columns(raw_list: list) -> list[GradeColumn]:
         title = str(item.get("title") or "").strip()
         if not col_id or col_id in seen:
             continue
-        if category not in {"schriftlich", "sonstig"}:
+        if category not in GRADE_CATEGORIES:
             continue
         columns.append(GradeColumn(
             column_id=col_id,
             category=category,  # type: ignore[arg-type]
             title=title or col_id,
             created_at=str(item.get("created_at") or "").strip(),
+            weight=normalize_factor(item.get("weight")),
         ))
         seen.add(col_id)
     return columns
 
 
 def _deserialize_weighting(raw: dict) -> GradeWeighting:
-    """Liest die Notengewichtung aus *raw*; fällt auf 50/50 zurück, wenn beide Anteile zusammen <= 0 wären.
+    """Liest die Notengewichtung aus *raw* (Bereinigung und 50/50-Rückfall: ``normalized_category_percents``).
 
     Args:
         raw: Roh-Dict des ``grade_weighting``-Feldes aus der Plandatei.
     """
-    written = _coerce_int(raw.get("written_percent"), 50)
-    sonstige = _coerce_int(raw.get("sonstige_percent"), 50)
-    if written + sonstige <= 0:
-        written, sonstige = 50, 50
+    written, sonstige = normalized_category_percents(raw.get("written_percent"), raw.get("sonstige_percent"))
     return GradeWeighting(written_percent=written, sonstige_percent=sonstige)
 
 

@@ -150,6 +150,7 @@ def _serialize_documentation(plan: SeatingPlan) -> dict:
                 "category": col.category,
                 "title": col.title,
                 "created_at": col.created_at,
+                "weight": col.weight,
             }
             for col in doc.grade_columns
         ],

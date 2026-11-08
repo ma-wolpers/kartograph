@@ -16,12 +16,19 @@ Ersetzt langfristig ``models.py`` (v3). Die zentralen Unterschiede:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, get_args
 
 from app.core.domain.grade_scale import DEFAULT_SCALE_ID
 from app.core.domain.student_id import StudentId
 
 GradeCategory = Literal["schriftlich", "sonstig"]
+# SSOT der Notenkategorien: Menge, Reihenfolge und Anzeigename. Prüfungen,
+# Dialoge und Spaltentitel lesen nur diese beiden Konstanten.
+GRADE_CATEGORIES: tuple[GradeCategory, ...] = get_args(GradeCategory)
+GRADE_CATEGORY_LABELS: dict[GradeCategory, str] = {"schriftlich": "Schriftlich", "sonstig": "Sonstig"}
+# Modell-Defaults der Gewichtung; die Regeln dazu stehen in ``grade_weighting.py``.
+DEFAULT_COLUMN_WEIGHT = 1.0
+DEFAULT_CATEGORY_PERCENT = 50
 ParticipationRating = Literal["+", "o", "-", "☆"]
 
 
@@ -206,20 +213,26 @@ class CustomSymbolDefinition:
 
 @dataclass(slots=True)
 class GradeColumn:
-    """Definition einer Notenspalte (z. B. „Mathearbeit 1")."""
+    """Definition einer Notenspalte (z. B. „Mathearbeit 1").
+
+    ``weight`` ist der Faktor der Spalte innerhalb ihrer Kategorie
+    (``2`` = doppelt, ``0.5`` = halb, ``0`` = zählt nicht); Regeln in
+    ``grade_weighting.py``.
+    """
 
     column_id: str
     category: GradeCategory
     title: str
     created_at: str = ""   # ISO-8601-Datum der Erstellung
+    weight: float = DEFAULT_COLUMN_WEIGHT
 
 
 @dataclass(slots=True)
 class GradeWeighting:
-    """Gewichtung schriftlicher vs. sonstiger Noten in Prozent."""
+    """Gewichtung schriftlicher vs. sonstiger Noten in Prozent (Bereinigung: ``grade_weighting``)."""
 
-    written_percent: int = 50
-    sonstige_percent: int = 50
+    written_percent: int = DEFAULT_CATEGORY_PERCENT
+    sonstige_percent: int = DEFAULT_CATEGORY_PERCENT
 
 
 # ---------------------------------------------------------------------------

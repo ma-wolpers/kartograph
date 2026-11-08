@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.core.domain.models_v4 import DEFAULT_COLUMN_WEIGHT
 from app.core.domain.student_id import StudentId
 from app.core.intents.base import Intent
 
 
 @dataclass(frozen=True)
 class AddGradeColumnIntent(Intent):
-    """Legt eine neue Notenspalte (*category*: "schriftlich" | "sonstig") mit *title* an."""
+    """Legt eine neue Notenspalte (*category* aus ``GRADE_CATEGORIES``) mit *title* und Faktor *weight* an."""
 
-    category: str  # "schriftlich" | "sonstig"
+    category: str  # eine von GRADE_CATEGORIES
     title: str
+    weight: float = DEFAULT_COLUMN_WEIGHT
 
 
 @dataclass(frozen=True)
@@ -42,10 +44,15 @@ class ResolveGradeConflictsIntent(Intent):
 
 @dataclass(frozen=True)
 class UpdateGradeWeightingIntent(Intent):
-    """Setzt die Gewichtung schriftlicher vs. sonstiger Noten in Prozent."""
+    """Setzt Kategorie-Prozente (schriftlich/sonstig) und Spaltenfaktoren in einem Undo-Schritt.
+
+    *column_weights* enthält ``(column_id, Faktor)``-Paare; nicht genannte
+    Spalten behalten ihren Faktor.
+    """
 
     written_percent: int
     sonstige_percent: int
+    column_weights: tuple[tuple[str, float], ...] = ()
 
 
 @dataclass(frozen=True)

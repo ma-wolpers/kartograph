@@ -86,9 +86,8 @@ class GradeScale:
     def format_input(self, value: float) -> str:
         """Formatiert *value* als Vorbelegung des Inline-Editors (ohne überflüssige Nullen).
 
-        Bewusst ``"g"`` statt ``"…".rstrip("0")``: Letzteres machte aus
-        ``0.0`` einen leeren String, und ein leerer Editor löscht beim
-        Bestätigen den Wert — fatal für 0 Punkte.
+        Delegiert an :func:`format_plain_decimal` (dort die Begründung, warum
+        ``0.0`` nicht leer werden darf -- fatal für 0 Punkte).
 
         Args:
             value: Gespeicherter Wert.
@@ -96,7 +95,7 @@ class GradeScale:
         Examples:
             ``2.3 → "2.3"``, ``3.15 → "3.15"``, ``0.0 → "0"``.
         """
-        return format(float(value), "g")
+        return format_plain_decimal(value)
 
 
 # Schulnoten beginnen bei 0.7 ("1+"), damit 15 Punkte verlustfrei abbildbar sind.
@@ -151,10 +150,43 @@ def parse_grade_input(text: str, scale: GradeScale) -> tuple[bool, float | None]
     if not raw:
         return True, None
     try:
-        value = float(raw.replace(",", "."))
+        value = parse_decimal_input(raw)
     except ValueError:
         return False, None
     return (True, value) if scale.contains(value) else (False, None)
+
+
+def parse_decimal_input(text: str) -> float:
+    """Liest eine Dezimalzahl aus einer Nutzereingabe; Komma und Punkt gelten gleichermaßen (SSOT).
+
+    Gemeinsame Grundlage für Noteneingaben (:func:`parse_grade_input`) und
+    Spaltenfaktoren (``grade_weighting.parse_factor``).
+
+    Args:
+        text: Rohe Eingabe, z. B. ``"2,5"`` oder ``" 0.5 "``.
+
+    Raises:
+        ValueError: Leere oder nicht als Zahl lesbare Eingabe.
+
+    Examples:
+        ``"2,5" → 2.5``, ``"3" → 3.0``.
+    """
+    return float(str(text).strip().replace(",", "."))
+
+
+def format_plain_decimal(value: float) -> str:
+    """Formatiert eine Zahl ohne überflüssige Nullen (SSOT für Vorbelegungen und Faktoren).
+
+    Bewusst ``"g"`` statt ``"…".rstrip("0")``: Letzteres machte aus ``0.0``
+    einen leeren String, und ein leerer Editor löscht beim Bestätigen den Wert.
+
+    Args:
+        value: Anzuzeigender Wert.
+
+    Examples:
+        ``2.3 → "2.3"``, ``2.0 → "2"``, ``0.0 → "0"``.
+    """
+    return format(float(value), "g")
 
 
 # Ankertabelle: Punkte → Schulnote (Index = Punktzahl).

@@ -173,3 +173,60 @@ class TestBulkGradeDisplay:
         plan, col = add_grade_column(plan, "schriftlich", "W")
         plan = record_grade(plan, sid, col, 3.0)
         assert compute_grade_display_by_student(plan).get(sid, "") == ""
+
+
+class TestColumnWeights:
+    """Spaltenfaktoren innerhalb einer Kategorie (``GradeColumn.weight``)."""
+
+    def _plan(self, sonstige: list[tuple[float, float | None]], written: float | None = None):
+        """Plan mit einer Person; *sonstige* = [(Faktor, Note oder None)], optional eine schriftliche Note."""
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(student_id=sid)])
+        if written is not None:
+            plan, col_w = add_grade_column(plan, "schriftlich", "W")
+            plan = record_grade(plan, sid, col_w, written)
+        for index, (weight, grade) in enumerate(sonstige):
+            plan, col = add_grade_column(plan, "sonstig", f"S{index}", weight)
+            if grade is not None:
+                plan = record_grade(plan, sid, col, grade)
+        return set_grade_weighting(plan, 60, 40), sid
+
+    def test_factor_weights_the_category_mean(self):
+        # (1*2 + 4*1) / 3 = 2; ungewichtet wäre 2.5 -> 3
+        plan, sid = self._plan([(2.0, 1.0), (1.0, 4.0)])
+        assert compute_grade_subtotal_display(plan, sid, "sonstig") == "2"
+
+    def test_factor_zero_does_not_count(self):
+        plan, sid = self._plan([(0.0, 6.0), (1.0, 2.0)])
+        assert compute_grade_subtotal_display(plan, sid, "sonstig") == "2"
+
+    def test_category_with_only_zero_factors_counts_as_empty(self):
+        plan, sid = self._plan([(0.0, 2.0)], written=3.0)
+        assert compute_grade_subtotal_display(plan, sid, "sonstig") == ""
+        assert compute_grade_display(plan, sid) == "(3)"
+
+    def test_missing_grade_redistributes_its_weight(self):
+        plan, sid = self._plan([(2.0, None), (1.0, 4.0)])
+        assert compute_grade_subtotal_display(plan, sid, "sonstig") == "4"
+
+    def test_overall_uses_weighted_category_mean(self):
+        # sonstig (1*2 + 4*1) / 3 = 2; 60 % * 3 + 40 % * 2 = 2.6
+        plan, sid = self._plan([(2.0, 1.0), (1.0, 4.0)], written=3.0)
+        assert compute_grade_display(plan, sid) == "2.60"
+        assert compute_grade_display_by_student(plan)[sid] == "2.60"
+        assert compute_grade_subtotal_display_by_student(plan, "sonstig")[sid] == "2"
+
+    def test_add_grade_column_stores_normalized_weight(self, plan):
+        result, col_id = add_grade_column(plan, "sonstig", "Referat", 2.5)
+        assert result.documentation.column_by_id(col_id).weight == 2.5
+        result, col_id = add_grade_column(result, "sonstig", "Heft", -1.0)
+        assert result.documentation.column_by_id(col_id).weight == 0.0
+
+    def test_set_grade_weighting_applies_column_weights_in_one_step(self, plan):
+        plan, col_a = add_grade_column(plan, "sonstig", "A")
+        plan, col_b = add_grade_column(plan, "sonstig", "B", 3.0)
+        result = set_grade_weighting(plan, 70, 30, {col_a: 2.0, "unbekannt": 5.0})
+        assert result.documentation.weighting.written_percent == 70
+        assert result.documentation.column_by_id(col_a).weight == 2.0
+        assert result.documentation.column_by_id(col_b).weight == 3.0  # nicht genannt -> unverändert
+        assert plan.documentation.column_by_id(col_a).weight == 1.0  # Ausgangsplan unverändert

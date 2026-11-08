@@ -44,11 +44,11 @@ def handle_add_grade_column(intent: AddGradeColumnIntent, state: AppState, ctx: 
     """Legt eine neue Notenspalte an und markiert sie als ausgewählt.
 
     Args:
-        intent: Kategorie ("schriftlich"/"sonstig") und Titel der neuen Spalte.
+        intent: Kategorie, Titel und Faktor der neuen Spalte.
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    next_plan, _column_id = add_grade_column(state.current_plan, intent.category, intent.title)
+    next_plan, _column_id = add_grade_column(state.current_plan, intent.category, intent.title, intent.weight)
     return dataclasses.replace(
         _commit_plan_change(state, ctx, next_plan),
         doc_selected_column_id=_column_id or state.doc_selected_column_id,
@@ -104,14 +104,16 @@ def handle_resolve_grade_conflicts(
 def handle_update_grade_weighting(
     intent: UpdateGradeWeightingIntent, state: AppState, ctx: HandlerContext
 ) -> AppState:
-    """Setzt die Gewichtung schriftlicher/sonstiger Noten gemäß *intent*.
+    """Setzt Kategorie-Prozente und Spaltenfaktoren gemäß *intent* (ein Undo-Schritt).
 
     Args:
-        intent: Prozentanteile für schriftliche und sonstige Noten.
+        intent: Prozentanteile für schriftliche und sonstige Noten sowie Spaltenfaktoren.
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    next_plan = set_grade_weighting(state.current_plan, intent.written_percent, intent.sonstige_percent)
+    next_plan = set_grade_weighting(
+        state.current_plan, intent.written_percent, intent.sonstige_percent, dict(intent.column_weights)
+    )
     return _commit_plan_change(state, ctx, next_plan)
 
 

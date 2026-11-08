@@ -172,6 +172,29 @@ class TestDocumentationRoundtrip:
         assert col is not None
         assert col.title == "Mathe 1"
 
+    def test_grade_column_weight_preserved(self, plan):
+        plan.documentation.grade_columns = [
+            GradeColumn(column_id="abc12345", category="sonstig", title="Referat", weight=2.5)
+        ]
+        assert _roundtrip(plan).documentation.column_by_id("abc12345").weight == 2.5
+
+    @pytest.mark.parametrize(("raw", "expected"), [(None, 1.0), ("quatsch", 1.0), (-2, 0.0)])
+    def test_missing_or_invalid_column_weight_is_normalized(self, plan, raw, expected):
+        plan.documentation.grade_columns = [GradeColumn(column_id="abc12345", category="sonstig", title="Heft")]
+        payload = serialize_plan(plan)
+        column = payload["documentation"]["grade_columns"][0]
+        if raw is None:
+            column.pop("weight")
+        else:
+            column["weight"] = raw
+        assert deserialize_plan(payload).documentation.column_by_id("abc12345").weight == expected
+
+    def test_negative_category_percent_in_file_is_clamped(self, plan):
+        payload = serialize_plan(plan)
+        payload["documentation"]["grade_weighting"] = {"written_percent": -10, "sonstige_percent": 50}
+        weighting = deserialize_plan(payload).documentation.weighting
+        assert (weighting.written_percent, weighting.sonstige_percent) == (0, 50)
+
     def test_grade_weighting_preserved(self, plan):
         plan.documentation.weighting = GradeWeighting(written_percent=60, sonstige_percent=40)
         restored = _roundtrip(plan)
