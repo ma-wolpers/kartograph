@@ -8,6 +8,7 @@ Die Module liegen neben diesem Skript; Python nimmt dessen Ordner beim Skriptsta
 """
 from __future__ import annotations
 
+from guardrail_config import DEVLOG_PATH
 from guardrail_support import (
     _read,
     _repo_root,
@@ -50,7 +51,7 @@ def main() -> int:
     _read(".github/workflows/quality_checks.yml")
     _read(".github/workflows/release-from-changelog.yml")
     _read("docs/ARCHITEKTUR.md")
-    _read("docs/DEVELOPMENT_LOG.md")
+    _read(DEVLOG_PATH)
     _read("CHANGELOG.md")
     _read("bw_libs/ui_contract/keybinding.py")
     _read("bw_libs/ui_contract/popup.py")
@@ -64,8 +65,8 @@ def main() -> int:
     changelog = _read("CHANGELOG.md")
     _require_substring(changelog, "## [Unreleased]", "CHANGELOG.md", errors)
 
-    dev_log = _read("docs/DEVELOPMENT_LOG.md")
-    _require_substring(dev_log, "## [Unreleased]", "docs/DEVELOPMENT_LOG.md", errors)
+    dev_log = _read(DEVLOG_PATH)
+    _require_substring(dev_log, "## [Unreleased]", DEVLOG_PATH, errors)
 
     _check_development_log_updated(staged, errors)
     _check_changelog_updated(staged, errors)

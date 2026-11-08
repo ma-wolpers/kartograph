@@ -19,6 +19,7 @@ Verbindliche Regeln:
 
 3. Public-Kommunikation
 - Nutzerrelevante Aenderungen werden in `CHANGELOG.md` gepflegt.
+- Rein interne Aenderungen kommen nicht in den CHANGELOG; ihr Eintrag in `docs/DEVELOPMENT_LOG.md` beginnt dann mit `- [intern]` (der Guardrail akzeptiert das statt eines CHANGELOG-Eintrags).
 - PRs verwenden die Checkliste in `.github/pull_request_template.md`.
 
 4. Automatische Gates

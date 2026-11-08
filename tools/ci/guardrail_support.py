@@ -33,6 +33,31 @@ def _repo_root() -> Path:
         return ROOT
 
 
+def _staged_added_lines(repo_root: Path, rel_path: str) -> list[str]:
+    """Return the lines that the staged diff adds to *rel_path* (without the leading ``+``).
+
+    Args:
+        repo_root: Root directory of the git repository to query.
+        rel_path: Repository-relative file path.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--cached", "-U0", "--", rel_path],
+            cwd=str(repo_root),
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+    except Exception:
+        return []
+    return [
+        line[1:]
+        for line in result.stdout.splitlines()
+        if line.startswith("+") and not line.startswith("+++")
+    ]
+
+
 def _staged_files(repo_root: Path) -> set[str]:
     """Return normalized staged paths relative to repository root.
 

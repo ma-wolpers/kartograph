@@ -14,6 +14,7 @@ Pflichtregeln:
 
 3. Public Changelog
 - Nutzerrelevante Aenderungen in `CHANGELOG.md` eintragen.
+- Rein interne Aenderungen nicht in den CHANGELOG; ihren Eintrag in `docs/DEVELOPMENT_LOG.md` mit `- [intern]` beginnen.
 
 4. PR-Disziplin
 - `.github/pull_request_template.md` verwenden und Checkliste vollstaendig pflegen.

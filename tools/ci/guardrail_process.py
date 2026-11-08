@@ -9,12 +9,20 @@ from pathlib import Path
 
 from guardrail_config import (
     CHANGELOG_CODEV_RELEVANT_PATHS,
+    DEVLOG_INTERNAL_MARKER,
+    DEVLOG_PATH,
     GUARDRAIL_RELEVANT_PATHS,
     PROCESS_GUIDANCE_RULES,
     ROOT,
     SHORTCUT_COVERAGE_SOFT_CHECKS,
 )
-from guardrail_support import _is_future_gui_entry_path, _is_repo_gui_python_path, _read
+from guardrail_support import (
+    _is_future_gui_entry_path,
+    _is_repo_gui_python_path,
+    _read,
+    _repo_root,
+    _staged_added_lines,
+)
 
 
 def _has_relevant_staged_changes(staged: set[str], repo_root: Path) -> bool:
@@ -55,7 +63,7 @@ def _check_development_log_updated(staged: set[str], errors: list[str]) -> None:
     if not normalized:
         return
 
-    if "docs/DEVELOPMENT_LOG.md" in normalized:
+    if DEVLOG_PATH in normalized:
         return
 
     requires_log = any(
@@ -74,6 +82,9 @@ def _check_development_log_updated(staged: set[str], errors: list[str]) -> None:
 def _check_changelog_updated(staged: set[str], errors: list[str]) -> None:
     """Require changelog updates when user-facing code paths change.
 
+    A commit that adds a development-log entry starting with ``DEVLOG_INTERNAL_MARKER``
+    (``- [intern]``) declares itself internal and passes without a changelog entry.
+
     Args:
         staged: Staged file paths to inspect for user-facing changes.
         errors: Error list to append to when the changelog is missing an update.
@@ -83,6 +94,8 @@ def _check_changelog_updated(staged: set[str], errors: list[str]) -> None:
         return
 
     if "CHANGELOG.md" in normalized:
+        return
+    if DEVLOG_PATH in normalized and _has_internal_devlog_entry():
         return
 
     requires_changelog = any(
@@ -94,8 +107,16 @@ def _check_changelog_updated(staged: set[str], errors: list[str]) -> None:
     ) or any(path in CHANGELOG_CODEV_RELEVANT_PATHS for path in normalized)
     if requires_changelog:
         errors.append(
-            "CHANGELOG.md missing update: user- or co-developer-relevant changes require a changelog entry"
+            "CHANGELOG.md missing update: user- or co-developer-relevant changes require a changelog entry "
+            f"(rein interne Commits: Dev-Log-Eintrag mit '{DEVLOG_INTERNAL_MARKER}' beginnen)"
         )
+
+
+def _has_internal_devlog_entry() -> bool:
+    """Whether the staged development log adds an entry marked as internal (``DEVLOG_INTERNAL_MARKER``)."""
+    return any(
+        line.startswith(DEVLOG_INTERNAL_MARKER) for line in _staged_added_lines(_repo_root(), DEVLOG_PATH)
+    )
 
 
 def _collect_process_guidance_warnings() -> list[str]:

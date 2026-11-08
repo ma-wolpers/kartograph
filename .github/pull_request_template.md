@@ -5,6 +5,7 @@
 - [ ] `docs/ARCHITEKTUR.md` remains current-state only (no history section)
 - [ ] `docs/DEVELOPMENT_LOG.md` updated for feature/architecture changes
 - [ ] `CHANGELOG.md` updated for user-facing changes
+- [ ] Purely internal change: development-log entry starts with `- [intern]` (no `CHANGELOG.md` entry)
 - [ ] New shortcuts are registered centrally in `bw_libs/ui_contract/keybinding.py`
 - [ ] New popups follow central policy in `bw_libs/ui_contract/popup.py`
 - [ ] Feature work is grouped in dedicated commit(s)

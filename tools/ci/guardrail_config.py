@@ -12,6 +12,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
+# Ein im selben Commit neu hinzugefuegter Dev-Log-Eintrag mit diesem Anfang erklaert
+# den Commit als rein intern: Er braucht dann keinen CHANGELOG-Eintrag (der CHANGELOG
+# enthaelt nur Nutzerrelevantes, AGENTS.md Regel 3).
+DEVLOG_INTERNAL_MARKER = "- [intern]"
+DEVLOG_PATH = "docs/DEVELOPMENT_LOG.md"
+
 GUARDRAIL_RELEVANT_PATHS = {
     "AGENTS.md",
     ".github/copilot-instructions.md",
@@ -19,7 +25,7 @@ GUARDRAIL_RELEVANT_PATHS = {
     ".github/workflows/quality_checks.yml",
     ".github/workflows/release-from-changelog.yml",
     "docs/ARCHITEKTUR.md",
-    "docs/DEVELOPMENT_LOG.md",
+    DEVLOG_PATH,
     "docs/GUI_MIGRATION_BACKLOG.md",
     "CHANGELOG.md",
     "tools/ci/check_ai_guardrails.py",
