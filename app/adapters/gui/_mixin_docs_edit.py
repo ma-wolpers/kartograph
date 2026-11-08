@@ -24,39 +24,53 @@ from bw_gui.runtime import widgets as tui
 class DocsEditMixin:
     """Mixin: Symbol-Umschalten, Symbol-Löschen und Inline-Noten-Editor in der Dokumentations-Ansicht (v4)."""
 
-    def _open_docs_inline_grade_editor(self, row_id: str, grade_column_key: str) -> None:
+    def _open_docs_inline_grade_editor(self, row_id: str, grade_column_key: str, initial_text: str | None = None) -> bool:
         """Öffnet einen Entry-Inline-Editor in der Noten-Zelle (*row_id*, *grade_column_key*).
 
         Die Zellgeometrie liefert ``DataGrid.cell_bbox`` (scrollt die Zelle
         sichtbar und rendert vorher ausstehende Änderungen, damit die Position
         stimmt); der Editor liegt direkt auf dem Bereich, der die Spalte zeigt.
 
+        Zwei Startarten, ein Editor: ohne *initial_text* (Enter, Doppelklick,
+        Strg+G) steht die bisherige Note markiert darin; mit *initial_text*
+        (Tippen auf der Zelle) ersetzt der Text die Note, der Cursor steht dahinter.
+
         Args:
             row_id: Zeilen-ID (Schüler-ID als String).
             grade_column_key: Spaltenschlüssel einer Notenspalte, z. B. ``"grade_<id>"``.
+            initial_text: Getipptes Startzeichen oder ``None`` für die bisherige Note.
+
+        Returns:
+            ``True``, wenn der Editor jetzt offen ist; ``False`` für Nicht-Notenspalten,
+            unbekannte/unbenannte Zeilen oder nicht darstellbare Zellen.
         """
         if not self.current_plan:
-            return
+            return False
         if not self._doc_axis.is_grade(grade_column_key):
-            return
+            return False
         self._close_docs_inline_editor(apply_changes=False)
         box = self.docs_grid.cell_bbox(row_id, grade_column_key)
         if box is None:
-            return
+            return False
         host, x, y, width, height = box
 
         target = self._grade_edit_target(row_id, grade_column_key)
         if target is None:
-            return
-        doc = self.current_plan.documentation
-        value = doc.grade_of(target.student_id, target.column_id)
-        current_text = "" if value is None else scale_for(doc.grade_scale).format_input(value)
+            return False
+        replace_with_typed = initial_text is not None
+        if not replace_with_typed:
+            doc = self.current_plan.documentation
+            value = doc.grade_of(target.student_id, target.column_id)
+            initial_text = "" if value is None else scale_for(doc.grade_scale).format_input(value)
 
         editor = tui.Entry(host)
-        editor.insert(0, current_text)
+        editor.insert(0, initial_text)
         editor.place(x=x, y=y, width=width, height=height)
         editor.focus_set()
-        editor.selection_range(0, ui.END)
+        if replace_with_typed:
+            editor.icursor(ui.END)
+        else:
+            editor.selection_range(0, ui.END)
         keys = widget_keys(editor)
         keys.bind(ENTER, self._on_docs_inline_editor_return, binding_id="docs.inline.return", intent="docs.inline.return", allow_when_text_input=True)
         keys.bind(ESCAPE, self._on_docs_inline_editor_escape, binding_id="docs.inline.escape", intent="docs.inline.escape", allow_when_text_input=True)
@@ -64,6 +78,7 @@ class DocsEditMixin:
 
         self._docs_inline_editor = editor
         self._docs_inline_editor_target = target
+        return True
 
     def _grade_edit_target(self, row_id: str, grade_column_key: str) -> GradeCellTarget | None:
         """Einzige Regel, *welche* Note eine Notenzelle bearbeitet: Zeile und Spalte der Zelle.

@@ -24,11 +24,17 @@ Damit sind halbe Punkte verlustfrei hin- und zurückrechenbar.
 
 from __future__ import annotations
 
+import string
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
 SCALE_SCHOOL_1_6 = "schulnoten_1_6"
 SCALE_POINTS_0_15 = "punktnoten_0_15"
+
+# Zeichen, mit denen eine Noteneingabe beginnt (beide Skalen: "2,3", "12", "0").
+# Einzige Quelle für "Tippen startet den Noteneditor": eine ausgewählte Notenzelle
+# öffnet bei diesen Tasten direkt den Editor mit dem Zeichen als Inhalt.
+GRADE_INPUT_START_CHARACTERS: tuple[str, ...] = tuple(string.digits)
 
 
 @dataclass(frozen=True, slots=True)

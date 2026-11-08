@@ -1,7 +1,8 @@
 """Docs-Events-Mixin für das Kartograph-Hauptfenster.
 
 Übersetzt die Ereignisse der Doku-Tabelle (bw-gui ``DataGrid``: Klick,
-Doppelklick, ↑↓←→) in Auswahländerungen. Das Grid meldet bereits
+Doppelklick, ↑↓←→, Tippen auf einer Notenzelle) in Auswahländerungen bzw.
+den Start des Noteneditors. Das Grid meldet bereits
 (Zeile, Spaltenschlüssel, Bereich); hier stehen nur die fachlichen Regeln
 (Namensbereich ändert nur die Zeile, Datumsanker, Zusammenfassung nicht
 auswählbar) — die Spalten-/Navigationsregeln selbst liegen in
@@ -63,6 +64,23 @@ class DocsEventsMixin:
         self._sync_docs_cursor()
         if self._doc_axis.is_grade(column_key):
             self._open_docs_inline_grade_editor(row_id, column_key)
+
+    def _on_docs_grade_type_in(self, character: str) -> EventResult | None:
+        """Tippen auf einer Notenzelle: öffnet den Inline-Editor mit *character* als Inhalt.
+
+        Erspart das vorherige Enter. Auf allen anderen Zellen (oder außerhalb
+        des Doku-Scopes) geht der Tastendruck unverändert an die Fenster-Kürzel
+        weiter -- die Ziffern 1-9 sind dort Farbpunkt-Kürzel des Rasters.
+
+        Args:
+            character: Getipptes Zeichen aus ``GRADE_INPUT_START_CHARACTERS``.
+
+        Returns:
+            ``EventResult.HANDLED``, wenn der Editor geöffnet wurde, sonst ``None``.
+        """
+        if not self._shortcut_scope_allows("docs"):
+            return None
+        return EventResult.HANDLED if self._open_selected_docs_grade_cell_editor(character) else None
 
     def _select_docs_row(self, row_id: str) -> None:
         """Macht die Zeile *row_id* zur ausgewählten Schülerzeile (unbekannte IDs werden ignoriert).

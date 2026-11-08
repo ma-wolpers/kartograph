@@ -96,14 +96,22 @@ class DocsNavMixin:
         self.docs_grid.focus(self._doc_active_column_key())
         return EventResult.HANDLED
 
-    def _open_selected_docs_grade_cell_editor(self) -> None:
-        """Öffnet den Inline-Noten-Editor für die aktuell ausgewählte Doku-Zelle."""
+    def _open_selected_docs_grade_cell_editor(self, initial_text: str | None = None) -> bool:
+        """Öffnet den Inline-Noten-Editor für die aktuell ausgewählte Doku-Zelle.
+
+        Args:
+            initial_text: Getipptes Startzeichen oder ``None`` für die bisherige
+                Note (siehe ``_open_docs_inline_grade_editor``).
+
+        Returns:
+            ``True``, wenn der Editor jetzt offen ist (``False``: keine Notenzelle aktiv).
+        """
         if grade_column_id(self._doc_selected_nondate_column_id) is None:
-            return
+            return False
         selected_iid = self._doc_row_id_by_student_index.get(self._doc_selected_student_index)
         if selected_iid is None:
-            return
-        self._open_docs_inline_grade_editor(selected_iid, self._doc_selected_nondate_column_id)
+            return False
+        return self._open_docs_inline_grade_editor(selected_iid, self._doc_selected_nondate_column_id, initial_text)
 
     def _doc_active_column_key(self) -> str | None:
         """Liefert die aktive logische Spalte der Dokutabelle.

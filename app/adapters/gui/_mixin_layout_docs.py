@@ -10,6 +10,7 @@ from __future__ import annotations
 from app.adapters.gui._local_keys import widget_keys
 from app.adapters.gui.docs_table_model import DocsPane
 from app.adapters.gui.ui_intents import UiIntent
+from app.core.domain.grade_scale import GRADE_INPUT_START_CHARACTERS
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -124,7 +125,7 @@ class LayoutDocsMixin:
         tui.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
 
     def _build_docs_tree_widgets(self) -> None:
-        """Erstellt die Doku-Tabelle als bw-gui ``DataGrid`` und bindet die Pfeiltasten.
+        """Erstellt die Doku-Tabelle als bw-gui ``DataGrid`` und bindet Pfeiltasten und Noten-Tippen.
 
         Ein Grid mit drei Bereichen (Namen | Datumsspalten | feste Spalten) und
         zwei verschiebbaren Trennern ersetzt die früheren drei synchronisierten
@@ -150,3 +151,11 @@ class LayoutDocsMixin:
             ):
                 spec = KeySpec.parse(name)
                 keys.bind(spec, handler, binding_id=f"docs.nav.{spec.key.value}", intent="docs.nav")
+            # Tippen auf einer Notenzelle startet den Editor (widget-lokal, also vor den Fenster-Kürzeln).
+            for character in GRADE_INPUT_START_CHARACTERS:
+                keys.bind(
+                    KeySpec.char(character),
+                    lambda _e, c=character: self._on_docs_grade_type_in(c),
+                    binding_id=f"docs.type_in.{character}",
+                    intent="docs.type_in",
+                )

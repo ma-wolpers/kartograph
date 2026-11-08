@@ -1,4 +1,4 @@
-"""Noten in der Doku-Tabelle: Editorziel, Löschen der aktiven Zelle, Konfliktdialog (echtes Fenster, synthetischer Plan).
+"""Noten in der Doku-Tabelle: Editorziel, Tippen startet den Editor, Löschen der aktiven Zelle, Konfliktdialog (echtes Fenster, synthetischer Plan).
 
 Früher las das Speichern Schüler und Datum aus der *aktuellen* Auswahl: Ein
 Klick in eine andere Zeile wählte diese zuerst aus, dann schloss der
@@ -21,6 +21,7 @@ from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
 from app.core.intents.view_intents import SetEditorSurfaceIntent
 from app.tools.isolated_window import open_isolated_window
 from app.tools.perf_bench_docs_table import build_synthetic_plan
+from bw_gui.testing.keys import press_key
 
 
 @pytest.fixture
@@ -133,6 +134,55 @@ class TestUndoIsAtomicInTheRealWindow:
 
         saved = window._controller.plan_repository.load_plan(window.current_plan_path)
         assert saved.documentation.grade_of(student.student_id, "col0") == before
+
+
+class TestTypingOnAGradeCellStartsTheEditor:
+    """Ziffern auf der ausgewählten Notenzelle öffnen den Editor direkt -- ohne vorheriges Enter.
+
+    Gedrückt wird über ``press_key``: dieselben bw-gui-Dispatcher in Bindtag-Reihenfolge
+    wie im echten Fenster, also auch das Weiterreichen an die Fenster-Kürzel.
+    """
+
+    @staticmethod
+    def _select_grade_cell(app):
+        row = app._doc_row_order[0]
+        app._on_docs_cell_click(row, "grade_col0", DocsPane.RIGHT)
+        return row, app.docs_grid.key_widgets[-1]  # rechter Bereich mit den Notenspalten
+
+    def test_digit_replaces_the_old_grade_and_typing_continues(self, window):
+        row, pane = self._select_grade_cell(window)
+        assert _grade(window, row) is not None  # es gibt eine alte Note, die ersetzt werden muss
+
+        assert press_key(pane, "3", char="3")
+        editor = window._docs_inline_editor
+        assert editor is not None and editor.get() == "3" and not editor.selection_present()
+
+        editor.insert("end", ",3")  # Cursor steht hinter der Ziffer
+        window._on_docs_inline_editor_return(None)
+        assert _grade(window, row) == 3.3
+
+    def test_keypad_digit_counts_like_the_main_keyboard(self, window):
+        _row, pane = self._select_grade_cell(window)
+        assert press_key(pane, "KP_2", char="2")
+        assert window._docs_inline_editor.get() == "2"
+        window._close_docs_inline_editor(apply_changes=False)
+
+    def test_digit_on_a_date_cell_changes_nothing(self, window):
+        row = window._doc_row_order[0]
+        window._on_docs_cell_click(row, window._doc_axis.date_key(window._doc_selected_date_index), DocsPane.MAIN)
+        before = repr(window.current_plan)
+
+        assert not press_key(window.docs_grid.key_widgets[1], "3", char="3")  # weitergereicht, niemand handelt
+        assert window._docs_inline_editor is None and repr(window.current_plan) == before
+
+    def test_enter_still_preselects_the_old_grade(self, window):
+        row, _pane = self._select_grade_cell(window)
+        doc = window.current_plan.documentation
+        assert window._open_selected_docs_grade_cell_editor()
+        editor = window._docs_inline_editor
+        assert editor.get() == scale_for(doc.grade_scale).format_input(_grade(window, row))
+        assert editor.selection_present()
+        window._close_docs_inline_editor(apply_changes=False)
 
 
 class TestDeleteActsOnTheActiveCell:
