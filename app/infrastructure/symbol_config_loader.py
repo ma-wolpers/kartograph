@@ -48,7 +48,8 @@ DEFAULT_SYMBOLS_PATH = Path(__file__).with_name("default_symbols.json")
 
 ``config/symbols.json`` ist nur die lokale Arbeitskopie: daraus erzeugt, bei
 Defekt daraus wiederhergestellt und beim Start um neu eingebaute Symbole
-ergänzt (s. :func:`_merge_new_builtins`).
+ergänzt (s. :func:`_merge_new_builtins`). Formulierungsregeln für die
+Legendentexte und die Checkliste für neue Symbole: ``docs/SYMBOLE.md``.
 """
 
 _KNOWN_BUILTINS_KEY = "known_builtin_codepoints"
