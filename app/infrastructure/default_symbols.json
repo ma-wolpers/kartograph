@@ -5,9 +5,9 @@
       "meaning": "Beteiligung",
       "shortcut": "b",
       "legend": {
-        "three": "beteiligt sich unaufgefordert, kontinuierlich und verlässlich am Lerngespräch, trägt durch Beiträge und Ergebnisse aktiv dazu bei, den Lernprozess weiter zu entwickeln.",
-        "two": "beteiligt sich gelegentlich am Lerngespräch und nutzt es zunehmend als Lerngelegenheit; trägt immer wieder mit eigenen Beiträgen und Ergebnissen zur Weiterentwicklung des Lernprozesses bei.",
-        "one": "beteiligt sich am Lerngespräch vor allem nach direkter Ansprache oder Ermutigung; bringt Beiträge ein, wenn ein sicherer Rahmen und Unterstützung gegeben sind (z. B. Vorbereitung in Partnerarbeit, Denkzeit, konkrete Impulse)."
+        "three": "beteiligt sich unaufgefordert, kontinuierlich und verlässlich am Lerngespräch, trägt durch Beiträge und Ergebnisse aktiv dazu bei, den Lernprozess weiter zu entwickeln",
+        "two": "beteiligt sich gelegentlich am Lerngespräch und nutzt es zunehmend als Lerngelegenheit; trägt immer wieder mit eigenen Beiträgen und Ergebnissen zur Weiterentwicklung des Lernprozesses bei",
+        "one": "beteiligt sich am Lerngespräch vor allem nach direkter Ansprache oder Ermutigung; bringt Beiträge ein, wenn ein sicherer Rahmen und Unterstützung gegeben sind (z. B. Vorbereitung in Partnerarbeit, Denkzeit, konkrete Impulse)"
       }
     },
     {
@@ -27,7 +27,7 @@
       "legend": {
         "three": "hört aktiv zu, geht sensibel und wertschätzend auf Beiträge anderer ein und vertritt die eigene Position überzeugend",
         "two": "hört meist aufmerksam zu, reagiert überwiegend angemessen und wertschätzend auf Beiträge anderer und bringt die eigene Position anlassbezogen ein",
-        "one": "hört phasenweise aktiv zu und reagiert auf Beiträge anderer vor allem, wenn sie/er angesprochen wird; hält Gesprächsregeln mit Erinnerung ein"
+        "one": "hört phasenweise aktiv zu und reagiert auf Beiträge anderer vor allem nach direkter Ansprache; hält Gesprächsregeln mit Erinnerung ein"
       }
     },
     {
