@@ -6,16 +6,30 @@ on:
   pull_request:
     branches: ["main", "master", "develop"]
 
+# bw-gui ist eine Laufzeitabhaengigkeit als Nachbar-Repo (<kartograph>/../bw-gui/src,
+# siehe bw_libs/shared_gui_core.ensure_bw_gui_on_path). Deshalb werden beide Repos
+# nebeneinander in den Workspace ausgecheckt (wie bei Blattwerk); bw-gui immer in
+# seinem aktuellen main. tests/test_bw_gui_import_source.py beweist auf diesem
+# frischen Checkout, dass bw_gui aus dem Nachbar-Repo kommt. Das fruehere Submodul
+# bw-gui/ ist entfernt (2026-11-09): Es lud eine veraltete, verschachtelte Kopie.
 jobs:
   guardrails:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kartograph
     steps:
-      - name: Checkout
+      - name: Checkout kartograph
         uses: actions/checkout@v4
         with:
-          # bw-gui (Keybinding-Contract, Test-Plugin) kommt als Submodul -- ohne
-          # recursive fehlte es in CI bzw. lief gegen einen fremden Stand.
-          submodules: recursive
+          path: kartograph
+
+      - name: Checkout bw-gui (Nachbar-Repo)
+        uses: actions/checkout@v4
+        with:
+          repository: ma-wolpers/bw-gui
+          ref: main
+          path: bw-gui
 
       - name: Setup Python
         uses: actions/setup-python@v5
