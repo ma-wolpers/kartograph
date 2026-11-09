@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Added
+- Neues Diagnosesymbol **🎯 „Konzentration“** (Taste `z`): Es hält fest, wer selbstständig konzentriert bei der Sache bleibt, wer mit Ermutigung oder Erinnerung zur Aufgabe zurückfindet und dabei die Arbeitsatmosphäre der anderen respektiert, und wer Einzelarbeitsphasen mit enger Begleitung einhält (z. B. kurze Teilschritte, ablenkungsarmer Sitzplatz). Das Symbol erscheint beim nächsten Start automatisch; eigene Anpassungen an deinem Symbolkatalog bleiben erhalten.
 - **Noten direkt eintippen:** Ist in der Doku-Tabelle eine Notenzelle ausgewählt, startet eine Zifferntaste (auch auf dem Ziffernblock) sofort die Bearbeitung – die Ziffer steht schon im Feld und ersetzt die alte Note, ein vorheriges Enter ist nicht mehr nötig. Enter, Doppelklick und Strg+G öffnen die Zelle wie bisher mit der markierten alten Note.
 - **Abgabenbilanz in der Zusammenfassung:** Die Spalte „Zusammenfassung“ der Doku-Tabelle zeigt jetzt, an wie vielen Tagen eine Abgabe vollständig, lückenhaft oder fehlend war, z. B. `✓5 ◐1 X3`.
 - **Gewichtung pro Notenspalte:** Der Knopf „Gewichtung“ öffnet jetzt ein Fenster für alles auf einmal: oben schriftlich/sonstig in Prozent (das zweite Feld ergänzt sich auf 100), darunter jede Notenspalte mit einem Faktor (2 = zählt doppelt, 0.5 = halb, 0 = gar nicht) und ihrem Anteil an der Gesamtnote, der sich beim Tippen mitrechnet. Spalten mit Faktor ≠ 1 zeigen ihn im Spaltenkopf (z. B. „Referat ×2“). Bestehende Noten ändern sich nicht, solange alle Faktoren 1 sind.

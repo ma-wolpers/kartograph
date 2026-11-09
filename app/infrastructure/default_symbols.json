@@ -51,6 +51,16 @@
       }
     },
     {
+      "codepoint": "1F3AF",
+      "meaning": "Konzentration",
+      "shortcut": "z",
+      "legend": {
+        "three": "bleibt auch über längere Arbeitsphasen selbstständig konzentriert bei der Sache, kehrt nach Ablenkungen eigeninitiativ zur Aufgabe zurück und trägt zu einer ruhigen Arbeitsatmosphäre bei",
+        "two": "arbeitet überwiegend konzentriert und findet nach Ermutigung oder Erinnerung zur Aufgabe zurück; respektiert dabei die Arbeitsatmosphäre der anderen",
+        "one": "arbeitet phasenweise konzentriert; hält Einzelarbeitsphasen ein und hört anderen zu, wenn enge Begleitung zur Verfügung steht (z. B. kurze Teilschritte, klare Zeitvorgaben, ablenkungsarmer Sitzplatz, vereinbarte Signale)"
+      }
+    },
+    {
       "codepoint": "1F5CE",
       "meaning": "Umgang mit Material",
       "shortcut": "m",
