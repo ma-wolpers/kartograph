@@ -126,7 +126,7 @@ def _check_shared_ui_contracts(errors: list[str]) -> None:
         'section_spec("file", label="Datei", alt="d", items_provider=self._menu_items_file),',
         "from bw_gui.shortcuts import compose_hover_text as compose_shared_hover_text",
         "from bw_gui.widgets import HoverTooltip as SharedHoverTooltip",
-        "tooltip = SharedHoverTooltip(widget, text, theme_key=self._shared_menu_theme_key())",
+        "tooltip = SharedHoverTooltip(widget, text, theme_key=self._shared_menu_theme_key(), text_provider=provider)",
         "payload = open_shared_tabbed_settings_dialog(",
     )
     forbidden_snippets = (

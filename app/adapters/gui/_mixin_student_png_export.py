@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
+from app.adapters.gui._local_keys import ENTER, ESCAPE, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import filedialog, messagebox
 from app.core.domain.student_png_export import StudentPngExportError
 from app.core.intents.view_intents import ExportStudentPngsZipIntent
@@ -82,8 +82,8 @@ class StudentPngExportMixin:
         button_row.pack(fill="x", pady=(16, 0))
         cancel_button = tui.Button(button_row, text="Abbrechen", command=dialog.destroy)
         cancel_button.pack(side="right")
-        self._attach_hover_help(cancel_button, label="Exportdialog ohne Datei schliessen", shortcut="Esc")
+        self._attach_hover_help(cancel_button, label="Exportdialog ohne Datei schliessen", shortcut=ESCAPE)
         export_button = tui.Button(button_row, text="Exportieren", command=do_export)
         export_button.pack(side="right", padx=(0, 8))
-        self._attach_hover_help(export_button, label="Sitzkaertchen als ZIP-Archiv exportieren", shortcut="Enter")
+        self._attach_hover_help(export_button, label="Sitzkaertchen als ZIP-Archiv exportieren", shortcut=ENTER)
         self._focus_overlay_widget(dialog, export_button)

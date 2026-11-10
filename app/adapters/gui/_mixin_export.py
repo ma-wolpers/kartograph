@@ -111,7 +111,7 @@ class ExportMixin:
         self._attach_hover_help(all_button, label="Alle Symbole sichtbar markieren", shortcut=None)
         save_button = tui.Button(button_row, text="Speichern", command=apply_filter)
         save_button.pack(side="right")
-        self._attach_hover_help(save_button, label="Sichtbarkeitsauswahl speichern", shortcut="Enter")
+        self._attach_hover_help(save_button, label="Sichtbarkeitsauswahl speichern", shortcut=ENTER)
 
     def _create_overlay_dialog(self, title: str, geometry: str, *, parent: ui.Toplevel | None = None) -> ui.Toplevel:
         """Erstellt ein modales Toplevel-Fenster mit Popup-Tracking und Escape-Binding.

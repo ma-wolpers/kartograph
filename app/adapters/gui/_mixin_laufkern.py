@@ -10,6 +10,7 @@ from __future__ import annotations
 import dataclasses
 
 from app.adapters.gui.laufkern_manifest_provider import build_runtime_shortcut_manifest
+from app.adapters.gui.ui_intents import UiIntent
 from app.core.intents.view_intents import UpdateSettingsIntent
 from bw_libs.ui_contract.keybinding import (
     UI_MODE_DIALOG,
@@ -138,7 +139,7 @@ class LaufkernMixin:
             on_change=lambda _offline: self._on_shortcut_runtime_offline_var_changed(),
         )
         offline_check.pack(side="left", padx=(12, 0))
-        self._attach_hover_help(offline_check, label="Offline-Modus fuer Runtime-Resolver umschalten", shortcut="Ctrl+Shift+O")
+        self._attach_hover_help(offline_check, label="Offline-Modus fuer Runtime-Resolver umschalten", intent=UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE)
         refresh_button = tui.Button(toolbar, text="Aktualisieren", command=self._refresh_shortcut_runtime_debug_dialog)
         refresh_button.pack(side="left", padx=(8, 0))
         self._attach_hover_help(refresh_button, label="Runtime-Debug-Ansicht aktualisieren", shortcut=None)

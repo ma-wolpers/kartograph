@@ -267,8 +267,8 @@ class DocsDialogsMixin:
         symbol_listbox.pack(fill="both", expand=True)
         self._attach_hover_help(
             symbol_listbox,
-            label="Symbolauswahl per Tastatur",
-            shortcut="1-9 waehlt, 0 loescht, Enter uebernimmt, Entf/Backspace loescht, Esc schliesst",
+            # Bedienhinweis als Beschreibung: als ``shortcut`` zerlegte ihn der Tastenformatierer ("1+9 …, enter …").
+            label="Symbolauswahl per Tastatur:\n1-9 waehlt, 0 loescht, Enter uebernimmt, Entf/Backspace loescht, Esc schliesst",
         )
         for symbol in all_symbol_keys:
             definition = self._symbol_by_meaning.get(symbol)

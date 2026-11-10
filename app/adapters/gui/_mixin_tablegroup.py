@@ -83,10 +83,10 @@ class TablegroupMixin:
         button_row.grid(row=5, column=0, columnspan=2, sticky="ew")
         close_button = tui.Button(button_row, text="Schliessen", command=self._close_tablegroup_overlay)
         close_button.pack(side="right")
-        self._attach_hover_help(close_button, label="Tischgruppen-Overlay schliessen", shortcut="Esc")
+        self._attach_hover_help(close_button, label="Tischgruppen-Overlay schliessen", shortcut=ESCAPE)
         apply_button = tui.Button(button_row, text="Uebernehmen", command=self._apply_tablegroup_overlay_values)
         apply_button.pack(side="right", padx=(0, 8))
-        self._attach_hover_help(apply_button, label="Tischgruppenwerte speichern", shortcut="Enter")
+        self._attach_hover_help(apply_button, label="Tischgruppenwerte speichern", shortcut=ENTER)
 
         bind_action(dialog_keys(overlay), ENTER, self._apply_tablegroup_overlay_values, binding_id="dialog.confirm")
         self._focus_overlay_widget(overlay, number_entry)

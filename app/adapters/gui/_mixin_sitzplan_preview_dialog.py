@@ -10,7 +10,7 @@ aktualisiert diese Vorschau, statt eine zweite zu öffnen
 
 from __future__ import annotations
 
-from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
+from app.adapters.gui._local_keys import ENTER, ESCAPE, bind_action, dialog_keys
 from app.core.domain.color_order import palette_shortcut_by_key
 from app.core.domain.preview_color_frames import PreviewOptions, selectable_color_keys
 from app.core.usecases.v4.color_usecases import used_color_tags
@@ -114,9 +114,9 @@ class SitzplanPreviewDialogMixin:
         button_row.pack(fill="x", pady=(12, 0))
         cancel_button = tui.Button(button_row, text="Abbrechen", command=dialog.destroy)
         cancel_button.pack(side="right")
-        self._attach_hover_help(cancel_button, label="Dialog ohne Änderung schließen", shortcut="Esc")
+        self._attach_hover_help(cancel_button, label="Dialog ohne Änderung schließen", shortcut=ESCAPE)
         confirm_text = "Übernehmen" if updates_open_preview else "Vorschau öffnen"
         confirm_help = "Offene Vorschau mit diesen Einstellungen aktualisieren" if updates_open_preview else "Sitzplan-Vorschau mit diesen Einstellungen öffnen"
         confirm_button = tui.Button(button_row, text=confirm_text, command=confirm)
         confirm_button.pack(side="right", padx=(0, 8))
-        self._attach_hover_help(confirm_button, label=confirm_help, shortcut="Enter")
+        self._attach_hover_help(confirm_button, label=confirm_help, shortcut=ENTER)

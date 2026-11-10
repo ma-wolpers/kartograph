@@ -15,7 +15,7 @@ from app.core.domain.custom_symbol_validation import (
     validate_custom_symbol_shortcut,
 )
 from app.core.intents.custom_symbol_intents import AddCustomSymbolIntent, UpdateCustomSymbolIntent
-from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
+from app.adapters.gui._local_keys import ENTER, ESCAPE, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import messagebox
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -172,9 +172,9 @@ class SymbolManagementFormMixin:
         button_row.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         cancel_button = tui.Button(button_row, text="Abbrechen", command=dialog.destroy)
         cancel_button.pack(side="right")
-        self._attach_hover_help(cancel_button, label="Formular ohne Speichern schließen", shortcut="Esc")
+        self._attach_hover_help(cancel_button, label="Formular ohne Speichern schließen", shortcut=ESCAPE)
         submit_button = tui.Button(button_row, text="Übernehmen", command=submit)
         submit_button.pack(side="right", padx=(0, 8))
-        self._attach_hover_help(submit_button, label="Symbol speichern", shortcut="Enter")
+        self._attach_hover_help(submit_button, label="Symbol speichern", shortcut=ENTER)
 
         self._focus_overlay_widget(dialog, glyph_entry)

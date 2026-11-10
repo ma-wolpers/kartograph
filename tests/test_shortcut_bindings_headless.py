@@ -208,3 +208,31 @@ def test_manifest_carries_canonical_key_notation(host):
     assert keys["view.docs.toggle"] == ("Ctrl+Shift+D",)
     assert keys["viewport.zoom.in"] == ("Ctrl++", "Ctrl+=")
     assert keys["symbol.a"] == ("A", "Shift+A")
+
+
+# Bisherige Tastentexte in Menüs/Tooltips; sie kommen jetzt aus der Bindung des Intents.
+_SHOWN_KEYS = {
+    UiIntent.NEW_PLAN: "Strg+N", UiIntent.RENAME_SELECTED_PLAN: "F2", UiIntent.DUPLICATE_SELECTED_PLAN: "Strg+D",
+    UiIntent.EXPORT_PDF: "Strg+E", UiIntent.UNDO: "Strg+Z", UiIntent.REDO: "Strg+Y", UiIntent.CUT: "Strg+X",
+    UiIntent.COPY: "Strg+C", UiIntent.PASTE: "Strg+V", UiIntent.TOGGLE_DOCUMENTATION: "Strg+Shift+D",
+    UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG: "Strg+Shift+R", UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE: "Strg+Shift+O",
+    UiIntent.GLOBAL_DELETE: "Entf", UiIntent.GLOBAL_RETURN: "Enter", UiIntent.ESCAPE: "Esc", UiIntent.ADD_SYMBOL: "D",
+    UiIntent.OPEN_TABLEGROUP_SETTINGS: "Strg+T", UiIntent.SET_TEACHER_DESK: "Strg+Enter",
+    UiIntent.GRID_SYMBOL_FILTER: "Strg+F", UiIntent.ZOOM_OUT: "Strg+-", UiIntent.ZOOM_IN: "Strg++",
+    UiIntent.RENAME_DOCUMENTATION_DATE: "Strg+Shift+U", UiIntent.DELETE_DOCUMENTATION_DATE: "Strg+Shift+Rücktaste",
+    UiIntent.DOCS_TODAY: "Strg+H", UiIntent.ADD_GRADE_COLUMN: "Strg+Shift+N",
+    UiIntent.DELETE_GRADE_COLUMN: "Strg+Shift+Entf", UiIntent.DOCS_SYMBOL: "Strg+Shift+S", UiIntent.DOCS_GRADE: "Strg+G",
+}
+
+
+def test_menu_and_tooltip_keys_come_from_the_bindings(host):
+    from app.adapters.gui._mixin_menu import MenuMixin
+    from bw_gui.shortcuts import compose_hover_text_for_intent, humanize_shortcut
+
+    shown = {intent: humanize_shortcut(host._runtime_shortcuts.shortcut_for_intent(intent)) for intent in _SHOWN_KEYS}
+    assert shown == _SHOWN_KEYS
+    assert MenuMixin._menu_label(host, "Neu", UiIntent.NEW_PLAN) == "Neu (Strg+N)"
+    clear = compose_hover_text_for_intent(
+        "Symbol loeschen", intent=(UiIntent.DOCS_CLEAR, UiIntent.DOCS_CLEAR_BACKSPACE), shortcuts=host._runtime_shortcuts
+    )
+    assert clear.endswith("Strg+Entf oder Strg+Rücktaste")

@@ -19,6 +19,7 @@ from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
 from bw_gui.menu import MenuItem as SharedMenuItem
+from bw_gui.shortcuts import compose_menu_label
 
 
 class MenuMixin:
@@ -31,6 +32,13 @@ class MenuMixin:
         if self.theme_key in {"graphite_core", "blackforge"}:
             return "charcoal"
         return "mono_day"
+
+    def _menu_label(self, text: str, intent: str) -> str:
+        """Menütext mit der Taste der Bindung von *intent* (Registry, dieselbe Quelle wie die Tooltips).
+
+        Die Menüs werden beim Öffnen gebaut (``items_provider``), die Bindungen stehen dann fest.
+        """
+        return compose_menu_label(text, self._runtime_shortcuts.shortcut_for_intent(intent))
 
     def _set_theme_from_menu(self, key: str) -> None:
         """Setzt das Theme aus einem Menü-Radiobutton heraus.
@@ -80,13 +88,13 @@ class MenuMixin:
     def _menu_items_file(self):
         """Liefert die Menüeinträge für das Datei-Menü."""
         return (
-            SharedMenuItem(type="command", label="Neu (Strg+N)", command=lambda: self._handle_intent(UiIntent.NEW_PLAN)),
-            SharedMenuItem(type="command", label="Plan umbenennen (F2)", command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN)),
-            SharedMenuItem(type="command", label="Plan loeschen (Entf in Liste)", command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN)),
-            SharedMenuItem(type="command", label="Plan duplizieren (Strg+D)", command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN)),
+            SharedMenuItem(type="command", label=self._menu_label("Neu", UiIntent.NEW_PLAN), command=lambda: self._handle_intent(UiIntent.NEW_PLAN)),
+            SharedMenuItem(type="command", label=self._menu_label("Plan umbenennen", UiIntent.RENAME_SELECTED_PLAN), command=lambda: self._handle_intent(UiIntent.RENAME_SELECTED_PLAN)),
+            SharedMenuItem(type="command", label=self._menu_label("Plan loeschen", UiIntent.GLOBAL_DELETE), command=lambda: self._handle_intent(UiIntent.DELETE_SELECTED_PLAN)),
+            SharedMenuItem(type="command", label=self._menu_label("Plan duplizieren", UiIntent.DUPLICATE_SELECTED_PLAN), command=lambda: self._handle_intent(UiIntent.DUPLICATE_SELECTED_PLAN)),
             self._grade_scale_menu_item(),
             SharedMenuItem(type="separator"),
-            SharedMenuItem(type="command", label="Export PDF (Strg+E)", command=lambda: self._handle_intent(UiIntent.EXPORT_PDF)),
+            SharedMenuItem(type="command", label=self._menu_label("Export PDF", UiIntent.EXPORT_PDF), command=lambda: self._handle_intent(UiIntent.EXPORT_PDF)),
             SharedMenuItem(type="command", label="Für Namenfit exportieren (CSV)", command=lambda: self._handle_intent(UiIntent.EXPORT_NAMENFIT_CSV)),
             SharedMenuItem(type="command", label="Sitzkärtchen exportieren (ZIP)", command=lambda: self._handle_intent(UiIntent.EXPORT_STUDENT_PNGS_ZIP)),
             SharedMenuItem(type="separator"),
@@ -151,13 +159,13 @@ class MenuMixin:
     def _menu_items_edit(self):
         """Liefert die Menüeinträge für das Bearbeiten-Menü."""
         return (
-            SharedMenuItem(type="command", label="Rueckgaengig (Strg+Z)", command=lambda: self._handle_intent(UiIntent.UNDO)),
-            SharedMenuItem(type="command", label="Wiederholen (Strg+Y)", command=lambda: self._handle_intent(UiIntent.REDO)),
+            SharedMenuItem(type="command", label=self._menu_label("Rueckgaengig", UiIntent.UNDO), command=lambda: self._handle_intent(UiIntent.UNDO)),
+            SharedMenuItem(type="command", label=self._menu_label("Wiederholen", UiIntent.REDO), command=lambda: self._handle_intent(UiIntent.REDO)),
             SharedMenuItem(type="command", label="Letzte 5 rueckgaengig", command=lambda: self._handle_intent(UiIntent.UNDO_LAST_FIVE)),
             SharedMenuItem(type="separator"),
-            SharedMenuItem(type="command", label="Ausschneiden (Strg+X)", command=lambda: self._handle_intent(UiIntent.CUT)),
-            SharedMenuItem(type="command", label="Kopieren (Strg+C)", command=lambda: self._handle_intent(UiIntent.COPY)),
-            SharedMenuItem(type="command", label="Einfuegen (Strg+V)", command=lambda: self._handle_intent(UiIntent.PASTE)),
+            SharedMenuItem(type="command", label=self._menu_label("Ausschneiden", UiIntent.CUT), command=lambda: self._handle_intent(UiIntent.CUT)),
+            SharedMenuItem(type="command", label=self._menu_label("Kopieren", UiIntent.COPY), command=lambda: self._handle_intent(UiIntent.COPY)),
+            SharedMenuItem(type="command", label=self._menu_label("Einfuegen", UiIntent.PASTE), command=lambda: self._handle_intent(UiIntent.PASTE)),
         )
 
     def _menu_items_view(self):
@@ -174,9 +182,9 @@ class MenuMixin:
             SharedMenuItem(type="switch", label="Archivierte Sitzplaene anzeigen", checked=show_archived, on_toggle=self._set_show_archived_plans),
             SharedMenuItem(type="separator"),
             # Switches: the intents toggle themselves; the requested value is always "not checked".
-            SharedMenuItem(type="switch", label="Dokumentationssicht (Strg+Shift+D)", checked=self._editor_surface == "docs", on_toggle=lambda _on: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION)),
-            SharedMenuItem(type="command", label="Shortcut-Runtime-Debug anzeigen (Strg+Shift+R)", command=lambda: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG)),
-            SharedMenuItem(type="switch", label="Offline-Simulation (Strg+Shift+O)", checked=bool(self._shortcut_runtime_offline), on_toggle=lambda _on: self._handle_intent(UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE)),
+            SharedMenuItem(type="switch", label=self._menu_label("Dokumentationssicht", UiIntent.TOGGLE_DOCUMENTATION), checked=self._editor_surface == "docs", on_toggle=lambda _on: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION)),
+            SharedMenuItem(type="command", label=self._menu_label("Shortcut-Runtime-Debug anzeigen", UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG), command=lambda: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG)),
+            SharedMenuItem(type="switch", label=self._menu_label("Offline-Simulation", UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE), checked=bool(self._shortcut_runtime_offline), on_toggle=lambda _on: self._handle_intent(UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE)),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="disabled", label="Tisch-Overlay (S:S)"),
             SharedMenuItem(type="radio", label="Links", checked=(details_position == "left"), command=lambda: self._set_details_overlay_position("left")),

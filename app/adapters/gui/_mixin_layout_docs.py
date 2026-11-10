@@ -48,7 +48,7 @@ class LayoutDocsMixin:
             command=lambda: self._handle_intent(UiIntent.VIEW_GRID),
         )
         docs_grid_button.pack(side="left")
-        self._attach_hover_help(docs_grid_button, label="Zur Rasteransicht wechseln", shortcut="Ctrl+Shift+D")
+        self._attach_hover_help(docs_grid_button, label="Zur Rasteransicht wechseln", intent=UiIntent.TOGGLE_DOCUMENTATION)
 
         docs_rename_date_button = tui.Button(
             self.docs_toolbar,
@@ -56,7 +56,7 @@ class LayoutDocsMixin:
             command=lambda: self._handle_intent(UiIntent.RENAME_DOCUMENTATION_DATE),
         )
         docs_rename_date_button.pack(side="left", padx=(8, 0))
-        self._attach_hover_help(docs_rename_date_button, label="Ausgewaehltes Datum umbenennen", shortcut="Ctrl+Shift+U")
+        self._attach_hover_help(docs_rename_date_button, label="Ausgewaehltes Datum umbenennen", intent=UiIntent.RENAME_DOCUMENTATION_DATE)
 
         docs_delete_date_button = tui.Button(
             self.docs_toolbar,
@@ -64,7 +64,7 @@ class LayoutDocsMixin:
             command=lambda: self._handle_intent(UiIntent.DELETE_DOCUMENTATION_DATE),
         )
         docs_delete_date_button.pack(side="left", padx=(8, 0))
-        self._attach_hover_help(docs_delete_date_button, label="Ausgewaehltes Datum inkl. Eintraegen loeschen", shortcut="Ctrl+Shift+Backspace")
+        self._attach_hover_help(docs_delete_date_button, label="Ausgewaehltes Datum inkl. Eintraegen loeschen", intent=UiIntent.DELETE_DOCUMENTATION_DATE)
 
         docs_today_button = tui.Button(
             self.docs_toolbar,
@@ -72,7 +72,7 @@ class LayoutDocsMixin:
             command=self.select_today_documentation_date,
         )
         docs_today_button.pack(side="left", padx=(8, 0))
-        self._attach_hover_help(docs_today_button, label="Auf heutiges Datum springen", shortcut="Ctrl+H")
+        self._attach_hover_help(docs_today_button, label="Auf heutiges Datum springen", intent=UiIntent.DOCS_TODAY)
 
         docs_add_grade_column_button = tui.Button(
             self.docs_toolbar,
@@ -80,7 +80,7 @@ class LayoutDocsMixin:
             command=lambda: self._handle_intent(UiIntent.ADD_GRADE_COLUMN),
         )
         docs_add_grade_column_button.pack(side="left", padx=(8, 0))
-        self._attach_hover_help(docs_add_grade_column_button, label="Neue Notenspalte anlegen", shortcut="Ctrl+Shift+N")
+        self._attach_hover_help(docs_add_grade_column_button, label="Neue Notenspalte anlegen", intent=UiIntent.ADD_GRADE_COLUMN)
 
         docs_delete_grade_column_button = tui.Button(
             self.docs_toolbar,
@@ -88,7 +88,7 @@ class LayoutDocsMixin:
             command=lambda: self._handle_intent(UiIntent.DELETE_GRADE_COLUMN),
         )
         docs_delete_grade_column_button.pack(side="left", padx=(8, 0))
-        self._attach_hover_help(docs_delete_grade_column_button, label="Ausgewaehlte Notenspalte loeschen", shortcut="Ctrl+Shift+Delete")
+        self._attach_hover_help(docs_delete_grade_column_button, label="Ausgewaehlte Notenspalte loeschen", intent=UiIntent.DELETE_GRADE_COLUMN)
 
         docs_weighting_button = tui.Button(
             self.docs_toolbar,
@@ -104,7 +104,7 @@ class LayoutDocsMixin:
             command=self.set_selected_documentation_symbol_dialog,
         )
         docs_set_symbol_button.pack(side="left", padx=(8, 0))
-        self._attach_hover_help(docs_set_symbol_button, label="Dokumentationssymbol setzen", shortcut="Ctrl+Shift+S")
+        self._attach_hover_help(docs_set_symbol_button, label="Dokumentationssymbol setzen", intent=UiIntent.DOCS_SYMBOL)
 
         docs_clear_symbol_button = tui.Button(
             self.docs_toolbar,
@@ -112,7 +112,7 @@ class LayoutDocsMixin:
             command=self.clear_selected_documentation_symbol,
         )
         docs_clear_symbol_button.pack(side="left", padx=(8, 0))
-        self._attach_hover_help(docs_clear_symbol_button, label="Dokumentationssymbol loeschen", shortcut="Ctrl+Entf oder Ctrl+Backspace")
+        self._attach_hover_help(docs_clear_symbol_button, label="Dokumentationssymbol loeschen", intent=(UiIntent.DOCS_CLEAR, UiIntent.DOCS_CLEAR_BACKSPACE))
 
         docs_set_grade_button = tui.Button(
             self.docs_toolbar,
@@ -120,7 +120,7 @@ class LayoutDocsMixin:
             command=self.set_selected_documentation_grade_dialog,
         )
         docs_set_grade_button.pack(side="left", padx=(8, 0))
-        self._attach_hover_help(docs_set_grade_button, label="Note setzen", shortcut="Ctrl+G")
+        self._attach_hover_help(docs_set_grade_button, label="Note setzen", intent=UiIntent.DOCS_GRADE)
 
         tui.Label(self.docs_toolbar, textvariable=self._doc_selection_status_var).pack(side="right", padx=(0, 12))
 

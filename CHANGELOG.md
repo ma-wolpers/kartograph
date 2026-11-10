@@ -73,6 +73,7 @@ The format is based on Keep a Changelog.
 - Dokumentationsansicht: Spalten koennen jetzt per Klick auf den Spaltenkopf sortiert werden (auf- und absteigend); die Sortierreihenfolge wird farblich hervorgehoben.
 
 ### Fixed
+- **Tastenhinweise in Menüs und Tooltips stimmen immer mit der Belegung überein:** Sie werden jetzt direkt aus den Tastenkürzeln gelesen, statt als Text danebenzustehen. Dabei behoben: Der Tooltip von „Symbol loeschen“ zeigt wieder „Strg+Entf oder Strg+Rücktaste“ (vorher „… oder ctrl+Rücktaste“), und der Hover in der Symbolauswahl ist nicht mehr verstümmelt („1+9 waehlt … enter uebernimmt“). Im Datei-Menü heißt es jetzt „Plan loeschen (Entf)“.
 - Ausgewählte Einträge in der Planliste und in Tabellen sind in dunklen Themes wie „Charcoal“ wieder gut lesbar (die Schrift folgt jetzt dem Theme statt immer weiß zu sein). Hinweis- und Fehlertexte in Dialogen passen sich ebenfalls dem Theme an.
 - Mitarbeit-Bewertung (`+`, `o`, `-`, `s`) in der Doku-Ansicht: Sie landet jetzt im ausgewählten Datum, wie die Symbole auch. Vorher wurde sie immer beim heutigen Datum (der neuesten Spalte) eingetragen. Im Sitzplan-Raster gilt sie weiterhin für heute.
 - Rückgängig innerhalb der Speicherverzögerung (2 s): Die Änderung schien zurückgenommen, wurde aber kurz danach wieder in die Plandatei geschrieben und war beim nächsten Öffnen wieder da.

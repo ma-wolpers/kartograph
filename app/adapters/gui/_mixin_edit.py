@@ -188,7 +188,7 @@ class EditMixin:
         button_row.pack(fill="x", padx=12, pady=(0, 12))
         apply_button = tui.Button(button_row, text="Übernehmen", command=apply_choice)
         apply_button.pack(side="right")
-        self._attach_hover_help(apply_button, label="Ausgewaehltes Symbol uebernehmen", shortcut="Enter")
+        self._attach_hover_help(apply_button, label="Ausgewaehltes Symbol uebernehmen", shortcut=ENTER)
 
     def _toggle_selected_color(self, color_key: str) -> None:
         """Schaltet einen Farbpunkt für den aktuell ausgewählten Schüler um (v4).
