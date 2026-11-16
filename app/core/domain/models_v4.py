@@ -76,7 +76,7 @@ class DiagnosticProfile:
 
     symbols: dict[str, int] = field(default_factory=dict)
     color_tags: list[str] = field(default_factory=list)
-    accommodations: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -402,7 +402,7 @@ class DocumentationBlock:
 class SeatingSnapshot:
     """Momentaufnahme der Tischkoordinaten (Schüler + Lehrertisch) eines Plans.
 
-    Bewusst OHNE Diagnose-/Dokumentations-/Accommodation-Daten -- ein Snapshot
+    Bewusst OHNE Diagnose-/Dokumentations-/Notiz-Daten -- ein Snapshot
     ist rein "wer sitzt wo", keine Momentaufnahme des Diagnoseprofils.
     Indiziert Schüler über :class:`StudentId` (stabil gegen Umbenennen und
     Sitzwechsel), analog zu ``Session.entries``. Enthält bewusst KEINE

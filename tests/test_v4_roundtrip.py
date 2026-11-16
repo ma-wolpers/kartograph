@@ -63,22 +63,34 @@ class TestBasicRoundtrip:
         restored = _roundtrip(plan)
         assert restored.student_by_id(sid).diagnostic.color_tags == ["gelb", "rot"]
 
-    def test_accommodations_preserved(self):
+    def test_notes_preserved(self):
         sid = StudentId.new()
         s = make_student(student_id=sid)
-        s.diagnostic.accommodations = ["Zeitzuschlag 25 %", "Nutzung Laptop"]
+        s.diagnostic.notes = ["Zeitzuschlag 25 %", "Nutzung Laptop"]
         plan = make_plan(students=[s])
         restored = _roundtrip(plan)
-        assert restored.student_by_id(sid).diagnostic.accommodations == ["Zeitzuschlag 25 %", "Nutzung Laptop"]
+        assert restored.student_by_id(sid).diagnostic.notes == ["Zeitzuschlag 25 %", "Nutzung Laptop"]
 
-    def test_accommodations_default_empty_when_missing_in_json(self):
-        """Abwärtskompatibilität: v4-Pläne von vor dieser Erweiterung haben kein 'accommodations'-Feld."""
+    def test_notes_default_empty_when_missing_in_json(self):
+        """Abwärtskompatibilität: v4-Pläne von vor dieser Erweiterung haben kein 'notes'-Feld."""
         sid = StudentId.new()
         plan = make_plan(students=[make_student(student_id=sid)])
         payload = serialize_plan(plan)
-        del payload["classroom"]["students"][0]["diagnostic"]["accommodations"]
+        del payload["classroom"]["students"][0]["diagnostic"]["notes"]
         restored = deserialize_plan(payload)
-        assert restored.student_by_id(sid).diagnostic.accommodations == []
+        assert restored.student_by_id(sid).diagnostic.notes == []
+
+    def test_legacy_accommodations_key_is_read_as_notes(self):
+        """Altpläne speichern die Notizen unter 'accommodations' (Feld hieß "Nachteilsausgleiche")."""
+        sid = StudentId.new()
+        plan = make_plan(students=[make_student(student_id=sid)])
+        payload = serialize_plan(plan)
+        diagnostic = payload["classroom"]["students"][0]["diagnostic"]
+        del diagnostic["notes"]
+        diagnostic["accommodations"] = [" Zeitzuschlag 25 % ", ""]
+        restored = deserialize_plan(payload)
+        assert restored.student_by_id(sid).diagnostic.notes == ["Zeitzuschlag 25 %"]
+        assert "accommodations" not in serialize_plan(restored)["classroom"]["students"][0]["diagnostic"]
 
     def test_nickname_preserved(self):
         sid = StudentId.new()

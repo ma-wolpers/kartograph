@@ -17,7 +17,7 @@ from pathlib import Path
 from app.application.app_controller import KartographAppController
 from app.application.app_state import AppState, EditorSurface, InteractionMode
 from app.application.handler_context import HandlerContext
-from app.application.handlers.accommodation_handlers import handle_set_accommodations
+from app.application.handlers.note_handlers import handle_set_notes
 from app.application.handlers.snapshot_handlers import (
     handle_create_snapshot,
     handle_delete_snapshot,
@@ -80,7 +80,7 @@ from app.core.domain.plan_history import PlanHistory
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import KartographSettings
 from app.core.domain.student_id import StudentId
-from app.core.intents.accommodation_intents import SetAccommodationsIntent
+from app.core.intents.note_intents import SetNotesIntent
 from app.core.intents.snapshot_intents import (
     CreateSnapshotIntent,
     DeleteSnapshotIntent,
@@ -1324,32 +1324,32 @@ class TestHandleCustomSymbolHandlers:
 
 
 # ---------------------------------------------------------------------------
-# Handler-Isolation: Accommodation-Handler
+# Handler-Isolation: Notiz-Handler
 # ---------------------------------------------------------------------------
 
-class TestHandleAccommodationHandlers:
-    def test_set_accommodations_updates_student(self):
+class TestHandleNoteHandlers:
+    def test_set_notes_updates_student(self):
         student = make_student()
         plan = make_plan(students=[student])
         path = PLANS_DIR / "test.json"
         ctx = make_ctx({path: plan})
         state = make_state_with_plan(plan, path)
 
-        result = handle_set_accommodations(
-            SetAccommodationsIntent(student_id=student.student_id, accommodations=["Zeitzuschlag 25 %"]),
+        result = handle_set_notes(
+            SetNotesIntent(student_id=student.student_id, notes=["Zeitzuschlag 25 %"]),
             state,
             ctx,
         )
 
         s = result.current_plan.student_by_id(student.student_id)
-        assert s.diagnostic.accommodations == ["Zeitzuschlag 25 %"]
+        assert s.diagnostic.notes == ["Zeitzuschlag 25 %"]
 
-    def test_set_accommodations_without_plan_is_noop(self):
+    def test_set_notes_without_plan_is_noop(self):
         ctx = make_ctx()
         state = AppState()
 
-        result = handle_set_accommodations(
-            SetAccommodationsIntent(student_id=StudentId.new(), accommodations=["X"]),
+        result = handle_set_notes(
+            SetNotesIntent(student_id=StudentId.new(), notes=["X"]),
             state,
             ctx,
         )

@@ -14,7 +14,8 @@ from app.adapters.gui.main_window_constants import (
     NAME_EDITING,
 )
 from app.core.domain.student_id import StudentId
-from app.core.intents.accommodation_intents import SetAccommodationsIntent
+from app.core.domain.student_notes import normalize_note_lines
+from app.core.intents.note_intents import SetNotesIntent
 from app.core.intents.student_intents import CreateStudentIntent, RenameStudentIntent, SetNicknameIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -40,7 +41,7 @@ class DetailsMixin:
             self._last_name_var.set("")
             self.name_entry.configure(state="disabled")
             self.last_name_entry.configure(state="disabled")
-            self._set_accommodations_field(None)
+            self._set_notes_field(None)
             self._refresh_tablegroup_overlay()
             return
 
@@ -68,7 +69,7 @@ class DetailsMixin:
             self.name_entry.configure(state="disabled")
             self.last_name_entry.configure(state="disabled")
             self.nickname_entry.configure(state="disabled")
-            self._set_accommodations_field(None)
+            self._set_notes_field(None)
             if self.interaction_mode == NAME_EDITING:
                 self.canvas.focus_set()
             self._refresh_tablegroup_overlay()
@@ -80,7 +81,7 @@ class DetailsMixin:
         self.name_entry.configure(state="normal")
         self.last_name_entry.configure(state="normal")
         self.nickname_entry.configure(state="normal")
-        self._set_accommodations_field(student)
+        self._set_notes_field(student)
 
         # Knöpfe bestehen dauerhaft (Neuaufbau nur bei geänderter Menge, s. DetailsButtonsMixin).
         columns = self._details_button_columns()
@@ -129,7 +130,7 @@ class DetailsMixin:
 
         Holt den Tk-Fokus zurück zum Canvas (analog zu ``exit_name_edit_mode()``),
         falls der Editor noch sichtbar ist -- sonst bleibt der Fokus z. B. auf
-        dem jetzt unsichtbaren Nachteilsausgleiche-Feld hängen, das keine eigene
+        dem jetzt unsichtbaren Notizfeld hängen, das keine eigene
         Escape-Bindung hat und den globalen Handler stumm blockiert (Pfeiltasten
         und Enter reagieren dann nicht mehr, da sie Canvas-Fokus voraussetzen).
         """
@@ -291,7 +292,7 @@ class DetailsMixin:
         self._controller.dispatch(CreateStudentIntent(x=x, y=y))
 
     def _commit_pending_edits(self) -> None:
-        """Flusht alle ausstehenden Feld-Edits (Namen, Nachteilsausgleiche), bevor
+        """Flusht alle ausstehenden Feld-Edits (Namen, Notizen), bevor
         der Bearbeitungskontext wechselt (anderer Tisch, Panel schließen, Plan
         wechseln, App schließen). Zentraler Ersatz für vormals verstreute
         Einzel-Flush-Aufrufe -- s. ``app/adapters/gui/_pending_field_save.py``.
@@ -343,32 +344,32 @@ class DetailsMixin:
         if student.nickname != values["nickname"]:
             self._controller.dispatch(SetNicknameIntent(student_id=student_id, nickname=values["nickname"]))
 
-    def _set_accommodations_field(self, student) -> None:
-        """Befüllt das Nachteilsausgleiche-Textfeld oder deaktiviert es bei *student* = None.
+    def _set_notes_field(self, student) -> None:
+        """Befüllt das Notizfeld oder deaktiviert es bei *student* = None.
 
         Args:
             student: Anzuzeigender Schüler, oder ``None`` um das Feld zu leeren und zu sperren.
         """
-        self.accommodations_field.text.configure(state="normal")
-        self.accommodations_field.set("\n".join(student.diagnostic.accommodations) if student else "")
-        reset_text_modified(self.accommodations_field.text)  # neu befuellt = unveraendert
+        self.notes_field.text.configure(state="normal")
+        self.notes_field.set("\n".join(student.diagnostic.notes) if student else "")
+        reset_text_modified(self.notes_field.text)  # neu befuellt = unveraendert
         if student is None:
-            self.accommodations_field.text.configure(state="disabled")
+            self.notes_field.text.configure(state="disabled")
 
-    def _on_accommodations_text_modified(self, _event=None) -> None:
-        """Inhaltsaenderung des Nachteilsausgleiche-Feldes (bw-gui ``on_text_modified``).
+    def _on_notes_text_modified(self, _event=None) -> None:
+        """Inhaltsaenderung des Notizfeldes (bw-gui ``on_text_modified``).
 
         Feuert bei Tastatureingabe, Paste und Kontextmenue. Das programmatische Neubefuellen in
-        ``_set_accommodations_field()`` gilt als unveraendert (``reset_text_modified``) und meldet
+        ``_set_notes_field()`` gilt als unveraendert (``reset_text_modified``) und meldet
         nicht (frueher merkte es harmlos eine Speicherung des unveraenderten Inhalts vor).
         Pruefen und Zuruecksetzen von Tks Modified-Flag erledigt der Contract.
         """
-        self._accommodations_pending_save.note_change()
+        self._notes_pending_save.note_change()
 
-    def _capture_accommodations_field(self) -> tuple[StudentId, list[str]] | None:
+    def _capture_notes_field(self) -> tuple[StudentId, list[str]] | None:
         """Liest den aktuell angezeigten Schüler und den aktuellen Feldinhalt.
 
-        Callback für ``self._accommodations_pending_save`` (``PendingFieldSave``).
+        Callback für ``self._notes_pending_save`` (``PendingFieldSave``).
         """
         if not self.current_plan or not self.current_plan_path:
             return None
@@ -378,12 +379,13 @@ class DetailsMixin:
         student = self.current_plan.student_at(x, y)
         if not student:
             return None
-        return student.student_id, self.accommodations_field.get().splitlines()
+        return student.student_id, self.notes_field.get().splitlines()
 
-    def _apply_accommodations_field(self, student_id: StudentId, lines: list[str]) -> None:
-        """Speichert eine ausstehende Nachteilsausgleiche-Änderung für *student_id*.
+    def _apply_notes_field(self, student_id: StudentId, lines: list[str]) -> None:
+        """Speichert eine ausstehende Notizänderung für *student_id*.
 
-        Normalisiert genau einmal (Leerzeilen entfernt, getrimmt) und verwendet
+        Normalisiert genau einmal über ``normalize_note_lines`` (dieselbe Regel wie
+        Usecase und Deserializer) und verwendet
         denselben normalisierten Wert für Vergleich UND Dispatch -- kein Unterschied
         zwischen dem Wert, gegen den geprüft wird, und dem tatsächlich gespeicherten.
         Dispatcht nur bei tatsächlicher Änderung: da ``<<Modified>>`` (anders als das
@@ -396,7 +398,7 @@ class DetailsMixin:
         student = self.current_plan.student_by_id(student_id)
         if not student:
             return
-        normalized = [line.strip() for line in lines if line.strip()]
-        if student.diagnostic.accommodations == normalized:
+        normalized = normalize_note_lines(lines)
+        if student.diagnostic.notes == normalized:
             return
-        self._controller.dispatch(SetAccommodationsIntent(student_id=student_id, accommodations=normalized))
+        self._controller.dispatch(SetNotesIntent(student_id=student_id, notes=normalized))

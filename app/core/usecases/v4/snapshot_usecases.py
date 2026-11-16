@@ -1,6 +1,6 @@
 """Usecases für Snapshots: benannte Momentaufnahmen der Tischkoordinaten.
 
-Folgt exakt dem Deepcopy-Muster aus ``accommodation_usecases.py``: jeder
+Folgt exakt dem Deepcopy-Muster aus ``note_usecases.py``: jeder
 Usecase beginnt mit ``next_plan = deepcopy(plan)`` und mutiert danach
 ausschließlich ``next_plan`` -- das eingehende ``plan`` bleibt in jedem Pfad
 unangetastet, damit ältere, in ``PlanHistory`` gehaltene Zustände strukturell

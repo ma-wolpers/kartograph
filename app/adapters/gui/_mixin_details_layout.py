@@ -7,6 +7,7 @@ Namensformular, Symbols/Farb-Frames) und befüllt die Symbol-Shortcuts-Bar.
 from __future__ import annotations
 
 from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
+from app.core.domain.student_notes import NOTES_LABEL
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -22,7 +23,7 @@ class DetailsLayoutMixin:
 
         Legt ``details_container``, ``details_header``, ``_symbol_shortcuts_bar``,
         ``details_frame``, ``details_form``, ``name_entry``, ``last_name_entry`` sowie
-        die Rahmen für Symbole, Farbpunkte und Nachteilsausgleiche (``accommodations_field``)
+        die Rahmen für Symbole, Farbpunkte und Notizen (``notes_field``)
         an. Ruft anschließend ``_apply_details_overlay_position`` auf, um die initiale
         Platzierung zu setzen.
         """
@@ -83,15 +84,15 @@ class DetailsLayoutMixin:
         self.color_legend_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.color_legend_frame.pack(fill="x", pady=(4, 0))
 
-        self.accommodations_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
-        self.accommodations_frame.pack(fill="x", pady=(6, 0))
-        tui.Label(self.accommodations_frame, text="Nachteilsausgleiche", style="Panel.TLabel").pack(anchor="w")
-        self.accommodations_field = WrappedTextField(self.accommodations_frame, height=3)
-        self.accommodations_field.pack(fill="x")
+        self.notes_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
+        self.notes_frame.pack(fill="x", pady=(6, 0))
+        tui.Label(self.notes_frame, text=NOTES_LABEL, style="Panel.TLabel").pack(anchor="w")
+        self.notes_field = WrappedTextField(self.notes_frame, height=3)
+        self.notes_field.pack(fill="x")
         # Inhaltsaenderung statt Tastenloslassen: deckt auch Paste/Kontextmenue ab
         # (bw-gui on_text_modified prueft und setzt Tks Modified-Flag selbst zurueck).
-        on_text_modified(self.accommodations_field.text, lambda _text: self._on_accommodations_text_modified())
-        on_focus_change(self.accommodations_field.text, on_lost=lambda _change: self._commit_pending_edits())
+        on_text_modified(self.notes_field.text, lambda _text: self._on_notes_text_modified())
+        on_focus_change(self.notes_field.text, on_lost=lambda _change: self._commit_pending_edits())
 
         self._details_panel_visible = True
 

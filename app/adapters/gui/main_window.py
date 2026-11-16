@@ -249,12 +249,12 @@ class KartographMainWindow(
         self._name_pending_save = PendingFieldSave(
             self, capture=self._capture_name_fields, apply=self._apply_name_fields
         )
-        self._accommodations_pending_save = PendingFieldSave(
-            self, capture=self._capture_accommodations_field, apply=self._apply_accommodations_field
+        self._notes_pending_save = PendingFieldSave(
+            self, capture=self._capture_notes_field, apply=self._apply_notes_field
         )
         self._pending_edits: list[PendingFieldSave] = [
             self._name_pending_save,
-            self._accommodations_pending_save,
+            self._notes_pending_save,
         ]
         self._selected_marker_var = ui.StringVar(value="")
         self._doc_selection_status_var = ui.StringVar(value="Doku-Zelle: -")

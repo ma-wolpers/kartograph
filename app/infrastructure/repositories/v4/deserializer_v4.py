@@ -32,6 +32,7 @@ from app.core.domain.models_v4 import (
 )
 from app.core.domain.grade_scale import scale_for
 from app.core.domain.student_id import StudentId
+from app.core.domain.student_notes import LEGACY_NOTES_KEY, normalize_note_lines
 from app.core.domain.symbol_renames import merge_symbol_strength
 from app.infrastructure.repositories.v4.grade_store_codec import read_grade_store
 from app.infrastructure.repositories.v4.snapshot_load_issue import SnapshotLoadIssue
@@ -177,12 +178,12 @@ def _deserialize_student(raw: dict) -> Student:
 
 
 def _deserialize_diagnostic(raw: dict) -> DiagnosticProfile:
-    """Liest Symbole, Farbpunkte und Nachteilsausgleiche eines Schülers aus *raw*.
+    """Liest Symbole, Farbpunkte und Notizen eines Schülers aus *raw*.
 
     Symbolstärken außerhalb von 1..3 werden verworfen statt geklemmt (eine
     fehlerhafte Stärke deutet auf eine korrupte/handgeschriebene Datei hin,
     nicht auf einen gültigen Grenzwert). Farbtags werden dedupliziert,
-    Nachteilsausgleiche behalten ihre ursprüngliche Reihenfolge (auch bei
+    Notizen behalten ihre ursprüngliche Reihenfolge (auch bei
     Duplikaten).
 
     Args:
@@ -210,15 +211,10 @@ def _deserialize_diagnostic(raw: dict) -> DiagnosticProfile:
             if key and key not in color_tags:
                 color_tags.append(key)
 
-    accommodations: list[str] = []
-    raw_accommodations = raw.get("accommodations") or []
-    if isinstance(raw_accommodations, list):
-        for entry in raw_accommodations:
-            text = str(entry).strip()
-            if text:
-                accommodations.append(text)
+    raw_notes = raw.get("notes", raw.get(LEGACY_NOTES_KEY)) or []
+    notes = normalize_note_lines(raw_notes) if isinstance(raw_notes, list) else []
 
-    return DiagnosticProfile(symbols=symbols, color_tags=color_tags, accommodations=accommodations)
+    return DiagnosticProfile(symbols=symbols, color_tags=color_tags, notes=notes)
 
 
 # ---------------------------------------------------------------------------

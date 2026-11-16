@@ -7,8 +7,8 @@ from app.core.intents.base import Intent
 
 
 @dataclass(frozen=True)
-class SetAccommodationsIntent(Intent):
-    """Ersetzt die Liste der Nachteilsausgleiche eines Schülers vollständig."""
+class SetNotesIntent(Intent):
+    """Ersetzt die Liste der Notizen eines Schülers vollständig."""
 
     student_id: StudentId
-    accommodations: list[str]
+    notes: list[str]

@@ -6,7 +6,7 @@ via ``KartographAppController.dispatch(intent)`` verarbeitet.
 
 from app.core.intents.base import Intent
 
-from app.core.intents.accommodation_intents import SetAccommodationsIntent
+from app.core.intents.note_intents import SetNotesIntent
 from app.core.intents.snapshot_intents import (
     CreateSnapshotIntent,
     DeleteSnapshotIntent,
@@ -85,8 +85,8 @@ from app.core.intents.view_intents import (
 
 __all__ = [
     "Intent",
-    # Accommodation
-    "SetAccommodationsIntent",
+    # Notizen
+    "SetNotesIntent",
     # Snapshot
     "CreateSnapshotIntent",
     "DeleteSnapshotIntent",

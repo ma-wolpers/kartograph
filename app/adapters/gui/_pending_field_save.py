@@ -1,6 +1,6 @@
 """Entitätsgebundener Pending-Save-Baustein für Detail-Panel-Felder.
 
-Wird für Namensfelder und das Nachteilsausgleiche-Feld verwendet (s.
+Wird für Namensfelder und das Notizfeld verwendet (s.
 ``_mixin_details.py``), um zu verhindern, dass ein Tischwechsel eine noch
 nicht gespeicherte Eingabe verwirft (historischer Bug: das Nachteils-
 ausgleiche-Feld verließ sich ausschließlich auf ``<FocusOut>``, das beim

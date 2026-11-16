@@ -79,7 +79,7 @@ def _serialize_student(student) -> dict:
         "diagnostic": {
             "symbols": dict(student.diagnostic.symbols),
             "color_tags": list(student.diagnostic.color_tags),
-            "accommodations": list(student.diagnostic.accommodations),
+            "notes": list(student.diagnostic.notes),
         },
     }
 

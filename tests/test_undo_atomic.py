@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 
 from app.application.app_state import AppState
-from app.application.handlers.accommodation_handlers import handle_set_accommodations
+from app.application.handlers.note_handlers import handle_set_notes
 from app.application.handlers.edit_handlers import handle_redo, handle_undo
 from app.application.handlers.grade_handlers import handle_record_grade
 from app.application.handlers.student_handlers import (
@@ -21,7 +21,7 @@ from app.application.handlers.symbol_handlers import (
     handle_record_documentation_symbol,
     handle_toggle_diagnostic_symbol,
 )
-from app.core.intents.accommodation_intents import SetAccommodationsIntent
+from app.core.intents.note_intents import SetNotesIntent
 from app.core.intents.edit_intents import RedoIntent, UndoIntent
 from app.core.intents.grade_intents import RecordGradeIntent
 from app.core.intents.student_intents import DeleteStudentsIntent, RenameStudentIntent, SetNicknameIntent
@@ -154,12 +154,12 @@ def test_typing_a_name_is_one_step_per_person(setup):
 def test_different_text_fields_of_one_person_are_separate_steps(setup):
     ctx, state, first, _, _ = setup
     state = handle_set_nickname(SetNicknameIntent(student_id=first, nickname="Anni"), state, ctx)
-    state = handle_set_accommodations(SetAccommodationsIntent(student_id=first, accommodations=["Zeit"]), state, ctx)
+    state = handle_set_notes(SetNotesIntent(student_id=first, notes=["Zeit"]), state, ctx)
 
     state = _undo(state, ctx)
 
     assert state.current_plan.student_by_id(first).nickname == "Anni"
-    assert state.current_plan.student_by_id(first).diagnostic.accommodations == []
+    assert state.current_plan.student_by_id(first).diagnostic.notes == []
 
 
 def test_undo_and_redo_replace_a_pending_delayed_save(setup):

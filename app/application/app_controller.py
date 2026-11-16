@@ -27,7 +27,7 @@ from app.core.intents.base import Intent
 from app.infrastructure.symbol_config_loader import load_symbol_definitions
 
 # --- Handler-Imports --------------------------------------------------------
-from app.application.handlers.accommodation_handlers import handle_set_accommodations
+from app.application.handlers.note_handlers import handle_set_notes
 from app.application.handlers.color_handlers import handle_toggle_color
 from app.application.handlers.tablegroup_handlers import handle_apply_tablegroup_settings
 from app.application.handlers.custom_symbol_handlers import (
@@ -109,7 +109,7 @@ from app.application.handlers.view_handlers import (
 )
 
 # --- Intent-Imports ---------------------------------------------------------
-from app.core.intents.accommodation_intents import SetAccommodationsIntent
+from app.core.intents.note_intents import SetNotesIntent
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
 from app.core.intents.custom_symbol_intents import (
@@ -397,8 +397,8 @@ class KartographAppController:
         r.register(UpdateCustomSymbolIntent, lambda i, s: handle_update_custom_symbol(i, s, ctx))
         r.register(DeleteCustomSymbolIntent, lambda i, s: handle_delete_custom_symbol(i, s, ctx))
 
-        # Accommodation
-        r.register(SetAccommodationsIntent, lambda i, s: handle_set_accommodations(i, s, ctx))
+        # Notizen
+        r.register(SetNotesIntent, lambda i, s: handle_set_notes(i, s, ctx))
 
         # Snapshot
         r.register(CreateSnapshotIntent,  lambda i, s: handle_create_snapshot(i, s, ctx))

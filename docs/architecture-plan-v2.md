@@ -1085,6 +1085,11 @@ und sind von dieser Phase unberührt — eigener, separater Task.
 
 ## 11. Feature-Erweiterung: Nachteilsausgleiche im Details-Panel
 
+> Stand 2026-11-16: umbenannt in „Notizen“ (`DiagnosticProfile.notes`, JSON `diagnostic.notes`,
+> `SetNotesIntent`, `note_usecases.py`/`note_handlers.py`, Normalisierung in
+> `core/domain/student_notes.py`). Der Alt-Schlüssel `accommodations` wird weiter gelesen.
+> Der folgende Abschnitt ist der historische Planungsstand.
+
 ### 11.1 Anforderung
 
 Im Details-Panel eines Schülers (Editor-Ansicht, Einzelauswahl) sollen neben
