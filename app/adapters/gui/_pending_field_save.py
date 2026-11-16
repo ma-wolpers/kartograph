@@ -10,6 +10,8 @@ für den neuen Schüler neu gerendert wird).
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any, Callable
 
 from app.core.domain.settings import DEFAULT_SAVE_DELAY
@@ -44,13 +46,43 @@ class PendingFieldSave:
         self._apply = apply
         self._pending: tuple[StudentId, Any] | None = None
         self._after_id: str | None = None
+        self._suspend_depth = 0
+
+    @contextmanager
+    def suspended(self) -> Iterator[None]:
+        """Programmatisches Befüllen der Felder zählt in diesem Block nicht als Eingabe.
+
+        Das Details-Panel lädt die gespeicherten Werte über diesen Block in die
+        Felder (``StringVar``-Traces feuern auch dabei). Ohne ihn entstünde ein
+        "ausstehender" Wert, der nur den geladenen Stand wiederholt -- ein Undo
+        kurz danach würde dann von diesem Scheinwert überschrieben. Verschachtelbar.
+        """
+        self._suspend_depth += 1
+        try:
+            yield
+        finally:
+            self._suspend_depth -= 1
+
+    def has_pending_for(self, student_id: StudentId) -> bool:
+        """Gibt an, ob für *student_id* eine noch nicht gespeicherte Eingabe wartet.
+
+        Args:
+            student_id: Die angezeigte Person.
+
+        Returns:
+            ``True``, solange ein Wert dieser Person auf das Speichern wartet.
+        """
+        return self._pending is not None and self._pending[0] == student_id
 
     def note_change(self) -> None:
         """Erfasst den aktuellen Feldwert sofort unter der zugehörigen StudentId.
 
         Gehört ein bereits ausstehender Wert zu einer ANDEREN StudentId, wird
-        er zuerst geflusht, bevor der neue Wert übernommen wird.
+        er zuerst geflusht, bevor der neue Wert übernommen wird. Innerhalb von
+        ``suspended()`` (programmatisches Befüllen) ein No-Op.
         """
+        if self._suspend_depth:
+            return
         captured = self._capture()
         if captured is None:
             return

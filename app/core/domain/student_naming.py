@@ -30,6 +30,22 @@ Leerzeichen enthält ("Anna Lena", "von Berg").
 """
 
 
+def normalize_name_part(text: str) -> str:
+    """Einzige Regel, wie ein eingegebener Namensteil gespeichert wird.
+
+    Gilt für Vorname, Nachname und Spitzname: außen getrimmt, innen
+    unverändert ("Anna Lena" bleibt). Die Usecases speichern damit, das
+    Details-Panel vergleicht damit "Feld zeigt den gespeicherten Stand".
+
+    Args:
+        text: Rohwert aus dem Eingabefeld.
+
+    Returns:
+        Der zu speichernde Namensteil.
+    """
+    return text.strip()
+
+
 def join_name_parts(parts: NameParts) -> str:
     """Setzt die Namensteile zum einzeiligen Anzeigenamen zusammen.
 

@@ -14,6 +14,7 @@ from app.adapters.gui.main_window_constants import (
     NAME_EDITING,
 )
 from app.core.domain.student_id import StudentId
+from app.core.domain.student_naming import normalize_name_part
 from app.core.domain.student_notes import normalize_note_lines
 from app.core.intents.note_intents import SetNotesIntent
 from app.core.intents.student_intents import CreateStudentIntent, RenameStudentIntent, SetNicknameIntent
@@ -37,11 +38,7 @@ class DetailsMixin:
         if not self.current_plan:
             self._set_details_panel_visible(False)
             self._selected_marker_var.set("")
-            self._name_var.set("")
-            self._last_name_var.set("")
-            self.name_entry.configure(state="disabled")
-            self.last_name_entry.configure(state="disabled")
-            self._set_notes_field(None)
+            self._load_detail_fields(None)
             self._refresh_tablegroup_overlay()
             return
 
@@ -63,25 +60,13 @@ class DetailsMixin:
         self._set_details_panel_visible(is_revealed)
 
         if not is_student_single:
-            self._name_var.set("")
-            self._last_name_var.set("")
-            self._nickname_var.set("")
-            self.name_entry.configure(state="disabled")
-            self.last_name_entry.configure(state="disabled")
-            self.nickname_entry.configure(state="disabled")
-            self._set_notes_field(None)
+            self._load_detail_fields(None)
             if self.interaction_mode == NAME_EDITING:
                 self.canvas.focus_set()
             self._refresh_tablegroup_overlay()
             return
 
-        self._name_var.set(student.first_name_official)
-        self._last_name_var.set(student.last_name)
-        self._nickname_var.set(student.nickname)
-        self.name_entry.configure(state="normal")
-        self.last_name_entry.configure(state="normal")
-        self.nickname_entry.configure(state="normal")
-        self._set_notes_field(student)
+        self._load_detail_fields(student)
 
         # Knöpfe bestehen dauerhaft (Neuaufbau nur bei geänderter Menge, s. DetailsButtonsMixin).
         columns = self._details_button_columns()
@@ -333,34 +318,73 @@ class DetailsMixin:
         student = self.current_plan.student_by_id(student_id)
         if not student:
             return
-        if student.first_name_official != values["first_name"] or student.last_name != values["last_name"]:
-            self._controller.dispatch(
-                RenameStudentIntent(
-                    student_id=student_id,
-                    first_name=values["first_name"],
-                    last_name=values["last_name"],
-                )
-            )
-        if student.nickname != values["nickname"]:
-            self._controller.dispatch(SetNicknameIntent(student_id=student_id, nickname=values["nickname"]))
+        first, last, nickname = (normalize_name_part(values[key]) for key in ("first_name", "last_name", "nickname"))
+        if student.first_name_official != first or student.last_name != last:
+            self._controller.dispatch(RenameStudentIntent(student_id=student_id, first_name=first, last_name=last))
+        if student.nickname != nickname:
+            self._controller.dispatch(SetNicknameIntent(student_id=student_id, nickname=nickname))
 
-    def _set_notes_field(self, student) -> None:
-        """Befüllt das Notizfeld oder deaktiviert es bei *student* = None.
+    def _load_detail_fields(self, student) -> None:
+        """Zeigt Namen und Notizen von *student* (``None`` = Felder leeren und sperren).
+
+        Einzige Stelle, die diese Felder programmatisch befüllt. Ein Feld wird nur
+        neu geschrieben, wenn ``_field_needs_reload`` es verlangt -- sonst würde
+        das Speichern während einer Tipp-Pause (Dispatch → ``apply_state`` →
+        Refresh) den gerade bearbeiteten Inhalt durch den normalisierten Stand
+        ersetzen (Leerzeichen am Ende und begonnene Leerzeilen weg, Cursor ans Ende).
 
         Args:
-            student: Anzuzeigender Schüler, oder ``None`` um das Feld zu leeren und zu sperren.
+            student: Anzuzeigender Schüler oder ``None``.
         """
+        student_id = student.student_id if student is not None else None
+        state = "normal" if student is not None else "disabled"
+        name_vars = (self._name_var, self._last_name_var, self._nickname_var)
+        stored_names = (student.first_name_official, student.last_name, student.nickname) if student else ("", "", "")
+        shown_names = tuple(normalize_name_part(var.get()) for var in name_vars)
+        if self._field_needs_reload(student_id, self._name_pending_save, stored_names, shown_names):
+            with self._name_pending_save.suspended():
+                for var, value in zip(name_vars, stored_names):
+                    var.set(value)
+        for entry in (self.name_entry, self.last_name_entry, self.nickname_entry):
+            entry.configure(state=state)
+
+        stored_notes = student.diagnostic.notes if student else []
+        shown_notes = normalize_note_lines(self.notes_field.get().splitlines())
         self.notes_field.text.configure(state="normal")
-        self.notes_field.set("\n".join(student.diagnostic.notes) if student else "")
-        reset_text_modified(self.notes_field.text)  # neu befuellt = unveraendert
-        if student is None:
-            self.notes_field.text.configure(state="disabled")
+        if self._field_needs_reload(student_id, self._notes_pending_save, stored_notes, shown_notes):
+            self.notes_field.set("\n".join(stored_notes))
+            reset_text_modified(self.notes_field.text)  # neu befuellt = unveraendert
+        self.notes_field.text.configure(state=state)
+        self._details_loaded_student_id = student_id
+
+    def _field_needs_reload(self, student_id: StudentId | None, pending, stored, shown) -> bool:
+        """Einzige Regel, ob ein Detail-Feld den gespeicherten Stand neu laden muss.
+
+        Neu laden, wenn eine andere Person angezeigt wird, oder -- ohne wartende
+        Eingabe dieser Person -- wenn der gespeicherte Stand vom normalisierten
+        Feldinhalt abweicht (z. B. nach Undo/Redo). Eine noch nicht gespeicherte
+        Eingabe hat immer Vorrang; sie wird ohnehin gleich gespeichert.
+
+        Args:
+            student_id: Angezeigte Person oder ``None``.
+            pending: ``PendingFieldSave`` des Feldes.
+            stored: Gespeicherter Wert (bereits normalisiert).
+            shown: Feldinhalt, mit derselben Regel normalisiert wie beim Speichern.
+
+        Returns:
+            ``True``, wenn das Feld neu befüllt werden muss.
+        """
+        if student_id != self._details_loaded_student_id:
+            return True
+        if student_id is not None and pending.has_pending_for(student_id):
+            return False
+        return stored != shown
 
     def _on_notes_text_modified(self, _event=None) -> None:
         """Inhaltsaenderung des Notizfeldes (bw-gui ``on_text_modified``).
 
         Feuert bei Tastatureingabe, Paste und Kontextmenue. Das programmatische Neubefuellen in
-        ``_set_notes_field()`` gilt als unveraendert (``reset_text_modified``) und meldet
+        ``_load_detail_fields()`` gilt als unveraendert (``reset_text_modified``) und meldet
         nicht (frueher merkte es harmlos eine Speicherung des unveraenderten Inhalts vor).
         Pruefen und Zuruecksetzen von Tks Modified-Flag erledigt der Contract.
         """

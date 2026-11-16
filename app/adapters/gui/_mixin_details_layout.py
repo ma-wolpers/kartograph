@@ -48,8 +48,8 @@ class DetailsLayoutMixin:
         # Änderungserkennung über trace_add auf den StringVars statt <KeyRelease>:
         # deckt Tippen, Paste und Kontextmenü einheitlich ab, da alle Eingabewege
         # am Ende über die Variable laufen (<KeyRelease> reagiert nicht auf Paste
-        # per Kontextmenü/Maus). Feuert auch beim programmatischen Neubefüllen in
-        # _refresh_details_panel() -- harmlos, s. _apply_name_fields().
+        # per Kontextmenü/Maus). Das programmatische Befüllen in _load_detail_fields()
+        # läuft in PendingFieldSave.suspended() und zählt daher nicht als Eingabe.
         self._name_var.trace_add("write", lambda *_args: self._name_pending_save.note_change())
         self._last_name_var.trace_add("write", lambda *_args: self._name_pending_save.note_change())
         self._nickname_var.trace_add("write", lambda *_args: self._name_pending_save.note_change())
@@ -95,6 +95,7 @@ class DetailsLayoutMixin:
         on_focus_change(self.notes_field.text, on_lost=lambda _change: self._commit_pending_edits())
 
         self._details_panel_visible = True
+        self._details_loaded_student_id = None  # Felder zeigen noch niemanden (s. _field_needs_reload)
 
         self._apply_details_overlay_position()
 

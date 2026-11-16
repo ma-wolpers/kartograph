@@ -17,6 +17,7 @@ from app.core.domain.models_v4 import (
     TeacherSeat,
 )
 from app.core.domain.student_id import StudentId
+from app.core.domain.student_naming import normalize_name_part
 
 
 def create_student(plan: SeatingPlan, x: int, y: int) -> SeatingPlan:
@@ -155,8 +156,8 @@ def rename_student(
     Args:
         plan: Ausgangsplan.
         student_id: ID des Schülers.
-        first_name: Neuer Vorname (wird getrimmt).
-        last_name: Neuer Nachname (wird getrimmt).
+        first_name: Neuer Vorname (über ``normalize_name_part``).
+        last_name: Neuer Nachname (über ``normalize_name_part``).
 
     Returns:
         Neuer Plan mit aktualisiertem Namen.
@@ -165,8 +166,8 @@ def rename_student(
     student = next_plan.classroom.student_by_id(student_id)
     if student is None:
         return next_plan
-    student.first_name_official = first_name.strip()
-    student.last_name = last_name.strip()
+    student.first_name_official = normalize_name_part(first_name)
+    student.last_name = normalize_name_part(last_name)
     return next_plan
 
 
@@ -176,7 +177,7 @@ def set_nickname(plan: SeatingPlan, student_id: StudentId, nickname: str) -> Sea
     Args:
         plan: Ausgangsplan.
         student_id: ID des Schülers.
-        nickname: Neuer Spitzname (wird getrimmt).
+        nickname: Neuer Spitzname (über ``normalize_name_part``).
 
     Returns:
         Neuer Plan mit aktualisiertem Spitznamen.
@@ -185,7 +186,7 @@ def set_nickname(plan: SeatingPlan, student_id: StudentId, nickname: str) -> Sea
     student = next_plan.classroom.student_by_id(student_id)
     if student is None:
         return next_plan
-    student.nickname = nickname.strip()
+    student.nickname = normalize_name_part(nickname)
     return next_plan
 
 
