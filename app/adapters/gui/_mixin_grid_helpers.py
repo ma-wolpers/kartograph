@@ -264,10 +264,6 @@ class GridHelpersMixin:
         """Gibt die Anzahl der Spalten für Symbol- und Farb-Buttons im Details-Panel zurück."""
         return 2 if self.details_overlay_position in {"left", "right"} else 5
 
-    def _details_legend_wraplength(self) -> int:
-        """Gibt die maximale Textbreite für Legende-Labels im Details-Panel zurück."""
-        return 500 if self.details_overlay_position in {"left", "right"} else 980
-
     def _effective_grid_symbols_v4(
         self, student: Student, latest_symbols: dict[str, int], today_session,
     ) -> dict[str, int]:

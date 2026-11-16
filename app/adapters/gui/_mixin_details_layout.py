@@ -1,7 +1,10 @@
 """Details-Panel-Layout-Mixin für das Kartograph-Hauptfenster.
 
 Erstellt alle Widgets des Details-Containers (Statusleiste, Symbol-Shortcuts-Bar,
-Namensformular, Symbols/Farb-Frames) und befüllt die Symbol-Shortcuts-Bar.
+Namensformular, Symbols/Farb-Frames, Notizen) und befüllt die Symbol-Shortcuts-Bar.
+Unter der Kopfzeile liegt alles in einem bw-gui ``ScrollableFrame``; Kürzel-Leiste
+und Namenszeile sind ``FlowFrame``s, die bei schmalem Panel umbrechen -- so bleibt
+jedes Detail erreichbar, egal wie viele Symbole und Legenden Platz brauchen.
 """
 
 from __future__ import annotations
@@ -11,8 +14,8 @@ from app.core.domain.student_notes import NOTES_LABEL
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import on_focus_change, on_text_modified, widgets as tui
-from bw_gui.widgets import WrappedTextField
+from bw_gui.runtime import on_focus_change, on_resize, on_text_modified, widgets as tui
+from bw_gui.widgets import FlowFrame, ScrollableFrame, WrappedTextField
 
 
 class DetailsLayoutMixin:
@@ -35,14 +38,25 @@ class DetailsLayoutMixin:
         tui.Label(self.details_header, textvariable=self.status_var, style="Panel.TLabel").pack(side="left")
         tui.Label(self.details_header, textvariable=self._selected_marker_var, style="Panel.TLabel").pack(side="right")
 
-        self._symbol_shortcuts_bar = tui.Frame(self.details_container, style="Panel.TFrame")
+        # Alles unter der Kopfzeile scrollt (bw-gui-Standard für Bereiche, die über die
+        # verfügbare Höhe wachsen können): viele Symbole/Farben mit Legenden verdrängen
+        # sonst die Notizen. Unten angedockt begrenzt _apply_details_overlay_position die Höhe.
+        self._details_wrap_width = 500  # bis zur ersten Größenmeldung (s. _rewrap_detail_legends)
+        self._details_height_cap: int | None = None  # s. _update_details_height_cap
+        self.details_scroll = ScrollableFrame(self.details_container, style="Panel.TFrame")
+        self.details_scroll.pack(fill="both", expand=True)
+        body = self.details_scroll.content
+        on_resize(body, lambda event: self._rewrap_detail_legends(event.width))
+
+        # Badges brechen um statt rechts abgeschnitten zu werden (seitlich nur 560 px breit).
+        self._symbol_shortcuts_bar = FlowFrame(body, style="Panel.TFrame", gap_x=10, gap_y=2)
         self._symbol_shortcuts_bar.pack(fill="x", padx=12, pady=(3, 2))
         self._build_symbol_shortcuts_bar()
 
-        self.details_frame = tui.Frame(self.details_container)
+        self.details_frame = tui.Frame(body)
         self.details_frame.pack(fill="x", padx=12, pady=(4, 12))
 
-        self.details_form = tui.Frame(self.details_frame, style="Panel.TFrame")
+        self.details_form = FlowFrame(self.details_frame, style="Panel.TFrame", gap_x=16, gap_y=4)
         self.details_form.pack(fill="x", pady=(4, 0))
 
         # Änderungserkennung über trace_add auf den StringVars statt <KeyRelease>:
@@ -54,23 +68,9 @@ class DetailsLayoutMixin:
         self._last_name_var.trace_add("write", lambda *_args: self._name_pending_save.note_change())
         self._nickname_var.trace_add("write", lambda *_args: self._name_pending_save.note_change())
 
-        tui.Label(self.details_form, text="Vorname", style="Panel.TLabel").pack(side="left")
-        self.name_entry = tui.Entry(self.details_form, textvariable=self._name_var, width=20)
-        self.name_entry.pack(side="left", padx=(8, 16))
-        on_focus_change(self.name_entry, on_lost=lambda _change: self._on_name_field_focus_out())
-        self._bind_name_entry_keys(self.name_entry)
-
-        tui.Label(self.details_form, text="Nachname", style="Panel.TLabel").pack(side="left")
-        self.last_name_entry = tui.Entry(self.details_form, textvariable=self._last_name_var, width=20)
-        self.last_name_entry.pack(side="left", padx=(8, 16))
-        on_focus_change(self.last_name_entry, on_lost=lambda _change: self._on_name_field_focus_out())
-        self._bind_name_entry_keys(self.last_name_entry)
-
-        tui.Label(self.details_form, text="Spitzname", style="Panel.TLabel").pack(side="left")
-        self.nickname_entry = tui.Entry(self.details_form, textvariable=self._nickname_var, width=20)
-        self.nickname_entry.pack(side="left", padx=(8, 0))
-        on_focus_change(self.nickname_entry, on_lost=lambda _change: self._on_name_field_focus_out())
-        self._bind_name_entry_keys(self.nickname_entry)
+        self.name_entry = self._add_name_field("Vorname", self._name_var)
+        self.last_name_entry = self._add_name_field("Nachname", self._last_name_var)
+        self.nickname_entry = self._add_name_field("Spitzname", self._nickname_var)
 
         self.symbols_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.symbols_frame.pack(fill="x", pady=(6, 0))
@@ -92,12 +92,38 @@ class DetailsLayoutMixin:
         # Inhaltsaenderung statt Tastenloslassen: deckt auch Paste/Kontextmenue ab
         # (bw-gui on_text_modified prueft und setzt Tks Modified-Flag selbst zurueck).
         on_text_modified(self.notes_field.text, lambda _text: self._on_notes_text_modified())
-        on_focus_change(self.notes_field.text, on_lost=lambda _change: self._commit_pending_edits())
+        on_focus_change(
+            self.notes_field.text,
+            on_gained=lambda _change: self.details_scroll.see_widget(self.notes_frame),
+            on_lost=lambda _change: self._commit_pending_edits(),
+        )
 
         self._details_panel_visible = True
         self._details_loaded_student_id = None  # Felder zeigen noch niemanden (s. _field_needs_reload)
 
+        on_resize(self.editor_view, lambda _event: self._update_details_height_cap())
         self._apply_details_overlay_position()
+
+    def _add_name_field(self, label: str, variable) -> object:
+        """Legt ein Namens-Paar (Beschriftung + Eingabefeld) als Element der Namenszeile an.
+
+        Die Namenszeile ist ein bw-gui ``FlowFrame``: Ist das Panel zu schmal für
+        alle drei Paare, rutscht das nächste Paar in die nächste Zeile.
+
+        Args:
+            label: Beschriftung ("Vorname", "Nachname", "Spitzname").
+            variable: ``StringVar`` des Feldes.
+
+        Returns:
+            Das Eingabefeld (Fokusverlust speichert, Enter/Escape verlassen den Editor).
+        """
+        pair = self.details_form.add(tui.Frame(self.details_form, style="Panel.TFrame"))
+        tui.Label(pair, text=label, style="Panel.TLabel").pack(side="left")
+        entry = tui.Entry(pair, textvariable=variable, width=20)
+        entry.pack(side="left", padx=(8, 0))
+        on_focus_change(entry, on_lost=lambda _change: self._on_name_field_focus_out())
+        self._bind_name_entry_keys(entry)
+        return entry
 
     def _build_symbol_shortcuts_bar(self) -> None:
         """Befüllt die Symbol-Shortcuts-Leiste im Details-Panel neu.
@@ -105,52 +131,30 @@ class DetailsLayoutMixin:
         Zeigt alle Symbole mit definiertem Shortcut als Badge-Labels an.
         Diagnostische Symbole kommen zuerst; Doku-Only-Symbole werden mit
         dem Grad-Suffix ``°`` gekennzeichnet und durch ``|`` abgetrennt.
+        Die Leiste ist ein ``FlowFrame``: Badges brechen bei Platzmangel um.
         """
-        for child in self._symbol_shortcuts_bar.winfo_children():
-            child.destroy()
+        bar = self._symbol_shortcuts_bar
+        bar.clear()
 
         symbols_with_shortcuts = [item for item in self.symbol_definitions if item.shortcut is not None]
         if not symbols_with_shortcuts:
             return
 
-        tui.Label(
-            self._symbol_shortcuts_bar,
-            text="Symbole:",
-            style="Panel.TLabel",
-        ).pack(side="left", padx=(0, 8))
-
+        bar.add(tui.Label(bar, text="Symbole:", style="Panel.TLabel"))
         diagnostic = [s for s in symbols_with_shortcuts if s.role == "diagnostic"]
         doc_only = [s for s in symbols_with_shortcuts if s.role != "diagnostic"]
 
         for item in diagnostic:
             key = item.shortcut.upper()
-            badge = tui.Label(
-                self._symbol_shortcuts_bar,
-                text=f"{item.glyph} {key}",
-                style="Panel.TLabel",
-            )
-            badge.pack(side="left", padx=(0, 10))
+            badge = bar.add(tui.Label(bar, text=f"{item.glyph} {key}", style="Panel.TLabel"))
             self._attach_hover_help(badge, label=f"{item.meaning} – {item.legend_one}", shortcut=key)
 
         if doc_only:
-            tui.Label(
-                self._symbol_shortcuts_bar,
-                text=" |",
-                style="Panel.TLabel",
-            ).pack(side="left", padx=(0, 8))
+            bar.add(tui.Label(bar, text="|", style="Panel.TLabel"))
             for item in doc_only:
                 key = item.shortcut.upper()
-                badge = tui.Label(
-                    self._symbol_shortcuts_bar,
-                    text=f"{item.glyph} {key}°",
-                    style="Panel.TLabel",
-                )
-                badge.pack(side="left", padx=(0, 10))
-                self._attach_hover_help(
-                    badge,
-                    label=f"{item.meaning} (nur Doku) – {item.legend_one}",
-                    shortcut=key,
-                )
+                badge = bar.add(tui.Label(bar, text=f"{item.glyph} {key}°", style="Panel.TLabel"))
+                self._attach_hover_help(badge, label=f"{item.meaning} (nur Doku) – {item.legend_one}", shortcut=key)
 
     def _bind_name_entry_keys(self, entry) -> None:
         """Escape und Enter in einem Namensfeld verlassen den Namenseditor-Modus.

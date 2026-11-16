@@ -10,6 +10,7 @@ from __future__ import annotations
 import dataclasses
 
 from app.adapters.gui.laufkern_manifest_provider import build_runtime_shortcut_manifest
+from app.adapters.gui.main_window_constants import DETAILS_BOTTOM_MAX_SHARE, DETAILS_BOTTOM_MIN_HEIGHT
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.intents.view_intents import UpdateSettingsIntent
 from bw_libs.ui_contract.keybinding import (
@@ -232,17 +233,36 @@ class LaufkernMixin:
             self.details_container.pack_propagate(False)
             self.details_container.pack(side="left", fill="y", padx=(12, 8), pady=(0, 8))
             self.grid_stack.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=(0, 8))
-            return
-        if position == "right":
+        elif position == "right":
             self.details_container.configure(width=560)
             self.details_container.pack_propagate(False)
             self.grid_stack.pack(side="left", fill="both", expand=True, padx=(12, 8), pady=(0, 8))
             self.details_container.pack(side="left", fill="y", padx=(0, 12), pady=(0, 8))
-            return
+        else:
+            # Unten: das Panel zuerst (side="bottom") packen, damit bei Platzmangel das Raster
+            # schrumpft statt das Panel; seine Höhe begrenzt _update_details_height_cap.
+            self.details_container.pack_propagate(True)
+            self.details_container.pack(side="bottom", fill="x", padx=12, pady=(8, 12))
+            self.grid_stack.pack(fill="both", expand=True, padx=12, pady=(0, 0))
+        self._update_details_height_cap()
 
-        self.details_container.pack_propagate(True)
-        self.grid_stack.pack(fill="both", expand=True, padx=12, pady=(0, 0))
-        self.details_container.pack(fill="x", padx=12, pady=(8, 12))
+    def _update_details_height_cap(self) -> None:
+        """Einzige Regel für die Höhe des Details-Panels.
+
+        Seitlich angedockt füllt es die Fensterhöhe (keine Grenze, der Inhalt scrollt).
+        Unten angedockt ist es so hoch wie sein Inhalt, höchstens
+        ``DETAILS_BOTTOM_MAX_SHARE`` der Editorhöhe (mindestens
+        ``DETAILS_BOTTOM_MIN_HEIGHT``) -- darüber scrollt es, das Raster bleibt sichtbar.
+        Läuft bei Positionswechsel und jeder Größenänderung des Editors.
+        """
+        if not hasattr(self, "details_scroll"):
+            return
+        cap = None
+        if self.details_overlay_position not in {"left", "right"}:
+            cap = max(DETAILS_BOTTOM_MIN_HEIGHT, int(self.editor_view.winfo_height() * DETAILS_BOTTOM_MAX_SHARE))
+        if cap != self._details_height_cap:
+            self._details_height_cap = cap
+            self.details_scroll.set_height_cap(cap)
 
     def _on_details_overlay_position_changed(self) -> None:
         """Speichert die neue Details-Overlay-Position und ordnet die Widgets neu an."""

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.adapters.gui.main_window_constants import DETAILS_LEGEND_MARGIN, DETAILS_LEGEND_MIN_WRAP
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -89,8 +90,26 @@ class DetailsButtonsMixin:
         for child in frame.winfo_children():
             child.destroy()
         for line in lines:
-            tui.Label(frame, text=line, wraplength=self._details_legend_wraplength(), justify="left").pack(anchor="w")
+            tui.Label(frame, text=line, wraplength=self._details_wrap_width, justify="left").pack(anchor="w")
         self._legend_lines[key] = list(lines)
+
+    def _rewrap_detail_legends(self, content_width: int) -> None:
+        """Einzige Regel für die Umbruchbreite der Legenden: Breite des Panel-Inhalts.
+
+        Läuft bei jeder Größenänderung des scrollenden Panel-Inhalts (``on_resize``),
+        auch beim Wechsel der Andock-Position. Vorher galten feste Breiten (500/980 px),
+        die unten angedockt in schmalen Fenstern rechts abgeschnitten wurden.
+
+        Args:
+            content_width: Aktuelle Breite des Panel-Inhalts in Pixeln.
+        """
+        wrap = max(DETAILS_LEGEND_MIN_WRAP, int(content_width) - DETAILS_LEGEND_MARGIN)
+        if wrap == self._details_wrap_width:
+            return
+        self._details_wrap_width = wrap
+        for frame in (self.symbol_legend_frame, self.color_legend_frame):
+            for label in frame.winfo_children():
+                label.configure(wraplength=wrap)
 
     def _set_widget_options(self, widget: Any, **options: Any) -> None:
         """``configure`` nur mit den Optionen, deren Wert sich seit dem letzten Setzen geändert hat.

@@ -28,6 +28,13 @@ MAX_SITZPLAN_POPUP_DELAY = 30
 # Zeitfenster, in dem bei einem harten Absturz noch nicht gespeicherte
 # Aenderungen verloren gehen koennten.
 RECOMMENDED_MAX_SAVE_DELAY = 10.0
+# Details-Panel: unten angedockt hoechstens dieser Anteil der Editorhoehe (mindestens
+# DETAILS_BOTTOM_MIN_HEIGHT px), darueber scrollt es; Legenden brechen bei der
+# Inhaltsbreite minus DETAILS_LEGEND_MARGIN um, nie schmaler als DETAILS_LEGEND_MIN_WRAP.
+DETAILS_BOTTOM_MAX_SHARE = 0.4
+DETAILS_BOTTOM_MIN_HEIGHT = 120
+DETAILS_LEGEND_MARGIN = 32
+DETAILS_LEGEND_MIN_WRAP = 200
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
