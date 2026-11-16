@@ -11,6 +11,7 @@ from pathlib import Path
 from app.adapters.gui._local_keys import ENTER, ESCAPE, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import filedialog, messagebox
 from app.core.domain.grade_display_mode import DEFAULT_GRADE_DISPLAY_MODE, GRADE_DISPLAY_MODES
+from app.core.domain.pdf_view_mode import PDF_VIEW_MODES
 from app.core.domain.seat_orientation import ORIENTATION_MODES, TEACHER_BOTTOM
 from app.core.intents.view_intents import ExportPdfIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -24,23 +25,26 @@ from bw_gui.widgets import Checkbox, RadioGroup
 class PdfMixin:
     """Mixin: Konfigurationsdialog für den PDF-Export eines Sitzplans."""
 
-    def _build_orientation_radios(self, container: ui.Widget, variable: ui.StringVar) -> ui.Widget:
+    def _build_orientation_radios(
+        self, container: ui.Widget, variable: ui.StringVar, options: tuple[tuple[str, str], ...] = ORIENTATION_MODES
+    ) -> ui.Widget:
         """Baut den Abschnitt "Ansicht wählen" als bw-gui ``RadioGroup``.
 
         Gemeinsamer Baustein für den PDF-Export-Dialog und den
-        Sitzplan-Vorschau-Dialog: Schlüssel und Labels kommen ausschließlich
-        aus ``seat_orientation.ORIENTATION_MODES``, damit beide Dialoge
-        dieselben Ansichten mit denselben Texten anbieten. Die Vorbelegung
+        Sitzplan-Vorschau-Dialog: Die Vorschau bietet ``ORIENTATION_MODES``,
+        der PDF-Export ``PDF_VIEW_MODES`` (dieselben Einträge plus "beide auf
+        einer Seite"), sodass gleiche Ansichten gleich heißen. Die Vorbelegung
         bestimmt der Aufrufer über den Startwert von *variable*.
 
         Args:
             container: Eltern-Widget, in das die Gruppe gepackt wird.
             variable: ``StringVar``, die den gewählten Ansicht-Schlüssel hält.
+            options: ``(Schlüssel, Label)``-Paare, Standard ``ORIENTATION_MODES``.
 
         Returns:
             Den ersten Radiobutton, damit der Aufrufer ihn fokussieren kann.
         """
-        group = RadioGroup(container, title="Ansicht wählen", options=ORIENTATION_MODES, variable=variable)
+        group = RadioGroup(container, title="Ansicht wählen", options=options, variable=variable)
         group.pack(anchor="w", pady=(0, 10))
         return group.first_button
 
@@ -48,7 +52,7 @@ class PdfMixin:
         """Öffnet den PDF-Export-Dialog und exportiert den aktuellen Plan bei Bestätigung.
 
         Konfigurierbare Optionen:
-        - Perspektive (Lehrertisch unten / oben)
+        - Ansicht (Lehrertisch unten / oben / beide auf einer A4-Seite)
         - Notenansicht (keine / nur Gesamtnote / inkl. Klammernoten)
         - Welche Symbole exportiert werden (nur tatsächlich vorhandene)
         - Farbpunkte und Legendenseite ein-/ausblenden
@@ -57,7 +61,7 @@ class PdfMixin:
             self.status_var.set("Kein Plan geöffnet")
             return
 
-        dialog = self._create_overlay_dialog("PDF exportieren", "520x680")
+        dialog = self._create_overlay_dialog("PDF exportieren", "560x710")
         container = tui.Frame(dialog)
         container.pack(fill="both", expand=True, padx=12, pady=12)
 
@@ -68,7 +72,7 @@ class PdfMixin:
         available_symbols = self._collect_export_symbols(self.current_plan)
         symbol_vars: dict[str, ui.BooleanVar] = {}
 
-        first_mode_button = self._build_orientation_radios(container, mode_var)
+        first_mode_button = self._build_orientation_radios(container, mode_var, PDF_VIEW_MODES)
 
         RadioGroup(container, title="Noten", variable=grade_mode_var, options=GRADE_DISPLAY_MODES).pack(
             anchor="w", pady=(0, 10)

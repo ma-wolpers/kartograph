@@ -75,6 +75,24 @@ def is_orientation_mode(mode: str) -> bool:
     return any(key == mode for key, _label in ORIENTATION_MODES)
 
 
+def orientation_label(mode: str) -> str:
+    """Gibt das Label des Ansicht-Schlüssels *mode* aus ``ORIENTATION_MODES`` zurück.
+
+    Args:
+        mode: Bekannter Ansicht-Schlüssel.
+
+    Returns:
+        Das Dialog-Label, z. B. ``"Lehrertisch unten"``.
+
+    Raises:
+        ValueError: *mode* ist kein bekannter Schlüssel.
+    """
+    for key, label in ORIENTATION_MODES:
+        if key == mode:
+            return label
+    raise ValueError(f"Unbekannte Ansicht: {mode!r}")
+
+
 def orient_point(x: float, y: float, mode: str) -> Point:
     """Dreht einen Weltpunkt gemäß Ansicht.
 
