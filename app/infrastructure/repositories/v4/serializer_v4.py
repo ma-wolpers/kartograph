@@ -70,7 +70,7 @@ def _serialize_student(student) -> dict:
     Args:
         student: Zu serialisierender Schüler.
     """
-    return {
+    payload = {
         "student_id": str(student.student_id),
         "first_name": student.first_name_official,
         "nickname": student.nickname,
@@ -82,6 +82,9 @@ def _serialize_student(student) -> dict:
             "notes": list(student.diagnostic.notes),
         },
     }
+    if student.permanently_absent:  # nur gesetzt geschrieben: Dateien ohne Markierung bleiben unverändert
+        payload["permanently_absent"] = True
+    return payload
 
 
 def _serialize_tablegroups(plan: SeatingPlan) -> list:

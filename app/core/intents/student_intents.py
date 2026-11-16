@@ -59,3 +59,11 @@ class SetTeacherSeatIntent(Intent):
 
     x: int
     y: int
+
+
+@dataclass(frozen=True)
+class SetPermanentlyAbsentIntent(Intent):
+    """Markiert eine Person als dauerhaft abwesend (*absent* = True) oder hebt die Markierung auf."""
+
+    student_id: StudentId
+    absent: bool

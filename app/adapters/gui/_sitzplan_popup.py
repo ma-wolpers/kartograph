@@ -12,6 +12,7 @@ from __future__ import annotations
 from app.adapters.gui.ui_theme import kartograph_theme
 from app.core.domain.color_order import PaletteEntryTuple, palette_by_key, palette_order
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.permanent_absence import active_students, apply_export_visibility
 from app.core.domain.preview_color_frames import PreviewOptions, frame_colors_outer_to_inner, frame_rings
 from app.core.domain.seat_orientation import orient_geometries, world_bounds
 from app.core.domain.student_naming import compute_display_name_parts, fit_name_to_width
@@ -103,7 +104,9 @@ class SitzplanPopup:
         self._name_format = name_format
         self._disambiguate = disambiguate
         self._display_name_parts = (
-            compute_display_name_parts(plan.classroom.students, name_format, disambiguate) if plan is not None else {}
+            compute_display_name_parts(active_students(plan.classroom.students), name_format, disambiguate)
+            if plan is not None
+            else {}
         )
         self._canvas.configure(bg=kartograph_theme(theme_key)["bg_main"])
         self._redraw()
@@ -119,7 +122,8 @@ class SitzplanPopup:
             return
 
         theme = kartograph_theme(self._theme_key)
-        items = orient_geometries(build_seat_geometries_v4(self._plan), self._options.orientation)
+        geometries = apply_export_visibility(self._plan, build_seat_geometries_v4(self._plan))
+        items = orient_geometries(geometries, self._options.orientation)
         if not items:
             return
         bounds = world_bounds(item.polygon for item in items)

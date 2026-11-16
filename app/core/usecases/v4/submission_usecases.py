@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Iterable, Literal, Mapping
 
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.permanent_absence import is_active
 from app.core.domain.student_id import StudentId
 from app.core.domain.submission_status import SubmissionStatus
 from app.core.usecases.v4._shared import _normalize_doc_date
@@ -129,7 +130,7 @@ def apply_missing_submissions(
     already_rated = set(rated_statuses(next_plan, date, names)) if mode == "complement" else set()
     submitted_ids = set(submitted)
     for student in next_plan.classroom.students:
-        if not student.is_named() or student.student_id in already_rated:
+        if not is_active(student) or student.student_id in already_rated:
             continue
         if mode == "replace":
             for status in SubmissionStatus:

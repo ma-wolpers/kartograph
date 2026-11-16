@@ -25,6 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.core.domain.models_v4 import SeatingPlan, Student
+from app.core.domain.permanent_absence import active_students
 from app.core.domain.student_id import StudentId
 from app.core.domain.student_naming import compute_display_names
 from app.core.usecases.v4.tablegroup_usecases import normalize_tablegroups
@@ -138,7 +139,8 @@ def build_namenfit_rows(
     teilen — es entstehen dadurch keine falschen Nachbarschaften.
 
     Args:
-        plan: Sitzplan, dessen benannte Schüler exportiert werden sollen.
+        plan: Sitzplan, dessen mitzählende Schüler (``permanent_absence.active_students``:
+            benannt, nicht dauerhaft abwesend) exportiert werden sollen.
             Wird intern über ``normalize_tablegroups()`` normalisiert; der
             übergebene Plan selbst bleibt unverändert.
         name_format: Eines der ``NAME_FORMAT_OPTIONS`` aus ``settings.py``.
@@ -158,13 +160,15 @@ def build_namenfit_rows(
             Anzeigenamen hätten (auch nach Eindeutigkeits-Auflösung).
     """
     export_plan = normalize_tablegroups(plan)
-    named_students = [s for s in export_plan.classroom.students if s.is_named()]
+    named_students = active_students(export_plan.classroom.students)
 
     group_number_by_student_id = _resolve_group_numbers(export_plan, named_students)
     display_names = compute_display_names(named_students, name_format, disambiguate_colliding_names)
     _check_display_names_unique(display_names)
 
-    groups_sorted = sorted(export_plan.tablegroups, key=lambda g: g.group_id)
+    # Gruppen nur aus dauerhaft Abwesenden ergeben keinen (leeren) Block.
+    used_group_ids = set(group_number_by_student_id.values())
+    groups_sorted = sorted((g for g in export_plan.tablegroups if g.group_id in used_group_ids), key=lambda g: g.group_id)
 
     total_rows = 0
     blocks: list[tuple[int, int, int, int, int]] = []  # (group_id, col_offset, width, min_x, min_y)

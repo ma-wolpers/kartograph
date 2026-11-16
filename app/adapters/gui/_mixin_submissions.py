@@ -17,6 +17,7 @@ from pathlib import Path
 from app.adapters.gui._mappenblick_viewer import SubmissionArchive, open_viewer_window
 from app.adapters.gui.dialog_services import filedialog, messagebox
 from app.core.domain.models_v4 import Student
+from app.core.domain.permanent_absence import active_students
 from app.core.domain.student_id import StudentId
 from app.core.domain.submission_matching import MatchResult, match_submission_folders
 from app.core.domain.submission_status import (
@@ -118,7 +119,7 @@ class SubmissionsMixin:
             existing: Bereits eingetragene Status des Tages.
             mode: ``"replace"`` oder ``"complement"``.
         """
-        students = {s.student_id: s for s in self.current_plan.classroom.students if s.is_named()}
+        students = {s.student_id: s for s in active_students(self.current_plan.classroom.students)}
         sid_by_label = _unique_labels(students)
         absent_ids = self._absent_student_ids(date)
         dialog = self._create_overlay_dialog(f"Abgaben zählen – {date}", "620x560")

@@ -87,6 +87,7 @@ from app.application.handlers.student_handlers import (
     handle_move_student,
     handle_rename_student,
     handle_set_nickname,
+    handle_set_permanently_absent,
     handle_set_teacher_seat,
 )
 from app.application.handlers.participation_handlers import handle_set_participation_rating
@@ -167,6 +168,7 @@ from app.core.intents.student_intents import (
     MoveStudentIntent,
     RenameStudentIntent,
     SetNicknameIntent,
+    SetPermanentlyAbsentIntent,
     SetTeacherSeatIntent,
 )
 from app.core.intents.symbol_intents import (
@@ -380,6 +382,7 @@ class KartographAppController:
         r.register(SetNicknameIntent,    lambda i, s: handle_set_nickname(i, s, ctx))
         r.register(DeleteStudentsIntent, lambda i, s: handle_delete_students(i, s, ctx))
         r.register(SetTeacherSeatIntent, lambda i, s: handle_set_teacher_seat(i, s, ctx))
+        r.register(SetPermanentlyAbsentIntent, lambda i, s: handle_set_permanently_absent(i, s, ctx))
 
         # Symbol
         r.register(ToggleDiagnosticSymbolIntent,    lambda i, s: handle_toggle_diagnostic_symbol(i, s, ctx))

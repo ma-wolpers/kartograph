@@ -174,6 +174,7 @@ def _deserialize_student(raw: dict) -> Student:
         seat=seat,
         nickname=str(raw.get("nickname") or "").strip(),
         diagnostic=diagnostic,
+        permanently_absent=raw.get("permanently_absent") is True,
     )
 
 

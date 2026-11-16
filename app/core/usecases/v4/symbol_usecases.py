@@ -9,6 +9,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.permanent_absence import accepts_entries
 from app.core.domain.student_id import StudentId
 from app.core.domain.symbol_toggle import next_symbol_toggle_strength
 from app.core.usecases.v4._shared import _normalize_doc_date
@@ -33,7 +34,7 @@ def toggle_diagnostic_symbol(
         Neuer Plan mit dem aktualisierten Symbolzähler; bei unbekannter ID unverändert.
     """
     student = plan.classroom.student_by_id(student_id)
-    if student is None:
+    if student is None or not accepts_entries(student):
         return deepcopy(plan)
     current = int(student.diagnostic.symbols.get(symbol, 0))
     next_count = next_symbol_toggle_strength(current, is_diagnostic=True)
@@ -102,7 +103,7 @@ def apply_symbol_strength_in_place(
         strength: Neue Stärke (0 = löschen, 1–3 = setzen).
     """
     student = plan.classroom.student_by_id(student_id)
-    if student is None or not student.is_named():
+    if student is None or not accepts_entries(student):
         return
     session = plan.documentation.session_for_date(_normalize_doc_date(date))
     if session is None:

@@ -17,6 +17,7 @@ from app.core.domain.grade_display_mode import (
 )
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.pdf_view_mode import is_pdf_view_mode, orientations_for
+from app.core.domain.permanent_absence import active_students, apply_export_visibility
 from app.core.domain.seat_orientation import orient_geometries, orientation_label, world_bounds
 from app.core.domain.settings import DEFAULT_NAME_FORMAT
 from app.core.domain.student_naming import compute_display_names
@@ -134,7 +135,7 @@ class PdfSeatingPlanExporter:
             raise ValueError("Unbekannter Notenmodus")
 
         export_plan = normalize_tablegroups(plan)
-        geometries = build_seat_geometries_v4(export_plan)
+        geometries = apply_export_visibility(export_plan, build_seat_geometries_v4(export_plan))
         if not geometries:
             raise ValueError("Plan enthaelt keine Tische")
 
@@ -155,7 +156,9 @@ class PdfSeatingPlanExporter:
         context = _DeskContext(
             colors, pdfmetrics, export_plan, grade_mode, visible_symbols, include_color_markers,
             used_symbol_levels={}, used_colors=set(),
-            display_names=compute_display_names(export_plan.classroom.students, name_format, disambiguate_colliding_names),
+            display_names=compute_display_names(
+                active_students(export_plan.classroom.students), name_format, disambiguate_colliding_names
+            ),
         )
         for orientation, area in zip(orientations, areas):
             title = f"Sitzplan: {export_plan.meta.name}"

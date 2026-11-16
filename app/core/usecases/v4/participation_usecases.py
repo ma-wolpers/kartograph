@@ -11,6 +11,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from app.core.domain.models_v4 import ParticipationRating, SeatingPlan
+from app.core.domain.permanent_absence import accepts_entries
 from app.core.domain.student_id import StudentId
 from app.core.usecases.v4._shared import _normalize_doc_date
 from app.core.usecases.v4.session_usecases import ensure_session
@@ -38,7 +39,7 @@ def set_participation_rating(
         Neuer Plan mit der aktualisierten Bewertung.
     """
     student = plan.classroom.student_by_id(student_id)
-    if student is None or not student.is_named():
+    if student is None or not accepts_entries(student):
         return deepcopy(plan)
 
     next_plan = ensure_session(plan, date)

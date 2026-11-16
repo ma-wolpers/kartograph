@@ -12,6 +12,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from app.core.domain.models_v4 import PaletteEntry, SeatingPlan
+from app.core.domain.permanent_absence import accepts_entries
 from app.core.domain.student_id import StudentId
 
 
@@ -89,7 +90,7 @@ def toggle_color_tag(
     """
     next_plan = deepcopy(plan)
     student = next_plan.classroom.student_by_id(student_id)
-    if student is None:
+    if student is None or not accepts_entries(student):
         return next_plan
 
     tags = student.diagnostic.color_tags

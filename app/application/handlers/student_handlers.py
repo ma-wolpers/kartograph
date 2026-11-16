@@ -11,6 +11,7 @@ from app.core.intents.student_intents import (
     MoveStudentIntent,
     RenameStudentIntent,
     SetNicknameIntent,
+    SetPermanentlyAbsentIntent,
     SetTeacherSeatIntent,
 )
 from app.core.usecases.v4.student_usecases import (
@@ -20,6 +21,7 @@ from app.core.usecases.v4.student_usecases import (
     move_teacher_seat,
     rename_student,
     set_nickname,
+    set_permanently_absent,
 )
 
 
@@ -104,4 +106,19 @@ def handle_set_teacher_seat(intent: SetTeacherSeatIntent, state: AppState, ctx: 
         ctx: Handler-Kontext (Repository, History).
     """
     next_plan = move_teacher_seat(state.current_plan, intent.x, intent.y)
+    return _commit_plan_change(state, ctx, next_plan)
+
+
+@requires_open_plan
+def handle_set_permanently_absent(
+    intent: SetPermanentlyAbsentIntent, state: AppState, ctx: HandlerContext
+) -> AppState:
+    """Setzt oder hebt die Markierung "dauerhaft abwesend" auf, als ein Undo-Schritt.
+
+    Args:
+        intent: Schüler-ID und gewünschter Zustand.
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository, History).
+    """
+    next_plan = set_permanently_absent(state.current_plan, intent.student_id, intent.absent)
     return _commit_plan_change(state, ctx, next_plan)

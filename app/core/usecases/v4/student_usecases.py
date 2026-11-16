@@ -168,6 +168,7 @@ def rename_student(
         return next_plan
     student.first_name_official = normalize_name_part(first_name)
     student.last_name = normalize_name_part(last_name)
+    _clear_absence_of_unnamed(student)
     return next_plan
 
 
@@ -187,7 +188,41 @@ def set_nickname(plan: SeatingPlan, student_id: StudentId, nickname: str) -> Sea
     if student is None:
         return next_plan
     student.nickname = normalize_name_part(nickname)
+    _clear_absence_of_unnamed(student)
     return next_plan
+
+
+def set_permanently_absent(plan: SeatingPlan, student_id: StudentId, absent: bool) -> SeatingPlan:
+    """Markiert eine Person als dauerhaft abwesend oder hebt die Markierung auf.
+
+    Nur benannte Personen lassen sich markieren (ein leerer Tisch kann nicht
+    abwesend sein); Aufheben geht immer. Folgen der Markierung regelt
+    ``core/domain/permanent_absence.py``.
+
+    Args:
+        plan: Ausgangsplan.
+        student_id: ID der Person.
+        absent: ``True`` markiert, ``False`` hebt auf.
+
+    Returns:
+        Neuer Plan (unverändert, wenn die Person fehlt oder unbenannt ist).
+    """
+    next_plan = deepcopy(plan)
+    student = next_plan.classroom.student_by_id(student_id)
+    if student is None or (absent and not student.is_named()):
+        return next_plan
+    student.permanently_absent = absent
+    return next_plan
+
+
+def _clear_absence_of_unnamed(student: Student) -> None:
+    """Ein Tisch ohne Namen ist keine abwesende Person: Markierung fällt mit dem Namen weg.
+
+    Args:
+        student: Gerade umbenannte Person (Plankopie, wird verändert).
+    """
+    if not student.is_named():
+        student.permanently_absent = False
 
 
 def move_teacher_seat(plan: SeatingPlan, new_x: int, new_y: int) -> SeatingPlan:

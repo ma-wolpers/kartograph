@@ -11,6 +11,7 @@ import dataclasses
 from app.adapters.gui._local_keys import ENTER, ESCAPE, bind_action, dialog_keys
 from app.adapters.gui.main_window_constants import DEFAULT_PERIODIC_BACKUP_INTERVAL_MS
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.permanent_absence import is_active
 from app.core.intents.view_intents import UpdateSettingsIntent
 from app.core.usecases.v4.symbol_usecases import summarize_latest_symbols
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -38,7 +39,7 @@ class ExportMixin:
         diagnostic_names = set(self.diagnostic_symbol_catalog)
         seen: set[str] = set()
         for student in plan.classroom.students:
-            if not student.is_named():
+            if not is_active(student):  # dauerhaft Abwesende erscheinen nicht im PDF
                 continue
             summary = summarize_latest_symbols(plan, student.student_id)
             source = summary if summary else student.diagnostic.symbols

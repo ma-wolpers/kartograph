@@ -13,6 +13,7 @@ import zipfile
 from pathlib import Path
 
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.permanent_absence import active_students, apply_export_visibility
 from app.core.domain.student_png_export import StudentPngExportError, build_student_png_filenames
 from app.core.domain.table_groups import build_seat_geometries_v4
 from app.core.usecases.v4.tablegroup_usecases import normalize_tablegroups
@@ -23,7 +24,8 @@ def export_student_pngs_zip(plan: SeatingPlan, output_path: Path) -> int:
     """Exportiert für jeden benannten Schüler eine transparente PNG-Miniaturkarte in ein ZIP-Archiv.
 
     Ablauf: ``normalize_tablegroups()`` -> ``build_seat_geometries_v4()`` ->
-    Filter auf ``is_named()`` -> ``StudentPngExportError`` falls leer ->
+    Filter auf ``permanent_absence.is_active`` (benannt, nicht dauerhaft abwesend; deren Tische
+    leer oder weggelassen nach ``apply_export_visibility``) -> ``StudentPngExportError`` falls leer ->
     ``build_geometry_transform()`` (einmal für den ganzen Export) ->
     ``build_student_png_filenames()`` -> pro Schüler ``render_student_png()``
     -> Eintrag ins ZIP.
@@ -55,8 +57,8 @@ def export_student_pngs_zip(plan: SeatingPlan, output_path: Path) -> int:
         OSError: Bei Schreibfehlern.
     """
     export_plan = normalize_tablegroups(plan)
-    geometries = build_seat_geometries_v4(export_plan)
-    named_students = [g.student for g in geometries if g.student is not None and g.student.is_named()]
+    geometries = apply_export_visibility(export_plan, build_seat_geometries_v4(export_plan))
+    named_students = active_students(g.student for g in geometries if g.student is not None)
     if not named_students:
         raise StudentPngExportError("Plan enthaelt keine benannten Schueler, PNG-Export abgebrochen.")
 

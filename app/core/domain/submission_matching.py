@@ -18,6 +18,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Protocol
 
+from app.core.domain.permanent_absence import is_active
 from app.core.domain.student_id import StudentId
 
 # Vor der Akzent-Entfernung, damit "Müller" und "Mueller" gleich werden.
@@ -32,6 +33,7 @@ class _Student(Protocol):
     first_name_official: str
     last_name: str
     nickname: str
+    permanently_absent: bool
 
     def is_named(self) -> bool:
         """Ob die Person einen Namen hat (leere Tische zählen nicht)."""
@@ -97,12 +99,13 @@ def match_submission_folders(folders: Iterable[str], students: Iterable[_Student
 
     Args:
         folders: Unterordnernamen der ZIP.
-        students: Schüler:innen des Plans (unbenannte werden ignoriert).
+        students: Schüler:innen des Plans (nur mitzählende, s. ``permanent_absence.is_active``:
+            unbenannte und dauerhaft abwesende werden ignoriert).
 
     Returns:
         Das :class:`MatchResult`.
     """
-    named = [s for s in students if s.is_named()]
+    named = [s for s in students if is_active(s)]
     candidates: dict[str, tuple[StudentId, ...]] = {}
     unknown: list[str] = []
     for folder in folders:

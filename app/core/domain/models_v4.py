@@ -81,7 +81,11 @@ class DiagnosticProfile:
 
 @dataclass(slots=True)
 class Student:
-    """Ein Schüler mit stabiler ID, Sitzplatz und Diagnoseprofil."""
+    """Ein Schüler mit stabiler ID, Sitzplatz und Diagnoseprofil.
+
+    ``permanently_absent`` markiert eine Person als dauerhaft abwesend (umkehrbar);
+    was daraus folgt, entscheidet allein ``app/core/domain/permanent_absence.py``.
+    """
 
     student_id: StudentId
     first_name_official: str
@@ -89,6 +93,7 @@ class Student:
     seat: Seat
     nickname: str = ""
     diagnostic: DiagnosticProfile = field(default_factory=DiagnosticProfile)
+    permanently_absent: bool = False
 
     @property
     def first_name(self) -> str:

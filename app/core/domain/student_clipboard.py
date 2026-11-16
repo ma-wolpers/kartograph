@@ -242,6 +242,7 @@ class StudentClipboard:
                 clone.nickname = source.nickname
                 clone.last_name = source.last_name
                 clone.diagnostic = deepcopy(source.diagnostic)
+                clone.permanently_absent = source.permanently_absent
                 pasted += 1
 
         return next_plan, pasted, teacher_conflict

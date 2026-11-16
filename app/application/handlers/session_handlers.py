@@ -8,6 +8,7 @@ from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import _commit_plan_change, requires_open_plan
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.permanent_absence import accepts_entries
 from app.core.domain.student_id import StudentId
 from app.core.intents.session_intents import (
     AddSessionIntent,
@@ -42,6 +43,9 @@ def _clear_entry(plan: SeatingPlan, student_id: StudentId, target_date: str) -> 
         target_date: Datum (YYYY-MM-DD) der Session.
     """
     next_plan = deepcopy(plan)
+    student = next_plan.classroom.student_by_id(student_id)
+    if student is not None and not accepts_entries(student):  # dauerhaft abwesend: gesperrt
+        return next_plan
     session = next_plan.documentation.session_for_date(target_date)
     if session is not None:
         session.entries.pop(student_id, None)
