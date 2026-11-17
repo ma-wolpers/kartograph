@@ -52,6 +52,7 @@ class ShortcutMixin:
             UiIntent.DELETE_DESK: lambda: self.delete_selected_desk(),
             UiIntent.SET_TEACHER_DESK: lambda: self.set_selected_as_teacher_desk(),
             UiIntent.ADD_SYMBOL: lambda: self.add_symbol_to_selected_desk_dialog(),
+            UiIntent.TOGGLE_PERMANENT_ABSENCE: lambda: self.set_selected_permanent_absence(None),
             UiIntent.OPEN_TABLEGROUP_SETTINGS: lambda: self.open_tablegroup_settings_overlay(),
             UiIntent.GRID_SYMBOL_FILTER: lambda: self.open_grid_symbol_filter_dialog(),
             UiIntent.MANAGE_SYMBOLS: lambda: self.open_symbol_management_dialog(),

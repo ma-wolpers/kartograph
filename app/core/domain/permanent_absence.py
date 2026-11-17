@@ -31,6 +31,17 @@ UNMARK_ABSENT_LABEL = "Markierung „dauerhaft abwesend“ aufheben"
 LOCKED_MESSAGE = "Dauerhaft abwesend – erst die Markierung aufheben"
 
 
+def is_permanently_absent(student: Student) -> bool:
+    """Ist *student* eine benannte, dauerhaft abwesend markierte Person?
+
+    Für die Darstellung (ausgegrauter Tisch, Häkchen); ein leerer Tisch ist nie abwesend.
+
+    Args:
+        student: Zu prüfender Schülertisch.
+    """
+    return student.is_named() and student.permanently_absent
+
+
 def is_active(student: Student) -> bool:
     """Zählt *student* für Exporte und Sammelaktionen mit?
 
@@ -40,19 +51,22 @@ def is_active(student: Student) -> bool:
     Returns:
         ``True`` für benannte, nicht dauerhaft abwesende Personen.
     """
-    return student.is_named() and not student.permanently_absent
+    return student.is_named() and not is_permanently_absent(student)
 
 
 def accepts_entries(student: Student) -> bool:
-    """Darf *student* neue Einträge (Doku, Noten, Mitarbeit, Symbole, Farben) bekommen?
+    """Ist *student* für Einträge (Doku, Noten, Mitarbeit, Symbole, Farben) freigegeben?
+
+    Nur die Sperre durch dauerhafte Abwesenheit; was ein leerer Tisch darf,
+    regeln die bestehenden ``is_named()``-Prüfungen der Usecases unverändert.
 
     Args:
         student: Zu prüfende Person.
 
     Returns:
-        ``True`` wie bei ``is_active`` -- gesperrt sind leere Tische und dauerhaft Abwesende.
+        ``False`` genau für dauerhaft Abwesende.
     """
-    return is_active(student)
+    return not is_permanently_absent(student)
 
 
 def active_students(students: Iterable[Student]) -> list[Student]:
@@ -70,7 +84,7 @@ def absent_student_ids(students: Iterable[Student]) -> frozenset[StudentId]:
     Args:
         students: Alle Schülertische eines Plans.
     """
-    return frozenset(s.student_id for s in students if s.is_named() and s.permanently_absent)
+    return frozenset(s.student_id for s in students if is_permanently_absent(s))
 
 
 @dataclass(frozen=True)

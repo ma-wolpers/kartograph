@@ -9,6 +9,7 @@ class UiIntent:
     DELETE_DESK = "desk.delete"
     SET_TEACHER_DESK = "desk.set_teacher"
     ADD_SYMBOL = "desk.add_symbol"
+    TOGGLE_PERMANENT_ABSENCE = "desk.permanent_absence.toggle"
     OPEN_TABLEGROUP_SETTINGS = "tablegroup.settings.open"
     GRID_SYMBOL_FILTER = "grid.symbol_filter.open"
     MANAGE_SYMBOLS = "symbols.manage"

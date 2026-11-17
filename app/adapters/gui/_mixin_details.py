@@ -13,6 +13,7 @@ from app.adapters.gui.main_window_constants import (
     DeskDetailMode,
     NAME_EDITING,
 )
+from app.core.domain.permanent_absence import is_permanently_absent
 from app.core.domain.student_id import StudentId
 from app.core.domain.student_naming import normalize_name_part
 from app.core.domain.student_notes import normalize_note_lines
@@ -355,6 +356,9 @@ class DetailsMixin:
             self.notes_field.set("\n".join(stored_notes))
             reset_text_modified(self.notes_field.text)  # neu befuellt = unveraendert
         self.notes_field.text.configure(state=state)
+
+        self._absent_var.set(student is not None and is_permanently_absent(student))
+        self.absent_switch.state(["!disabled"] if student is not None and student.is_named() else ["disabled"])
         self._details_loaded_student_id = student_id
 
     def _field_needs_reload(self, student_id: StudentId | None, pending, stored, shown) -> bool:

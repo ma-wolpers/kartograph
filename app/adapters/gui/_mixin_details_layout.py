@@ -10,12 +10,13 @@ jedes Detail erreichbar, egal wie viele Symbole und Legenden Platz brauchen.
 from __future__ import annotations
 
 from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
+from app.core.domain.permanent_absence import PERMANENT_ABSENCE_LABEL
 from app.core.domain.student_notes import NOTES_LABEL
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
-from bw_gui.runtime import on_focus_change, on_resize, on_text_modified, widgets as tui
-from bw_gui.widgets import FlowFrame, ScrollableFrame, WrappedTextField
+from bw_gui.runtime import on_focus_change, on_resize, on_text_modified, ui, widgets as tui
+from bw_gui.widgets import FlowFrame, ScrollableFrame, Switch, WrappedTextField
 
 
 class DetailsLayoutMixin:
@@ -71,6 +72,16 @@ class DetailsLayoutMixin:
         self.name_entry = self._add_name_field("Vorname", self._name_var)
         self.last_name_entry = self._add_name_field("Nachname", self._last_name_var)
         self.nickname_entry = self._add_name_field("Spitzname", self._nickname_var)
+
+        # Schalter und Bearbeiten-Menü laufen über dieselbe Aktion (set_selected_permanent_absence).
+        # Switch statt Checkbox: die Markierung wirkt sofort (bw-gui TOGGLE_CONTRACT); programmatisches
+        # Setzen in _load_detail_fields löst on_change nicht aus.
+        self._absent_var = ui.BooleanVar(master=self, value=False)
+        self.absent_switch = Switch(
+            self.details_frame, text=PERMANENT_ABSENCE_LABEL, variable=self._absent_var,
+            on_change=self.set_selected_permanent_absence,
+        )
+        self.absent_switch.pack(anchor="w", pady=(6, 0))
 
         self.symbols_frame = tui.Frame(self.details_frame, style="Panel.TFrame")
         self.symbols_frame.pack(fill="x", pady=(6, 0))

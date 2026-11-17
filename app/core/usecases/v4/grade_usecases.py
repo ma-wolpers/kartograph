@@ -105,7 +105,7 @@ def record_grade(
     doc = next_plan.documentation
     clean_col = str(column_id or "").strip()
     student = next_plan.classroom.student_by_id(student_id)
-    if doc.column_by_id(clean_col) is None or student is None or not accepts_entries(student):
+    if doc.column_by_id(clean_col) is None or student is None or not student.is_named() or not accepts_entries(student):
         return next_plan
     doc.set_grade(student_id, clean_col, None if grade is None else scale_for(doc.grade_scale).clamp(grade))
     return next_plan

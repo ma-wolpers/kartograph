@@ -8,6 +8,7 @@ Die Inhalts-Zeichnung einzelner Schülertische ist in ``_mixin_grid_helpers.py``
 from __future__ import annotations
 
 from app.adapters.gui.ui_theme import kartograph_theme
+from app.core.domain.permanent_absence import is_permanently_absent
 from app.core.domain.table_groups import (
     group_bounds_from_geometries_v4,
     list_tablegroup_numbers_v4,
@@ -198,9 +199,12 @@ class GridRenderMixin:
                     or max_py < top - self.cell_size or min_py > bottom + self.cell_size):
                 continue
 
+            absent = is_permanently_absent(student)  # ausgegraut: Hintergrundfläche, gestrichelter Rand
             self.canvas.create_polygon(
                 polygon_points,
-                fill=theme["accent_soft"], outline=theme["border"], width=1,
+                fill=theme["bg_surface"] if absent else theme["accent_soft"],
+                outline=theme["fg_muted"] if absent else theme["border"], width=1,
+                dash=(4, 3) if absent else (),
                 tags=("grid", "grid_transient"),
             )
             center_px = geometry.center_x * self.cell_size

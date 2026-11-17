@@ -12,7 +12,8 @@ from datetime import date
 from app.adapters.gui.doc_action_target import DocActionTarget
 from app.adapters.gui.main_window_constants import LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
-from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.models_v4 import SeatingPlan, Student
+from app.core.domain.permanent_absence import LOCKED_MESSAGE, accepts_entries
 from app.core.intents.navigation_intents import MoveSelectionIntent, SelectCellIntent
 from app.adapters.gui._local_keys import ENTER, widget_keys
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -229,33 +230,70 @@ class SelectionMixin:
         """Gibt das heutige Datum im ISO-Format als Dokumentations-Datums-Schlüssel zurück."""
         return date.today().isoformat()
 
+    def _selected_student(self, action_label: str, *, report: bool = True) -> Student | None:
+        """Einzige Regel, welche Person eine personenbezogene Aktion meint.
+
+        Dokuansicht: die ausgewählte Zeile. Raster: genau ein markierter,
+        benannter Tisch; sonst eine Statusmeldung mit *action_label*.
+
+        Args:
+            action_label: Name der Aktion für die Statusmeldung, z. B. ``"Symbole"``.
+            report: ``False`` unterdrückt die Statusmeldung (z. B. beim Aufbau eines Menüs).
+
+        Returns:
+            Die Person oder ``None`` (keine passende Auswahl, andere Oberfläche).
+        """
+        if not self.current_plan:
+            return None
+        if self._editor_surface == "docs":
+            return self._selected_docs_student()
+        if self._editor_surface != "grid":
+            return None
+        if not self.selection.is_single():
+            if report:
+                self.status_var.set(f"{action_label} nur bei Einzelauswahl")
+            return None
+        student = self.current_plan.student_at(*self.selected_cell)
+        if student is None or not student.is_named():
+            if report:
+                self.status_var.set(f"{action_label} nur für Schülertische")
+            return None
+        return student
+
+    def _report_if_locked(self, student: Student) -> bool:
+        """Meldet die Eintragssperre dauerhaft Abwesender in der Statuszeile.
+
+        Einzige GUI-Stelle für den Sperrhinweis; die Regel selbst ist
+        ``permanent_absence.accepts_entries`` (die Usecases prüfen sie ebenfalls).
+
+        Args:
+            student: Zielperson einer Eintragsaktion.
+
+        Returns:
+            ``True``, wenn die Aktion unterbleiben muss.
+        """
+        if accepts_entries(student):
+            return False
+        self.status_var.set(LOCKED_MESSAGE)
+        return True
+
     def _doc_action_target(self, action_label: str) -> DocActionTarget | None:
         """Einzige Regel, für wen und an welchem Datum eine Doku-Aktion wirkt.
 
-        Dokuansicht: ausgewählte Zeile am Datumsanker (``_doc_anchor_date()``).
-        Raster (kein Datums-Wähler): genau ein markierter, benannter Tisch,
-        immer heute; sonst eine Statusmeldung mit *action_label*.
+        Person aus ``_selected_student``; dauerhaft Abwesende sind gesperrt
+        (``_report_if_locked``). Datum: in der Dokuansicht der Datumsanker
+        (``_doc_anchor_date()``), im Raster (kein Datums-Wähler) immer heute.
 
         Args:
             action_label: Name der Aktion für die Statusmeldung, z. B. ``"Symbole"``.
 
         Returns:
-            Das Ziel oder ``None`` (keine passende Auswahl, andere Oberfläche).
+            Das Ziel oder ``None`` (keine passende Auswahl, gesperrt, andere Oberfläche).
         """
-        if not self.current_plan:
+        student = self._selected_student(action_label)
+        if student is None or self._report_if_locked(student):
             return None
-        if self._editor_surface == "docs":
-            student, date_key = self._selected_docs_student(), self._doc_anchor_date()
-            if student is None or date_key is None:
-                return None
-            return DocActionTarget(student.student_id, date_key)
-        if self._editor_surface != "grid":
+        date_key = self._doc_anchor_date() if self._editor_surface == "docs" else self._today_doc_date()
+        if date_key is None:
             return None
-        if not self.selection.is_single():
-            self.status_var.set(f"{action_label} nur bei Einzelauswahl")
-            return None
-        student = self.current_plan.student_at(*self.selected_cell)
-        if student is None or not student.is_named():
-            self.status_var.set(f"{action_label} nur für Schülertische")
-            return None
-        return DocActionTarget(student.student_id, self._today_doc_date())
+        return DocActionTarget(student.student_id, date_key)

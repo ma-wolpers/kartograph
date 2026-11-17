@@ -10,6 +10,7 @@ from __future__ import annotations
 from app.core.domain.color_order import order_color_keys, palette_color
 from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import ParticipationRating, SeatingPlan, Student
+from app.core.domain.permanent_absence import is_permanently_absent
 from app.core.usecases.v4.color_usecases import palette_meaning
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -84,7 +85,7 @@ class GridHelpersMixin:
         if main_text:
             self.canvas.create_text(
                 center_px, min_py + self.cell_size * 0.24,
-                text=main_text, fill=theme["fg_primary"],
+                text=main_text, fill=theme["fg_muted"] if is_permanently_absent(student) else theme["fg_primary"],
                 font=("Segoe UI", student_name_font_size, "bold"),
                 tags=("grid", "grid_transient"),
             )

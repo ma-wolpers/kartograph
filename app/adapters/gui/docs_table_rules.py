@@ -20,6 +20,10 @@ def sort_iids(rows: Iterable[DocRow], key: str | None, ascending: bool, axis: Do
 
     Stabil: gleiche Sortierwerte behalten die Basisreihenfolge (Sitzordnung).
     Ohne (gültige) Sortierspalte bleibt die Basisreihenfolge unverändert.
+    Inaktive Zeilen (``DocRow.inactive``, dauerhaft abwesend) stehen danach
+    immer ganz unten, in derselben Reihenfolge untereinander -- bewusst als
+    eigener Schritt nach dem Sortieren: Ein Flag im Sortierschlüssel würde bei
+    absteigender Sortierung mit umgedreht und die Zeilen nach oben holen.
 
     Args:
         rows: Zeilen in Basisreihenfolge.
@@ -31,10 +35,9 @@ def sort_iids(rows: Iterable[DocRow], key: str | None, ascending: bool, axis: Do
         iids in Anzeigereihenfolge.
     """
     ordered = list(rows)
-    if key is None or not axis.has(key):
-        return [row.iid for row in ordered]
-    ordered.sort(key=lambda row: axis.sort_value(row, key), reverse=not ascending)
-    return [row.iid for row in ordered]
+    if key is not None and axis.has(key):
+        ordered.sort(key=lambda row: axis.sort_value(row, key), reverse=not ascending)
+    return [row.iid for row in ordered if not row.inactive] + [row.iid for row in ordered if row.inactive]
 
 
 def next_sort_spec(current_key: str | None, current_ascending: bool, clicked_key: str) -> tuple[str, bool]:

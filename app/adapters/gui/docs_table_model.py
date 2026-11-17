@@ -81,6 +81,8 @@ class DocRow:
         date_cells: Zelltexte der Datumsspalten, in Achsenreihenfolge.
         fixed_cells: Zelltexte der festen Spalten (Zusammenfassung, Noten,
             Zwischensummen, Gesamtnote), in Achsenreihenfolge.
+        inactive: Person zählt nicht mit (dauerhaft abwesend, ``permanent_absence.is_active``):
+            Zeile steht unabhängig von der Sortierung ganz unten und ist ausgegraut.
     """
 
     iid: str
@@ -88,6 +90,7 @@ class DocRow:
     vorname: str
     date_cells: tuple[str, ...]
     fixed_cells: tuple[str, ...]
+    inactive: bool = False
 
 
 @dataclass(frozen=True)

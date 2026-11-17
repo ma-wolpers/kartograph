@@ -37,6 +37,7 @@ def test_predicates() -> None:
     assert is_active(present) and accepts_entries(present)
     assert not is_active(absent) and not accepts_entries(absent)
     assert not is_active(empty)
+    assert accepts_entries(empty)  # leere Tische regelt weiter is_named(), nicht die Abwesenheits-Sperre
     assert active_students([present, absent, empty]) == [present]
     assert absent_student_ids([present, absent, empty]) == {absent.student_id}
 

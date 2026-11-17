@@ -12,6 +12,12 @@ import dataclasses
 from app.adapters.gui.dialog_services import messagebox
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.domain.grade_scale import GRADE_SCALES, scale_for
+from app.core.domain.permanent_absence import (
+    MARK_ABSENT_LABEL,
+    PERMANENT_ABSENCE_LABEL,
+    UNMARK_ABSENT_LABEL,
+    is_permanently_absent,
+)
 from app.core.intents.grade_intents import SetGradeScaleIntent
 from app.core.intents.view_intents import UpdateSettingsIntent
 from app.core.usecases.v4.grade_scale_usecases import count_grades
@@ -166,7 +172,22 @@ class MenuMixin:
             SharedMenuItem(type="command", label=self._menu_label("Ausschneiden", UiIntent.CUT), command=lambda: self._handle_intent(UiIntent.CUT)),
             SharedMenuItem(type="command", label=self._menu_label("Kopieren", UiIntent.COPY), command=lambda: self._handle_intent(UiIntent.COPY)),
             SharedMenuItem(type="command", label=self._menu_label("Einfuegen", UiIntent.PASTE), command=lambda: self._handle_intent(UiIntent.PASTE)),
+            SharedMenuItem(type="separator"),
+            self._permanent_absence_menu_item(),
         )
+
+    def _permanent_absence_menu_item(self):
+        """Menüeintrag "dauerhaft abwesend markieren/aufheben" für die ausgewählte Person.
+
+        Beim Öffnen des Menüs gebaut (``items_provider``): Die Beschriftung zeigt,
+        was ein Klick bewirkt; ohne passende Auswahl ist der Eintrag deaktiviert.
+        Die Person ermittelt ``_selected_student`` (hier ohne Statusmeldung).
+        """
+        student = self._selected_student(PERMANENT_ABSENCE_LABEL, report=False)
+        if student is None:
+            return SharedMenuItem(type="disabled", label=MARK_ABSENT_LABEL)
+        label = UNMARK_ABSENT_LABEL if is_permanently_absent(student) else MARK_ABSENT_LABEL
+        return SharedMenuItem(type="command", label=label, command=lambda: self._handle_intent(UiIntent.TOGGLE_PERMANENT_ABSENCE))
 
     def _menu_items_view(self):
         """Liefert die Menüeinträge für das Ansicht-Menü (Overlays, Debug)."""

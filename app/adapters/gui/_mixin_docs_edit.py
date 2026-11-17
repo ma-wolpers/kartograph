@@ -90,11 +90,12 @@ class DocsEditMixin:
             grade_column_key: Spaltenschlüssel ``"grade_<id>"``.
 
         Returns:
-            Das Ziel oder ``None`` (unbekannte Zeile, unbenannter Tisch, keine Notenspalte).
+            Das Ziel oder ``None`` (unbekannte Zeile, unbenannter Tisch, keine Notenspalte,
+            dauerhaft abwesend -- dann mit Sperrhinweis).
         """
         student = self._named_docs_student(self._doc_student_index_by_iid.get(row_id))
         column_id = grade_column_id(grade_column_key)
-        if student is None or column_id is None:
+        if student is None or column_id is None or self._report_if_locked(student):
             return None
         return GradeCellTarget(student.student_id, column_id)
 
@@ -151,7 +152,7 @@ class DocsEditMixin:
         löschbar -- dort bleibt alles unverändert, die Statuszeile sagt es.
         """
         student, key = self._selected_docs_student(), self._doc_active_column_key()
-        if student is None or key is None:
+        if student is None or key is None or self._report_if_locked(student):
             return
         column_id = grade_column_id(key)
         if column_id is not None:

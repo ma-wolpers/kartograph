@@ -39,7 +39,7 @@ def set_participation_rating(
         Neuer Plan mit der aktualisierten Bewertung.
     """
     student = plan.classroom.student_by_id(student_id)
-    if student is None or not accepts_entries(student):
+    if student is None or not student.is_named() or not accepts_entries(student):
         return deepcopy(plan)
 
     next_plan = ensure_session(plan, date)

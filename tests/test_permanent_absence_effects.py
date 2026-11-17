@@ -106,3 +106,10 @@ def test_unmarking_unlocks_again(class_plan):
     ben_plan = plan
     ben_plan.student_by_id(ben.student_id).permanently_absent = False
     assert toggle_color_tag(ben_plan, ben.student_id, "gelb").student_by_id(ben.student_id).diagnostic.color_tags == ["gelb"]
+
+
+def test_empty_desks_keep_their_previous_rules():
+    """Die Sperre gilt nur für dauerhaft Abwesende: Farbpunkte an leeren Tischen bleiben wie bisher möglich."""
+    empty = make_student(x=1, y=0, first_name="")
+    plan = make_plan(students=[empty])
+    assert toggle_color_tag(plan, empty.student_id, "gelb").student_by_id(empty.student_id).diagnostic.color_tags == ["gelb"]

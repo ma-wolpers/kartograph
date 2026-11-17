@@ -7,6 +7,11 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Added
+- **Dauerhaft abwesend markieren:** In den Tischdetails gibt es den Schalter „Dauerhaft abwesend“, im Menü *Bearbeiten* den Eintrag „Als dauerhaft abwesend markieren“ (in der Doku-Ansicht für die ausgewählte Zeile). Die Person wird damit nicht gelöscht, und die Markierung lässt sich jederzeit wieder aufheben (auch mit Strg+Z). Solange sie gesetzt ist:
+  - Im Sitzplan ist der Tisch ausgegraut und gestrichelt umrandet; in der Doku-Ansicht ist die Zeile grau und steht immer ganz unten, egal wonach du sortierst.
+  - Für die Person lassen sich keine Symbole, Noten, Mitarbeit oder Farbpunkte eintragen – die Statuszeile sagt „Dauerhaft abwesend – erst die Markierung aufheben“. Name und Notizen bleiben bearbeitbar.
+  - Sie fehlt in allen Exporten (PDF, Sitzkärtchen, namenfit-CSV, Sitzplan-Vorschau). Ihr Tisch erscheint dort leer, wenn er zu einer Tischgruppe mit weiteren Tischen gehört, sonst gar nicht.
+  - *Abgaben zählen* übergeht sie: kein X, keine Zuordnung, sie zählt nicht in „x von y“.
 - **PDF-Export: beide Ansichten auf einem Blatt.** Unter „Ansicht wählen“ gibt es jetzt „Beide Ansichten auf einer A4-Seite“: Das Blatt (A4 hochkant) zeigt oben den Sitzplan mit Lehrertisch unten und unten denselben Plan mit Lehrertisch oben, getrennt durch eine gestrichelte Schnittlinie, jeweils mit eigener Überschrift. Noten, Symbole, Farbpunkte und Legende wirken wie gewohnt auf beide Hälften.
 - Neues Diagnosesymbol **🎯 „Konzentration“** (Taste `z`): Es hält fest, wer selbstständig konzentriert bei der Sache bleibt, wer mit Ermutigung oder Erinnerung zur Aufgabe zurückfindet und dabei die Arbeitsatmosphäre der anderen respektiert, und wer Einzelarbeitsphasen mit enger Begleitung einhält (z. B. kurze Teilschritte, ablenkungsarmer Sitzplatz). Das Symbol erscheint beim nächsten Start automatisch; eigene Anpassungen an deinem Symbolkatalog bleiben erhalten.
 - **Noten direkt eintippen:** Ist in der Doku-Tabelle eine Notenzelle ausgewählt, startet eine Zifferntaste (auch auf dem Ziffernblock) sofort die Bearbeitung – die Ziffer steht schon im Feld und ersetzt die alte Note, ein vorheriges Enter ist nicht mehr nötig. Enter, Doppelklick und Strg+G öffnen die Zelle wie bisher mit der markierten alten Note.

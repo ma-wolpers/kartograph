@@ -14,8 +14,10 @@ from app.core.domain.color_order import palette_color
 from app.core.domain.models_v4 import ParticipationRating
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.participation_intents import SetParticipationRatingIntent
+from app.core.domain.permanent_absence import PERMANENT_ABSENCE_LABEL, is_permanently_absent
 from app.core.intents.student_intents import (
     DeleteStudentsIntent,
+    SetPermanentlyAbsentIntent,
     SetTeacherSeatIntent,
 )
 from app.core.intents.symbol_intents import (
@@ -214,6 +216,8 @@ class EditMixin:
         if not student:
             self.status_var.set("Farbpunkte nur für Schülertische")
             return
+        if self._report_if_locked(student):
+            return
         currently_active = color_key in student.diagnostic.color_tags
         requires_meaning = (not currently_active) and (not palette_meaning(self.current_plan, color_key))
         color_label, _hex_color = palette_color(self._color_by_key, color_key)
@@ -235,6 +239,27 @@ class EditMixin:
             self._replace_current_plan(updated_plan)
         self._controller.dispatch(ToggleColorIntent(student_id=student.student_id, color_key=color_key))
         self.canvas.focus_set()
+
+    def set_selected_permanent_absence(self, absent: bool | None) -> None:
+        """Einzige GUI-Aktion für "dauerhaft abwesend" (Häkchen im Detail-Panel und Bearbeiten-Menü).
+
+        Ziel ist die Person aus ``_selected_student`` (Raster: markierter Tisch,
+        Dokuansicht: ausgewählte Zeile). Ausstehende Feld-Eingaben werden vorher
+        gespeichert, damit der Undo-Schritt sauber getrennt bleibt.
+
+        Args:
+            absent: Gewünschter Zustand; ``None`` schaltet um.
+        """
+        student = self._selected_student(PERMANENT_ABSENCE_LABEL)
+        if student is None:
+            return
+        target = (not is_permanently_absent(student)) if absent is None else absent
+        if target == is_permanently_absent(student):
+            return
+        self._commit_pending_edits()
+        self._controller.dispatch(SetPermanentlyAbsentIntent(student_id=student.student_id, absent=target))
+        state_text = PERMANENT_ABSENCE_LABEL if target else "wieder dabei"
+        self.status_var.set(f"{student.display_name()}: {state_text}")
 
     def delete_selected_desk(self) -> None:
         """Löscht alle Schüler in der aktuellen Auswahl (v4)."""

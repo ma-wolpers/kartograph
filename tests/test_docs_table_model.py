@@ -171,3 +171,25 @@ class TestSortClickRule:
 
     def test_new_column_always_starts_ascending(self):
         assert next_sort_spec("date_0", False, "grade_a") == ("grade_a", True)
+
+
+class TestInactiveRowsStayAtTheBottom:
+    """Dauerhaft Abwesende (``DocRow.inactive``) stehen bei jeder Sortierung ganz unten."""
+
+    def _rows(self):
+        return [
+            DocRow("a", "Alt", "", ("",) * 3, ("", "1", "", "", ""), inactive=True),
+            DocRow("b", "Berg", "", ("",) * 3, ("", "3", "", "", "")),
+            DocRow("c", "Cal", "", ("",) * 3, ("", "2", "", "", ""), inactive=True),
+            DocRow("d", "Dorn", "", ("",) * 3, ("", "4", "", "", "")),
+        ]
+
+    def test_without_sort_column_base_order_with_inactive_last(self, axis):
+        assert sort_iids(self._rows(), None, True, axis) == ["b", "d", "a", "c"]
+
+    @pytest.mark.parametrize(("ascending", "expected"), [(True, ["b", "d", "a", "c"]), (False, ["d", "b", "c", "a"])])
+    def test_sorted_by_grade_both_directions(self, axis, ascending, expected):
+        assert sort_iids(self._rows(), "grade_a", ascending, axis) == expected
+
+    def test_sorted_by_name_descending_keeps_inactive_last(self, axis):
+        assert sort_iids(self._rows(), "nachname", False, axis)[-2:] == ["c", "a"]

@@ -26,6 +26,7 @@ from app.adapters.gui.docs_table_rules import sort_iids
 from app.adapters.gui.main_window_constants import LOGGER
 from app.core.domain.grade_scale import scale_for
 from app.core.domain.models_v4 import GRADE_CATEGORIES
+from app.core.domain.permanent_absence import is_active
 from app.core.domain.submission_status import CatalogSymbolMissing, submission_symbol_names
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -131,6 +132,7 @@ class DocsTableMixin:
                 vorname=student.first_name.strip(),
                 date_cells=tuple(date_values),
                 fixed_cells=tuple(fixed_values),
+                inactive=not is_active(student),
             )
             iid_by_coord_index[coord_index] = iid
 
@@ -197,5 +199,6 @@ class DocsTableMixin:
         """
         order = sort_iids(self._doc_rows.values(), self._doc_sort_column, self._doc_sort_ascending, self._doc_axis)
         self._doc_row_order = order
-        self.docs_grid.set_rows([GridRow(iid, self._doc_axis.cells_of(self._doc_rows[iid])) for iid in order])
+        rows = self._doc_rows
+        self.docs_grid.set_rows([GridRow(iid, self._doc_axis.cells_of(rows[iid]), muted=rows[iid].inactive) for iid in order])
         self.docs_grid.set_sort_indicator(self._doc_sort_column, self._doc_sort_ascending)

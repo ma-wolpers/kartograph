@@ -21,6 +21,7 @@ from app.adapters.gui._mixin_docs_nav import DocsNavMixin
 from app.adapters.gui._mixin_docs_table import DocsTableMixin
 from app.adapters.gui._mixin_docs_view import DocsViewMixin
 from app.adapters.gui._mixin_layout_docs import LayoutDocsMixin
+from app.adapters.gui._mixin_selection import SelectionMixin
 from app.adapters.gui.docs_table_model import DocColumnAxis
 from app.adapters.gui.docs_table_rules import sort_iids
 from app.application.plan_derived_data import PlanDerivedData
@@ -64,6 +65,9 @@ class _DocsHost(tk.Frame, LayoutDocsMixin, DocsTableMixin, DocsEventsMixin, Docs
         self.docs_container = tk.Frame(self)
         self.docs_container.pack(fill="both", expand=True)
         self._build_docs_tree_widgets()
+
+    # Sperrhinweis für dauerhaft Abwesende: die echte Regel aus dem Auswahl-Mixin, keine Kopie.
+    _report_if_locked = SelectionMixin._report_if_locked
 
     def _symbol_glyph(self, symbol_name: str) -> str:
         return "*"
