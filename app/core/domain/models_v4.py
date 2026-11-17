@@ -117,8 +117,13 @@ class Student:
         return last or first or f"({self.seat.x},{self.seat.y})"
 
     def is_named(self) -> bool:
-        """True, wenn mindestens ein (effektiver) Vorname gesetzt ist."""
-        return bool(self.first_name.strip())
+        """True, wenn der Tisch eine Person ist: Vorname, Spitzname oder Nachname gesetzt.
+
+        Einzige Definition "Schüler:in statt leerer Tisch" -- nur benannte Tische
+        tragen Personendaten (``permanent_absence``, ``drop_unnamed_desk_data``).
+        Ein Nachname allein genügt (Entscheidung der Nutzerin 2026-11-17).
+        """
+        return bool(self.first_name.strip() or self.last_name.strip())
 
 
 @dataclass(slots=True)

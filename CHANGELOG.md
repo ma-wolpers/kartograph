@@ -47,6 +47,7 @@ The format is based on Keep a Changelog.
 - Schueler-Felder unterstuetzen jetzt einen separaten "Nachname" neben dem Vornamen; PDF-Export, Legenden und Dokumentationsansicht verwenden automatisch beide Felder.
 
 ### Changed
+- **Ein Nachname allein reicht:** Ein Tisch gilt als Schüler:in, sobald Vorname, Spitzname *oder* Nachname eingetragen ist. Ohne Vornamen zeigen Sitzplan, Doku-Tabelle und Exporte den Nachnamen; beim Abgaben-Zählen ordnest du solche Ordner im Startdialog selbst zu.
 - **Personendaten nur noch bei Schüler:innen:** Leere Tische (ohne Namen) bekommen keine Farbpunkte, Notizen, Symbole, Mitarbeit oder Noten mehr – die Knöpfe und das Notizfeld sind dort gesperrt. Löschst du den Namen einer Person, verschwinden auch ihre Farbpunkte, Notizen, Symbole, Tageseinträge und Noten (Strg+Z holt alles zurück). Ältere Pläne, in denen leere Tische noch solche Daten tragen, werden beim Öffnen bereinigt.
 - Das Feld „Nachteilsausgleiche“ in den Tischdetails heißt jetzt **„Notizen“**: Du kannst dort alles festhalten, was zu einer Person wichtig ist (Absprachen, Nachteilsausgleiche, Hinweise). Vorhandene Einträge bleiben erhalten und stehen nach dem Öffnen des Plans im neuen Feld.
 - Stufentexte von „Beteiligung“ und „Interaktion“ sprachlich an die übrigen Symbole angeglichen: keine Schlusspunkte mehr, und bei „Interaktion“ (Stufe 1) heißt es jetzt „vor allem nach direkter Ansprache“ statt „wenn sie/er angesprochen wird“. Bestehende Symbolkataloge übernehmen Textänderungen nicht von selbst; passe sie bei Bedarf in der Symbol-Konfiguration an.

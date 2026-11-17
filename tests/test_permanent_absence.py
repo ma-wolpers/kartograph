@@ -37,7 +37,7 @@ def _absent(student):
 
 
 def test_predicates() -> None:
-    present, absent, empty = make_student(), _absent(make_student(first_name="Ben")), make_student(first_name="")
+    present, absent, empty = make_student(), _absent(make_student(first_name="Ben")), make_student(first_name="", last_name="")
     assert is_active(present) and accepts_entries(present)
     assert not is_active(absent) and not accepts_entries(absent)
     assert not is_active(empty)
@@ -65,13 +65,13 @@ def test_absent_desk_in_a_group_with_shown_desks_is_emptied_otherwise_hidden() -
 
 def test_empty_desk_in_the_group_counts_as_shown() -> None:
     absent = _absent(make_student(x=1, y=0))
-    plan = make_plan(students=[absent, make_student(x=2, y=0, first_name="")])
+    plan = make_plan(students=[absent, make_student(x=2, y=0, first_name="", last_name="")])
     apply_normalized_tablegroups(plan)
     assert export_seat_visibility(plan).emptied == {absent.student_id}
 
 
 def test_usecase_marks_and_unmarks_but_never_an_unnamed_desk() -> None:
-    named, empty = make_student(), make_student(x=3, first_name="")
+    named, empty = make_student(), make_student(x=3, first_name="", last_name="")
     plan = make_plan(students=[named, empty])
 
     marked = set_permanently_absent(plan, named.student_id, True)
@@ -98,6 +98,7 @@ def test_invariant_drops_all_person_data_of_unnamed_desks() -> None:
     plan.documentation.set_grade(empty.student_id, column, 2.0)
     assert any(empty.student_id in session.entries for session in plan.documentation.sessions)
     plan.student_by_id(empty.student_id).first_name_official = ""  # Name weg, Daten noch da
+    plan.student_by_id(empty.student_id).last_name = ""
     plan.student_by_id(empty.student_id).permanently_absent = True
 
     drop_unnamed_desk_data(plan)
@@ -126,7 +127,7 @@ def test_removing_the_name_drops_the_data_and_undo_restores_it() -> None:
 
 
 def test_opening_a_plan_cleans_old_data_at_empty_desks() -> None:
-    empty = _with_person_data(make_student(first_name=""))
+    empty = _with_person_data(make_student(first_name="", last_name=""))
     plan = make_plan(students=[empty])
     path = PLANS_DIR / "alt.json"
     state = handle_open_plan(OpenPlanIntent(plan_path=path), AppState(), make_ctx({path: plan}))

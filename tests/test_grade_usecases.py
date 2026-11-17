@@ -64,7 +64,7 @@ class TestRecordGrade:
 
     def test_no_effect_for_unnamed_student(self):
         sid = StudentId.new()
-        plan = make_plan(students=[make_student(first_name="", student_id=sid)])
+        plan = make_plan(students=[make_student(first_name="", last_name="", student_id=sid)])
         plan, col_id = add_grade_column(plan, "schriftlich", "A")
         assert record_grade(plan, sid, col_id, 3.0).documentation.grades == {}
 

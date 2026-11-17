@@ -85,8 +85,13 @@ class TestStudentDisplayName:
         s = make_student(first_name="X")
         assert s.is_named()
 
-    def test_is_named_false_when_no_first_name(self):
+    def test_is_named_true_with_last_name_only(self):
+        """Ein Nachname allein macht den Tisch zur Person (Entscheidung 2026-11-17)."""
         s = make_student(first_name="", last_name="Müller")
+        assert s.is_named()
+
+    def test_is_named_false_without_any_name(self):
+        s = make_student(first_name="", last_name="", nickname="")
         assert not s.is_named()
 
 

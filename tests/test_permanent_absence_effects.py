@@ -111,7 +111,7 @@ def test_unmarking_unlocks_again(class_plan):
 
 def test_empty_desks_get_no_person_data():
     """Farbpunkte, Notizen, Diagnose-Symbole gehören nur zu Schüler:innen, nicht zu leeren Tischen."""
-    empty = make_student(x=1, y=0, first_name="")
+    empty = make_student(x=1, y=0, first_name="", last_name="")
     plan = make_plan(students=[empty])
     sid = empty.student_id
     assert toggle_color_tag(plan, sid, "gelb").student_by_id(sid).diagnostic.color_tags == []
