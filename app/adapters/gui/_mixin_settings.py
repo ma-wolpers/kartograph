@@ -24,10 +24,13 @@ from app.core.domain.settings import (
     DEFAULT_TABLEGROUP_OVERLAY_POSITION,
     DEFAULT_VIEWPORT_FOLLOW_BUFFER,
     MAX_CANVAS_RADIUS,
+    MAX_NAME_CLEAR_DELAY,
     MAX_SAVE_DELAY,
     MIN_CANVAS_RADIUS,
+    MIN_NAME_CLEAR_DELAY,
     MIN_SAVE_DELAY,
     NAME_FORMAT_OPTIONS,
+    parse_name_clear_delay,
     resolve_plans_dir,
 )
 from app.core.intents.view_intents import OpenSettingsIntent, UpdateSettingsIntent
@@ -220,6 +223,19 @@ class SettingsMixin:
                                 f"sonst bleiben bei einem Absturz mehr Änderungen ungespeichert"
                             ),
                         ),
+                        SharedSettingsFieldSpec(
+                            key="name_clear_delay",
+                            label="Name gelöscht: Frist bis Daten verschwinden (Sek.)",
+                            field_type="float",
+                            default=self._controller.state.settings.name_clear_delay,
+                            min_value=MIN_NAME_CLEAR_DELAY,
+                            max_value=MAX_NAME_CLEAR_DELAY,
+                            hint=(
+                                "Wird der Name einer Person mit Farbpunkten/Notizen/Symbolen/Noten geleert, "
+                                "warnt Kartograph und wartet so lange auf einen neuen Namen; Planwechsel und "
+                                "Programmende löschen sofort (rückgängig mit Strg+Z, solange der Plan offen ist)"
+                            ),
+                        ),
                     ),
                 ),
             )
@@ -237,6 +253,7 @@ class SettingsMixin:
             "disambiguate_colliding_names": self.disambiguate_colliding_names,
             "sitzplan_popup_delay": self.sitzplan_popup_delay,
             "save_delay": self.save_delay,
+            "name_clear_delay": self._controller.state.settings.name_clear_delay,
         }
 
     def _apply_settings_dialog_payload(self, payload: dict[str, object], *, parent=None) -> bool:
@@ -299,6 +316,7 @@ class SettingsMixin:
             disambiguate_colliding_names=self.disambiguate_colliding_names,
             sitzplan_popup_delay=self.sitzplan_popup_delay,
             save_delay=self.save_delay,
+            name_clear_delay=parse_name_clear_delay(payload.get("name_clear_delay")),
         )))
         self._update_scroll_region()
         self._set_selection_single(*self.selection.active_cell())

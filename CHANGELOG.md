@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Added
+- **Warnung, bevor ein gelöschter Name Daten mitnimmt:** Leerst du alle Namensfelder einer Person, die Farbpunkte, Notizen, Symbole oder Noten hat, löscht Kartograph nicht sofort. Es zeigt in den Tischdetails eine rote Warnung und wartet 30 Sekunden auf einen neuen Namen – trägst du einen ein, bleibt alles erhalten. Erst nach Ablauf der Frist, beim Wechsel des Plans oder beim Schließen von Kartograph wird der Name wirklich geleert und die Daten verschwinden (Strg+Z holt sie zurück, solange der Plan offen ist). Zwischendurch an andere Tische zu klicken ist kein Problem. Die Frist stellst du in den Einstellungen ein („Name gelöscht: Frist bis Daten verschwinden“).
 - **Dauerhaft abwesend markieren:** In den Tischdetails gibt es den Schalter „Dauerhaft abwesend“, im Menü *Bearbeiten* den Eintrag „Als dauerhaft abwesend markieren“ (in der Doku-Ansicht für die ausgewählte Zeile). Die Person wird damit nicht gelöscht, und die Markierung lässt sich jederzeit wieder aufheben (auch mit Strg+Z). Solange sie gesetzt ist:
   - Im Sitzplan ist der Tisch ausgegraut und gestrichelt umrandet; in der Doku-Ansicht ist die Zeile grau und steht immer ganz unten, egal wonach du sortierst.
   - Für die Person lassen sich keine Symbole, Noten, Mitarbeit oder Farbpunkte eintragen – die Statuszeile sagt „Dauerhaft abwesend – erst die Markierung aufheben“. Name und Notizen bleiben bearbeitbar.

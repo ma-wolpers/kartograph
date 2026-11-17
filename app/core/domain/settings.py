@@ -35,6 +35,31 @@ DEFAULT_SAVE_DELAY = 2.0
 MIN_SAVE_DELAY = 0.3
 MAX_SAVE_DELAY = 30.0
 
+# Frist, bevor ein geleerter Name wirklich gespeichert wird, wenn die Person Daten
+# traegt (Farbpunkte, Notizen, Symbole, Noten): ohne Namen verschwinden diese
+# (Invariante "Personendaten nur an benannten Tischen"). Bis dahin warnt das
+# Detail-Panel; ein neuer Name hebt das Loeschen auf. Plan-/Programmschluss
+# fuehren es sofort aus.
+DEFAULT_NAME_CLEAR_DELAY = 30.0
+MIN_NAME_CLEAR_DELAY = 5.0
+MAX_NAME_CLEAR_DELAY = 600.0
+
+
+def parse_name_clear_delay(value: object) -> float:
+    """Einzige Regel für gültige Löschfristen nach geleertem Namen (Datei und Dialog).
+
+    Args:
+        value: Rohwert (Zahl oder Text); ungültig = Standard.
+
+    Returns:
+        Sekunden, begrenzt auf ``MIN_NAME_CLEAR_DELAY``..``MAX_NAME_CLEAR_DELAY``.
+    """
+    try:
+        parsed = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        parsed = DEFAULT_NAME_CLEAR_DELAY
+    return max(MIN_NAME_CLEAR_DELAY, min(MAX_NAME_CLEAR_DELAY, parsed))
+
 
 @dataclass(frozen=True)
 class KartographSettings:
@@ -55,6 +80,7 @@ class KartographSettings:
     tablegroup_overlay_position: str = DEFAULT_TABLEGROUP_OVERLAY_POSITION
     sitzplan_popup_delay: int = DEFAULT_SITZPLAN_POPUP_DELAY
     save_delay: float = DEFAULT_SAVE_DELAY
+    name_clear_delay: float = DEFAULT_NAME_CLEAR_DELAY
     show_archived_plans: bool = False
     hide_snapshot_delete_confirm: bool = False
     # Zuletzt gewählter Wert der Checkbox "Abwesende ohne Abgabe ebenfalls mit X" (Abgaben zählen).
@@ -143,6 +169,7 @@ class KartographSettings:
                 minimum=MIN_SAVE_DELAY,
                 maximum=MAX_SAVE_DELAY,
             ),
+            name_clear_delay=parse_name_clear_delay(payload.get("name_clear_delay")),
             show_archived_plans=_bool(payload.get("show_archived_plans"), False),
             hide_snapshot_delete_confirm=_bool(payload.get("hide_snapshot_delete_confirm"), False),
             submission_mark_absent=_bool(payload.get("submission_mark_absent"), False),
@@ -167,6 +194,7 @@ class KartographSettings:
             "tablegroup_overlay_position": self.tablegroup_overlay_position,
             "sitzplan_popup_delay": self.sitzplan_popup_delay,
             "save_delay": self.save_delay,
+            "name_clear_delay": self.name_clear_delay,
             "show_archived_plans": self.show_archived_plans,
             "hide_snapshot_delete_confirm": self.hide_snapshot_delete_confirm,
             "submission_mark_absent": self.submission_mark_absent,

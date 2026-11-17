@@ -10,6 +10,7 @@ jedes Detail erreichbar, egal wie viele Symbole und Legenden Platz brauchen.
 from __future__ import annotations
 
 from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
+from app.adapters.gui._pending_field_save import PendingFieldSave
 from app.core.domain.permanent_absence import PERMANENT_ABSENCE_LABEL
 from app.core.domain.student_notes import NOTES_LABEL
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -72,6 +73,16 @@ class DetailsLayoutMixin:
         self.name_entry = self._add_name_field("Vorname", self._name_var)
         self.last_name_entry = self._add_name_field("Nachname", self._last_name_var)
         self.nickname_entry = self._add_name_field("Spitzname", self._nickname_var)
+
+        # Geleerter Name einer Person mit Daten: eigener Halte-Slot mit eigener Frist
+        # (s. _apply_name_fields); in _pending_edits, damit ihn Fensterschluss/Planwechsel
+        # ausführen bzw. das Zerstören des Fensters seinen Timer abbricht.
+        self._name_clear_hold = PendingFieldSave(
+            self, apply=self._apply_name_clear,
+            delay_seconds=lambda: self._controller.state.settings.name_clear_delay,
+        )
+        self._pending_edits.append(self._name_clear_hold)
+        self._name_clear_warning = tui.Label(self.details_frame, style="Error.TLabel", wraplength=480, justify="left")
 
         # Schalter und Bearbeiten-Menü laufen über dieselbe Aktion (set_selected_permanent_absence).
         # Switch statt Checkbox: die Markierung wirkt sofort (bw-gui TOGGLE_CONTRACT); programmatisches

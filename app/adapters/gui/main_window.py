@@ -383,7 +383,7 @@ class KartographMainWindow(
     def _on_shell_close(self) -> bool:
         """Schließt Overlay-Fenster bevor die Shell das Root-Fenster zerstört."""
         try:
-            self._commit_pending_edits()
+            self._commit_pending_edits(final=True)
         except Exception:
             pass
         try:

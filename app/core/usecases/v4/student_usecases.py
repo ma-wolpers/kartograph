@@ -132,12 +132,34 @@ def drop_unnamed_desk_data(plan: SeatingPlan) -> None:
         plan: Plan, der direkt verändert wird.
     """
     for student in plan.classroom.students:
-        if student.is_named():
+        if student.is_named() or not has_person_data(plan, student):
             continue
-        if student.diagnostic != DiagnosticProfile():
-            student.diagnostic = DiagnosticProfile()
+        student.diagnostic = DiagnosticProfile()
         student.permanently_absent = False
         _remove_documentation_in_place(plan, student.student_id)
+
+
+def has_person_data(plan: SeatingPlan, student: Student) -> bool:
+    """Trägt *student* Personendaten, die ohne Namen verloren gingen?
+
+    Einzige Definition dafür: Farbpunkte, Notizen, Diagnose-Symbole,
+    Abwesend-Markierung, Tageseinträge oder Noten. Genutzt von
+    ``drop_unnamed_desk_data`` und der GUI-Warnung vor dem Leeren des Namens.
+
+    Args:
+        plan: Plan mit der Dokumentation.
+        student: Zu prüfender Schülertisch.
+
+    Returns:
+        ``True``, wenn mindestens eine solche Angabe vorhanden ist.
+    """
+    sid = student.student_id
+    return (
+        student.diagnostic != DiagnosticProfile()
+        or student.permanently_absent
+        or any(sid in session.entries for session in plan.documentation.sessions)
+        or bool(plan.documentation.grades.get(sid))
+    )
 
 
 def move_student(plan: SeatingPlan, student_id: StudentId, new_x: int, new_y: int) -> SeatingPlan:

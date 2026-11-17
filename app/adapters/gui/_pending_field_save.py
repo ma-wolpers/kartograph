@@ -38,12 +38,22 @@ class PendingFieldSave:
         self,
         window,
         *,
-        capture: Callable[[], tuple[StudentId, Any] | None],
         apply: Callable[[StudentId, Any], None],
+        capture: Callable[[], tuple[StudentId, Any] | None] | None = None,
+        delay_seconds: Callable[[], float] | None = None,
     ) -> None:
+        """Legt einen leeren Pending-Slot an.
+
+        Args:
+            window: Tk-Fenster für ``after``/``after_cancel``.
+            apply: Speichert einen Wert ``(student_id, value)``.
+            capture: Liest das Feld für ``note_change``; ohne *capture* nur ``put``.
+            delay_seconds: Frist bis zum Speichern; Standard ist ``window.save_delay``.
+        """
         self._window = window
         self._capture = capture
         self._apply = apply
+        self._delay_seconds = delay_seconds or (lambda: getattr(window, "save_delay", DEFAULT_SAVE_DELAY))
         self._pending: tuple[StudentId, Any] | None = None
         self._after_id: str | None = None
         self._suspend_depth = 0
@@ -81,25 +91,47 @@ class PendingFieldSave:
         er zuerst geflusht, bevor der neue Wert übernommen wird. Innerhalb von
         ``suspended()`` (programmatisches Befüllen) ein No-Op.
         """
-        if self._suspend_depth:
+        if self._suspend_depth or self._capture is None:
             return
         captured = self._capture()
-        if captured is None:
-            return
-        student_id, value = captured
+        if captured is not None:
+            self.put(*captured)
+
+    def put(self, student_id: StudentId, value: Any) -> None:
+        """Merkt *value* für *student_id* vor und startet die Frist neu.
+
+        Wartet schon ein Wert einer ANDEREN Person, wird er zuerst gespeichert.
+
+        Args:
+            student_id: Betroffene Person.
+            value: Zu speichernder Wert.
+        """
         if self._pending is not None and self._pending[0] != student_id:
             self.flush()
         self._pending = (student_id, value)
         self._reschedule()
 
+    def pending_value(self, student_id: StudentId) -> Any | None:
+        """Der wartende Wert von *student_id* oder ``None``.
+
+        Args:
+            student_id: Die angezeigte Person.
+        """
+        return self._pending[1] if self.has_pending_for(student_id) else None
+
+    def discard(self, student_id: StudentId) -> None:
+        """Verwirft den wartenden Wert von *student_id* ohne zu speichern (sonst No-Op).
+
+        Args:
+            student_id: Person, deren Vormerkung entfällt.
+        """
+        if self.has_pending_for(student_id):
+            self._cancel_timer()
+            self._pending = None
+
     def flush(self) -> None:
         """Speichert einen ausstehenden Wert sofort, falls vorhanden (sonst No-Op)."""
-        if self._after_id is not None:
-            try:
-                self._window.after_cancel(self._after_id)
-            except Exception:
-                pass
-            self._after_id = None
+        self._cancel_timer()
         pending, self._pending = self._pending, None
         if pending is not None:
             self._apply(*pending)
@@ -111,6 +143,10 @@ class PendingFieldSave:
         gespeichert (``_on_shell_close`` → ``_commit_pending_edits``); hier geht
         es nur darum, dass kein ``after``-Rückruf das Fenster überlebt.
         """
+        self._cancel_timer()
+
+    def _cancel_timer(self) -> None:
+        """Bricht den geplanten Speicher-Rückruf ab, falls einer läuft."""
         if self._after_id is not None:
             try:
                 self._window.after_cancel(self._after_id)
@@ -119,12 +155,9 @@ class PendingFieldSave:
             self._after_id = None
 
     def _reschedule(self) -> None:
-        if self._after_id is not None:
-            try:
-                self._window.after_cancel(self._after_id)
-            except Exception:
-                pass
-        delay_ms = int(getattr(self._window, "save_delay", DEFAULT_SAVE_DELAY) * 1000)
+        """Startet die Frist (``delay_seconds``) neu; ``0`` speichert sofort."""
+        self._cancel_timer()
+        delay_ms = int(self._delay_seconds() * 1000)
         if delay_ms <= 0:
             self.flush()
             return

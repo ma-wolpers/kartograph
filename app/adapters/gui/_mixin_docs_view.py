@@ -122,7 +122,7 @@ class DocsViewMixin:
         (``app/application/shortcut_scope.py``) -- kein Zwischenzustand mit
         versteckter Editor-Ansicht bei noch offenem Plan.
         """
-        self._commit_pending_edits()
+        self._commit_pending_edits(final=True)
         self._flush_pending_plan_save()
         self._hide_details()
         self._controller.dispatch(ClearSelectionIntent())

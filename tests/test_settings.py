@@ -123,3 +123,27 @@ class TestToDictRoundtrip:
         payload = settings.to_dict()
         assert payload["save_delay"] == 4.0
         assert "name_save_delay" not in payload
+
+
+class TestNameClearDelay:
+    """Frist, bevor ein geleerter Name einer Person mit Daten wirklich gespeichert wird."""
+
+    def test_default_and_roundtrip(self):
+        from app.core.domain.settings import DEFAULT_NAME_CLEAR_DELAY
+
+        assert KartographSettings().name_clear_delay == DEFAULT_NAME_CLEAR_DELAY == 30.0
+        restored = KartographSettings.from_dict(KartographSettings(name_clear_delay=45.0).to_dict())
+        assert restored.name_clear_delay == 45.0
+
+    def test_values_are_clamped_and_invalid_falls_back(self):
+        from app.core.domain.settings import (
+            DEFAULT_NAME_CLEAR_DELAY,
+            MAX_NAME_CLEAR_DELAY,
+            MIN_NAME_CLEAR_DELAY,
+            parse_name_clear_delay,
+        )
+
+        assert parse_name_clear_delay(1) == MIN_NAME_CLEAR_DELAY
+        assert parse_name_clear_delay(10_000) == MAX_NAME_CLEAR_DELAY
+        assert parse_name_clear_delay("kaputt") == DEFAULT_NAME_CLEAR_DELAY
+        assert KartographSettings.from_dict({}).name_clear_delay == DEFAULT_NAME_CLEAR_DELAY

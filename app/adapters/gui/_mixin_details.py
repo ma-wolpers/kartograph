@@ -7,6 +7,8 @@ Die Widget-Konstruktion liegt in ``_mixin_details_layout.py``.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from app.adapters.gui.main_window_constants import (
     DESK_DETAIL_EDITING,
     DESK_DETAIL_REVEALED,
@@ -19,6 +21,7 @@ from app.core.domain.student_naming import normalize_name_part
 from app.core.domain.student_notes import normalize_note_lines
 from app.core.intents.note_intents import SetNotesIntent
 from app.core.intents.student_intents import CreateStudentIntent, RenameStudentIntent, SetNicknameIntent
+from app.core.usecases.v4.student_usecases import has_person_data
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -277,14 +280,22 @@ class DetailsMixin:
         x, y = self.selected_cell
         self._controller.dispatch(CreateStudentIntent(x=x, y=y))
 
-    def _commit_pending_edits(self) -> None:
+    def _commit_pending_edits(self, *, final: bool = False) -> None:
         """Flusht alle ausstehenden Feld-Edits (Namen, Notizen), bevor
         der Bearbeitungskontext wechselt (anderer Tisch, Panel schließen, Plan
         wechseln, App schließen). Zentraler Ersatz für vormals verstreute
         Einzel-Flush-Aufrufe -- s. ``app/adapters/gui/_pending_field_save.py``.
+
+        Ein gehaltener, geleerter Name (``_name_clear_hold``) wartet seine eigene
+        Frist ab und wird nur bei *final* (Plan verlassen, Programmschluss) sofort
+        ausgeführt -- ein Tischwechsel allein löscht keine Daten.
+
+        Args:
+            final: ``True``, wenn der Plan verlassen oder das Programm geschlossen wird.
         """
-        for pending in self._pending_edits:
-            pending.flush()
+        for pending in self._pending_edits:  # Reihenfolge: Namen vor dem Halte-Slot (der Name kann ihn füllen)
+            if final or pending is not self._name_clear_hold:
+                pending.flush()
 
     def _capture_name_fields(self) -> tuple[StudentId, dict] | None:
         """Liest den aktuell editierten Schüler und die aktuellen Namensfeld-Werte.
@@ -313,17 +324,65 @@ class DetailsMixin:
         Sucht den Schüler über seine stabile ID (nicht über die aktuell selektierte
         Zelle) -- unabhängig davon, wohin die Auswahl inzwischen gewandert ist.
         Dispatcht nur bei tatsächlicher Änderung.
+
+        Würde die Änderung eine Person mit Daten namenlos machen (die Invariante
+        ``drop_unnamed_desk_data`` löschte dann ihre Daten), wird sie nicht
+        gespeichert, sondern in ``_name_clear_hold`` gehalten (eigene Frist aus
+        ``settings.name_clear_delay``) und das Panel warnt. Ein neuer Name hebt das auf.
         """
         if not self.current_plan or not self.current_plan_path:
             return
         student = self.current_plan.student_by_id(student_id)
         if not student:
             return
-        first, last, nickname = (normalize_name_part(values[key]) for key in ("first_name", "last_name", "nickname"))
+        names = _normalized_names(values)
+        becomes_unnamed = not replace(student, first_name_official=names[0], last_name=names[1], nickname=names[2]).is_named()
+        if student.is_named() and becomes_unnamed and has_person_data(self.current_plan, student):
+            self._name_clear_hold.put(student_id, values)
+        else:
+            self._name_clear_hold.discard(student_id)
+            self._dispatch_name_values(student, names)
+        self._sync_name_clear_warning()
+
+    def _apply_name_clear(self, student_id: StudentId, values: dict) -> None:
+        """Führt einen gehaltenen, geleerten Namen aus (Frist abgelaufen, Plan- oder Programmschluss).
+
+        Danach entfernt die Invariante die Daten der Person; Strg+Z holt sie zurück,
+        solange der Plan offen bleibt.
+
+        Args:
+            student_id: Person, deren Name geleert wurde.
+            values: Die gehaltenen Feldwerte.
+        """
+        student = self.current_plan.student_by_id(student_id) if self.current_plan else None
+        if student is None:
+            return
+        former = student.display_name()
+        self._dispatch_name_values(student, _normalized_names(values))
+        self.status_var.set(f"Name von {former} gelöscht, Daten entfernt (Strg+Z holt sie zurück)")
+        self._sync_name_clear_warning()
+
+    def _dispatch_name_values(self, student, names: tuple[str, str, str]) -> None:
+        """Speichert normalisierte ``(Vorname, Nachname, Spitzname)``, nur geänderte Teile.
+
+        Args:
+            student: Betroffene Person (aktueller Planstand).
+            names: Bereits über ``normalize_name_part`` normalisierte Werte.
+        """
+        first, last, nickname = names
         if student.first_name_official != first or student.last_name != last:
-            self._controller.dispatch(RenameStudentIntent(student_id=student_id, first_name=first, last_name=last))
+            self._controller.dispatch(RenameStudentIntent(student_id=student.student_id, first_name=first, last_name=last))
         if student.nickname != nickname:
-            self._controller.dispatch(SetNicknameIntent(student_id=student_id, nickname=nickname))
+            self._controller.dispatch(SetNicknameIntent(student_id=student.student_id, nickname=nickname))
+
+    def _sync_name_clear_warning(self) -> None:
+        """Zeigt die Lösch-Warnung genau dann, wenn für die angezeigte Person ein geleerter Name wartet."""
+        if self._name_clear_hold.has_pending_for(self._details_loaded_student_id):
+            seconds = self._controller.state.settings.name_clear_delay
+            self._name_clear_warning.configure(text=NAME_CLEAR_WARNING.format(seconds=f"{seconds:g}"))
+            self._name_clear_warning.pack(anchor="w", pady=(4, 0), after=self.details_form)
+        else:
+            self._name_clear_warning.pack_forget()
 
     def _load_detail_fields(self, student) -> None:
         """Zeigt Namen und Notizen von *student* (``None`` = Felder leeren und sperren).
@@ -341,6 +400,9 @@ class DetailsMixin:
         state = "normal" if student is not None else "disabled"
         name_vars = (self._name_var, self._last_name_var, self._nickname_var)
         stored_names = (student.first_name_official, student.last_name, student.nickname) if student else ("", "", "")
+        held = self._name_clear_hold.pending_value(student_id) if student_id is not None else None
+        if held is not None:  # gehaltener, geleerter Name: Feld zeigt die Eingabe, nicht den alten Namen
+            stored_names = _normalized_names(held)
         shown_names = tuple(normalize_name_part(var.get()) for var in name_vars)
         if self._field_needs_reload(student_id, self._name_pending_save, stored_names, shown_names):
             with self._name_pending_save.suspended():
@@ -361,6 +423,7 @@ class DetailsMixin:
         self._absent_var.set(student is not None and is_permanently_absent(student))
         self.absent_switch.state(["!disabled"] if student is not None and student.is_named() else ["disabled"])
         self._details_loaded_student_id = student_id
+        self._sync_name_clear_warning()
 
     def _field_needs_reload(self, student_id: StudentId | None, pending, stored, shown) -> bool:
         """Einzige Regel, ob ein Detail-Feld den gespeicherten Stand neu laden muss.
@@ -431,3 +494,18 @@ class DetailsMixin:
         if student.diagnostic.notes == normalized:
             return
         self._controller.dispatch(SetNotesIntent(student_id=student_id, notes=normalized))
+
+
+NAME_CLEAR_WARNING = (
+    "Ohne Namen gehen Farbpunkte, Notizen, Symbole und Noten dieser Person verloren – "
+    "nach {seconds} s, beim Planwechsel oder beim Schließen. Trag einen Namen ein, um sie zu behalten."
+)
+
+
+def _normalized_names(values: dict) -> tuple[str, str, str]:
+    """``(Vorname, Nachname, Spitzname)`` aus den Feldwerten, über ``normalize_name_part``.
+
+    Args:
+        values: Feldwerte mit den Schlüsseln ``first_name``, ``last_name``, ``nickname``.
+    """
+    return tuple(normalize_name_part(values[key]) for key in ("first_name", "last_name", "nickname"))
