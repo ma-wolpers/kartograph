@@ -8,18 +8,22 @@ from __future__ import annotations
 from app.application.app_state import AppState
 from app.application.handlers.edit_handlers import handle_undo
 from app.application.handlers.plan_handlers import handle_open_plan
-from app.application.handlers.student_handlers import handle_set_permanently_absent
+from app.application.handlers.student_handlers import handle_rename_student, handle_set_permanently_absent
+from app.core.domain.models_v4 import DiagnosticProfile
 from app.core.domain.permanent_absence import (
     absent_student_ids,
     accepts_entries,
+    accepts_notes,
     active_students,
     export_seat_visibility,
     is_active,
 )
 from app.core.intents.edit_intents import UndoIntent
 from app.core.intents.plan_intents import OpenPlanIntent
-from app.core.intents.student_intents import SetPermanentlyAbsentIntent
-from app.core.usecases.v4.student_usecases import rename_student, set_nickname, set_permanently_absent
+from app.core.intents.student_intents import RenameStudentIntent, SetPermanentlyAbsentIntent
+from app.core.usecases.v4.grade_usecases import add_grade_column
+from app.core.usecases.v4.student_usecases import drop_unnamed_desk_data, set_permanently_absent
+from app.core.usecases.v4.symbol_usecases import record_symbol
 from app.core.usecases.v4.tablegroup_usecases import apply_normalized_tablegroups
 from app.infrastructure.repositories.v4.deserializer_v4 import deserialize_plan
 from app.infrastructure.repositories.v4.serializer_v4 import serialize_plan
@@ -37,7 +41,8 @@ def test_predicates() -> None:
     assert is_active(present) and accepts_entries(present)
     assert not is_active(absent) and not accepts_entries(absent)
     assert not is_active(empty)
-    assert accepts_entries(empty)  # leere Tische regelt weiter is_named(), nicht die Abwesenheits-Sperre
+    assert not accepts_entries(empty) and not accepts_notes(empty)  # Personendaten nur für Schüler:innen
+    assert accepts_notes(absent)  # Notizen bleiben für dauerhaft Abwesende bearbeitbar
     assert active_students([present, absent, empty]) == [present]
     assert absent_student_ids([present, absent, empty]) == {absent.student_id}
 
@@ -76,12 +81,56 @@ def test_usecase_marks_and_unmarks_but_never_an_unnamed_desk() -> None:
     assert not set_permanently_absent(plan, empty.student_id, True).student_by_id(empty.student_id).permanently_absent
 
 
-def test_removing_the_name_removes_the_mark() -> None:
-    student = _absent(make_student(first_name="Anna", nickname=""))
+def _with_person_data(student):
+    """Gibt *student* Farbpunkt, Notiz, Diagnosesymbol und Abwesend-Markierung."""
+    student.diagnostic.color_tags = ["gelb"]
+    student.diagnostic.notes = ["Absprache"]
+    student.diagnostic.symbols = {"Beteiligung": 2}
+    return _absent(student)
+
+
+def test_invariant_drops_all_person_data_of_unnamed_desks() -> None:
+    named = _with_person_data(make_student(x=1, first_name="Anna"))
+    empty = _with_person_data(make_student(x=2, first_name="Ben"))
+    empty.permanently_absent = False  # Eintragen erst erlauben, Altdaten wie aus einer alten Datei
+    plan = record_symbol(make_plan(students=[named, empty]), empty.student_id, "2026-11-17", "Abwesend", 1)
+    plan, column = add_grade_column(plan, "schriftlich", "KA")
+    plan.documentation.set_grade(empty.student_id, column, 2.0)
+    assert any(empty.student_id in session.entries for session in plan.documentation.sessions)
+    plan.student_by_id(empty.student_id).first_name_official = ""  # Name weg, Daten noch da
+    plan.student_by_id(empty.student_id).permanently_absent = True
+
+    drop_unnamed_desk_data(plan)
+
+    cleared = plan.student_by_id(empty.student_id)
+    assert cleared.diagnostic == DiagnosticProfile() and not cleared.permanently_absent
+    assert all(empty.student_id not in session.entries for session in plan.documentation.sessions)
+    assert plan.documentation.grade_of(empty.student_id, column) is None
+    kept = plan.student_by_id(named.student_id)
+    assert kept.diagnostic.notes == ["Absprache"] and kept.permanently_absent
+
+
+def test_removing_the_name_drops_the_data_and_undo_restores_it() -> None:
+    student = _with_person_data(make_student(first_name="Anna", nickname=""))
     plan = make_plan(students=[student])
-    assert not rename_student(plan, student.student_id, "", "").student_by_id(student.student_id).permanently_absent
-    kept = set_nickname(plan, student.student_id, "Anni")
-    assert kept.student_by_id(student.student_id).permanently_absent
+    path = PLANS_DIR / "test.json"
+    ctx = make_ctx({path: plan})
+    state = handle_open_plan(OpenPlanIntent(plan_path=path), AppState(), ctx)
+
+    state = handle_rename_student(RenameStudentIntent(student_id=student.student_id, first_name="", last_name=""), state, ctx)
+    assert state.current_plan.student_by_id(student.student_id).diagnostic == DiagnosticProfile()
+
+    state = handle_undo(UndoIntent(), state, ctx)
+    restored = state.current_plan.student_by_id(student.student_id)
+    assert restored.diagnostic.notes == ["Absprache"] and restored.permanently_absent
+
+
+def test_opening_a_plan_cleans_old_data_at_empty_desks() -> None:
+    empty = _with_person_data(make_student(first_name=""))
+    plan = make_plan(students=[empty])
+    path = PLANS_DIR / "alt.json"
+    state = handle_open_plan(OpenPlanIntent(plan_path=path), AppState(), make_ctx({path: plan}))
+    assert state.current_plan.student_by_id(empty.student_id).diagnostic == DiagnosticProfile()
 
 
 def test_roundtrip_writes_the_key_only_when_set() -> None:

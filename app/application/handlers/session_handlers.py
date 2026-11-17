@@ -44,7 +44,7 @@ def _clear_entry(plan: SeatingPlan, student_id: StudentId, target_date: str) -> 
     """
     next_plan = deepcopy(plan)
     student = next_plan.classroom.student_by_id(student_id)
-    if student is not None and not accepts_entries(student):  # dauerhaft abwesend: gesperrt
+    if student is not None and not accepts_entries(student):  # leerer Tisch / dauerhaft abwesend
         return next_plan
     session = next_plan.documentation.session_for_date(target_date)
     if session is not None:

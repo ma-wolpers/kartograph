@@ -81,3 +81,24 @@ def test_docs_view_shows_absent_rows_greyed_at_the_bottom(window):
         assert app._doc_row_order[-1] == str(sid)
         muted = {row.row_id for row in app.docs_grid._rows if row.muted}
         assert muted == {str(sid)}
+
+
+def test_empty_desk_offers_no_person_data(tmp_path):
+    """Leerer Tisch: Symbol-/Farbknöpfe, Notizfeld und Schalter gesperrt; Farbtaste meldet "nur Schülertische"."""
+    app, close = open_isolated_window(tmp_path, build_synthetic_plan(2, 1, 0))
+    try:
+        app._controller.dispatch(SetEditorSurfaceIntent(surface="grid"))
+        free = (40, 40)
+        app._set_selection_single(*free)
+        app.enter_name_edit_mode()  # legt einen unbenannten Tisch an
+        app.tk_root.update()
+        assert app.current_plan.student_at(*free) is not None
+        assert str(app.notes_field.text.cget("state")) == "disabled"
+        assert app.absent_switch.instate(["disabled"])
+        assert all(str(button.cget("state")) == "disabled" for button in app._symbol_buttons.values())
+        app.canvas.focus_set()
+        app._toggle_selected_color("gelb")
+        assert app.status_var.get() == "Farbpunkte nur für Schülertische"
+        assert app.current_plan.student_at(*free).diagnostic.color_tags == []
+    finally:
+        close()

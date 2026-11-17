@@ -5,12 +5,10 @@ import logging
 
 from app.application.app_state import AppState, InteractionMode
 from app.application.handler_context import HandlerContext
-from app.application.handlers._shared import _refresh_plan_list
+from app.application.handlers._shared import _apply_plan_invariants, _refresh_plan_list
 from app.core.domain.list_action_history import DeletePlanAction, DuplicatePlanAction, RenamePlanAction
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import resolve_plans_dir
-from app.core.usecases.v4.color_usecases import drop_unused_palette_entries
-from app.core.usecases.v4.tablegroup_usecases import apply_normalized_tablegroups
 from app.core.intents.plan_intents import (
     ArchivePlanIntent,
     CreatePlanIntent,
@@ -32,10 +30,10 @@ def handle_open_plan(intent: OpenPlanIntent, state: AppState, ctx: HandlerContex
     dessen Undo/Redo-Verlauf erhalten statt verworfen zu werden. Bei einem
     Wechsel auf einen anderen Plan wird der Verlauf wie bisher zurückgesetzt.
 
-    Die Tischgruppen des geladenen Plans werden aus der Sitznachbarschaft neu
-    berechnet (``apply_normalized_tablegroups``), damit auch Dateien mit
-    veralteten Gruppen sofort konsistent angezeigt werden; ebenso werden
-    Bedeutungen nicht getragener Farben verworfen (``drop_unused_palette_entries``). Das
+    Der geladene Plan durchläuft alle Plan-Invarianten (``_apply_plan_invariants``:
+    keine Personendaten an leeren Tischen, Tischgruppen passend zur
+    Sitznachbarschaft, Palette nur mit getragenen Farben), damit auch ältere
+    Dateien sofort konsistent angezeigt werden. Das
     Repository bleibt bewusst ein treuer Speichern/Laden-Spiegel. Die
     korrigierte Fassung landet mit der nächsten Änderung in der Datei.
 
@@ -49,8 +47,7 @@ def handle_open_plan(intent: OpenPlanIntent, state: AppState, ctx: HandlerContex
     except Exception:
         _log.exception("handle_open_plan: load failed for %s", intent.plan_path)
         return dataclasses.replace(state, status_message=f"Fehler beim Öffnen: {intent.plan_path.name}")
-    apply_normalized_tablegroups(plan)
-    drop_unused_palette_entries(plan)
+    _apply_plan_invariants(plan)
 
     if ctx.history.plan_path == intent.plan_path:
         can_undo = ctx.history.can_undo

@@ -1,4 +1,8 @@
-"""Dauerhaft abwesende Personen: die einzige Regelstelle (SSOT).
+"""Wer Personendaten tragen und mitzählen darf: die einzige Regelstelle (SSOT).
+
+Personendaten (Farbpunkte, Notizen, Symbole, Tageseinträge, Noten) gehören nur
+zu Schüler:innen, nie zu leeren Tischen (``accepts_entries``/``accepts_notes``;
+die Invariante ``student_usecases.drop_unnamed_desk_data`` hält den Plan so).
 
 Eine Person kann dauerhaft abwesend markiert werden (``Student.permanently_absent``,
 z. B. langfristig krank, im Ausland). Die Markierung ist umkehrbar und löscht
@@ -55,18 +59,31 @@ def is_active(student: Student) -> bool:
 
 
 def accepts_entries(student: Student) -> bool:
-    """Ist *student* für Einträge (Doku, Noten, Mitarbeit, Symbole, Farben) freigegeben?
+    """Darf *student* Einträge bekommen (Doku-/Diagnose-Symbole, Mitarbeit, Noten, Farbpunkte)?
 
-    Nur die Sperre durch dauerhafte Abwesenheit; was ein leerer Tisch darf,
-    regeln die bestehenden ``is_named()``-Prüfungen der Usecases unverändert.
+    Personendaten gehören nur zu Schüler:innen: ein leerer Tisch bekommt nie
+    welche, eine dauerhaft abwesende Person ist gesperrt. Einzige Regel für
+    alle schreibenden Usecases und den GUI-Sperrhinweis.
 
     Args:
-        student: Zu prüfende Person.
+        student: Zu prüfender Schülertisch.
 
     Returns:
-        ``False`` genau für dauerhaft Abwesende.
+        ``True`` wie ``is_active``: benannt und nicht dauerhaft abwesend.
     """
-    return not is_permanently_absent(student)
+    return is_active(student)
+
+
+def accepts_notes(student: Student) -> bool:
+    """Darf *student* Notizen tragen? Nur Schüler:innen, auch dauerhaft abwesende.
+
+    Args:
+        student: Zu prüfender Schülertisch.
+
+    Returns:
+        ``True`` für benannte Tische.
+    """
+    return student.is_named()
 
 
 def active_students(students: Iterable[Student]) -> list[Student]:

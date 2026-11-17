@@ -103,7 +103,7 @@ def apply_symbol_strength_in_place(
         strength: Neue Stärke (0 = löschen, 1–3 = setzen).
     """
     student = plan.classroom.student_by_id(student_id)
-    if student is None or not student.is_named() or not accepts_entries(student):
+    if student is None or not accepts_entries(student):
         return
     session = plan.documentation.session_for_date(_normalize_doc_date(date))
     if session is None:

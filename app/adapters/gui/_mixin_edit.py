@@ -208,15 +208,8 @@ class EditMixin:
         """
         if not self.current_plan or not self.current_plan_path:
             return
-        if not self.selection.is_single():
-            self.status_var.set("Farbpunkte nur bei Einzelauswahl")
-            return
-        x, y = self.selected_cell
-        student = self.current_plan.student_at(x, y)
-        if not student:
-            self.status_var.set("Farbpunkte nur für Schülertische")
-            return
-        if self._report_if_locked(student):
+        student = self._selected_student("Farbpunkte")  # nur Schüler:innen (Einzelauswahl, benannt)
+        if student is None or self._report_if_locked(student):
             return
         currently_active = color_key in student.diagnostic.color_tags
         requires_meaning = (not currently_active) and (not palette_meaning(self.current_plan, color_key))

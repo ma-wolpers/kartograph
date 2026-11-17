@@ -16,6 +16,7 @@ from app.core.domain.submission_matching import match_submission_folders
 from app.core.domain.table_groups import build_seat_geometries_v4
 from app.core.usecases.v4.color_usecases import toggle_color_tag
 from app.core.usecases.v4.grade_usecases import add_grade_column, record_grade
+from app.core.usecases.v4.note_usecases import set_notes
 from app.core.usecases.v4.participation_usecases import set_participation_rating
 from app.core.usecases.v4.submission_usecases import apply_missing_submissions
 from app.core.usecases.v4.symbol_usecases import record_symbol, toggle_diagnostic_symbol
@@ -108,8 +109,16 @@ def test_unmarking_unlocks_again(class_plan):
     assert toggle_color_tag(ben_plan, ben.student_id, "gelb").student_by_id(ben.student_id).diagnostic.color_tags == ["gelb"]
 
 
-def test_empty_desks_keep_their_previous_rules():
-    """Die Sperre gilt nur für dauerhaft Abwesende: Farbpunkte an leeren Tischen bleiben wie bisher möglich."""
+def test_empty_desks_get_no_person_data():
+    """Farbpunkte, Notizen, Diagnose-Symbole gehören nur zu Schüler:innen, nicht zu leeren Tischen."""
     empty = make_student(x=1, y=0, first_name="")
     plan = make_plan(students=[empty])
-    assert toggle_color_tag(plan, empty.student_id, "gelb").student_by_id(empty.student_id).diagnostic.color_tags == ["gelb"]
+    sid = empty.student_id
+    assert toggle_color_tag(plan, sid, "gelb").student_by_id(sid).diagnostic.color_tags == []
+    assert set_notes(plan, sid, ["Notiz"]).student_by_id(sid).diagnostic.notes == []
+    assert toggle_diagnostic_symbol(plan, sid, DATE, "Beteiligung").student_by_id(sid).diagnostic.symbols == {}
+
+
+def test_absent_students_keep_editable_notes(class_plan):
+    plan, _anna, ben, _cem = class_plan
+    assert set_notes(plan, ben.student_id, ["Kommt im Mai"]).student_by_id(ben.student_id).diagnostic.notes == ["Kommt im Mai"]

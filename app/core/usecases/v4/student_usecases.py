@@ -11,6 +11,7 @@ from collections.abc import Iterable
 from copy import deepcopy
 
 from app.core.domain.models_v4 import (
+    DiagnosticProfile,
     Seat,
     SeatingPlan,
     Student,
@@ -102,10 +103,41 @@ def _delete_student_in_place(plan: SeatingPlan, student_id: StudentId) -> None:
         group.seats = [s for s in group.seats if not (s.x == seat_x and s.y == seat_y)]
     plan.tablegroups = [g for g in plan.tablegroups if g.seats]
 
-    # Session-Einträge bereinigen
+    _remove_documentation_in_place(plan, student_id)
+
+
+def _remove_documentation_in_place(plan: SeatingPlan, student_id: StudentId) -> None:
+    """Entfernt alle Tageseinträge und Noten einer Person (Löschen und Namen-Entfernen teilen das).
+
+    Args:
+        plan: Bereits kopierter Plan, der verändert wird.
+        student_id: Betroffene Person.
+    """
     for session in plan.documentation.sessions:
         session.entries.pop(student_id, None)
     plan.documentation.remove_student_grades(student_id)
+
+
+def drop_unnamed_desk_data(plan: SeatingPlan) -> None:
+    """Invariante: Personendaten gibt es nur an benannten Tischen (in-place).
+
+    Farbpunkte, Notizen, Diagnose-Symbole, Tageseinträge, Noten und die
+    Markierung "dauerhaft abwesend" gehören zu Schüler:innen, nicht zu leeren
+    Tischen. Wird der Name entfernt, fallen sie mit weg (Undo stellt sie
+    wieder her); Altdateien mit Daten an leeren Tischen werden beim Öffnen
+    bereinigt. Durchgesetzt über ``handlers/_shared.py::_apply_plan_invariants``
+    -- Usecases räumen dafür nicht selbst auf.
+
+    Args:
+        plan: Plan, der direkt verändert wird.
+    """
+    for student in plan.classroom.students:
+        if student.is_named():
+            continue
+        if student.diagnostic != DiagnosticProfile():
+            student.diagnostic = DiagnosticProfile()
+        student.permanently_absent = False
+        _remove_documentation_in_place(plan, student.student_id)
 
 
 def move_student(plan: SeatingPlan, student_id: StudentId, new_x: int, new_y: int) -> SeatingPlan:
@@ -168,7 +200,6 @@ def rename_student(
         return next_plan
     student.first_name_official = normalize_name_part(first_name)
     student.last_name = normalize_name_part(last_name)
-    _clear_absence_of_unnamed(student)
     return next_plan
 
 
@@ -188,7 +219,6 @@ def set_nickname(plan: SeatingPlan, student_id: StudentId, nickname: str) -> Sea
     if student is None:
         return next_plan
     student.nickname = normalize_name_part(nickname)
-    _clear_absence_of_unnamed(student)
     return next_plan
 
 
@@ -213,16 +243,6 @@ def set_permanently_absent(plan: SeatingPlan, student_id: StudentId, absent: boo
         return next_plan
     student.permanently_absent = absent
     return next_plan
-
-
-def _clear_absence_of_unnamed(student: Student) -> None:
-    """Ein Tisch ohne Namen ist keine abwesende Person: Markierung fällt mit dem Namen weg.
-
-    Args:
-        student: Gerade umbenannte Person (Plankopie, wird verändert).
-    """
-    if not student.is_named():
-        student.permanently_absent = False
 
 
 def move_teacher_seat(plan: SeatingPlan, new_x: int, new_y: int) -> SeatingPlan:

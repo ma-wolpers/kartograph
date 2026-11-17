@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.adapters.gui.main_window_constants import DETAILS_LEGEND_MARGIN, DETAILS_LEGEND_MIN_WRAP
+from app.core.domain.permanent_absence import accepts_entries
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -66,16 +67,23 @@ class DetailsButtonsMixin:
     def _update_detail_buttons(self, student: Any) -> None:
         """Setzt Beschriftung/Zustand aller Knöpfe für *student* (nur geänderte Werte).
 
+        Gesperrt (``permanent_absence.accepts_entries``) sind die Knöpfe an leeren
+        Tischen und bei dauerhaft Abwesenden: Symbole und Farbpunkte gehören nur
+        zu Schüler:innen.
+
         Args:
             student: Ausgewählter Schüler.
         """
+        state = "normal" if accepts_entries(student) else "disabled"
         for symbol, button in self._symbol_buttons.items():
             count = int(student.diagnostic.symbols.get(symbol, 0))
             icon = self._symbol_glyph(symbol)
-            self._set_widget_options(button, text=f"{icon} {symbol}" if count == 0 else f"{icon} {symbol} x{count}")
+            text = f"{icon} {symbol}" if count == 0 else f"{icon} {symbol} x{count}"
+            self._set_widget_options(button, text=text, state=state)
         for color_key, (button, label) in self._color_buttons.items():
             active = color_key in student.diagnostic.color_tags
-            self._set_widget_options(button, text=f"{label}*" if active else label, relief="sunken" if active else "raised")
+            relief = "sunken" if active else "raised"
+            self._set_widget_options(button, text=f"{label}*" if active else label, relief=relief, state=state)
 
     def _set_legend_lines(self, frame: Any, lines: list[str]) -> None:
         """Ersetzt die Legenden-Labels in *frame* nur, wenn sich die Zeilen geändert haben.

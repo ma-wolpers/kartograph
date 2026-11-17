@@ -14,6 +14,7 @@ from app.application.plan_listing import build_plan_list
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.settings import resolve_plans_dir
 from app.core.usecases.v4.color_usecases import drop_unused_palette_entries
+from app.core.usecases.v4.student_usecases import drop_unnamed_desk_data
 from app.core.usecases.v4.tablegroup_usecases import apply_normalized_tablegroups
 
 IntentT = TypeVar("IntentT")
@@ -75,10 +76,25 @@ def _record_and_save(
         ctx: Handler-Kontext mit Zugriff auf History und Repository.
         merge_key: An ``PlanHistory.record`` durchgereicht; nur für laufende Texteingaben.
     """
-    apply_normalized_tablegroups(plan)
-    drop_unused_palette_entries(plan)
+    _apply_plan_invariants(plan)
     ctx.history.record(plan, merge_key=merge_key)
     _save_plan(plan, path, ctx)
+
+
+def _apply_plan_invariants(plan: SeatingPlan) -> None:
+    """Setzt alle Plan-Invarianten in-place durch -- einzige Liste, genutzt beim Öffnen und Aufzeichnen.
+
+    1. Personendaten nur an benannten Tischen (``drop_unnamed_desk_data``) --
+       zuerst, damit Schritt 3 auch Farben leerer Tische als ungetragen sieht.
+    2. Tischgruppen passen zur Sitznachbarschaft (``apply_normalized_tablegroups``).
+    3. Die Palette enthält nur getragene Farben (``drop_unused_palette_entries``).
+
+    Args:
+        plan: Planzustand, der direkt angepasst wird (idempotent).
+    """
+    drop_unnamed_desk_data(plan)
+    apply_normalized_tablegroups(plan)
+    drop_unused_palette_entries(plan)
 
 
 def _save_plan(plan: SeatingPlan, path: Path, ctx: HandlerContext) -> None:

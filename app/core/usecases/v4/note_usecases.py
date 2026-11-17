@@ -10,6 +10,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from app.core.domain.models_v4 import SeatingPlan
+from app.core.domain.permanent_absence import accepts_notes
 from app.core.domain.student_id import StudentId
 from app.core.domain.student_notes import normalize_note_lines
 
@@ -32,7 +33,7 @@ def set_notes(
     """
     next_plan = deepcopy(plan)
     student = next_plan.classroom.student_by_id(student_id)
-    if student is None:
+    if student is None or not accepts_notes(student):  # Notizen nur für Schüler:innen
         return next_plan
     student.diagnostic.notes = normalize_note_lines(notes)
     return next_plan
