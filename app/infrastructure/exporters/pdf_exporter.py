@@ -25,7 +25,7 @@ from app.core.domain.table_groups import build_seat_geometries_v4
 from app.core.usecases.v4.tablegroup_usecases import normalize_tablegroups
 from app.infrastructure.exporters.pdf_desk_renderer import PdfDeskRenderer
 from app.infrastructure.exporters.pdf_legend_renderer import PdfLegendRenderer
-from app.infrastructure.symbol_config_loader import SymbolDefinition
+from app.core.domain.symbol_catalog import SymbolDefinition
 
 class PdfSeatingPlanExporter:
     """Exportiert einen Sitzplan als PDF-Datei (A4 quer).

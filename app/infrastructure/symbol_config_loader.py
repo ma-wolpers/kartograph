@@ -1,46 +1,11 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 from app.core.domain.custom_symbol_validation import SPACE_SHORTCUT
+from app.core.domain.symbol_catalog import SymbolDefinition, SymbolRole
 from bw_libs.app_paths import atomic_write_json
-
-
-SymbolRole = Literal["diagnostic", "documentation_only"]
-
-
-@dataclass(frozen=True)
-class SymbolDefinition:
-    """Ein konfiguriertes Symbol aus ``config/symbols.json``: Glyph, Shortcut, Legenden-Stufentexte.
-
-    ``role`` unterscheidet frei vergebbare diagnostische Symbole
-    ("diagnostic") von Symbolen, die nur in der Dokumentation, nicht aber im
-    Diagnoseprofil eines Schülers gesetzt werden können ("documentation_only",
-    z. B. "Abwesend").
-    """
-
-    meaning: str
-    glyph: str
-    shortcut: str | None
-    legend_one: str
-    legend_two: str
-    legend_three: str
-    role: SymbolRole = "diagnostic"
-
-    def legend_for_count(self, count: int) -> str:
-        """Gibt den Legendentext für die Stärke *count* zurück (gestuft: 1, 2, 3+).
-
-        Args:
-            count: Symbolstärke, für die der passende Legendentext gesucht wird.
-        """
-        if count >= 3:
-            return self.legend_three
-        if count == 2:
-            return self.legend_two
-        return self.legend_one
 
 
 DEFAULT_SYMBOLS_PATH = Path(__file__).with_name("default_symbols.json")
@@ -203,8 +168,8 @@ def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | N
 
     *path* ist die lokale Arbeitskopie. Fehlt sie, ist ihr JSON ungültig, fehlt
     das ``symbols``-Array oder enthält es nach dem Parsen keinen einzigen
-    vollständigen Eintrag (Pflichtfelder: ``meaning``, ein gültiger Codepoint,
-    alle drei Legendenstufen), wird sie jeweils aus
+    vollständigen Eintrag (Pflichtfelder: ``key`` bzw. das ältere ``meaning``,
+    ein gültiger Codepoint, alle drei Legendenstufen), wird sie jeweils aus
     :data:`DEFAULT_SYMBOLS_PATH` neu geschrieben — die Anwendung soll mit
     einer kaputten Konfigurationsdatei nie ganz ohne Symbole starten. Neu
     eingebaute Symbole werden ergänzt, ohne eigene Änderungen anzutasten
@@ -242,12 +207,13 @@ def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | N
         if not isinstance(item, dict):
             continue
 
-        meaning = str(item.get("meaning") or "").strip()
+        key = str(item.get("key") or item.get("meaning") or "").strip()
+        name = str(item.get("name") or "").strip() or key
         glyph = _parse_codepoint(item.get("codepoint"))
         shortcut = _parse_shortcut(item.get("shortcut"))
         role = _parse_role(item.get("role"))
         legend = item.get("legend")
-        if not meaning or glyph is None or not isinstance(legend, dict):
+        if not key or glyph is None or not isinstance(legend, dict):
             continue
 
         one = str(legend.get("one") or "").strip()
@@ -257,15 +223,7 @@ def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | N
             continue
 
         definitions.append(
-            SymbolDefinition(
-                meaning=meaning,
-                glyph=glyph,
-                shortcut=shortcut,
-                role=role,
-                legend_one=one,
-                legend_two=two,
-                legend_three=three,
-            )
+            SymbolDefinition(key=key, name=name, glyph=glyph, shortcut=shortcut, role=role, legend=(one, two, three))
         )
 
     if not definitions:

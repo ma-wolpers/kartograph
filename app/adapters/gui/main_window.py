@@ -326,9 +326,9 @@ class KartographMainWindow(
         # die Symbol-Konfigurationsdatei zu öffnen.
         self.symbol_definitions = list(self._controller.state.symbol_catalog)
         warning = self._controller.symbol_catalog_warning
-        self.symbol_catalog = [item.meaning for item in self.symbol_definitions]
-        self.diagnostic_symbol_catalog = [item.meaning for item in self.symbol_definitions if item.role == "diagnostic"]
-        self._symbol_by_meaning = {item.meaning: item for item in self.symbol_definitions}
+        self.symbol_catalog = [item.key for item in self.symbol_definitions]
+        self.diagnostic_symbol_catalog = [item.key for item in self.symbol_definitions if item.role == "diagnostic"]
+        self._symbol_by_meaning = {item.key: item for item in self.symbol_definitions}
         self._shortcut_to_symbol = self._build_symbol_shortcut_map(self.symbol_definitions)
         self.effective_documentation_symbols: list[EffectiveSymbol] = []
         self._effective_symbol_by_key: dict[str, EffectiveSymbol] = {}

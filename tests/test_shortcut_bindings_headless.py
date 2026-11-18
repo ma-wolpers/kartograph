@@ -85,7 +85,7 @@ class _Host(ShortcutBindingsMixin, ShortcutMixin):
         self._controller = SimpleNamespace(state=state)
         self._shortcut_runtime_offline = False
         self.symbol_definitions, _warning = _load_default_symbols()
-        self._shortcut_to_symbol = {d.shortcut: d.meaning for d in self.symbol_definitions if d.shortcut}
+        self._shortcut_to_symbol = {d.shortcut: d.key for d in self.symbol_definitions if d.shortcut}
         self.color_palette = COLOR_MARKER_PALETTE
 
     def _init_shortcut_binder(self) -> None:

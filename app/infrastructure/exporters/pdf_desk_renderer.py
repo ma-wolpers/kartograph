@@ -17,9 +17,9 @@ from app.infrastructure.exporters.pdf_font_utils import (
     build_symbol_token,
     fit_multi_line_font,
     fit_single_line_font,
-    iter_symbol_counts,
 )
-from app.infrastructure.symbol_config_loader import SymbolDefinition
+from app.core.domain.symbol_catalog import SymbolDefinition
+from app.core.domain.symbol_legend import ordered_symbol_counts
 
 
 class PdfDeskRenderer:
@@ -40,10 +40,7 @@ class PdfDeskRenderer:
             symbol_definitions: Geordnete Liste aller Symboldefinitionen.
             color_palette: Farbpalette als Liste von (key, color_key, label, hex).
         """
-        self._symbol_definitions = symbol_definitions
-        self._symbols_by_meaning: dict[str, SymbolDefinition] = {
-            item.meaning: item for item in symbol_definitions
-        }
+        self._symbols_by_key: dict[str, SymbolDefinition] = {item.key: item for item in symbol_definitions}
         self._color_order = palette_order(color_palette)
         self._color_by_key = palette_by_key(color_palette)
         self._symbol_font_name = "Helvetica"
@@ -169,15 +166,13 @@ class PdfDeskRenderer:
 
         effective_symbols = summarize_latest_symbols(export_plan, student.student_id)
         source_symbols = effective_symbols if effective_symbols else student.diagnostic.symbols
-        symbol_entries = iter_symbol_counts(
-            self._symbol_definitions, self._symbols_by_meaning, source_symbols, visible_symbols
-        )
+        symbol_entries = ordered_symbol_counts(list(self._symbols_by_key), source_symbols, visible_symbols)
         lines: list[str] = []
         line_tokens: list[str] = []
         used_slots = 0
-        for meaning, count in symbol_entries:
-            used_symbol_levels.setdefault(meaning, set()).add(count)
-            token = build_symbol_token(meaning, count, self._symbols_by_meaning, self._symbol_font_uses_fallback)
+        for key, count in symbol_entries:
+            used_symbol_levels.setdefault(key, set()).add(count)
+            token = build_symbol_token(key, count, self._symbols_by_key, self._symbol_font_uses_fallback)
             if line_tokens and used_slots + len(token) > 6:
                 lines.append(" ".join(line_tokens))
                 line_tokens = [token]

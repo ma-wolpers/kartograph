@@ -2,24 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from app.core.domain.effective_symbol import build_effective_documentation_symbols, resolve_symbol_display
 from app.core.domain.models_v4 import CustomSymbolDefinition
+from app.core.domain.symbol_catalog import SymbolDefinition
 
 
-@dataclass(frozen=True)
-class _FakeSymbolDefinition:
-    """Minimaler Stand-in für SymbolDefinition -- erfuellt _SymbolDefinitionLike
-    strukturell, ohne von app.infrastructure abhaengen zu muessen."""
-
-    meaning: str
-    glyph: str
-    role: str
-    shortcut: str | None = None
-    legend_one: str = "eins"
-    legend_two: str = "zwei"
-    legend_three: str = "drei"
+def _FakeSymbolDefinition(meaning: str, glyph: str, role: str, shortcut: str | None = None) -> SymbolDefinition:
+    """Echte ``SymbolDefinition`` mit Schlüssel = Name und festen Stufentexten."""
+    return SymbolDefinition(key=meaning, name=meaning, glyph=glyph, shortcut=shortcut,
+                            legend=("eins", "zwei", "drei"), role=role)
 
 
 def _custom(id_: str, glyph: str, meaning: str, shortcut: str = "Ctrl+Shift+K") -> CustomSymbolDefinition:

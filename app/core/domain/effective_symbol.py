@@ -11,36 +11,13 @@ stufen der eingebauten Symbole künstlich auf eigene Symbole zu übertragen.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Mapping, Protocol, Sequence
+from typing import Mapping, Sequence
 
 from app.core.domain.models_v4 import CustomSymbolDefinition
-
-# Dupliziert bewusst app.infrastructure.symbol_config_loader.SymbolRole (statt sie
-# zu importieren): app/core darf laut Architekturkonvention dieses Projekts nicht
-# von app/infrastructure abhaengen. Reine 2-Werte-Typ-Alias-Duplikation, kein
-# Verhaltenscode -- kein echtes DRY-Risiko.
-SymbolRole = Literal["diagnostic", "documentation_only"]
+from app.core.domain.symbol_catalog import SymbolDefinition, SymbolRole
 
 _DELETED_SYMBOL_GLYPH = "❔"
 _DELETED_SYMBOL_LABEL = "Gelöschtes Symbol"
-
-
-class _SymbolDefinitionLike(Protocol):
-    """Struktureller Vertrag statt Import von ``SymbolDefinition``.
-
-    ``app.infrastructure.symbol_config_loader.SymbolDefinition`` erfüllt
-    dieses Protocol automatisch (gleiche Feldnamen) -- die Kopplung entsteht
-    rein über Typ-Struktur, nicht über eine harte Importabhängigkeit von
-    ``app/core`` auf ``app/infrastructure``.
-    """
-
-    meaning: str
-    glyph: str
-    role: SymbolRole
-    shortcut: str | None
-    legend_one: str
-    legend_two: str
-    legend_three: str
 
 
 @dataclass(frozen=True)
@@ -64,7 +41,7 @@ class EffectiveSymbol:
 
 
 def build_effective_documentation_symbols(
-    symbol_definitions: Sequence[_SymbolDefinitionLike],
+    symbol_definitions: Sequence[SymbolDefinition],
     custom_symbols: Mapping[str, CustomSymbolDefinition],
 ) -> list[EffectiveSymbol]:
     """Baut die Liste aller *dokumentationsbezogenen* Symbole eines Plans.
@@ -93,12 +70,12 @@ def build_effective_documentation_symbols(
     """
     result: list[EffectiveSymbol] = [
         EffectiveSymbol(
-            key=definition.meaning,
+            key=definition.key,
             glyph=definition.glyph,
-            display_name=definition.meaning,
+            display_name=definition.name,
             role=definition.role,
             is_custom=False,
-            legend=(definition.legend_one, definition.legend_two, definition.legend_three),
+            legend=definition.legend,
             shortcut=definition.shortcut,
         )
         for definition in symbol_definitions
@@ -133,7 +110,7 @@ def resolve_symbol_display(key: str, effective_symbols: Sequence[EffectiveSymbol
     bauen.
 
     Args:
-        key: ``SessionEntry.symbols``-Schlüssel (eingebauter Meaning-Text
+        key: ``SessionEntry.symbols``-Schlüssel (eingebauter ``SymbolDefinition.key``
             oder eigene Symbol-ID).
         effective_symbols: Die aktuell gültige Liste, z. B. aus
             ``build_effective_documentation_symbols()``.

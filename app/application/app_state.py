@@ -17,7 +17,7 @@ from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import KartographSettings
 from app.core.domain.student_id import StudentId
-from app.infrastructure.symbol_config_loader import SymbolDefinition
+from app.core.domain.symbol_catalog import SymbolDefinition
 
 
 class InteractionMode(Enum):

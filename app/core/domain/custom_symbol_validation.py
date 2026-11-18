@@ -34,9 +34,9 @@ class InvalidMeaningError(CustomSymbolValidationError):
 class _HasShortcut(Protocol):
     """Struktureller Vertrag für ``reserved_symbol_letters()`` — nur ``.shortcut`` wird gebraucht.
 
-    Erfüllt sowohl von ``app.infrastructure.symbol_config_loader.SymbolDefinition``
+    Erfüllt sowohl von ``app.core.domain.symbol_catalog.SymbolDefinition``
     als auch von jedem anderen Objekt mit einem ``shortcut``-Attribut, ohne
-    dass ``app/core`` von ``app/infrastructure`` importieren muss.
+    dass die Validierung beide Symbolarten unterscheiden muss.
     """
 
     shortcut: str | None

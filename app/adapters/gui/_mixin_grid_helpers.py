@@ -11,6 +11,7 @@ from app.core.domain.color_order import order_color_keys, palette_color
 from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import ParticipationRating, SeatingPlan, Student
 from app.core.domain.permanent_absence import is_permanently_absent
+from app.core.domain.symbol_legend import ordered_symbol_counts
 from app.core.usecases.v4.color_usecases import palette_meaning
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -153,24 +154,6 @@ class GridHelpersMixin:
         glyph, _display_name = resolve_symbol_display(symbol_name, self.effective_documentation_symbols)
         return glyph
 
-    def _iter_symbol_counts(self, symbols: dict[str, int]) -> list[tuple[str, int]]:
-        """Erstellt eine geordnete Liste von (symbol_name, count)-Paaren.
-
-        Args:
-            symbols: Dictionary von Symbolname zu Anzahl.
-        """
-        entries: list[tuple[str, int]] = []
-        for symbol_name in self.symbol_catalog:
-            count = int(symbols.get(symbol_name, 0))
-            if count >= 1:
-                entries.append((symbol_name, min(3, count)))
-        for symbol_name, raw_count in sorted(symbols.items()):
-            if symbol_name not in self.symbol_catalog:
-                count = int(raw_count)
-                if count >= 1:
-                    entries.append((symbol_name, min(3, count)))
-        return entries
-
     def _symbol_grid_lines(
         self, symbols: dict[str, int], participation: ParticipationRating | None = None
     ) -> list[str]:
@@ -181,7 +164,7 @@ class GridHelpersMixin:
             participation: Heutige Mitarbeit-Bewertung ("+"/"o"/"-"/"☆"), falls gesetzt.
                 Erscheint als führendes Token vor den Symbol-Glyphen.
         """
-        entries = self._iter_symbol_counts(symbols)
+        entries = ordered_symbol_counts(self.symbol_catalog, symbols)
         if not entries and not participation:
             return []
         lines: list[str] = []
@@ -217,7 +200,7 @@ class GridHelpersMixin:
         if not symbols:
             return []
         lines: list[str] = []
-        for symbol_name, count in self._iter_symbol_counts(symbols):
+        for symbol_name, count in ordered_symbol_counts(self.symbol_catalog, symbols):
             glyph = self._symbol_glyph(symbol_name)
             definition = self._symbol_by_meaning.get(symbol_name)
             if definition is not None:

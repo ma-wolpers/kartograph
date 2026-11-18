@@ -27,6 +27,7 @@ from app.core.domain.models_v4 import (
     Student,
 )
 from app.core.domain.submission_status import SubmissionStatus
+from app.core.domain.symbol_catalog import symbol_level
 from app.core.intents.navigation_intents import ClearSelectionIntent
 from app.core.intents.session_intents import GoToTodayIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -216,7 +217,7 @@ class DocsViewMixin:
             chunks.append(participation)
         for symbol, strength in sorted(symbols.items()):
             glyph = self._symbol_glyph(symbol)
-            chunks.append(glyph * max(1, min(3, int(strength))))
+            chunks.append(glyph * symbol_level(strength))
         return " ".join(chunks)
 
     def _documentation_summary_cell_text(

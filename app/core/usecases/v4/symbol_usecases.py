@@ -11,6 +11,7 @@ from copy import deepcopy
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.permanent_absence import accepts_entries
 from app.core.domain.student_id import StudentId
+from app.core.domain.symbol_catalog import symbol_level
 from app.core.domain.symbol_toggle import next_symbol_toggle_strength
 from app.core.usecases.v4._shared import _normalize_doc_date
 from app.core.usecases.v4.session_usecases import ensure_session
@@ -118,7 +119,7 @@ def apply_symbol_strength_in_place(
     if parsed <= 0:
         entry.symbols.pop(symbol, None)
     else:
-        entry.symbols[symbol] = max(1, min(3, parsed))
+        entry.symbols[symbol] = symbol_level(parsed)
 
     if not entry.has_content():
         session.entries.pop(student_id, None)

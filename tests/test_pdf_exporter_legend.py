@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.core.domain.models_v4 import PaletteEntry
 from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
-from app.infrastructure.symbol_config_loader import SymbolDefinition
+from app.core.domain.symbol_catalog import SymbolDefinition
 from tests.conftest import make_plan
 
 
@@ -33,12 +33,11 @@ class _FakeColors:
 
 def _symbol_definition() -> SymbolDefinition:
     return SymbolDefinition(
-        meaning="Beteiligung",
+        key="Beteiligung",
+        name="Beteiligung",
         glyph="☝",
         shortcut="b",
-        legend_one="selten",
-        legend_two="gelegentlich",
-        legend_three="kontinuierlich",
+        legend=("selten", "gelegentlich", "kontinuierlich"),
     )
 
 

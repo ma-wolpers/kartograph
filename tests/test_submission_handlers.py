@@ -21,10 +21,10 @@ from tests.test_app_controller import PLANS_DIR, make_ctx
 
 DATE = "2026-10-28"
 CATALOG = (
-    SimpleNamespace(glyph="✓", meaning="Abgabe vollständig"),
-    SimpleNamespace(glyph="◐", meaning="Abgabe lückenhaft"),
-    SimpleNamespace(glyph="X", meaning="Nicht abgegeben / verweigert"),
-    SimpleNamespace(glyph="∅", meaning="Abwesend"),
+    SimpleNamespace(glyph="✓", key="Abgabe vollständig"),
+    SimpleNamespace(glyph="◐", key="Abgabe lückenhaft"),
+    SimpleNamespace(glyph="X", key="Nicht abgegeben / verweigert"),
+    SimpleNamespace(glyph="∅", key="Abwesend"),
 )
 
 

@@ -141,7 +141,7 @@ def _entry(codepoint: str, meaning: str, shortcut: str | None) -> dict:
 def test_missing_file_is_created_from_defaults_with_new_symbols(tmp_path) -> None:
     path = tmp_path / "symbols.json"
     symbols, warning = load_symbol_definitions(path)
-    meanings = {s.meaning for s in symbols}
+    meanings = {s.key for s in symbols}
     assert {"Abgabe vollständig", "Abgabe lückenhaft", "Nicht abgegeben / verweigert"} <= meanings
     assert json.loads(path.read_text(encoding="utf-8"))["known_builtin_codepoints"] == ALL_BUILTINS_KNOWN
 
@@ -155,7 +155,7 @@ def test_merge_adds_new_builtins_without_touching_own_edits(tmp_path) -> None:
     symbols, _warning = load_symbol_definitions(path)
 
     by_glyph = {s.glyph: s for s in symbols}
-    assert by_glyph["X"].meaning == "Mein eigener Text für X"
+    assert by_glyph["X"].key == "Mein eigener Text für X"
     assert by_glyph["✓"].shortcut == "e"
     assert by_glyph["◐"].shortcut == "l"
 
@@ -194,3 +194,28 @@ def test_defaults_file_is_never_used_as_working_copy() -> None:
 
     with pytest.raises(ValueError):
         load_symbol_definitions(DEFAULT_SYMBOLS_PATH)
+
+
+def _write_single_symbol(path, **fields) -> None:
+    """Schreibt eine Arbeitskopie mit genau einem Beteiligung-Eintrag plus *fields*."""
+    item = {"codepoint": "1F446", "shortcut": "b", "legend": {"three": "a", "two": "b", "one": "c"}, **fields}
+    path.write_text(json.dumps({"known_builtin_codepoints": ALL_BUILTINS_KNOWN, "symbols": [item]}), encoding="utf-8")
+
+
+def test_legacy_meaning_becomes_key_and_name(tmp_path) -> None:
+    path = tmp_path / "symbols.json"
+    _write_single_symbol(path, meaning="Beteiligung")
+
+    symbols, _warning = load_symbol_definitions(path)
+
+    assert (symbols[0].key, symbols[0].name) == ("Beteiligung", "Beteiligung")
+    assert symbols[0].legend == ("c", "b", "a")
+
+
+def test_key_and_name_are_read_separately(tmp_path) -> None:
+    path = tmp_path / "symbols.json"
+    _write_single_symbol(path, key="Beteiligung", name="Mitarbeit im Gespräch", meaning="ignoriert")
+
+    symbols, _warning = load_symbol_definitions(path)
+
+    assert (symbols[0].key, symbols[0].name) == ("Beteiligung", "Mitarbeit im Gespräch")

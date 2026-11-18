@@ -1,14 +1,14 @@
 """Zustandslose Hilfsfunktionen für den PDF-Export.
 
-Enthält Schriftgrößen-Fitting, Symbol-Token-Generierung und Symbol-Listen-
-Iteration. Alle Funktionen sind rein (keine Seiteneffekte) und können von
+Enthält Schriftgrößen-Fitting und Symbol-Token-Generierung; die Reihenfolge
+der Symbole liefert ``app/core/domain/symbol_legend.py``. Alle Funktionen sind rein (keine Seiteneffekte) und können von
 mehreren Renderern genutzt werden. Die Farbmarkierungs-Sortierung liegt in
 ``app/core/domain/color_order.py`` (gemeinsam mit Grid und Sitzplan-Vorschau).
 """
 
 from __future__ import annotations
 
-from app.infrastructure.symbol_config_loader import SymbolDefinition
+from app.core.domain.symbol_catalog import SymbolDefinition, symbol_level
 
 
 def fit_single_line_font(
@@ -77,65 +77,27 @@ def fit_multi_line_font(
 
 
 def build_symbol_token(
-    meaning: str,
+    key: str,
     count: int,
-    symbols_by_meaning: dict[str, SymbolDefinition],
+    symbols_by_key: dict[str, SymbolDefinition],
     uses_fallback: bool,
 ) -> str:
     """Erzeugt das Anzeigetoken für ein Symbol mit gegebener Stärke.
 
     Args:
-        meaning: Symbolbedeutung.
+        key: Symbolschlüssel (``SymbolDefinition.key``).
         count: Anzahl/Stärke (1–3).
-        symbols_by_meaning: Lookup-Dict der Symboldefinitionen.
+        symbols_by_key: Lookup-Dict der Symboldefinitionen.
         uses_fallback: True, wenn kein Unicode-Zeichensatz verfügbar ist.
 
     Returns:
         Token-String (Glyphen oder Buchstabe-Kürzel).
     """
-    symbol = symbols_by_meaning.get(meaning)
-    clamped = max(1, min(3, int(count)))
+    symbol = symbols_by_key.get(key)
+    clamped = symbol_level(count)
     if symbol is None:
         return "?" * clamped
     if uses_fallback:
-        shortcut = (symbol.shortcut or meaning[:1] or "?").upper()
+        shortcut = (symbol.shortcut or key[:1] or "?").upper()
         return shortcut * clamped
     return symbol.glyph * clamped
-
-
-def iter_symbol_counts(
-    symbol_definitions: list[SymbolDefinition],
-    symbols_by_meaning: dict[str, SymbolDefinition],
-    symbols: dict[str, int],
-    visible_symbols: set[str] | None = None,
-) -> list[tuple[str, int]]:
-    """Gibt eine geordnete Liste von (Symbolbedeutung, Stärke) zurück.
-
-    Bekannte Symbole erscheinen in Definitionsreihenfolge, unbekannte
-    alphabetisch dahinter. Symbole mit Stärke 0 werden ausgelassen.
-
-    Args:
-        symbol_definitions: Geordnete Liste aller Symboldefinitionen.
-        symbols_by_meaning: Lookup-Dict der Symboldefinitionen.
-        symbols: Dict von Symbolbedeutung → Stärke des aktuellen Tisches.
-        visible_symbols: Wenn gesetzt, werden nur diese Symbole angezeigt.
-
-    Returns:
-        Liste von (Bedeutung, clamped Stärke 1–3).
-    """
-    entries: list[tuple[str, int]] = []
-    for symbol in symbol_definitions:
-        if visible_symbols is not None and symbol.meaning not in visible_symbols:
-            continue
-        count = int(symbols.get(symbol.meaning, 0))
-        if count >= 1:
-            entries.append((symbol.meaning, min(3, count)))
-    for meaning, raw_count in sorted(symbols.items(), key=lambda item: item[0].lower()):
-        if meaning in symbols_by_meaning:
-            continue
-        if visible_symbols is not None and meaning not in visible_symbols:
-            continue
-        count = int(raw_count)
-        if count >= 1:
-            entries.append((meaning, min(3, count)))
-    return entries

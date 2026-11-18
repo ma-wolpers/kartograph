@@ -12,7 +12,8 @@ from app.core.domain.color_order import FALLBACK_COLOR_HEX, order_color_keys, pa
 from app.core.usecases.v4.color_usecases import palette_meaning
 from app.core.domain.models_v4 import SeatingPlan
 from app.infrastructure.exporters.pdf_font_utils import build_symbol_token
-from app.infrastructure.symbol_config_loader import SymbolDefinition
+from app.core.domain.symbol_catalog import SymbolDefinition
+from app.core.domain.symbol_legend import ordered_symbol_keys
 
 
 class PdfLegendRenderer:
@@ -34,10 +35,7 @@ class PdfLegendRenderer:
             symbol_definitions: Geordnete Liste aller Symboldefinitionen.
             color_palette: Farbpalette als Liste von (key, color_key, label, hex).
         """
-        self._symbol_definitions = symbol_definitions
-        self._symbols_by_meaning: dict[str, SymbolDefinition] = {
-            item.meaning: item for item in symbol_definitions
-        }
+        self._symbols_by_key: dict[str, SymbolDefinition] = {item.key: item for item in symbol_definitions}
         self._color_order = palette_order(color_palette)
         self._color_by_key = palette_by_key(color_palette)
         self._symbol_font_name = "Helvetica"
@@ -56,34 +54,28 @@ class PdfLegendRenderer:
     def _legend_symbol_tables(
         self, used_symbol_levels: dict[str, set[int]]
     ) -> list[tuple[str, list[tuple[str, str]]]]:
-        """Gibt je eine Tabelle pro Symbolbedeutung zurück (Titel + Zeilen).
+        """Gibt je eine Tabelle pro gesetztem Symbol zurück (Titel + Zeilen).
 
         Args:
             used_symbol_levels: Aus dem Planexport gesammelte Stärken pro Symbol.
 
         Returns:
-            Liste von (Bedeutung, [(Token, Legendentext), ...]).
+            Liste von (Anzeigename, [(Token, Legendentext), ...]).
         """
-        symbol_keys: list[str] = []
-        for symbol in self._symbol_definitions:
-            if symbol.meaning in used_symbol_levels:
-                symbol_keys.append(symbol.meaning)
-        for meaning in sorted(used_symbol_levels.keys(), key=str.lower):
-            if meaning not in self._symbols_by_meaning:
-                symbol_keys.append(meaning)
+        symbol_keys = ordered_symbol_keys(list(self._symbols_by_key), used_symbol_levels)
 
         tables: list[tuple[str, list[tuple[str, str]]]] = []
-        for meaning in symbol_keys:
-            counts = sorted(used_symbol_levels.get(meaning, set()), reverse=True)
+        for key in symbol_keys:
+            counts = sorted(used_symbol_levels.get(key, set()), reverse=True)
             if not counts:
                 continue
-            definition = self._symbols_by_meaning.get(meaning)
+            definition = self._symbols_by_key.get(key)
             rows: list[tuple[str, str]] = []
             for count in counts:
-                token = build_symbol_token(meaning, count, self._symbols_by_meaning, self._symbol_font_uses_fallback)
-                legend_text = definition.legend_for_count(count) if definition else meaning
+                token = build_symbol_token(key, count, self._symbols_by_key, self._symbol_font_uses_fallback)
+                legend_text = definition.legend_for_count(count) if definition else key
                 rows.append((token, legend_text))
-            tables.append((meaning, rows))
+            tables.append((definition.name if definition else key, rows))
         return tables
 
     def _build_legend_table(self, colors, title: str, rows: list[tuple[str, str]], available_w: float, token_is_markup: bool):

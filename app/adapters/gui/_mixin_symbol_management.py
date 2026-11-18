@@ -98,13 +98,13 @@ class SymbolManagementMixin:
             return
         table.delete(*table.get_children())
         for definition in self.symbol_definitions:
-            legend = f"{definition.legend_one} / {definition.legend_two} / {definition.legend_three}"
+            legend = " / ".join(definition.legend)
             table.insert(
                 "", ui.END,
-                iid=f"builtin:{definition.meaning}",
+                iid=f"builtin:{definition.key}",
                 values=(
                     definition.glyph,
-                    f"{definition.meaning} — {legend}",
+                    f"{definition.name} — {legend}",
                     _ROLE_LABELS.get(definition.role, definition.role),
                     "Leertaste" if definition.shortcut == SPACE_SHORTCUT else (definition.shortcut or ""),
                 ),

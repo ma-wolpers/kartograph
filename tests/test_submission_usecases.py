@@ -22,10 +22,10 @@ from tests.conftest import make_plan, make_student
 
 DATE = "2026-10-28"
 CATALOG = (
-    SimpleNamespace(glyph="✓", meaning="Abgabe vollständig"),
-    SimpleNamespace(glyph="◐", meaning="Abgabe lückenhaft"),
-    SimpleNamespace(glyph="X", meaning="Nicht abgegeben / verweigert"),
-    SimpleNamespace(glyph="∅", meaning="Abwesend"),
+    SimpleNamespace(glyph="✓", key="Abgabe vollständig"),
+    SimpleNamespace(glyph="◐", key="Abgabe lückenhaft"),
+    SimpleNamespace(glyph="X", key="Nicht abgegeben / verweigert"),
+    SimpleNamespace(glyph="∅", key="Abwesend"),
 )
 NAMES = submission_symbol_names(CATALOG)
 ABSENT = resolve_symbol_name(CATALOG, ABSENT_CODEPOINT)
@@ -38,7 +38,7 @@ def _symbols(plan, sid):
 
 
 def test_names_resolve_by_codepoint_not_text():
-    renamed = (SimpleNamespace(glyph="✓", meaning="Fertig!"),) + CATALOG[1:]
+    renamed = (SimpleNamespace(glyph="✓", key="Fertig!"),) + CATALOG[1:]
     assert submission_symbol_names(renamed)[SubmissionStatus.COMPLETE] == "Fertig!"
     with pytest.raises(CatalogSymbolMissing):
         submission_symbol_names(CATALOG[1:])

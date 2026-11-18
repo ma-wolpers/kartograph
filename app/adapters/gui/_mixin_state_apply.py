@@ -14,7 +14,7 @@ from app.application.app_state import AppState, EditorSurface, InteractionMode, 
 from app.core.domain.effective_symbol import build_effective_documentation_symbols
 from app.core.domain.models_v4 import CustomSymbolDefinition
 from app.core.domain.settings import resolve_plans_dir
-from app.infrastructure.symbol_config_loader import SymbolDefinition
+from app.core.domain.symbol_catalog import SymbolDefinition
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -237,7 +237,7 @@ class StateApplyMixin:
             definitions: Vollständige Liste der Symbol-Definitionen.
 
         Returns:
-            Dict ``{shortcut: meaning}``; bei Duplikaten gewinnt die erste Definition.
+            Dict ``{shortcut: key}``; bei Duplikaten gewinnt die erste Definition.
         """
         mapping: dict[str, str] = {}
         for definition in definitions:
@@ -245,5 +245,5 @@ class StateApplyMixin:
                 continue
             if definition.shortcut in mapping:
                 continue
-            mapping[definition.shortcut] = definition.meaning
+            mapping[definition.shortcut] = definition.key
         return mapping

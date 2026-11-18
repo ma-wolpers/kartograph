@@ -169,14 +169,14 @@ class DetailsLayoutMixin:
         for item in diagnostic:
             key = item.shortcut.upper()
             badge = bar.add(tui.Label(bar, text=f"{item.glyph} {key}", style="Panel.TLabel"))
-            self._attach_hover_help(badge, label=f"{item.meaning} – {item.legend_one}", shortcut=key)
+            self._attach_hover_help(badge, label=f"{item.name} – {item.legend[0]}", shortcut=key)
 
         if doc_only:
             bar.add(tui.Label(bar, text="|", style="Panel.TLabel"))
             for item in doc_only:
                 key = item.shortcut.upper()
                 badge = bar.add(tui.Label(bar, text=f"{item.glyph} {key}°", style="Panel.TLabel"))
-                self._attach_hover_help(badge, label=f"{item.meaning} (nur Doku) – {item.legend_one}", shortcut=key)
+                self._attach_hover_help(badge, label=f"{item.name} (nur Doku) – {item.legend[0]}", shortcut=key)
 
     def _bind_name_entry_keys(self, entry) -> None:
         """Escape und Enter in einem Namensfeld verlassen den Namenseditor-Modus.
