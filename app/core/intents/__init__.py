@@ -46,6 +46,7 @@ from app.core.intents.catalog_intents import (
 from app.core.intents.custom_symbol_intents import (
     AddCustomSymbolIntent,
     DeleteCustomSymbolIntent,
+    SetSymbolOverrideIntent,
     UpdateCustomSymbolIntent,
 )
 from app.core.intents.submission_intents import ApplyMissingSubmissionsIntent, SetSubmissionStatusIntent
@@ -125,6 +126,7 @@ __all__ = [
     "AddCustomSymbolIntent",
     "UpdateCustomSymbolIntent",
     "DeleteCustomSymbolIntent",
+    "SetSymbolOverrideIntent",
     # Programmweiter Katalog
     "UpdateCatalogSymbolIntent",
     "AddCatalogSymbolIntent",

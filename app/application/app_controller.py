@@ -38,6 +38,7 @@ from app.application.handlers.catalog_handlers import (
 from app.application.handlers.custom_symbol_handlers import (
     handle_add_custom_symbol,
     handle_delete_custom_symbol,
+    handle_set_symbol_override,
     handle_update_custom_symbol,
 )
 from app.application.handlers.edit_handlers import (
@@ -127,6 +128,7 @@ from app.core.intents.catalog_intents import (
 from app.core.intents.custom_symbol_intents import (
     AddCustomSymbolIntent,
     DeleteCustomSymbolIntent,
+    SetSymbolOverrideIntent,
     UpdateCustomSymbolIntent,
 )
 from app.core.intents.edit_intents import (
@@ -415,6 +417,7 @@ class KartographAppController:
         r.register(AddCustomSymbolIntent, lambda i, s: handle_add_custom_symbol(i, s, ctx))
         r.register(UpdateCustomSymbolIntent, lambda i, s: handle_update_custom_symbol(i, s, ctx))
         r.register(DeleteCustomSymbolIntent, lambda i, s: handle_delete_custom_symbol(i, s, ctx))
+        r.register(SetSymbolOverrideIntent, lambda i, s: handle_set_symbol_override(i, s, ctx))
         # Programmweiter Katalog (keine Plan-History)
         r.register(UpdateCatalogSymbolIntent, lambda i, s: handle_update_catalog_symbol(i, s, ctx))
         r.register(AddCatalogSymbolIntent, lambda i, s: handle_add_catalog_symbol(i, s, ctx))

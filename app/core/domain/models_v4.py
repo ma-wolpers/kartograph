@@ -217,6 +217,25 @@ class CustomSymbolDefinition:
     shortcut: str
 
 
+@dataclass(frozen=True)
+class SymbolOverride:
+    """Planbezogene Anpassung eines programmweiten Symbols (Symbol-Verwaltung des Plans).
+
+    ``None`` heißt jeweils „Programmstandard verwenden“. Ein Eintrag, der in
+    beiden Feldern dem Standard entspricht, wird gar nicht gespeichert
+    (``symbol_override_usecases.set_symbol_override``). Die Diagnose bleibt
+    unter dem Symbolschlüssel gespeichert; die Anpassung wirkt nur auf Anzeige
+    und Legende.
+
+    Attributes:
+        name: Lokaler Anzeigename.
+        competence_ids: Lokale Kompetenzen (nur Diagnosesymbole, mindestens eine).
+    """
+
+    name: str | None = None
+    competence_ids: tuple[str, ...] | None = None
+
+
 # ---------------------------------------------------------------------------
 # Dokumentation: Notenstruktur
 # ---------------------------------------------------------------------------
@@ -455,6 +474,7 @@ class SeatingPlan:
     tablegroups: list[TableGroup] = field(default_factory=list)
     color_palette: dict[str, PaletteEntry] = field(default_factory=dict)
     custom_symbols: dict[str, CustomSymbolDefinition] = field(default_factory=dict)
+    symbol_overrides: dict[str, SymbolOverride] = field(default_factory=dict)
     documentation: DocumentationBlock = field(default_factory=DocumentationBlock)
     snapshots: list[SeatingSnapshot] = field(default_factory=list)
 

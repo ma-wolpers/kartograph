@@ -7,6 +7,7 @@ Sessions werden komplett übersprungen.
 
 from __future__ import annotations
 
+from app.infrastructure.repositories.v4.symbol_override_codec import serialize_symbol_overrides
 from app.core.domain.models_v4 import SeatingPlan
 from app.infrastructure.repositories.v4.grade_store_codec import serialize_grade_store
 
@@ -28,6 +29,7 @@ def serialize_plan(plan: SeatingPlan) -> dict:
         "tablegroups": _serialize_tablegroups(plan),
         "color_palette": _serialize_color_palette(plan),
         "custom_symbols": _serialize_custom_symbols(plan),
+        "symbol_overrides": serialize_symbol_overrides(plan.symbol_overrides),
         "documentation": _serialize_documentation(plan),
         "snapshots": _serialize_snapshots(plan),
     }

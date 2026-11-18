@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 
+from app.infrastructure.repositories.v4.symbol_override_codec import deserialize_symbol_overrides
 from app.core.domain.grade_weighting import normalize_factor, normalized_category_percents
 from app.core.domain.models_v4 import (
     GRADE_CATEGORIES,
@@ -75,6 +76,7 @@ def deserialize_plan(payload: dict) -> SeatingPlan:
         tablegroups=tablegroups,
         color_palette=color_palette,
         custom_symbols=custom_symbols,
+        symbol_overrides=deserialize_symbol_overrides(payload.get("symbol_overrides")),
         documentation=documentation,
         snapshots=snapshots,
     )

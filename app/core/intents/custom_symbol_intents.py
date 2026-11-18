@@ -29,3 +29,15 @@ class DeleteCustomSymbolIntent(Intent):
     """Entfernt ein eigenes Symbol aus dem aktuellen Katalog (historische Dokudaten bleiben erhalten)."""
 
     symbol_id: str
+
+
+@dataclass(frozen=True)
+class SetSymbolOverrideIntent(Intent):
+    """Passt ein programmweites Symbol für den aktuellen Plan an (rückgängig machbar).
+
+    ``None`` heißt jeweils „Programmstandard verwenden“; beide ``None`` entfernt die Anpassung.
+    """
+
+    symbol_key: str
+    name: str | None
+    competence_ids: tuple[str, ...] | None

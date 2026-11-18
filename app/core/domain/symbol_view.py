@@ -15,11 +15,11 @@ Kürzeln gewinnt das erste in Katalogreihenfolge.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from app.core.domain.custom_symbol_validation import SPACE_SHORTCUT
 from app.core.domain.effective_symbol import EffectiveSymbol, build_effective_documentation_symbols
-from app.core.domain.models_v4 import CustomSymbolDefinition, SeatingPlan
+from app.core.domain.models_v4 import CustomSymbolDefinition, SeatingPlan, SymbolOverride
 from app.core.domain.symbol_catalog import Competence, SymbolDefinition
 
 
@@ -39,12 +39,39 @@ def custom_symbol_for_letter(
     return next((custom for custom in custom_symbols.values() if custom.shortcut == target), None)
 
 
+def apply_symbol_overrides(
+    catalog: Sequence[SymbolDefinition], overrides: Mapping[str, SymbolOverride]
+) -> tuple[SymbolDefinition, ...]:
+    """Wendet die Plan-Anpassungen auf den programmweiten Katalog an (einzige Stelle).
+
+    Ergebnis sind effektive ``SymbolDefinition``-Objekte: lokaler Name bzw.
+    lokale Kompetenzen ersetzen die Programmwerte, alles andere (Schlüssel,
+    Zeichen, Kürzel, Aktiv-Zustand) bleibt programmweit. Wer Namen oder
+    Kompetenzen anzeigt, liest sie dadurch automatisch richtig.
+
+    Args:
+        catalog: Programmweiter Katalog.
+        overrides: ``SeatingPlan.symbol_overrides``.
+    """
+    effective: list[SymbolDefinition] = []
+    for definition in catalog:
+        override = overrides.get(definition.key)
+        if override is not None:
+            if override.name is not None:
+                definition = replace(definition, name=override.name)
+            if override.competence_ids is not None and definition.role == "diagnostic":
+                definition = replace(definition, competence_ids=override.competence_ids)
+        effective.append(definition)
+    return tuple(effective)
+
+
 @dataclass(frozen=True)
 class SymbolView:
     """Unveränderliche Sicht auf alle Symbole, die im offenen Plan gelten.
 
     Attributes:
-        catalog: Programmweite Symbole in Katalogreihenfolge, inklusive deaktivierter.
+        catalog: Effektive Symbole in Katalogreihenfolge (Plan-Anpassungen angewendet),
+            inklusive deaktivierter.
         competences: Kompetenzen nach ID.
         documentation_symbols: Doku-Symbole (eingebaute ``documentation_only`` + eigene des Plans).
         custom_symbols: Eigene Symbole des Plans nach ID.
@@ -103,7 +130,7 @@ def build_symbol_view(
     competences: Sequence[Competence],
     plan: SeatingPlan | None,
 ) -> SymbolView:
-    """Baut die Symbolsicht für *plan* (oder ohne offenen Plan).
+    """Baut die Symbolsicht für *plan* (oder ohne offenen Plan), mit dessen Symbol-Anpassungen.
 
     Args:
         catalog: Programmweiter Katalog (``AppState.symbol_catalog``).
@@ -111,7 +138,7 @@ def build_symbol_view(
         plan: Offener Plan oder ``None``.
     """
     custom = dict(plan.custom_symbols) if plan is not None else {}
-    definitions = tuple(catalog)
+    definitions = apply_symbol_overrides(catalog, plan.symbol_overrides if plan is not None else {})
     return SymbolView(
         catalog=definitions,
         competences={competence.id: competence for competence in competences},

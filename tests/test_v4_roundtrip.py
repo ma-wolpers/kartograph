@@ -318,3 +318,27 @@ class TestSnapshotRoundtrip:
         del payload["snapshots"]
         restored = deserialize_plan(payload)
         assert restored.snapshots == []
+
+
+class TestSymbolOverridesRoundtrip:
+    def test_overrides_preserved(self, plan):
+        from app.core.domain.models_v4 import SymbolOverride
+
+        plan.symbol_overrides = {
+            "Konzentration": SymbolOverride(name="Fokus", competence_ids=("konzentration.arbeiten",)),
+            "Beteiligung": SymbolOverride(name="Mitarbeit"),
+        }
+        restored = _roundtrip(plan)
+        assert restored.symbol_overrides == plan.symbol_overrides
+
+    def test_missing_or_broken_field_means_no_overrides(self, plan):
+        payload = serialize_plan(plan)
+        del payload["symbol_overrides"]
+        assert deserialize_plan(payload).symbol_overrides == {}
+        payload["symbol_overrides"] = {"Konzentration": "kaputt", "": {"name": "x"}, "Leer": {}}
+        assert deserialize_plan(payload).symbol_overrides == {}
+
+    def test_renamed_legacy_key_is_mapped(self, plan):
+        payload = serialize_plan(plan)
+        payload["symbol_overrides"] = {"Mathem. Fachkompetenz": {"name": "Mathe"}}
+        assert set(deserialize_plan(payload).symbol_overrides) == {"Fachkompetenz"}

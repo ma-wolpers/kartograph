@@ -38,15 +38,23 @@ class SymbolCatalogMixin:
         """Baut die Symbolsicht und ihre Lookups neu, falls sich eine ihrer Quellen geändert hat.
 
         Änderungsschlüssel: Identität der Katalog-Tupel aus ``AppState`` (sie werden
-        bei jeder programmweiten Änderung ersetzt) und die eigenen Symbole des
-        offenen Plans (Wertvergleich, kleine Map). Unverändert → kein Neubau.
+        bei jeder programmweiten Änderung ersetzt), die eigenen Symbole und die
+        Symbol-Anpassungen des offenen Plans (Wertvergleich, kleine Maps).
+        Unverändert → kein Neubau. Geänderte Anpassungen bauen wie ein neuer
+        Katalog Kürzel-Leiste und Detail-Knöpfe neu auf.
         """
         state = self._controller.state
         plan = self.current_plan
-        key = (id(state.symbol_catalog), id(state.competence_catalog), dict(plan.custom_symbols) if plan else {})
+        key = (
+            id(state.symbol_catalog),
+            id(state.competence_catalog),
+            dict(plan.custom_symbols) if plan else {},
+            dict(plan.symbol_overrides) if plan else {},
+        )
         if key == self._symbol_view_key:
             return
-        catalog_changed = self._symbol_view_key is not None and key[:2] != self._symbol_view_key[:2]
+        previous = self._symbol_view_key
+        catalog_changed = previous is not None and (key[:2] != previous[:2] or key[3] != previous[3])
         self._symbol_view_key = key
         view = build_symbol_view(state.symbol_catalog, state.competence_catalog, plan)
         self._derive_symbol_lookups(view)
