@@ -26,15 +26,12 @@ Kompetenz-ID deterministisch ist.
 
 from __future__ import annotations
 
-import re
-import unicodedata
-
+from app.core.domain.symbol_catalog import slugify
 from app.infrastructure.catalog_codec import codepoint_key
 from app.infrastructure.legacy_legend_hashes import LEGACY_LEGEND_SHA256, legend_fingerprint
 
 LOCAL_COMPETENCE_PREFIX = "local."
 LOCAL_COMPETENCE_GROUP = "Eigene"
-_UMLAUTS = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"})
 
 
 def local_competence_id(key: str) -> str:
@@ -43,9 +40,7 @@ def local_competence_id(key: str) -> str:
     Args:
         key: Symbolschlüssel.
     """
-    text = unicodedata.normalize("NFKD", key.lower().translate(_UMLAUTS)).encode("ascii", "ignore").decode()
-    slug = re.sub(r"[^a-z0-9]+", "_", text).strip("_") or "symbol"
-    return LOCAL_COMPETENCE_PREFIX + slug
+    return LOCAL_COMPETENCE_PREFIX + slugify(key)
 
 
 def migrate_symbol_items(items: list, default_items: list, competences: list) -> tuple[bool, bool, list[str]]:

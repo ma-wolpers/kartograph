@@ -15,6 +15,7 @@ from pathlib import Path
 
 
 from app.application.app_controller import KartographAppController
+from app.infrastructure.repositories.symbol_catalog_repository import JsonSymbolCatalogRepository
 from app.application.app_state import AppState, EditorSurface, InteractionMode
 from app.application.handler_context import HandlerContext
 from app.application.handlers.note_handlers import handle_set_notes
@@ -1803,8 +1804,7 @@ class TestKartographAppController:
             plan_repository=FakePlanRepository(plans),
             settings_repository=FakeSettingsRepository(),
             default_plans_dir=PLANS_DIR,
-            symbols_path=SYMBOLS_PATH,
-            competences_path=COMPETENCES_PATH,
+            symbol_catalog_repository=JsonSymbolCatalogRepository(SYMBOLS_PATH, COMPETENCES_PATH),
             on_state_changed=received.append,
         )
         return ctrl, received
@@ -1949,8 +1949,7 @@ class TestKartographAppController:
             plan_repository=FakePlanRepository({path: plan}),
             settings_repository=FakeSettingsRepository(),
             default_plans_dir=PLANS_DIR,
-            symbols_path=SYMBOLS_PATH,
-            competences_path=COMPETENCES_PATH,
+            symbol_catalog_repository=JsonSymbolCatalogRepository(SYMBOLS_PATH, COMPETENCES_PATH),
             on_state_changed=bad_callback,
         )
 

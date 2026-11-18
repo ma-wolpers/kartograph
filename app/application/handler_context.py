@@ -31,3 +31,6 @@ class HandlerContext:
     # allen Tests ohne echte GUI) bedeutet: sofort synchron speichern wie
     # bisher — reines Opt-in, keine Verhaltensänderung ohne GUI-Wiring.
     plan_save_scheduler: Callable[[SeatingPlan, Path], None] | None = None
+    # Programmweiter Katalog (``SymbolCatalogRepository``); ``None`` nur in
+    # Handler-Tests, die den Katalog nicht speichern.
+    symbol_catalog_repository: Any = None

@@ -24,12 +24,17 @@ from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.plan_history import PlanHistory
 from app.core.domain.settings import KartographSettings
 from app.core.intents.base import Intent
-from app.infrastructure.symbol_config_loader import load_catalog
 
 # --- Handler-Imports --------------------------------------------------------
 from app.application.handlers.note_handlers import handle_set_notes
 from app.application.handlers.color_handlers import handle_toggle_color
 from app.application.handlers.tablegroup_handlers import handle_apply_tablegroup_settings
+from app.application.handlers.catalog_handlers import (
+    handle_add_catalog_symbol,
+    handle_add_competence,
+    handle_update_catalog_symbol,
+    handle_update_competence,
+)
 from app.application.handlers.custom_symbol_handlers import (
     handle_add_custom_symbol,
     handle_delete_custom_symbol,
@@ -113,6 +118,12 @@ from app.application.handlers.view_handlers import (
 from app.core.intents.note_intents import SetNotesIntent
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
+from app.core.intents.catalog_intents import (
+    AddCatalogSymbolIntent,
+    AddCompetenceIntent,
+    UpdateCatalogSymbolIntent,
+    UpdateCompetenceIntent,
+)
 from app.core.intents.custom_symbol_intents import (
     AddCustomSymbolIntent,
     DeleteCustomSymbolIntent,
@@ -200,10 +211,9 @@ class KartographAppController:
         settings_repository: ``SettingsRepository``-Implementierung.
         default_plans_dir:   Fallback-Verzeichnis für Plandateien, falls in
                              den Einstellungen kein Ordner konfiguriert ist.
-        symbols_path:        Arbeitskopie des Symbolkatalogs (einmalig beim
-                             Start geladen, s. ``AppState.symbol_catalog``).
-        competences_path:    Arbeitskopie des Kompetenzkatalogs
-                             (s. ``AppState.competence_catalog``).
+        symbol_catalog_repository: ``SymbolCatalogRepository`` (Symbole + Kompetenzen;
+                             einmalig beim Start geladen, s. ``AppState.symbol_catalog``
+                             und ``competence_catalog``; Katalog-Handler speichern darüber).
         on_state_changed:    Callback der GUI; wird nach jeder Zustandsänderung
                              mit dem neuen ``AppState`` aufgerufen.
     """
@@ -213,8 +223,7 @@ class KartographAppController:
         plan_repository: Any,
         settings_repository: Any,
         default_plans_dir: Path,
-        symbols_path: Path,
-        competences_path: Path,
+        symbol_catalog_repository: Any,
         on_state_changed: Callable[[AppState], None],
     ) -> None:
         self._ctx = HandlerContext(
@@ -222,9 +231,10 @@ class KartographAppController:
             settings_repository=settings_repository,
             history=PlanHistory(),
             default_plans_dir=default_plans_dir,
+            symbol_catalog_repository=symbol_catalog_repository,
         )
         initial_settings = KartographSettings.from_dict(settings_repository.load_settings())
-        catalog = load_catalog(symbols_path, competences_path)
+        catalog = symbol_catalog_repository.load()
         self.symbol_catalog_warning = catalog.warning
         self._state: AppState = AppState(
             settings=initial_settings, symbol_catalog=catalog.symbols, competence_catalog=catalog.competences
@@ -405,6 +415,11 @@ class KartographAppController:
         r.register(AddCustomSymbolIntent, lambda i, s: handle_add_custom_symbol(i, s, ctx))
         r.register(UpdateCustomSymbolIntent, lambda i, s: handle_update_custom_symbol(i, s, ctx))
         r.register(DeleteCustomSymbolIntent, lambda i, s: handle_delete_custom_symbol(i, s, ctx))
+        # Programmweiter Katalog (keine Plan-History)
+        r.register(UpdateCatalogSymbolIntent, lambda i, s: handle_update_catalog_symbol(i, s, ctx))
+        r.register(AddCatalogSymbolIntent, lambda i, s: handle_add_catalog_symbol(i, s, ctx))
+        r.register(UpdateCompetenceIntent, lambda i, s: handle_update_competence(i, s, ctx))
+        r.register(AddCompetenceIntent, lambda i, s: handle_add_competence(i, s, ctx))
 
         # Notizen
         r.register(SetNotesIntent, lambda i, s: handle_set_notes(i, s, ctx))

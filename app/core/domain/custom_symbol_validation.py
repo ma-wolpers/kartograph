@@ -62,6 +62,20 @@ RESERVED_SYMBOL_LETTERS = frozenset({"O", "S", "D"})
 _SHORTCUT_PATTERN = re.compile(r"^[A-Za-z]$")
 
 
+def normalize_letter(raw: object) -> str | None:
+    """Normalisiert eine Kürzel-Eingabe auf genau einen Großbuchstaben A–Z (einzige Regel dafür).
+
+    Leerzeichen werden ignoriert, Groß-/Kleinschreibung ist egal. Ziffern,
+    Sonderzeichen, Umlaute und mehrstellige Eingaben ergeben ``None``. Genutzt
+    von eigenen (planbezogenen) und programmweiten Symbolen.
+
+    Args:
+        raw: Rohe Nutzereingabe.
+    """
+    normalized = re.sub(r"\s+", "", str(raw or "")).upper()
+    return normalized if _SHORTCUT_PATTERN.fullmatch(normalized) else None
+
+
 def reserved_symbol_letters(symbol_definitions: Iterable[_HasShortcut]) -> frozenset[str]:
     """Vereinigt konfigurierbare eingebaute Symbol-Shortcuts mit den festen System-Buchstaben.
 
@@ -150,14 +164,12 @@ def validate_custom_symbol_shortcut(
         InvalidShortcutError: Bei jeder Abweichung von der geforderten Form
             oder bei einer Kollision, mit einem konkreten Grund im Fehlertext.
     """
-    normalized = re.sub(r"\s+", "", str(raw or "")).upper()
-    match = _SHORTCUT_PATTERN.fullmatch(normalized)
-    if match is None:
+    letter = normalize_letter(raw)
+    if letter is None:
         raise InvalidShortcutError(
             f"Ungültiges Tastaturkürzel: '{raw}'. Erlaubt ist ausschließlich ein einzelner Buchstabe (z. B. 'L')."
         )
 
-    letter = normalized
     reserved = frozenset(reserved_letters)
     if letter in reserved:
         raise InvalidShortcutError(f"'{letter}' ist bereits als Tastenkürzel belegt.")

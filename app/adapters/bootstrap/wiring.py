@@ -9,6 +9,7 @@ from bw_libs.app_shell import AppShellConfig
 from app.adapters.gui.main_window_constants import MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH
 from app.application.app_controller import KartographAppController
 from app.infrastructure.repositories.settings_repository import JsonSettingsRepository
+from app.infrastructure.repositories.symbol_catalog_repository import JsonSymbolCatalogRepository
 from app.infrastructure.repositories.v4.json_plan_repository_v4 import JsonSeatingPlanRepositoryV4
 
 
@@ -20,8 +21,6 @@ class AppDependencies:
     shell_config: AppShellConfig
     settings_repository: JsonSettingsRepository
     controller: KartographAppController
-    symbols_path: Path
-    competences_path: Path
 
 
 def build_gui_dependencies(workspace_root: Path) -> AppDependencies:
@@ -44,8 +43,7 @@ def build_gui_dependencies(workspace_root: Path) -> AppDependencies:
         plan_repository=plan_repository,
         settings_repository=settings_repository,
         default_plans_dir=default_plans_dir,
-        symbols_path=symbols_path,
-        competences_path=competences_path,
+        symbol_catalog_repository=JsonSymbolCatalogRepository(symbols_path, competences_path),
         on_state_changed=lambda _state: None,  # replaced by main_window after init
     )
 
@@ -59,6 +57,4 @@ def build_gui_dependencies(workspace_root: Path) -> AppDependencies:
         ),
         settings_repository=settings_repository,
         controller=controller,
-        symbols_path=symbols_path,
-        competences_path=competences_path,
     )

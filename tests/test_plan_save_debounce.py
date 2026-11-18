@@ -16,6 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.application.app_controller import KartographAppController
+from app.infrastructure.repositories.symbol_catalog_repository import JsonSymbolCatalogRepository
 from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import _record_and_save
 from app.core.domain.plan_history import PlanHistory
@@ -109,8 +110,7 @@ class TestControllerWiresSchedulerIntoContext:
             plan_repository=FakePlanRepository(plans),
             settings_repository=FakeSettingsRepository(),
             default_plans_dir=PLANS_DIR,
-            symbols_path=SYMBOLS_PATH,
-            competences_path=COMPETENCES_PATH,
+            symbol_catalog_repository=JsonSymbolCatalogRepository(SYMBOLS_PATH, COMPETENCES_PATH),
             on_state_changed=lambda _state: None,
         )
 
@@ -137,8 +137,7 @@ class TestControllerWiresSchedulerIntoContext:
             plan_repository=repo,
             settings_repository=FakeSettingsRepository(),
             default_plans_dir=PLANS_DIR,
-            symbols_path=SYMBOLS_PATH,
-            competences_path=COMPETENCES_PATH,
+            symbol_catalog_repository=JsonSymbolCatalogRepository(SYMBOLS_PATH, COMPETENCES_PATH),
             on_state_changed=lambda _state: None,
         )
         ctrl.dispatch(OpenPlanIntent(plan_path=path))

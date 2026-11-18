@@ -16,11 +16,10 @@ Formulierungsregeln für Kompetenzen und die Checkliste für neue Symbole:
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
 
-from app.core.domain.symbol_catalog import Competence, SymbolDefinition
+from app.core.domain.symbol_catalog import CatalogContents
 from app.infrastructure.catalog_codec import codepoint_key, competence_from_item, parse_shortcut, symbol_from_item
 from app.infrastructure.catalog_working_copy import (
     WorkingCopy,
@@ -77,22 +76,7 @@ COMPETENCE_SPEC = WorkingCopySpec(
 )
 
 
-@dataclass(frozen=True)
-class CatalogLoadResult:
-    """Ergebnis von :func:`load_catalog`.
-
-    Attributes:
-        symbols: Gültige Katalogsymbole in Dateireihenfolge.
-        competences: Gültige Kompetenzen in Dateireihenfolge.
-        warning: Hinweise für die Statuszeile, sonst ``None``.
-    """
-
-    symbols: tuple[SymbolDefinition, ...]
-    competences: tuple[Competence, ...]
-    warning: str | None
-
-
-def load_catalog(symbols_path: Path, competences_path: Path) -> CatalogLoadResult:
+def load_catalog(symbols_path: Path, competences_path: Path) -> CatalogContents:
     """Lädt, repariert, ergänzt und migriert beide Arbeitskopien und parst sie.
 
     Enthält eine Datei nach dem Parsen keinen einzigen gültigen Eintrag, wird sie
@@ -120,7 +104,7 @@ def load_catalog(symbols_path: Path, competences_path: Path) -> CatalogLoadResul
         write_working_copy(symbols_path, symbol_copy.payload, SYMBOL_SPEC)
     competences = _parse_or_reset(competences_path, competence_copy, COMPETENCE_SPEC, competence_from_item, warnings)
     symbols = _parse_or_reset(symbols_path, symbol_copy, SYMBOL_SPEC, symbol_from_item, warnings)
-    return CatalogLoadResult(symbols, competences, "\n".join(warnings) or None)
+    return CatalogContents(symbols, competences, "\n".join(warnings) or None)
 
 
 def _parse_or_reset(

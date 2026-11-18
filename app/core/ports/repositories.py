@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from app.core.domain.symbol_catalog import CatalogContents, Competence, SymbolDefinition
 from pathlib import Path
 from typing import Protocol
 
@@ -92,6 +95,23 @@ class SeatingPlanRepository(Protocol):
         Args:
             source_path: Plandatei, die von der Prüfung ausgenommen wird.
             name: Zu prüfender Anzeigename.
+        """
+        ...
+
+
+class SymbolCatalogRepository(Protocol):
+    """Vertrag für den programmweiten Katalog (Symbole + Kompetenzen)."""
+
+    def load(self) -> CatalogContents:
+        """Lädt den Katalog (repariert/ergänzt die Arbeitskopien bei Bedarf)."""
+        ...
+
+    def save(self, symbols: Sequence[SymbolDefinition], competences: Sequence[Competence]) -> None:
+        """Speichert den vollständigen Katalog.
+
+        Args:
+            symbols: Alle Katalogsymbole.
+            competences: Alle Kompetenzen.
         """
         ...
 

@@ -37,6 +37,12 @@ from app.core.intents.symbol_intents import (
 from app.core.intents.participation_intents import SetParticipationRatingIntent
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
+from app.core.intents.catalog_intents import (
+    AddCatalogSymbolIntent,
+    AddCompetenceIntent,
+    UpdateCatalogSymbolIntent,
+    UpdateCompetenceIntent,
+)
 from app.core.intents.custom_symbol_intents import (
     AddCustomSymbolIntent,
     DeleteCustomSymbolIntent,
@@ -119,6 +125,11 @@ __all__ = [
     "AddCustomSymbolIntent",
     "UpdateCustomSymbolIntent",
     "DeleteCustomSymbolIntent",
+    # Programmweiter Katalog
+    "UpdateCatalogSymbolIntent",
+    "AddCatalogSymbolIntent",
+    "UpdateCompetenceIntent",
+    "AddCompetenceIntent",
     # Grade
     "AddGradeColumnIntent",
     "DeleteGradeColumnIntent",

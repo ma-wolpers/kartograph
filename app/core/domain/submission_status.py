@@ -31,6 +31,18 @@ class CatalogSymbolMissing(LookupError):
 
 ABSENT_CODEPOINT = "2205"  # ∅ Abwesend – für die Wahl "Abwesende ohne Abgabe auch mit X?"
 
+REQUIRED_CODEPOINTS = frozenset({status.value for status in SubmissionStatus} | {ABSENT_CODEPOINT})
+"""Symbole, die "Abgaben zählen" selbst setzt: sie dürfen programmweit nicht deaktiviert werden."""
+
+
+def is_required_symbol(definition: SymbolDefinition) -> bool:
+    """Ob *definition* ein von "Abgaben zählen" benötigtes Symbol ist (✓ ◐ X ∅).
+
+    Args:
+        definition: Katalogsymbol.
+    """
+    return f"{ord(definition.glyph):04X}" in REQUIRED_CODEPOINTS
+
 
 def resolve_symbol_name(catalog: Iterable[SymbolDefinition], codepoint: str) -> str:
     """Gibt den gespeicherten Symbolschlüssel des Katalogeintrags mit *codepoint* zurück.

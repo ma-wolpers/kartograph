@@ -15,6 +15,8 @@ gespeicherte Beobachtungen verwaisen.
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Literal
 
@@ -22,6 +24,20 @@ SymbolRole = Literal["diagnostic", "documentation_only"]
 """``diagnostic``: Stärke 1–3 im Diagnoseprofil; ``documentation_only``: an/aus je Dokumentationstag."""
 
 MAX_SYMBOL_LEVEL = 3
+
+_UMLAUTS = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"})
+
+
+def slugify(text: str) -> str:
+    """ASCII-Kennung aus einem deutschen Namen (``"Umgang mit Ärger"`` → ``"umgang_mit_aerger"``).
+
+    Einzige Regel für neu erzeugte Kompetenz-IDs (Migration und Dialog).
+
+    Args:
+        text: Beliebiger Name.
+    """
+    ascii_text = unicodedata.normalize("NFKD", text.lower().translate(_UMLAUTS)).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "_", ascii_text).strip("_") or "eintrag"
 
 
 def symbol_level(count: int) -> int:
@@ -103,3 +119,18 @@ class SymbolDefinition:
     active: bool = True
     competence_ids: tuple[str, ...] = ()
     frequency_legend: LevelTexts | None = None
+
+
+@dataclass(frozen=True)
+class CatalogContents:
+    """Der programmweite Katalog, wie ihn das Repository liefert und speichert.
+
+    Attributes:
+        symbols: Katalogsymbole in Dateireihenfolge.
+        competences: Kompetenzen in Dateireihenfolge.
+        warning: Hinweise vom Laden (Reparatur, Migration), sonst ``None``.
+    """
+
+    symbols: tuple[SymbolDefinition, ...]
+    competences: tuple[Competence, ...]
+    warning: str | None = None
