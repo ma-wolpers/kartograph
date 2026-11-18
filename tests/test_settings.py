@@ -66,6 +66,11 @@ class TestFromDict:
         settings = KartographSettings.from_dict({"grid_visible_symbols": ["Laptop", "  ", "Tablet"]})
         assert settings.grid_visible_symbols == ("Laptop", "Tablet")
 
+    def test_grid_hidden_symbols_missing_is_none_but_empty_list_is_empty(self):
+        assert KartographSettings.from_dict({}).grid_hidden_symbols is None
+        assert KartographSettings.from_dict({"grid_hidden_symbols": []}).grid_hidden_symbols == ()
+        assert KartographSettings.from_dict({"grid_hidden_symbols": None}).grid_hidden_symbols is None
+
     def test_save_delay_defaults_when_missing(self):
         settings = KartographSettings.from_dict({})
         assert settings.save_delay == 2.0
@@ -110,6 +115,7 @@ class TestToDictRoundtrip:
             name_format="Nachname",
             disambiguate_colliding_names=True,
             grid_visible_symbols=("Laptop",),
+            grid_hidden_symbols=("Tablet", "Konzentration"),
             details_overlay_position="left",
             tablegroup_overlay_position="bottom",
             save_delay=3.5,

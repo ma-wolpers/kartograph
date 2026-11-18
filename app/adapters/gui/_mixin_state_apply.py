@@ -12,6 +12,7 @@ from app.adapters.gui.main_window_constants import LIST_ACTIVE, GRID_SELECTED, N
 from app.adapters.gui.ui_theme import normalize_theme_key
 from app.application.app_state import AppState, EditorSurface, InteractionMode, PlanListEntry
 from app.core.domain.effective_symbol import build_effective_documentation_symbols
+from app.core.domain.grid_symbol_filter import visible_grid_symbols
 from app.core.domain.models_v4 import CustomSymbolDefinition
 from app.core.domain.settings import resolve_plans_dir
 from app.core.domain.symbol_catalog import SymbolDefinition
@@ -188,15 +189,15 @@ class StateApplyMixin:
         # Symbolfilter-Dialog (_mixin_export.py::open_grid_symbol_filter_dialog):
         # self.symbol_catalog allein enthaelt nur eingebaute Symbole -- ohne diese
         # Erweiterung waeren eigene Symbole selbst im unveraenderten "alles
-        # sichtbar"-Standardzustand nie sichtbar (_normalize_grid_visible_symbols()
-        # faellt bei leerer/ungueltiger Einstellung auf "alle aus der Referenzmenge"
-        # zurueck -- ohne eigene Symbole in dieser Menge blieben sie dauerhaft
-        # ausgeblendet, kein reiner Randfall).
+        # sichtbar"-Standardzustand nie sichtbar (visible_grid_symbols() zeigt alles
+        # aus der Referenzmenge, was nicht ausgeblendet ist -- ohne eigene Symbole in
+        # dieser Menge blieben sie dauerhaft ausgeblendet, kein reiner Randfall).
         reference_catalog = self.symbol_catalog + [
             s.key for s in self.effective_documentation_symbols if s.is_custom
         ]
-        self._grid_visible_symbols = self._normalize_grid_visible_symbols(
-            list(self._controller.state.settings.grid_visible_symbols), reference_catalog
+        settings = self._controller.state.settings
+        self._grid_visible_symbols = visible_grid_symbols(
+            reference_catalog, settings.grid_hidden_symbols, settings.grid_visible_symbols
         )
 
     def _replace_current_plan(self, plan) -> None:

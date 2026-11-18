@@ -94,26 +94,6 @@ class SettingsMixin:
         raw = str(value or "").strip()
         return raw if raw in NAME_FORMAT_OPTIONS else DEFAULT_NAME_FORMAT
 
-    def _normalize_grid_visible_symbols(self, raw_value: object, symbol_catalog: list[str]) -> set[str]:
-        """Gibt die Menge der im Raster sichtbaren Symbole zurück.
-
-        Bei leerer oder ungültiger Konfiguration werden alle Symbole angezeigt.
-
-        Args:
-            raw_value: Liste von Symbol-Bezeichnern aus den gespeicherten Einstellungen.
-            symbol_catalog: Vollständiger Symbolkatalog als Referenz.
-        """
-        configured: set[str] = set()
-        if isinstance(raw_value, list):
-            for item in raw_value:
-                meaning = str(item).strip()
-                if meaning:
-                    configured.add(meaning)
-        valid = [meaning for meaning in symbol_catalog if meaning in configured]
-        if valid:
-            return set(valid)
-        return set(symbol_catalog)
-
     def _normalize_details_overlay_position(self, value: object) -> str:
         """Gibt die Details-Overlay-Position zurück, falls gültig (left/right/bottom).
 

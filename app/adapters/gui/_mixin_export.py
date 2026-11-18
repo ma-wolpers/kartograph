@@ -10,6 +10,7 @@ import dataclasses
 
 from app.adapters.gui._local_keys import ENTER, ESCAPE, bind_action, dialog_keys
 from app.adapters.gui.main_window_constants import DEFAULT_PERIODIC_BACKUP_INTERVAL_MS
+from app.core.domain.grid_symbol_filter import hidden_from_selection, visible_grid_symbols
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.permanent_absence import is_active
 from app.core.intents.view_intents import UpdateSettingsIntent
@@ -67,8 +68,9 @@ class ExportMixin:
         Zeigt eingebaute Symbole (``self.symbol_catalog``, unverändert) UND
         eigene Doku-Symbole des aktuellen Plans — ohne Letztere wären eigene
         Symbole nach einer manuellen Filteranpassung nicht mehr sichtbar zu
-        machen. Speichert die Auswahl persistent in den Einstellungen und
-        zeichnet das Raster neu.
+        machen. Speichert die **ausgeblendeten** Symbole persistent
+        (``grid_symbol_filter``: später hinzukommende Symbole bleiben sichtbar)
+        und zeichnet das Raster neu.
         """
         dialog = self._create_overlay_dialog("Sichtbare Symbole", "420x480")
         container = tui.Frame(dialog)
@@ -93,12 +95,11 @@ class ExportMixin:
 
         def apply_filter() -> None:
             selected = [symbol for symbol, var in vars_by_symbol.items() if var.get()]
-            if not selected:
-                selected = list(all_symbol_keys)
-            self._grid_visible_symbols = set(selected)
-            self._controller.dispatch(UpdateSettingsIntent(
-                settings=dataclasses.replace(self._controller.state.settings, grid_visible_symbols=tuple(selected))
-            ))
+            hidden = hidden_from_selection(all_symbol_keys, selected)
+            self._grid_visible_symbols = visible_grid_symbols(all_symbol_keys, hidden)
+            self._controller.dispatch(UpdateSettingsIntent(settings=dataclasses.replace(
+                self._controller.state.settings, grid_hidden_symbols=hidden, grid_visible_symbols=()
+            )))
             dialog.destroy()
             self._request_grid_redraw()
             self._refresh_details_panel()

@@ -75,7 +75,8 @@ class KartographSettings:
     viewport_follow_buffer: int = DEFAULT_VIEWPORT_FOLLOW_BUFFER
     name_format: str = DEFAULT_NAME_FORMAT
     disambiguate_colliding_names: bool = False
-    grid_visible_symbols: tuple[str, ...] = field(default_factory=tuple)
+    grid_visible_symbols: tuple[str, ...] = field(default_factory=tuple)  # nur noch gelesen (Altformat)
+    grid_hidden_symbols: tuple[str, ...] | None = None  # None = noch nie im neuen Format gespeichert
     details_overlay_position: str = DEFAULT_DETAILS_OVERLAY_POSITION
     tablegroup_overlay_position: str = DEFAULT_TABLEGROUP_OVERLAY_POSITION
     sitzplan_popup_delay: int = DEFAULT_SITZPLAN_POPUP_DELAY
@@ -132,16 +133,14 @@ class KartographSettings:
                 return default
             return str(value).strip().lower() in {"1", "true", "yes", "y", "on", "ja"}
 
-        grid_visible_raw = payload.get("grid_visible_symbols")
-        grid_visible_symbols = (
-            tuple(
-                dict.fromkeys(
-                    canonical_symbol_name(str(item).strip()) for item in grid_visible_raw if str(item).strip()
-                )
-            )
-            if isinstance(grid_visible_raw, list)
-            else ()
-        )
+        def _symbol_keys(value: object) -> tuple[str, ...] | None:
+            """Symbolschlüssel-Liste (umbenannte Altschlüssel kanonisiert, ohne Dubletten); ``None`` ohne Liste."""
+            if not isinstance(value, list):
+                return None
+            return tuple(dict.fromkeys(canonical_symbol_name(str(item).strip()) for item in value if str(item).strip()))
+
+        grid_visible_symbols = _symbol_keys(payload.get("grid_visible_symbols")) or ()
+        grid_hidden_symbols = _symbol_keys(payload.get("grid_hidden_symbols"))
 
         return cls(
             plans_dir=str(payload.get("plans_dir") or ""),
@@ -156,6 +155,7 @@ class KartographSettings:
             ),
             disambiguate_colliding_names=_bool(payload.get("disambiguate_colliding_names"), False),
             grid_visible_symbols=grid_visible_symbols,
+            grid_hidden_symbols=grid_hidden_symbols,
             details_overlay_position=_str(payload.get("details_overlay_position"), DEFAULT_DETAILS_OVERLAY_POSITION, options=("left", "right", "bottom")),
             tablegroup_overlay_position=_str(payload.get("tablegroup_overlay_position"), DEFAULT_TABLEGROUP_OVERLAY_POSITION, options=("left", "right", "bottom")),
             sitzplan_popup_delay=_int(payload.get("sitzplan_popup_delay"), DEFAULT_SITZPLAN_POPUP_DELAY, minimum=1, maximum=30),
@@ -190,6 +190,7 @@ class KartographSettings:
             "name_format": self.name_format,
             "disambiguate_colliding_names": self.disambiguate_colliding_names,
             "grid_visible_symbols": list(self.grid_visible_symbols),
+            "grid_hidden_symbols": None if self.grid_hidden_symbols is None else list(self.grid_hidden_symbols),
             "details_overlay_position": self.details_overlay_position,
             "tablegroup_overlay_position": self.tablegroup_overlay_position,
             "sitzplan_popup_delay": self.sitzplan_popup_delay,
