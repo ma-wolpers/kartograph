@@ -55,3 +55,41 @@ def test_levels_of_one_competence_differ() -> None:
 def test_names_are_unique_within_group() -> None:
     seen = [(item["group"], item["name"].lower()) for item in _competences()]
     assert len(seen) == len(set(seen))
+
+
+DEFAULT_SYMBOLS_PATH = DEFAULT_COMPETENCES_PATH.with_name("default_symbols.json")
+SEGOE_UI_SYMBOL = Path("C:/Windows/Fonts/seguisym.ttf")
+
+
+def _symbols() -> list[dict]:
+    """Liest die Symbolliste direkt aus der Datendatei."""
+    return json.loads(DEFAULT_SYMBOLS_PATH.read_text(encoding="utf-8"))["symbols"]
+
+
+def test_diagnostic_symbols_link_at_least_one_existing_competence() -> None:
+    known = {item["id"] for item in _competences()}
+    for item in _symbols():
+        if item.get("role") == "documentation_only":
+            assert "competences" not in item and set(item["legend"]) == {"one", "two", "three"}, item["key"]
+        else:
+            assert item["competences"] and set(item["competences"]) <= known, item["key"]
+
+
+def test_symbol_keys_codepoints_and_shortcuts_are_unique() -> None:
+    items = _symbols()
+    for field in ("key", "codepoint"):
+        values = [item[field] for item in items]
+        assert len(values) == len(set(values)), field
+    shortcuts = [item["shortcut"] for item in items if item.get("shortcut")]
+    assert len(shortcuts) == len(set(shortcuts))
+    assert all(s == s.lower() for s in shortcuts)
+
+
+def test_every_default_glyph_is_in_segoe_ui_symbol() -> None:
+    """Der PDF-Export registriert nur diese Symbolschrift (``docs/SYMBOLE.md``, Checkliste Punkt 2)."""
+    ttfonts = pytest.importorskip("reportlab.pdfbase.ttfonts")
+    if not SEGOE_UI_SYMBOL.exists():
+        pytest.skip("Segoe UI Symbol nicht installiert")
+    cmap = ttfonts.TTFontFile(str(SEGOE_UI_SYMBOL)).charToGlyph
+    missing = [item["key"] for item in _symbols() if int(item["codepoint"], 16) not in cmap]
+    assert missing == []

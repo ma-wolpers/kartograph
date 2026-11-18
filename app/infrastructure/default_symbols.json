@@ -118,6 +118,31 @@
       ]
     },
     {
+      "codepoint": "1F525",
+      "key": "Motivation",
+      "shortcut": "h",
+      "competences": [
+        "lernvoraussetzung.motivation"
+      ]
+    },
+    {
+      "codepoint": "1F4DA",
+      "key": "Fachliches Vorwissen",
+      "shortcut": "r",
+      "competences": [
+        "lernvoraussetzung.vorwissen"
+      ]
+    },
+    {
+      "codepoint": "26A1",
+      "key": "Auffassungsgabe/kognitive Geschwindigkeit",
+      "shortcut": "g",
+      "competences": [
+        "lernvoraussetzung.auffassungsgabe",
+        "lernvoraussetzung.kognitive_geschwindigkeit"
+      ]
+    },
+    {
       "codepoint": "0058",
       "key": "Nicht abgegeben / verweigert",
       "shortcut": "x",
