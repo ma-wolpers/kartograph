@@ -2,127 +2,124 @@
   "symbols": [
     {
       "codepoint": "1F446",
-      "meaning": "Beteiligung",
+      "key": "Beteiligung",
       "shortcut": "b",
-      "legend": {
-        "three": "beteiligt sich unaufgefordert, kontinuierlich und verlässlich am Lerngespräch, trägt durch Beiträge und Ergebnisse aktiv dazu bei, den Lernprozess weiter zu entwickeln",
-        "two": "beteiligt sich gelegentlich am Lerngespräch und nutzt es zunehmend als Lerngelegenheit; trägt immer wieder mit eigenen Beiträgen und Ergebnissen zur Weiterentwicklung des Lernprozesses bei",
-        "one": "beteiligt sich am Lerngespräch vor allem nach direkter Ansprache oder Ermutigung; bringt Beiträge ein, wenn ein sicherer Rahmen und Unterstützung gegeben sind (z. B. Vorbereitung in Partnerarbeit, Denkzeit, konkrete Impulse)"
-      }
+      "competences": [
+        "beteiligung.lerngespraech",
+        "beteiligung.beitraege"
+      ]
     },
     {
       "codepoint": "221E",
-      "meaning": "Kooperation",
+      "key": "Kooperation",
       "shortcut": "c",
-      "legend": {
-        "three": "arbeitet ziel- und teamorientiert mit anderen, übernimmt eigeninitiativ Verantwortung für Rollen und Aufgaben und bringt eigene Ideen in die Gruppe ein",
-        "two": "arbeitet überwiegend zielorientiert in der Gruppe mit, übernimmt auf Anregung Verantwortung und trägt aufgabengeleitet zum gemeinsamen Ergebnis bei",
-        "one": "arbeitet in der Gruppe aufgabenbezogen mit, wenn Ziele und Rollen klar vorgegeben sind, und trägt mit dem eigenen Aufgabenteil zum Gruppenergebnis bei"
-      }
+      "competences": [
+        "kooperation.zusammenarbeit",
+        "kooperation.verantwortung",
+        "kooperation.gruppenergebnis"
+      ]
     },
     {
       "codepoint": "1F5E9",
-      "meaning": "Interaktion",
+      "key": "Interaktion",
       "shortcut": "i",
-      "legend": {
-        "three": "hört aktiv zu, geht sensibel und wertschätzend auf Beiträge anderer ein und vertritt die eigene Position überzeugend",
-        "two": "hört meist aufmerksam zu, reagiert überwiegend angemessen und wertschätzend auf Beiträge anderer und bringt die eigene Position anlassbezogen ein",
-        "one": "hört phasenweise aktiv zu und reagiert auf Beiträge anderer vor allem nach direkter Ansprache; hält Gesprächsregeln mit Erinnerung ein"
-      }
+      "competences": [
+        "interaktion.eingehen",
+        "interaktion.position",
+        "interaktion.gespraechsregeln"
+      ]
     },
     {
       "codepoint": "1F5F2",
-      "meaning": "Konfliktfähigkeit",
+      "key": "Konfliktfähigkeit",
       "shortcut": "k",
-      "legend": {
-        "three": "nimmt Kritik offen an und äußert sie konstruktiv, klärt Missverständnisse eigeninitiativ und handelt Positionen fair und kompromissbereit aus",
-        "two": "nimmt Kritik überwiegend an, beteiligt sich an der Klärung von Missverständnissen und regelt Konflikte eher spontan, mit ersten Ansätzen von Kompromissbereitschaft",
-        "one": "nimmt konkret und ruhig geäußerte Kritik an und klärt Konflikte mit Begleitung, z. B. durch Lehrkraft oder Streitschlichtung"
-      }
+      "competences": [
+        "konflikt.kritik",
+        "konflikt.missverstaendnisse",
+        "konflikt.loesung"
+      ]
     },
     {
       "codepoint": "1F590",
-      "meaning": "Aufgabenbearbeitung",
+      "key": "Aufgabenbearbeitung",
       "shortcut": "a",
-      "legend": {
-        "three": "kann Lernschritte selbständig planen und Ergebnisse mit Hilfe von Lösungen überprüfen, Fehler erkennen und korrigieren sowie den Lernweg erklären",
-        "two": "kann einzelne Lernschritte selbständig lösen und holt sich bei Bedarf gezielt Hilfestellung (durch Lehrkraft, Partner/Partnerin, Hilfekarten)",
-        "one": "kann eine Aufgabe schrittweise lösen, wenn personale Hilfestellung (Lehrkraft, andere Lernende) zur Verfügung steht"
-      }
+      "competences": [
+        "aufgabe.bearbeiten",
+        "aufgabe.hilfen",
+        "aufgabe.ueberpruefen"
+      ]
     },
     {
       "codepoint": "1F3AF",
-      "meaning": "Konzentration",
+      "key": "Konzentration",
       "shortcut": "z",
-      "legend": {
-        "three": "bleibt auch über längere Arbeitsphasen selbstständig konzentriert bei der Sache, kehrt nach Ablenkungen eigeninitiativ zur Aufgabe zurück und trägt zu einer ruhigen Arbeitsatmosphäre bei",
-        "two": "arbeitet überwiegend konzentriert und findet nach Ermutigung oder Erinnerung zur Aufgabe zurück; respektiert dabei die Arbeitsatmosphäre der anderen",
-        "one": "arbeitet phasenweise konzentriert; hält Einzelarbeitsphasen ein und hört anderen zu, wenn enge Begleitung zur Verfügung steht (z. B. kurze Teilschritte, klare Zeitvorgaben, ablenkungsarmer Sitzplatz, vereinbarte Signale)"
-      }
+      "competences": [
+        "konzentration.arbeiten",
+        "konzentration.zurueckfinden",
+        "konzentration.atmosphaere"
+      ]
     },
     {
       "codepoint": "1F5CE",
-      "meaning": "Umgang mit Material",
+      "key": "Umgang mit Material",
       "shortcut": "m",
-      "legend": {
-        "three": "erkennt eigenständig, welche Materialien wann erforderlich sind und kann diese selbständig organisieren, strukturieren und situativ passend bereithalten",
-        "two": "kann Materialien in der Regel eigenständig organisieren, strukturieren und weitgehend ohne externe Aufforderung bereithalten",
-        "one": "kann Arbeitsmaterialien organisieren, strukturieren und bereithalten, wenn genaue Vorgaben (z. B. Materialliste, Checkliste, feste Ablage) zur Verfügung stehen"
-      }
+      "competences": [
+        "material.bedarf",
+        "material.organisieren"
+      ]
     },
     {
       "codepoint": "264B",
-      "meaning": "Visualisierung",
+      "key": "Visualisierung",
       "shortcut": "v",
-      "legend": {
-        "three": "kann eigene Visualisierungen zur Darstellung komplexer Strukturen und Zusammenhängen erstellen sowie diese vortragen/ erklären/ begründen und reflektieren",
-        "two": "kann komplexe Strukturen (Texte, Zusammenhänge) unter Anleitung (Aufgabenstellung) in einfache sowie teilweise auch komplexe Visualisierungen oder andere Darstellungsformen umsetzen und diese erklären",
-        "one": "kann aus Texten einfache Visualisierungen (Tabelle, Mindmap, concept map) erstellen, wenn Vorgaben oder Modelle zur Verfügung stehen"
-      }
+      "competences": [
+        "visualisierung.erstellen",
+        "visualisierung.erklaeren"
+      ]
     },
     {
       "codepoint": "1F393",
-      "meaning": "Fachkompetenz",
+      "key": "Fachkompetenz",
       "shortcut": "f",
-      "legend": {
-        "three": "erfüllt die fachlichen Anforderungen sicher und selbstständig, stellt Lösungswege nachvollziehbar dar und nutzt Fachbegriffe und Darstellungsformen präzise, auch bei komplexeren Aufgaben",
-        "two": "erfüllt die fachlichen Anforderungen größtenteils und stellt Lösungswege überwiegend korrekt dar, teils mit Unterstützung durch Hinweise, Beispiele oder Strukturierungshilfen",
-        "one": "erfüllt grundlegende fachliche Anforderungen, wenn gezielte Unterstützung wie Schritt-für-Schritt-Anleitungen oder Beispiele zur Verfügung steht; nutzt vertraute Fachbegriffe teilweise passend"
-      }
+      "competences": [
+        "fach.anforderungen",
+        "fach.loesungswege",
+        "fach.fachsprache"
+      ]
     },
     {
       "codepoint": "221A",
-      "meaning": "Algebra",
+      "key": "Algebra",
       "shortcut": "w",
-      "legend": {
-        "three": "nutzt Variablen flexibel, formt Terme und Gleichungen sicher und begründet um und wechselt bei funktionalen Zusammenhängen sicher zwischen Situation, Tabelle, Graph und Term",
-        "two": "formt einfache Terme und Gleichungen meist korrekt um und beschreibt Zusammenhänge zwischen Größen; wechselt bei bekannten Funktionstypen mit Hilfen zwischen den Darstellungen",
-        "one": "setzt Zahlen in Terme ein und führt einfache Umformungen mit Anleitung aus; beschreibt Zusammenhänge anhand konkreter Werte und braucht Unterstützung beim Wechsel der Darstellung"
-      }
+      "competences": [
+        "algebra.variablen",
+        "algebra.umformen",
+        "algebra.zusammenhaenge",
+        "algebra.darstellungswechsel"
+      ]
     },
     {
       "codepoint": "003F",
-      "meaning": "Nachfragen",
+      "key": "Nachfragen",
       "shortcut": "n",
-      "legend": {
-        "three": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben selbstständig und sicher",
-        "two": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben in der Regel selbstständig und klärt offene Punkte gezielt durch Nachfragen",
-        "one": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben mithilfe von Wiederholung, Rückfragen oder zusätzlicher Erläuterung (z. B. Beispiel, Visualisierung, Umformulierung)"
-      }
+      "competences": [
+        "auftraege.erschliessen",
+        "auftraege.nachfragen"
+      ]
     },
     {
       "codepoint": "1F6E0",
-      "meaning": "Programmieren o.ä.",
-      "shortcut": "P",
-      "legend": {
-        "three": "zerlegt komplexe Probleme in Teilschritte, kann Algorithmen entwickeln, umsetzen und erklären",
-        "two": "kann einfache Probleme in Teilschritte zerlegen, kann einfache Algorithmen entwickeln, umsetzen und erklären",
-        "one": "kann einfache Probleme mit Hilfestellung in Teilschritte zerlegen sowie einfache Algorithmen mit Hilfestellung entwickeln, umsetzen und erklären"
-      }
+      "key": "Programmieren o.ä.",
+      "shortcut": "p",
+      "competences": [
+        "programmieren.zerlegen",
+        "programmieren.algorithmen",
+        "programmieren.erklaeren"
+      ]
     },
     {
       "codepoint": "0058",
-      "meaning": "Nicht abgegeben / verweigert",
+      "key": "Nicht abgegeben / verweigert",
       "shortcut": "x",
       "role": "documentation_only",
       "legend": {
@@ -133,7 +130,7 @@
     },
     {
       "codepoint": "2205",
-      "meaning": "Abwesend",
+      "key": "Abwesend",
       "shortcut": "space",
       "role": "documentation_only",
       "legend": {
@@ -144,7 +141,7 @@
     },
     {
       "codepoint": "2610",
-      "meaning": "Aufgaben nicht gemacht",
+      "key": "Aufgaben nicht gemacht",
       "shortcut": "t",
       "role": "documentation_only",
       "legend": {
@@ -155,7 +152,7 @@
     },
     {
       "codepoint": "2713",
-      "meaning": "Abgabe vollständig",
+      "key": "Abgabe vollständig",
       "shortcut": "e",
       "role": "documentation_only",
       "legend": {
@@ -166,7 +163,7 @@
     },
     {
       "codepoint": "25D0",
-      "meaning": "Abgabe lückenhaft",
+      "key": "Abgabe lückenhaft",
       "shortcut": "l",
       "role": "documentation_only",
       "legend": {

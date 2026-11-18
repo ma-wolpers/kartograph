@@ -10,7 +10,7 @@ from app.core.domain.symbol_catalog import SymbolDefinition
 def _FakeSymbolDefinition(meaning: str, glyph: str, role: str, shortcut: str | None = None) -> SymbolDefinition:
     """Echte ``SymbolDefinition`` mit Schlüssel = Name und festen Stufentexten."""
     return SymbolDefinition(key=meaning, name=meaning, glyph=glyph, shortcut=shortcut,
-                            legend=("eins", "zwei", "drei"), role=role)
+                            frequency_legend=("eins", "zwei", "drei"), role=role)
 
 
 def _custom(id_: str, glyph: str, meaning: str, shortcut: str = "Ctrl+Shift+K") -> CustomSymbolDefinition:

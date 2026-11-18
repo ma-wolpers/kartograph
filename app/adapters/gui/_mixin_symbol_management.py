@@ -1,6 +1,6 @@
 """Symbol-Verwaltung-Popup-Mixin für das Kartograph-Hauptfenster.
 
-Listenansicht aller Symbole (eingebaute mit ihren drei Legendenstufen +
+Listenansicht aller Symbole (eingebaute mit ihren Kompetenzen bzw. Stufen +
 eigene Doku-Symbole des aktuellen Plans mit ihrem einzelnen Bedeutungstext)
 mit Neu/Bearbeiten/Löschen — Letztere zwei nur für eigene Symbole aktiv,
 eingebaute sind reine Referenz (nur über ``config/symbols.json`` änderbar).
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from app.adapters.gui.dialog_services import messagebox
 from app.adapters.gui.main_window_constants import SPACE_SHORTCUT
+from app.core.domain.symbol_legend import symbol_summary
 from app.core.intents.custom_symbol_intents import DeleteCustomSymbolIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -89,8 +90,8 @@ class SymbolManagementMixin:
         """Baut die Symbol-Tabelle aus dem eingebauten Katalog und den eigenen Symbolen des aktuellen Plans neu auf.
 
         Zeileninhalt je Herkunft bewusst unterschiedlich: eingebaute Symbole
-        zeigen ihre drei zusammengefassten Legendenstufen (Stärke 1/2/3),
-        eigene Symbole nur ihren einzelnen Bedeutungstext — kein Vortäuschen
+        zeigen ihre Kurzbeschreibung (``symbol_summary``: verknüpfte Kompetenzen
+        bzw. Häufigkeitsstufen), eigene Symbole nur ihren einzelnen Bedeutungstext — kein Vortäuschen
         einer Struktur, die für eigene Symbole nicht existiert.
         """
         table = self._symbol_management_table
@@ -98,13 +99,12 @@ class SymbolManagementMixin:
             return
         table.delete(*table.get_children())
         for definition in self.symbol_definitions:
-            legend = " / ".join(definition.legend)
             table.insert(
                 "", ui.END,
                 iid=f"builtin:{definition.key}",
                 values=(
                     definition.glyph,
-                    f"{definition.name} — {legend}",
+                    symbol_summary(definition, self.competences_by_id),
                     _ROLE_LABELS.get(definition.role, definition.role),
                     "Leertaste" if definition.shortcut == SPACE_SHORTCUT else (definition.shortcut or ""),
                 ),

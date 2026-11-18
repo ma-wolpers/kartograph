@@ -11,7 +11,7 @@ from app.core.domain.color_order import order_color_keys, palette_color
 from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import ParticipationRating, SeatingPlan, Student
 from app.core.domain.permanent_absence import is_permanently_absent
-from app.core.domain.symbol_legend import ordered_symbol_counts
+from app.core.domain.symbol_legend import build_legend, ordered_symbol_counts
 from app.core.usecases.v4.color_usecases import palette_meaning
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -192,23 +192,16 @@ class GridHelpersMixin:
         return lines
 
     def _symbol_legend_lines(self, symbols: dict[str, int]) -> list[str]:
-        """Erstellt Legendenzeilen im Format ``"Glyph Legendentext"`` für ein Symbol-Dictionary.
+        """Erstellt die Legendenzeilen eines Symbol-Dictionarys (Format: ``symbol_legend.LegendEntry.text``).
 
         Args:
-            symbols: Dictionary von Symbolname zu Anzahl.
+            symbols: Dictionary von Symbolschlüssel zu Anzahl.
         """
-        if not symbols:
-            return []
-        lines: list[str] = []
-        for symbol_name, count in ordered_symbol_counts(self.symbol_catalog, symbols):
-            glyph = self._symbol_glyph(symbol_name)
-            definition = self._symbol_by_meaning.get(symbol_name)
-            if definition is not None:
-                legend_text = definition.legend_for_count(count)
-            else:
-                _glyph, legend_text = resolve_symbol_display(symbol_name, self.effective_documentation_symbols)
-            lines.append(f"{glyph * count} {legend_text}".strip())
-        return lines
+        entries = build_legend(
+            self.symbol_definitions, self.competences_by_id, symbols,
+            lambda key: resolve_symbol_display(key, self.effective_documentation_symbols),
+        )
+        return [entry.text for entry in entries]
 
     def _ordered_color_markers(self, color_markers: list[str]) -> list[str]:
         """Gibt die Farbpunkte in der konfigurierten Palettenreihenfolge zurück.

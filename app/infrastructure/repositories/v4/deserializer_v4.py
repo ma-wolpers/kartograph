@@ -284,7 +284,7 @@ def _deserialize_custom_symbols(raw: dict) -> dict[str, CustomSymbolDefinition]:
     bleibt sichtbar/editierbar, ist aber über Tastatur schlicht nicht
     erreichbar (der Ctrl+Shift-Handler matcht nur exakt gültige kanonische
     Formen). Gleiche Fehlertoleranz-Philosophie wie
-    ``load_symbol_definitions()`` für den globalen Katalog.
+    ``load_catalog()`` für den globalen Katalog.
 
     Args:
         raw: Roh-Dict des ``custom_symbols``-Feldes aus der Plandatei.

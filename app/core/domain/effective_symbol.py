@@ -75,7 +75,7 @@ def build_effective_documentation_symbols(
             display_name=definition.name,
             role=definition.role,
             is_custom=False,
-            legend=definition.legend,
+            legend=definition.frequency_legend,
             shortcut=definition.shortcut,
         )
         for definition in symbol_definitions

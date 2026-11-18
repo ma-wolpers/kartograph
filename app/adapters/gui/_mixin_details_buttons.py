@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.adapters.gui.main_window_constants import DETAILS_LEGEND_MARGIN, DETAILS_LEGEND_MIN_WRAP
+from app.adapters.gui.main_window_constants import DETAILS_LEGEND_MARGIN, DETAILS_LEGEND_MIN_WRAP, DETAILS_SYMBOL_LEGEND_GAP
 from app.core.domain.permanent_absence import accepts_entries
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -88,6 +88,9 @@ class DetailsButtonsMixin:
     def _set_legend_lines(self, frame: Any, lines: list[str]) -> None:
         """Ersetzt die Legenden-Labels in *frame* nur, wenn sich die Zeilen geändert haben.
 
+        In der Symbol-Legende trennt ``DETAILS_SYMBOL_LEGEND_GAP`` die Einträge
+        (eine Zeile je Symbol, mehrzeilig umbrochen); die Farblegende bleibt dicht.
+
         Args:
             frame: ``symbol_legend_frame`` oder ``color_legend_frame``.
             lines: Anzuzeigende Zeilen (leer = Legende leeren).
@@ -97,8 +100,10 @@ class DetailsButtonsMixin:
             return
         for child in frame.winfo_children():
             child.destroy()
-        for line in lines:
-            tui.Label(frame, text=line, wraplength=self._details_wrap_width, justify="left").pack(anchor="w")
+        gap = DETAILS_SYMBOL_LEGEND_GAP if frame is self.symbol_legend_frame else 0
+        for index, line in enumerate(lines):
+            label = tui.Label(frame, text=line, wraplength=self._details_wrap_width, justify="left")
+            label.pack(anchor="w", pady=(gap if index else 0, 0))
         self._legend_lines[key] = list(lines)
 
     def _rewrap_detail_legends(self, content_width: int) -> None:

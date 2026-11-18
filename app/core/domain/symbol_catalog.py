@@ -36,30 +36,70 @@ def symbol_level(count: int) -> int:
     return max(1, min(MAX_SYMBOL_LEVEL, int(count)))
 
 
+LevelTexts = tuple[str, str, str]
+"""Stufentexte ``(eins, zwei, drei)``; ``drei`` ist immer die höchste Ausprägung."""
+
+
+def level_text(levels: LevelTexts, count: int) -> str:
+    """Gibt den Stufentext zur Stärke *count* zurück (gestuft über :func:`symbol_level`).
+
+    Args:
+        levels: Die drei Stufentexte.
+        count: Symbolstärke, für die der passende Text gesucht wird.
+    """
+    return levels[symbol_level(count) - 1]
+
+
+@dataclass(frozen=True)
+class Competence:
+    """Eine atomare Kompetenz mit drei Stufentexten (``config/competences.json``).
+
+    Attributes:
+        id: Stabile ASCII-ID (``gruppe.teilaspekt``), nie umbenannt.
+        name: Anzeigename, z. B. „zur Aufgabe zurückfinden“.
+        group: Gruppierung in der Auswahl, z. B. „Konzentration“.
+        levels: Stufentexte, Formulierungsregeln in ``docs/SYMBOLE.md``.
+    """
+
+    id: str
+    name: str
+    group: str
+    levels: LevelTexts
+
+    def level_text(self, count: int) -> str:
+        """Gibt den Text zur Stärke *count* zurück.
+
+        Args:
+            count: Symbolstärke (wird auf 1–3 begrenzt).
+        """
+        return level_text(self.levels, count)
+
+
 @dataclass(frozen=True)
 class SymbolDefinition:
     """Ein eingebautes Symbol des programmweiten Katalogs.
+
+    Diagnosesymbole tragen keine eigenen Stufentexte mehr, sondern verknüpfen
+    Kompetenzen (``competence_ids``); nur Doku-Symbole haben Häufigkeitstexte
+    (``frequency_legend``, z. B. „einmalig … / mehrfach … / wiederholt …“).
 
     Attributes:
         key: Stabiler Speicherschlüssel (s. Moduldocstring), nie umbenannt.
         name: Anzeigename; anfangs gleich ``key``.
         glyph: Das Zeichen, das im Raster, in der Legende und im PDF erscheint.
         shortcut: Kleinbuchstabe, der Sentinel ``"space"`` oder ``None``.
-        legend: Stufentexte ``(eins, zwei, drei)``; ``drei`` ist die höchste Ausprägung.
         role: Diagnose- oder reines Doku-Symbol.
+        active: ``False`` = programmweit deaktiviert (nicht mehr setzbar; vorhandene
+            Daten bleiben sichtbar).
+        competence_ids: Verknüpfte Kompetenzen in Legendenreihenfolge (nur Diagnose).
+        frequency_legend: Häufigkeitstexte (nur Doku-Symbole).
     """
 
     key: str
     name: str
     glyph: str
     shortcut: str | None
-    legend: tuple[str, str, str]
     role: SymbolRole = "diagnostic"
-
-    def legend_for_count(self, count: int) -> str:
-        """Gibt den Legendentext für die Stärke *count* zurück (gestuft über :func:`symbol_level`).
-
-        Args:
-            count: Symbolstärke, für die der passende Legendentext gesucht wird.
-        """
-        return self.legend[symbol_level(count) - 1]
+    active: bool = True
+    competence_ids: tuple[str, ...] = ()
+    frequency_legend: LevelTexts | None = None

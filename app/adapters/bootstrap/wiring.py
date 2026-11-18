@@ -21,6 +21,7 @@ class AppDependencies:
     settings_repository: JsonSettingsRepository
     controller: KartographAppController
     symbols_path: Path
+    competences_path: Path
 
 
 def build_gui_dependencies(workspace_root: Path) -> AppDependencies:
@@ -33,6 +34,7 @@ def build_gui_dependencies(workspace_root: Path) -> AppDependencies:
 
     config_path = workspace_root / "config" / "kartograph_settings.json"
     symbols_path = workspace_root / "config" / "symbols.json"
+    competences_path = workspace_root / "config" / "competences.json"
     default_plans_dir = workspace_root / "plans"
 
     settings_repository = JsonSettingsRepository(config_path=config_path)
@@ -43,6 +45,7 @@ def build_gui_dependencies(workspace_root: Path) -> AppDependencies:
         settings_repository=settings_repository,
         default_plans_dir=default_plans_dir,
         symbols_path=symbols_path,
+        competences_path=competences_path,
         on_state_changed=lambda _state: None,  # replaced by main_window after init
     )
 
@@ -57,4 +60,5 @@ def build_gui_dependencies(workspace_root: Path) -> AppDependencies:
         settings_repository=settings_repository,
         controller=controller,
         symbols_path=symbols_path,
+        competences_path=competences_path,
     )

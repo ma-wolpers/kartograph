@@ -256,9 +256,11 @@ class FakeSettingsRepository:
 
 
 PLANS_DIR = Path("/fake/plans")
-# Echtes temporäres Verzeichnis (nicht "/fake/..."), da load_symbol_definitions()
+# Echtes temporäres Verzeichnis (nicht "/fake/..."), da load_catalog()
 # beim Controller-Start tatsächlich Dateien liest/anlegt.
-SYMBOLS_PATH = Path(tempfile.mkdtemp()) / "symbols.json"
+_CATALOG_DIR = Path(tempfile.mkdtemp())
+SYMBOLS_PATH = _CATALOG_DIR / "symbols.json"
+COMPETENCES_PATH = _CATALOG_DIR / "competences.json"
 
 
 def make_ctx(plans: dict | None = None) -> HandlerContext:
@@ -1802,6 +1804,7 @@ class TestKartographAppController:
             settings_repository=FakeSettingsRepository(),
             default_plans_dir=PLANS_DIR,
             symbols_path=SYMBOLS_PATH,
+            competences_path=COMPETENCES_PATH,
             on_state_changed=received.append,
         )
         return ctrl, received
@@ -1947,6 +1950,7 @@ class TestKartographAppController:
             settings_repository=FakeSettingsRepository(),
             default_plans_dir=PLANS_DIR,
             symbols_path=SYMBOLS_PATH,
+            competences_path=COMPETENCES_PATH,
             on_state_changed=bad_callback,
         )
 

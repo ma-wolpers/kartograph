@@ -13,6 +13,7 @@ from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
 from app.adapters.gui._pending_field_save import PendingFieldSave
 from app.core.domain.permanent_absence import PERMANENT_ABSENCE_LABEL
 from app.core.domain.student_notes import NOTES_LABEL
+from app.core.domain.symbol_legend import symbol_summary
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -169,14 +170,14 @@ class DetailsLayoutMixin:
         for item in diagnostic:
             key = item.shortcut.upper()
             badge = bar.add(tui.Label(bar, text=f"{item.glyph} {key}", style="Panel.TLabel"))
-            self._attach_hover_help(badge, label=f"{item.name} – {item.legend[0]}", shortcut=key)
+            self._attach_hover_help(badge, label=symbol_summary(item, self.competences_by_id), shortcut=key)
 
         if doc_only:
             bar.add(tui.Label(bar, text="|", style="Panel.TLabel"))
             for item in doc_only:
                 key = item.shortcut.upper()
                 badge = bar.add(tui.Label(bar, text=f"{item.glyph} {key}°", style="Panel.TLabel"))
-                self._attach_hover_help(badge, label=f"{item.name} (nur Doku) – {item.legend[0]}", shortcut=key)
+                self._attach_hover_help(badge, label=f"(nur Doku) {symbol_summary(item, self.competences_by_id)}", shortcut=key)
 
     def _bind_name_entry_keys(self, entry) -> None:
         """Escape und Enter in einem Namensfeld verlassen den Namenseditor-Modus.

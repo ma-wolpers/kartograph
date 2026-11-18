@@ -1,234 +1,147 @@
-from __future__ import annotations
+"""Lädt den programmweiten Katalog — Symbole und Kompetenzen — aus den lokalen Arbeitskopien.
 
-import json
-from pathlib import Path
+Einziger Einstieg: :func:`load_catalog`. Ablauf:
 
-from app.core.domain.custom_symbol_validation import SPACE_SHORTCUT
-from app.core.domain.symbol_catalog import SymbolDefinition, SymbolRole
-from bw_libs.app_paths import atomic_write_json
+1. beide Arbeitskopien laden, reparieren und um neue Standardeinträge ergänzen
+   (gemeinsame Regel in ``catalog_working_copy.py``);
+2. alte Symbol-Einträge migrieren (``symbol_catalog_migration.py``);
+3. geänderte Dateien schreiben — Kompetenzen zuerst, weil migrierte Symbole auf
+   neu angelegte lokale Kompetenzen verweisen können;
+4. beide Listen über ``catalog_codec.py`` (einzige Stelle des JSON-Formats) parsen.
 
-
-DEFAULT_SYMBOLS_PATH = Path(__file__).with_name("default_symbols.json")
-"""Einzige Quelle der eingebauten Symbole (reine Datendatei, versioniert).
-
-``config/symbols.json`` ist nur die lokale Arbeitskopie: daraus erzeugt, bei
-Defekt daraus wiederhergestellt und beim Start um neu eingebaute Symbole
-ergänzt (s. :func:`_merge_new_builtins`). Formulierungsregeln für die
-Legendentexte und die Checkliste für neue Symbole: ``docs/SYMBOLE.md``.
+Formulierungsregeln für Kompetenzen und die Checkliste für neue Symbole:
+``docs/SYMBOLE.md``.
 """
 
-_KNOWN_BUILTINS_KEY = "known_builtin_codepoints"
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TypeVar
+
+from app.core.domain.symbol_catalog import Competence, SymbolDefinition
+from app.infrastructure.catalog_codec import codepoint_key, competence_from_item, parse_shortcut, symbol_from_item
+from app.infrastructure.catalog_working_copy import (
+    WorkingCopy,
+    WorkingCopySpec,
+    load_working_copy,
+    read_default_items,
+    reset_working_copy,
+    write_working_copy,
+)
+from app.infrastructure.symbol_catalog_migration import migrate_symbol_items
+
+DEFAULT_SYMBOLS_PATH = Path(__file__).with_name("default_symbols.json")
+"""Einzige Quelle der eingebauten Symbole (reine Datendatei, versioniert)."""
+
+DEFAULT_COMPETENCES_PATH = Path(__file__).with_name("default_competences.json")
+"""Einzige Quelle der eingebauten Kompetenzen und ihrer Stufentexte (reine Datendatei, versioniert)."""
+
+_T = TypeVar("_T")
 
 
-def _load_default_payload() -> dict:
-    """Liest die mitgelieferten Standardsymbole aus :data:`DEFAULT_SYMBOLS_PATH`."""
-    return json.loads(DEFAULT_SYMBOLS_PATH.read_text(encoding="utf-8"))
-
-
-def _write_default_payload(path: Path) -> dict:
-    """Schreibt die Standardsymbole nach *path* (atomar) und gibt sie zurück.
-
-    Die Liste der bekannten eingebauten Codepoints wird mitgeschrieben, damit
-    spätere Ergänzungen nur wirklich neue Symbole betreffen.
-
-    Args:
-        path: Zielpfad der ``symbols.json``.
-    """
-    payload = _load_default_payload()
-    payload[_KNOWN_BUILTINS_KEY] = sorted(_codepoint_keys(payload["symbols"]))
-    atomic_write_json(path, payload)
-    return payload
-
-
-def _codepoint_key(raw_value: object) -> str | None:
-    """Normalisiert einen Codepoint-Wert auf Hex in Großbuchstaben (``"u+2713"`` → ``"2713"``).
-
-    Identität eines eingebauten Symbols ist sein Codepoint, nicht sein Text.
-
-    Args:
-        raw_value: Roher Codepoint-Wert aus einer ``symbols.json``.
-    """
-    glyph = _parse_codepoint(raw_value)
-    return None if glyph is None else f"{ord(glyph):04X}"
-
-
-def _codepoint_keys(symbols: list) -> set[str]:
-    """Gibt die normalisierten Codepoints aller gültigen Einträge in *symbols* zurück.
+def _admit_new_symbol(item: dict, items: list) -> str | None:
+    """Lässt das Kürzel eines neuen Standardsymbols weg, wenn die Arbeitskopie es schon vergibt.
 
     Args:
-        symbols: Rohliste aus einer ``symbols.json``.
-    """
-    keys = {_codepoint_key(item.get("codepoint")) for item in symbols if isinstance(item, dict)}
-    return keys - {None}
-
-
-def _merge_new_builtins(payload: dict, path: Path) -> str | None:
-    """Ergänzt in *payload* eingebaute Symbole, die die Arbeitskopie noch nie gesehen hat.
-
-    Robust gegen drei Fälle: (1) eigene Änderungen an vorhandenen Einträgen
-    werden nie überschrieben; (2) ein bewusst gelöschtes eingebautes Symbol
-    kommt nicht zurück, weil ``known_builtin_codepoints`` festhält, welche
-    Standards schon angeboten wurden (fehlt die Liste, gelten die vorhandenen
-    Einträge als bekannt); (3) ist das Kürzel eines neuen Symbols schon
-    vergeben, wird es ohne Kürzel ergänzt und gemeldet. Bei Änderungen wird
-    *path* atomar neu geschrieben.
-
-    Args:
-        payload: Geladener Inhalt der Arbeitskopie (wird verändert).
-        path: Pfad der Arbeitskopie.
+        item: Neuer Standardeintrag (wird verändert).
+        items: Vorhandene Einträge der Arbeitskopie.
 
     Returns:
-        Hinweistext bei Kürzelkonflikten, sonst ``None``.
+        Hinweistext bei einem Konflikt, sonst ``None``.
     """
-    symbols = payload["symbols"]
-    present = _codepoint_keys(symbols)
-    known_raw = payload.get(_KNOWN_BUILTINS_KEY)
-    known = {c for c in known_raw if isinstance(c, str)} if isinstance(known_raw, list) else set(present)
-    used_shortcuts = {_parse_shortcut(item.get("shortcut")) for item in symbols if isinstance(item, dict)} - {None}
-    defaults = _load_default_payload()["symbols"]
-    conflicts: list[str] = []
-    changed = False
-    for item in defaults:
-        key = _codepoint_key(item.get("codepoint"))
-        if key is None or key in known or key in present:
-            continue
-        added = dict(item)
-        shortcut = _parse_shortcut(added.get("shortcut"))
-        if shortcut in used_shortcuts:
-            conflicts.append(f"{added.get('meaning')} ({shortcut})")
-            added["shortcut"] = None
-        elif shortcut is not None:
-            used_shortcuts.add(shortcut)
-        symbols.append(added)
-        changed = True
-    all_builtins = sorted(known | _codepoint_keys(defaults))
-    if changed or payload.get(_KNOWN_BUILTINS_KEY) != all_builtins:
-        payload[_KNOWN_BUILTINS_KEY] = all_builtins
-        atomic_write_json(path, payload)
-    if not conflicts:
+    shortcut = parse_shortcut(item.get("shortcut"))
+    used = {parse_shortcut(other.get("shortcut")) for other in items if isinstance(other, dict)} - {None}
+    if shortcut is None or shortcut not in used:
         return None
-    return "Neue Symbole ohne Kürzel ergänzt (Kürzel bereits vergeben): " + ", ".join(conflicts)
+    item["shortcut"] = None
+    return f"„{item.get('key')}“ ohne Kürzel ergänzt ({shortcut.upper()} ist schon vergeben)"
 
 
-def _parse_codepoint(raw_value: object) -> str | None:
-    """Wandelt einen Codepoint-String (z. B. "1F4BB" oder "U+1F4BB") in das tatsächliche Unicode-Zeichen um.
+SYMBOL_SPEC = WorkingCopySpec(
+    label="Symbol-Konfiguration",
+    list_key="symbols",
+    known_key="known_builtin_codepoints",
+    default_path=DEFAULT_SYMBOLS_PATH,
+    identity=lambda item: codepoint_key(item.get("codepoint")),
+    admit_new=_admit_new_symbol,
+)
 
-    Gibt ``None`` zurück, wenn *raw_value* leer oder kein gültiger Hex-Codepoint ist.
+COMPETENCE_SPEC = WorkingCopySpec(
+    label="Kompetenz-Konfiguration",
+    list_key="competences",
+    known_key="known_builtin_competence_ids",
+    default_path=DEFAULT_COMPETENCES_PATH,
+    identity=lambda item: str(item.get("id") or "").strip() or None,
+)
+
+
+@dataclass(frozen=True)
+class CatalogLoadResult:
+    """Ergebnis von :func:`load_catalog`.
+
+    Attributes:
+        symbols: Gültige Katalogsymbole in Dateireihenfolge.
+        competences: Gültige Kompetenzen in Dateireihenfolge.
+        warning: Hinweise für die Statuszeile, sonst ``None``.
+    """
+
+    symbols: tuple[SymbolDefinition, ...]
+    competences: tuple[Competence, ...]
+    warning: str | None
+
+
+def load_catalog(symbols_path: Path, competences_path: Path) -> CatalogLoadResult:
+    """Lädt, repariert, ergänzt und migriert beide Arbeitskopien und parst sie.
+
+    Enthält eine Datei nach dem Parsen keinen einzigen gültigen Eintrag, wird sie
+    aus der Standarddatei neu geschrieben — die Anwendung startet nie ganz ohne
+    Symbole oder Kompetenzen.
 
     Args:
-        raw_value: Roher Codepoint-Wert aus der Konfigurationsdatei.
+        symbols_path: Arbeitskopie ``config/symbols.json``.
+        competences_path: Arbeitskopie ``config/competences.json``.
+
+    Raises:
+        ValueError: Ein Pfad ist die versionierte Standarddatei.
     """
-    text = str(raw_value or "").strip().upper()
-    if text.startswith("U+"):
-        text = text[2:]
-    if not text:
-        return None
-    try:
-        return chr(int(text, 16))
-    except (TypeError, ValueError):
-        return None
+    competence_copy = load_working_copy(competences_path, COMPETENCE_SPEC)
+    symbol_copy = load_working_copy(symbols_path, SYMBOL_SPEC)
+    symbols_migrated, competences_added, adopted = migrate_symbol_items(
+        symbol_copy.items(SYMBOL_SPEC), read_default_items(SYMBOL_SPEC), competence_copy.items(COMPETENCE_SPEC)
+    )
+    warnings = competence_copy.warnings + symbol_copy.warnings
+    if adopted:
+        warnings.append("Eigene Legendentexte als Kompetenz übernommen: " + ", ".join(adopted))
+    if competence_copy.dirty or competences_added:
+        write_working_copy(competences_path, competence_copy.payload, COMPETENCE_SPEC)
+    if symbol_copy.dirty or symbols_migrated:
+        write_working_copy(symbols_path, symbol_copy.payload, SYMBOL_SPEC)
+    competences = _parse_or_reset(competences_path, competence_copy, COMPETENCE_SPEC, competence_from_item, warnings)
+    symbols = _parse_or_reset(symbols_path, symbol_copy, SYMBOL_SPEC, symbol_from_item, warnings)
+    return CatalogLoadResult(symbols, competences, "\n".join(warnings) or None)
 
 
-def _parse_shortcut(raw_value: object) -> str | None:
-    """Validiert *raw_value* als Ein-Zeichen-Tastaturkürzel oder den Leertaste-Sentinel.
-
-    Erlaubt genau zwei Formen: ein einzelnes Zeichen (normaler Buchstaben-
-    Shortcut) oder den technischen Mehrzeichen-Sentinel ``SPACE_SHORTCUT``
-    (``"space"``, s. ``custom_symbol_validation.py``) für Symbole, die über
-    die Leertaste getoggelt werden. Alles andere (leer, mehrstellig und kein
-    bekannter Sentinel) ergibt ``None``.
+def _parse_or_reset(
+    path: Path,
+    copy: WorkingCopy,
+    spec: WorkingCopySpec,
+    parse: Callable[[object], _T | None],
+    warnings: list[str],
+) -> tuple[_T, ...]:
+    """Parst die Einträge von *copy*; ohne gültigen Eintrag Rückfall auf die Standards.
 
     Args:
-        raw_value: Roher Shortcut-Wert aus der Konfigurationsdatei.
+        path: Arbeitskopie (wird beim Rückfall neu geschrieben).
+        copy: Geladene Arbeitskopie.
+        spec: Katalogbeschreibung.
+        parse: Codec-Funktion für einen Eintrag.
+        warnings: Hinweisliste (wird beim Rückfall ergänzt).
     """
-    text = str(raw_value or "").strip().lower()
-    if not text:
-        return None
-    if text == SPACE_SHORTCUT:
-        return text
-    if len(text) != 1:
-        return None
-    return text
-
-
-def _parse_role(raw_value: object) -> SymbolRole:
-    """Normalisiert *raw_value* auf eine gültige ``SymbolRole``; alles außer "documentation_only" wird "diagnostic".
-
-    Args:
-        raw_value: Roher Rollen-Wert aus der Konfigurationsdatei.
-    """
-    text = str(raw_value or "").strip().lower()
-    if text == "documentation_only":
-        return "documentation_only"
-    return "diagnostic"
-
-
-def load_symbol_definitions(path: Path) -> tuple[list[SymbolDefinition], str | None]:
-    """Lädt die Symbol-Konfiguration aus *path*, repariert sie defensiv bei Problemen.
-
-    *path* ist die lokale Arbeitskopie. Fehlt sie, ist ihr JSON ungültig, fehlt
-    das ``symbols``-Array oder enthält es nach dem Parsen keinen einzigen
-    vollständigen Eintrag (Pflichtfelder: ``key`` bzw. das ältere ``meaning``,
-    ein gültiger Codepoint, alle drei Legendenstufen), wird sie jeweils aus
-    :data:`DEFAULT_SYMBOLS_PATH` neu geschrieben — die Anwendung soll mit
-    einer kaputten Konfigurationsdatei nie ganz ohne Symbole starten. Neu
-    eingebaute Symbole werden ergänzt, ohne eigene Änderungen anzutasten
-    (:func:`_merge_new_builtins`).
-
-    Args:
-        path: Pfad zur ``symbols.json``.
-
-    Returns:
-        Tupel aus (geladene Symbol-Definitionen, optionale Warnmeldung für
-        den Fall, dass auf das Standardset zurückgefallen wurde).
-    """
-    if path.resolve() == DEFAULT_SYMBOLS_PATH.resolve():
-        # Invariante: die versionierte Standarddatei wird nie als Arbeitskopie beschrieben.
-        raise ValueError(f"{path} ist die Standarddatei, nicht die Arbeitskopie")
-    if not path.exists():
-        _write_default_payload(path)
-
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        payload = _write_default_payload(path)
-        warning = f"Symbol-Konfiguration ist ungueltig; Standardwerte wurden nach {path} geschrieben."
-    else:
-        warning = None
-
-    if not isinstance(payload, dict) or not isinstance(payload.get("symbols"), list):
-        payload = _write_default_payload(path)
-        warning = f"Symbol-Konfiguration hat kein gueltiges 'symbols'-Array; Standardwerte wurden nach {path} geschrieben."
-    warning = _merge_new_builtins(payload, path) or warning
-    symbols_raw = payload["symbols"]
-
-    definitions: list[SymbolDefinition] = []
-    for item in symbols_raw:
-        if not isinstance(item, dict):
-            continue
-
-        key = str(item.get("key") or item.get("meaning") or "").strip()
-        name = str(item.get("name") or "").strip() or key
-        glyph = _parse_codepoint(item.get("codepoint"))
-        shortcut = _parse_shortcut(item.get("shortcut"))
-        role = _parse_role(item.get("role"))
-        legend = item.get("legend")
-        if not key or glyph is None or not isinstance(legend, dict):
-            continue
-
-        one = str(legend.get("one") or "").strip()
-        two = str(legend.get("two") or "").strip()
-        three = str(legend.get("three") or "").strip()
-        if not one or not two or not three:
-            continue
-
-        definitions.append(
-            SymbolDefinition(key=key, name=name, glyph=glyph, shortcut=shortcut, role=role, legend=(one, two, three))
-        )
-
-    if not definitions:
-        _write_default_payload(path)
-        fallback_defs, _ = load_symbol_definitions(path)
-        return fallback_defs, f"Keine gueltigen Symbole gefunden; Standardwerte wurden nach {path} geschrieben."
-
-    return definitions, warning
+    parsed = tuple(entry for item in copy.items(spec) if (entry := parse(item)) is not None)
+    if parsed:
+        return parsed
+    payload = reset_working_copy(path, spec)
+    warnings.append(f"{spec.label} ohne gültige Einträge; Standardwerte wurden nach {path} geschrieben.")
+    return tuple(entry for item in payload[spec.list_key] if (entry := parse(item)) is not None)

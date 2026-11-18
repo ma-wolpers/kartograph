@@ -6,14 +6,15 @@ Elemente und verteilt sie über eine oder mehrere PDF-Seiten.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from xml.sax.saxutils import escape as xml_escape
 
 from app.core.domain.color_order import FALLBACK_COLOR_HEX, order_color_keys, palette_by_key, palette_color, palette_order
 from app.core.usecases.v4.color_usecases import palette_meaning
 from app.core.domain.models_v4 import SeatingPlan
 from app.infrastructure.exporters.pdf_font_utils import build_symbol_token
-from app.core.domain.symbol_catalog import SymbolDefinition
-from app.core.domain.symbol_legend import ordered_symbol_keys
+from app.core.domain.symbol_catalog import Competence, SymbolDefinition
+from app.core.domain.symbol_legend import legend_texts, ordered_symbol_keys
 
 
 class PdfLegendRenderer:
@@ -27,15 +28,18 @@ class PdfLegendRenderer:
     def __init__(
         self,
         symbol_definitions: list[SymbolDefinition],
+        competences: Mapping[str, Competence],
         color_palette: list[tuple[str, str, str, str]] | None = None,
     ) -> None:
-        """Initialisiert den Renderer mit Symboldefinitionen und Farbpalette.
+        """Initialisiert den Renderer mit Symboldefinitionen, Kompetenzen und Farbpalette.
 
         Args:
             symbol_definitions: Geordnete Liste aller Symboldefinitionen.
+            competences: Kompetenzen nach ID (Stufentexte der Diagnosesymbole).
             color_palette: Farbpalette als Liste von (key, color_key, label, hex).
         """
         self._symbols_by_key: dict[str, SymbolDefinition] = {item.key: item for item in symbol_definitions}
+        self._competences = competences
         self._color_order = palette_order(color_palette)
         self._color_by_key = palette_by_key(color_palette)
         self._symbol_font_name = "Helvetica"
@@ -73,7 +77,8 @@ class PdfLegendRenderer:
             rows: list[tuple[str, str]] = []
             for count in counts:
                 token = build_symbol_token(key, count, self._symbols_by_key, self._symbol_font_uses_fallback)
-                legend_text = definition.legend_for_count(count) if definition else key
+                texts = legend_texts(definition, count, self._competences) if definition else ()
+                legend_text = ", ".join(texts) or (definition.name if definition else key)
                 rows.append((token, legend_text))
             tables.append((definition.name if definition else key, rows))
         return tables

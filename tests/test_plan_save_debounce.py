@@ -24,6 +24,7 @@ from app.core.intents.plan_intents import OpenPlanIntent
 from tests.conftest import make_plan
 from tests.test_app_controller import (
     PLANS_DIR,
+    COMPETENCES_PATH,
     SYMBOLS_PATH,
     FakePlanRepository,
     FakeSettingsRepository,
@@ -109,6 +110,7 @@ class TestControllerWiresSchedulerIntoContext:
             settings_repository=FakeSettingsRepository(),
             default_plans_dir=PLANS_DIR,
             symbols_path=SYMBOLS_PATH,
+            competences_path=COMPETENCES_PATH,
             on_state_changed=lambda _state: None,
         )
 
@@ -136,6 +138,7 @@ class TestControllerWiresSchedulerIntoContext:
             settings_repository=FakeSettingsRepository(),
             default_plans_dir=PLANS_DIR,
             symbols_path=SYMBOLS_PATH,
+            competences_path=COMPETENCES_PATH,
             on_state_changed=lambda _state: None,
         )
         ctrl.dispatch(OpenPlanIntent(plan_path=path))

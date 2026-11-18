@@ -6,6 +6,7 @@ Koordiniert Fontregistrierung, Geometrieberechnung, Tischrendering
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,7 @@ from app.core.domain.table_groups import build_seat_geometries_v4
 from app.core.usecases.v4.tablegroup_usecases import normalize_tablegroups
 from app.infrastructure.exporters.pdf_desk_renderer import PdfDeskRenderer
 from app.infrastructure.exporters.pdf_legend_renderer import PdfLegendRenderer
-from app.core.domain.symbol_catalog import SymbolDefinition
+from app.core.domain.symbol_catalog import Competence, SymbolDefinition
 
 class PdfSeatingPlanExporter:
     """Exportiert einen Sitzplan als PDF-Datei (A4 quer).
@@ -45,16 +46,18 @@ class PdfSeatingPlanExporter:
     def __init__(
         self,
         symbol_definitions: list[SymbolDefinition],
+        competences: Mapping[str, Competence] | None = None,
         color_palette: list[tuple[str, str, str, str]] | None = None,
     ) -> None:
         """Initialisiert den Exporter.
 
         Args:
             symbol_definitions: Geordnete Liste aller Symboldefinitionen.
+            competences: Kompetenzen nach ID (Texte der Legendenseite); ohne = keine.
             color_palette: Farbpalette als Liste von (key, color_key, label, hex).
         """
         self._desk_renderer = PdfDeskRenderer(symbol_definitions, color_palette)
-        self._legend_renderer = PdfLegendRenderer(symbol_definitions, color_palette)
+        self._legend_renderer = PdfLegendRenderer(symbol_definitions, competences or {}, color_palette)
         self._symbol_font_registered = False
 
     def _ensure_symbol_font(self, pdfmetrics, ttfonts) -> None:

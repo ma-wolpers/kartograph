@@ -35,6 +35,9 @@ DETAILS_BOTTOM_MAX_SHARE = 0.4
 DETAILS_BOTTOM_MIN_HEIGHT = 120
 DETAILS_LEGEND_MARGIN = 32
 DETAILS_LEGEND_MIN_WRAP = 200
+# Abstand zwischen zwei Symbolen in der Symbol-Legende (px) -- "Leerzeile" zwischen
+# den Eintraegen (Entscheidung der Nutzerin 2026-11-18); die Farblegende bleibt dicht.
+DETAILS_SYMBOL_LEGEND_GAP = 8
 LIST_ACTIVE = "list_active"
 GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"

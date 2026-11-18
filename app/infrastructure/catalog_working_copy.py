@@ -1,0 +1,189 @@
+"""Lokale Arbeitskopien versionierter Katalog-Standarddateien (``symbols.json``, ``competences.json``).
+
+Eine Regel für beide Kataloge: Die Standarddatei in ``app/infrastructure`` ist
+die einzige Quelle der eingebauten Einträge; ``config/<name>.json`` ist die
+lokale Arbeitskopie. Sie wird bei Fehlen oder Defekt aus der Standarddatei
+erzeugt und beim Start um **neue** eingebaute Einträge ergänzt, ohne eigene
+Änderungen anzutasten:
+
+1. vorhandene Einträge werden nie überschrieben;
+2. ein bewusst gelöschter Standardeintrag kommt nicht zurück, weil die
+   Arbeitskopie in ``spec.known_key`` festhält, welche Standards schon angeboten
+   wurden (fehlt die Liste, gelten die vorhandenen Einträge als bekannt);
+3. ``spec.admit_new`` darf einen neuen Eintrag vor dem Ergänzen anpassen und
+   einen Hinweis liefern (Symbole: schon vergebenes Kürzel weglassen).
+
+Die Funktionen schreiben nur beim Erzeugen/Reparieren selbst; Ergänzungen
+werden als ``dirty`` gemeldet und vom Aufrufer zusammen mit der Migration
+einmal geschrieben (:func:`write_working_copy`).
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+
+from bw_libs.app_paths import atomic_write_json
+
+ItemIdentity = Callable[[dict], "str | None"]
+AdmitNew = Callable[[dict, list], "str | None"]
+
+
+@dataclass(frozen=True)
+class WorkingCopySpec:
+    """Beschreibt einen Katalog für die gemeinsame Arbeitskopie-Logik.
+
+    Attributes:
+        label: Name für Warnungen, z. B. „Symbol-Konfiguration“.
+        list_key: Schlüssel der Eintragsliste (``"symbols"`` / ``"competences"``).
+        known_key: Schlüssel der Liste bekannter Standard-Identitäten.
+        default_path: Versionierte Standarddatei.
+        identity: Identität eines Eintrags (Codepoint bzw. ID), ``None`` bei ungültigen.
+        admit_new: Optional; passt einen neuen Standardeintrag an die Arbeitskopie an
+            (bekommt Eintrag und vorhandene Liste) und liefert ggf. einen Hinweis.
+    """
+
+    label: str
+    list_key: str
+    known_key: str
+    default_path: Path
+    identity: ItemIdentity
+    admit_new: AdmitNew | None = None
+
+
+@dataclass
+class WorkingCopy:
+    """Geladener Inhalt einer Arbeitskopie.
+
+    Attributes:
+        payload: JSON-Inhalt (wird von Migration und Merge verändert).
+        warnings: Hinweise für die Statuszeile.
+        dirty: ``True``, wenn ``payload`` vom Stand auf der Platte abweicht.
+    """
+
+    payload: dict
+    warnings: list[str]
+    dirty: bool = False
+
+    def items(self, spec: WorkingCopySpec) -> list:
+        """Die Eintragsliste von *spec* (Referenz, nicht Kopie).
+
+        Args:
+            spec: Katalogbeschreibung.
+        """
+        return self.payload[spec.list_key]
+
+
+def read_default_items(spec: WorkingCopySpec) -> list:
+    """Liest die Standardeinträge aus ``spec.default_path``.
+
+    Args:
+        spec: Katalogbeschreibung.
+    """
+    return json.loads(spec.default_path.read_text(encoding="utf-8"))[spec.list_key]
+
+
+def _identities(items: list, spec: WorkingCopySpec) -> set[str]:
+    """Gültige Identitäten aller Einträge in *items*.
+
+    Args:
+        items: Rohliste.
+        spec: Katalogbeschreibung.
+    """
+    return {key for item in items if isinstance(item, dict) and (key := spec.identity(item)) is not None}
+
+
+def write_working_copy(path: Path, payload: dict, spec: WorkingCopySpec) -> None:
+    """Schreibt *payload* atomar nach *path*.
+
+    Args:
+        path: Arbeitskopie.
+        payload: Vollständiger Inhalt inklusive Liste bekannter Standards.
+        spec: Katalogbeschreibung (nur zur Absicherung gegen die Standarddatei).
+    """
+    _reject_default_path(path, spec)
+    atomic_write_json(path, payload)
+
+
+def reset_working_copy(path: Path, spec: WorkingCopySpec) -> dict:
+    """Ersetzt die Arbeitskopie durch die Standards (alle als bekannt markiert) und gibt sie zurück.
+
+    Args:
+        path: Arbeitskopie.
+        spec: Katalogbeschreibung.
+    """
+    items = read_default_items(spec)
+    payload = {spec.list_key: items, spec.known_key: sorted(_identities(items, spec))}
+    write_working_copy(path, payload, spec)
+    return payload
+
+
+def load_working_copy(path: Path, spec: WorkingCopySpec) -> WorkingCopy:
+    """Lädt die Arbeitskopie, repariert sie bei Bedarf und ergänzt neue Standardeinträge.
+
+    Args:
+        path: Arbeitskopie.
+        spec: Katalogbeschreibung.
+
+    Raises:
+        ValueError: *path* ist die Standarddatei selbst (Invariante).
+    """
+    _reject_default_path(path, spec)
+    if not path.exists():
+        return _merged(WorkingCopy(reset_working_copy(path, spec), []), spec)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        payload = None
+    if not isinstance(payload, dict) or not isinstance(payload.get(spec.list_key), list):
+        warning = f"{spec.label} war ungültig; Standardwerte wurden nach {path} geschrieben."
+        return _merged(WorkingCopy(reset_working_copy(path, spec), [warning]), spec)
+    return _merged(WorkingCopy(payload, []), spec)
+
+
+def _merged(copy: WorkingCopy, spec: WorkingCopySpec) -> WorkingCopy:
+    """Ergänzt in *copy* Standardeinträge, die die Arbeitskopie noch nie gesehen hat.
+
+    Args:
+        copy: Geladene Arbeitskopie (wird verändert).
+        spec: Katalogbeschreibung.
+    """
+    items = copy.items(spec)
+    present = _identities(items, spec)
+    known_raw = copy.payload.get(spec.known_key)
+    known = {k for k in known_raw if isinstance(k, str)} if isinstance(known_raw, list) else set(present)
+    defaults = read_default_items(spec)
+    notes: list[str] = []
+    for item in defaults:
+        key = spec.identity(item) if isinstance(item, dict) else None
+        if key is None or key in known or key in present:
+            continue
+        added = dict(item)
+        note = spec.admit_new(added, items) if spec.admit_new else None
+        if note:
+            notes.append(note)
+        items.append(added)
+        copy.dirty = True
+    all_known = sorted(known | _identities(defaults, spec))
+    if copy.payload.get(spec.known_key) != all_known:
+        copy.payload[spec.known_key] = all_known
+        copy.dirty = True
+    if notes:
+        copy.warnings.append(f"{spec.label}: " + ", ".join(notes))
+    return copy
+
+
+def _reject_default_path(path: Path, spec: WorkingCopySpec) -> None:
+    """Invariante: die versionierte Standarddatei wird nie als Arbeitskopie gelesen oder beschrieben.
+
+    Args:
+        path: Zu prüfender Pfad.
+        spec: Katalogbeschreibung.
+
+    Raises:
+        ValueError: *path* ist ``spec.default_path``.
+    """
+    if path.resolve() == spec.default_path.resolve():
+        raise ValueError(f"{path} ist die Standarddatei, nicht die Arbeitskopie")

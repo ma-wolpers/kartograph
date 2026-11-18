@@ -30,7 +30,7 @@ def _plan_with_crowded_student():
     """Synthetischer Plan; die erste Person trägt alle Diagnosesymbole und Farben."""
     plan = build_synthetic_plan(3, 1, 0)
     symbols = json.loads(DEFAULT_SYMBOLS_PATH.read_text(encoding="utf-8"))["symbols"]
-    diagnostic = [item["meaning"] for item in symbols if item.get("role") != "documentation_only"]
+    diagnostic = [item["key"] for item in symbols if item.get("role") != "documentation_only"]
     student = plan.classroom.students[0]
     student.diagnostic.symbols = {meaning: 3 for meaning in diagnostic}
     student.diagnostic.color_tags = [color_key for _key, color_key, _label, _hex in COLOR_MARKER_PALETTE]

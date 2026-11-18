@@ -24,7 +24,7 @@ from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.plan_history import PlanHistory
 from app.core.domain.settings import KartographSettings
 from app.core.intents.base import Intent
-from app.infrastructure.symbol_config_loader import load_symbol_definitions
+from app.infrastructure.symbol_config_loader import load_catalog
 
 # --- Handler-Imports --------------------------------------------------------
 from app.application.handlers.note_handlers import handle_set_notes
@@ -200,8 +200,10 @@ class KartographAppController:
         settings_repository: ``SettingsRepository``-Implementierung.
         default_plans_dir:   Fallback-Verzeichnis für Plandateien, falls in
                              den Einstellungen kein Ordner konfiguriert ist.
-        symbols_path:        Pfad zur Symbol-Konfigurationsdatei (einmalig beim
+        symbols_path:        Arbeitskopie des Symbolkatalogs (einmalig beim
                              Start geladen, s. ``AppState.symbol_catalog``).
+        competences_path:    Arbeitskopie des Kompetenzkatalogs
+                             (s. ``AppState.competence_catalog``).
         on_state_changed:    Callback der GUI; wird nach jeder Zustandsänderung
                              mit dem neuen ``AppState`` aufgerufen.
     """
@@ -212,6 +214,7 @@ class KartographAppController:
         settings_repository: Any,
         default_plans_dir: Path,
         symbols_path: Path,
+        competences_path: Path,
         on_state_changed: Callable[[AppState], None],
     ) -> None:
         self._ctx = HandlerContext(
@@ -221,8 +224,11 @@ class KartographAppController:
             default_plans_dir=default_plans_dir,
         )
         initial_settings = KartographSettings.from_dict(settings_repository.load_settings())
-        symbol_definitions, self.symbol_catalog_warning = load_symbol_definitions(symbols_path)
-        self._state: AppState = AppState(settings=initial_settings, symbol_catalog=tuple(symbol_definitions))
+        catalog = load_catalog(symbols_path, competences_path)
+        self.symbol_catalog_warning = catalog.warning
+        self._state: AppState = AppState(
+            settings=initial_settings, symbol_catalog=catalog.symbols, competence_catalog=catalog.competences
+        )
         self._state_version = 0
         self._content_version = 0
         self._derived: tuple[int, PlanDerivedData] | None = None

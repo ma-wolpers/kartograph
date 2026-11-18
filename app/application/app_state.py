@@ -17,7 +17,7 @@ from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import KartographSettings
 from app.core.domain.student_id import StudentId
-from app.core.domain.symbol_catalog import SymbolDefinition
+from app.core.domain.symbol_catalog import Competence, SymbolDefinition
 
 
 class InteractionMode(Enum):
@@ -88,6 +88,7 @@ class AppState:
     # --- Konfiguration (Phase D) ----------------------------------------------
     settings: KartographSettings = field(default_factory=KartographSettings)
     symbol_catalog: tuple[SymbolDefinition, ...] = field(default_factory=tuple)
+    competence_catalog: tuple[Competence, ...] = field(default_factory=tuple)
 
 
 # Felder, die nur beeinflussen, *was markiert ist*, nicht *was dargestellt wird*.

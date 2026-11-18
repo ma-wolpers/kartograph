@@ -108,8 +108,11 @@ Kurz und zählend, gestuft nach Häufigkeit:
 
 ## Technische Checkliste für ein neues eingebautes Symbol
 
-1. Eintrag in `app/infrastructure/default_symbols.json` (`codepoint`,
-   `meaning`, `shortcut`, `legend` mit `one`/`two`/`three`, ggf. `role`).
+1. Eintrag in `app/infrastructure/default_symbols.json`: `codepoint`, `key`
+   (stabiler Speicherschlüssel), `shortcut`; Diagnosesymbole mit `competences`
+   (IDs aus `default_competences.json`, fehlende Kompetenzen dort zuerst
+   anlegen), Doku-Symbole mit `role: documentation_only` und `legend`
+   (`one`/`two`/`three`). Ein abweichender Anzeigename steht in `name`.
 2. **Glyph in Segoe UI Symbol (`seguisym.ttf`) prüfen.** Der PDF-Export
    registriert nur eine Symbolschrift (`pdf_exporter._FONT_CANDIDATES`);
    ein Zeichen, das nur in der Emoji-Schrift steckt, erscheint im PDF als
@@ -118,8 +121,9 @@ Kurz und zählend, gestuft nach Häufigkeit:
    (`custom_symbol_validation.py`) und nicht von einem anderen eingebauten
    Symbol belegt. `tests/test_shortcut_bindings_headless.py` prüft die
    Konfliktfreiheit.
-4. Nichts an `config/symbols.json` ändern: `_merge_new_builtins` ergänzt
-   neue Symbole beim nächsten Start, ohne eigene Anpassungen anzutasten.
+4. Nichts an `config/symbols.json`/`config/competences.json` ändern: der
+   Loader (`catalog_working_copy.py`) ergänzt neue Symbole und Kompetenzen beim
+   nächsten Start, ohne eigene Anpassungen anzutasten.
 5. CHANGELOG (nutzerseitig) und `docs/DEVELOPMENT_LOG.md` ergänzen.
 
 ## Vorhandene Symbole ändern
@@ -127,10 +131,15 @@ Kurz und zählend, gestuft nach Häufigkeit:
 - **Codepoint nie ändern.** Er ist die Identität eines eingebauten Symbols
   im Katalog-Abgleich (`known_builtin_codepoints`); ein neuer Codepoint
   gilt als neues Symbol.
-- **Bedeutung umbenennen nur mit Eintrag in `LEGACY_SYMBOL_RENAMES`**
-  (`app/core/domain/symbol_renames.py`). Pläne und Einstellungen speichern
-  Symbole unter ihrer Bedeutung; ohne Eintrag verwaisen bereits erfasste
-  Beobachtungen.
-- Legendentexte dürfen frei überarbeitet werden. Bestehende lokale
-  Arbeitskopien übernehmen solche Änderungen allerdings nicht automatisch,
-  weil `_merge_new_builtins` vorhandene Einträge nie überschreibt.
+- **`key` nie ändern.** Pläne und Einstellungen speichern Symbole unter ihrem
+  `key`; ohne Eintrag in `LEGACY_SYMBOL_RENAMES`
+  (`app/core/domain/symbol_renames.py`) verwaisen erfasste Beobachtungen. Zum
+  Umbenennen in der Anzeige genügt `name`.
+- Kompetenztexte und Verknüpfungen dürfen frei überarbeitet werden. Bestehende
+  lokale Arbeitskopien übernehmen solche Änderungen allerdings nicht
+  automatisch, weil vorhandene Einträge nie überschrieben werden.
+- Alte Arbeitskopien (`meaning` und eigene Legende je Diagnosesymbol) stellt
+  `app/infrastructure/symbol_catalog_migration.py` beim Start einmalig um:
+  unveränderte frühere Standardtexte (erkannt über
+  `legacy_legend_hashes.py`) werden durch die Standard-Kompetenzen ersetzt,
+  selbst geänderte als lokale Kompetenz `local.<symbol>` übernommen.

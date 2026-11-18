@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import tkinter
 from pathlib import Path
 from typing import Callable
@@ -19,7 +18,6 @@ from typing import Callable
 from app.adapters.bootstrap.wiring import build_gui_dependencies
 from app.adapters.gui.main_window import KartographMainWindow
 from app.infrastructure.repositories.v4.json_plan_repository_v4 import JsonSeatingPlanRepositoryV4
-from app.infrastructure.symbol_config_loader import DEFAULT_SYMBOLS_PATH
 
 _TCL_INIT_RACE_MARKERS = ("usable", "tcl_findLibrary", "init.tcl", "auto.tcl")
 
@@ -38,7 +36,6 @@ def open_isolated_window(workspace: Path, plan) -> tuple[KartographMainWindow, C
     previous_appdata = os.environ.get("APPDATA")
     os.environ["APPDATA"] = str(workspace / "appdata")
     (workspace / "config").mkdir()
-    shutil.copy(DEFAULT_SYMBOLS_PATH, workspace / "config" / "symbols.json")
     plans_dir = workspace / "plans"
     plans_dir.mkdir()
     (workspace / "config" / "kartograph_settings.json").write_text(

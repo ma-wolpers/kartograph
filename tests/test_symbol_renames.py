@@ -67,6 +67,6 @@ class TestSettingsMigration:
 
 def test_catalog_contains_new_name_only():
     """Prüft den mitgelieferten Katalog direkt -- ohne Loader, der eine Arbeitskopie beschreiben würde."""
-    meanings = [item["meaning"] for item in json.loads(DEFAULT_SYMBOLS_PATH.read_text(encoding="utf-8"))["symbols"]]
+    meanings = [item["key"] for item in json.loads(DEFAULT_SYMBOLS_PATH.read_text(encoding="utf-8"))["symbols"]]
     assert NEW in meanings
     assert OLD not in meanings

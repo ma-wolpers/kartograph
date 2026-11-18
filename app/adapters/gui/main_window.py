@@ -34,6 +34,7 @@ from app.adapters.gui._mixin_menu import MenuMixin
 from app.adapters.gui._mixin_namenfit_export import NamenfitExportMixin
 from app.adapters.gui._mixin_pdf import PdfMixin
 from app.adapters.gui._mixin_student_png_export import StudentPngExportMixin
+from app.adapters.gui._mixin_symbol_catalog import SymbolCatalogMixin
 from app.adapters.gui._mixin_symbol_management import SymbolManagementMixin
 from app.adapters.gui._mixin_symbol_management_form import SymbolManagementFormMixin
 from app.adapters.gui._mixin_plan_crud import PlanCrudMixin
@@ -62,11 +63,9 @@ from app.adapters.gui.ui_theme import normalize_theme_key
 from app.application.app_controller import KartographAppController
 from app.application.app_state import PlanListEntry
 from app.core.domain.color_order import palette_by_key, palette_order
-from app.core.domain.effective_symbol import EffectiveSymbol
-from app.core.domain.models_v4 import CustomSymbolDefinition, SeatingPlan
+from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.plan_selection import RectSelection
 from app.core.domain.settings import resolve_plans_dir
-from app.infrastructure.exporters.pdf_exporter import PdfSeatingPlanExporter
 from bw_libs.app_shell import AppShellConfig
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 from bw_libs.ui_contract.hsm import build_ui_hsm_contract
@@ -87,6 +86,7 @@ class KartographMainWindow(
     PdfMixin,
     NamenfitExportMixin,
     StudentPngExportMixin,
+    SymbolCatalogMixin,
     SymbolManagementMixin,
     SymbolManagementFormMixin,
     ExportMixin,
@@ -321,26 +321,7 @@ class KartographMainWindow(
         self._color_by_key = palette_by_key(self.color_palette)
         self._color_order = palette_order(self.color_palette)
 
-        # AppState.symbol_catalog ist beim Controller-Start bereits geladen
-        # (Phase D3) — die GUI liest nur noch daraus statt selbst erneut
-        # die Symbol-Konfigurationsdatei zu öffnen.
-        self.symbol_definitions = list(self._controller.state.symbol_catalog)
-        warning = self._controller.symbol_catalog_warning
-        self.symbol_catalog = [item.key for item in self.symbol_definitions]
-        self.diagnostic_symbol_catalog = [item.key for item in self.symbol_definitions if item.role == "diagnostic"]
-        self._symbol_by_meaning = {item.key: item for item in self.symbol_definitions}
-        self._shortcut_to_symbol = self._build_symbol_shortcut_map(self.symbol_definitions)
-        self.effective_documentation_symbols: list[EffectiveSymbol] = []
-        self._effective_symbol_by_key: dict[str, EffectiveSymbol] = {}
-        # None (nicht {}) als "noch nie berechnet"-Sentinel -- sonst wuerde der
-        # Aenderungs-Waechter unten den allerersten Aufruf mit {} faelschlich
-        # als "unveraendert" ueberspringen.
-        self._last_custom_symbols_snapshot: dict[str, CustomSymbolDefinition] | None = None
-        self._grid_visible_symbols: set[str] = set()
-        self._rebuild_effective_documentation_symbols_if_changed({})
-        self.pdf_exporter = PdfSeatingPlanExporter(self.symbol_definitions, color_palette=self.color_palette)
-        if warning:
-            self.status_var.set(warning)
+        self._init_symbol_catalog_state()
 
         self.theme_var = ui.StringVar(value=self.theme_key)
         self.details_overlay_position_var = ui.StringVar(value=self.details_overlay_position)

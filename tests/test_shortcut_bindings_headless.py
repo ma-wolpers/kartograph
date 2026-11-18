@@ -21,7 +21,6 @@ Tk-Tastatur-Routing im echten Hauptfenster: ``test_shortcut_bindings_window_tk.p
 
 from __future__ import annotations
 
-import shutil
 import tempfile
 
 import tkinter
@@ -36,7 +35,7 @@ from app.adapters.gui.laufkern_manifest_provider import build_runtime_shortcut_m
 from app.adapters.gui.main_window_constants import COLOR_MARKER_PALETTE, _known_ui_intents
 from app.adapters.gui.ui_intents import UiIntent
 from app.application.app_state import AppState, InteractionMode
-from app.infrastructure.symbol_config_loader import DEFAULT_SYMBOLS_PATH, load_symbol_definitions
+from app.infrastructure.symbol_config_loader import load_catalog
 from app.tools.perf_bench_docs_table import build_synthetic_plan
 from bw_gui.contracts import EventResult, TkBackend, build_ui_hsm_contract
 from bw_gui.runtime import create_root, ui
@@ -47,11 +46,10 @@ SHIFT, CAPSLOCK, CONTROL, NUMLOCK, ALT_WIN32 = 0x0001, 0x0002, 0x0004, 0x0008, 0
 
 
 def _load_default_symbols():
-    """Lädt die Standardsymbole über eine Temp-Arbeitskopie (die Standarddatei bleibt unberührt)."""
+    """Lädt die Standardsymbole über Temp-Arbeitskopien (die Standarddateien bleiben unberührt)."""
     with tempfile.TemporaryDirectory() as tmp:
-        work_copy = Path(tmp) / "symbols.json"
-        shutil.copyfile(DEFAULT_SYMBOLS_PATH, work_copy)
-        return load_symbol_definitions(work_copy)
+        result = load_catalog(Path(tmp) / "symbols.json", Path(tmp) / "competences.json")
+        return list(result.symbols), result.warning
 
 
 @pytest.fixture(scope="module")
