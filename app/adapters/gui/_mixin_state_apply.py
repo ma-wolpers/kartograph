@@ -11,11 +11,7 @@ from __future__ import annotations
 from app.adapters.gui.main_window_constants import LIST_ACTIVE, GRID_SELECTED, NAME_EDITING
 from app.adapters.gui.ui_theme import normalize_theme_key
 from app.application.app_state import AppState, EditorSurface, InteractionMode, PlanListEntry
-from app.core.domain.effective_symbol import build_effective_documentation_symbols
-from app.core.domain.grid_symbol_filter import visible_grid_symbols
-from app.core.domain.models_v4 import CustomSymbolDefinition
 from app.core.domain.settings import resolve_plans_dir
-from app.core.domain.symbol_catalog import SymbolDefinition
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -53,17 +49,6 @@ class StateApplyMixin:
             return GRID_SELECTED
         return LIST_ACTIVE
 
-    @property
-    def _documentation_only_symbols(self) -> set[str]:
-        """Live abgeleitete Menge aller Doku-Symbol-Schlüssel (eingebaut + eigen).
-
-        Reine Ableitung aus ``self.effective_documentation_symbols`` (das über
-        ``_rebuild_effective_documentation_symbols_if_changed()`` bei jedem
-        Planwechsel und jeder Symbol-Änderung aktuell gehalten wird) — bewusst
-        kein eigener, potenziell veraltender Zustand.
-        """
-        return {s.key for s in self.effective_documentation_symbols}
-
     def apply_state(self, state: AppState) -> None:
         """Synct einen neuen AppState in die GUI und löst alle nötigen Re-Renders aus.
 
@@ -80,9 +65,7 @@ class StateApplyMixin:
         self.current_plan = state.current_plan
         self.current_plan_path = state.current_plan_path
         self._close_submission_viewer_if_plan_changed()
-        self._rebuild_effective_documentation_symbols_if_changed(
-            self.current_plan.custom_symbols if self.current_plan else {}
-        )
+        self._apply_symbol_view_if_changed()
 
         if state.settings.theme != self.theme_key:
             new_theme = normalize_theme_key(state.settings.theme)
@@ -157,49 +140,6 @@ class StateApplyMixin:
 
         self._notify_sitzplan_popup(state.current_plan, self.theme_key, self.name_format)
 
-    def _rebuild_effective_documentation_symbols_if_changed(
-        self, custom_symbols: dict[str, CustomSymbolDefinition]
-    ) -> None:
-        """Baut ``self.effective_documentation_symbols`` neu, falls sich die eigenen Symbole geändert haben.
-
-        Vergleicht *custom_symbols* gegen den zuletzt gesehenen Stand
-        (``self._last_custom_symbols_snapshot``) und überspringt den Neubau,
-        wenn sich nichts geändert hat — ein einfacher Dict-Vergleich (kleine
-        Map, keine I/O), bewusst kein Caching-Subsystem für eine kleine
-        Liste. Wird sowohl im Konstruktor (mit ``{}``, vor jedem geöffneten
-        Plan) als auch bei jedem ``apply_state()``-Aufruf aufgerufen, sodass
-        Planwechsel und Symbol-CRUD die Liste automatisch aktuell halten,
-        ohne dass jede unabhängige Sitzplatz-/Dokumentationsmutation sie
-        pauschal neu berechnet.
-
-        Args:
-            custom_symbols: Die eigenen Symbole des aktuell betrachteten
-                Plans (``SeatingPlan.custom_symbols``), oder ``{}`` bei
-                keinem offenen Plan.
-        """
-        if custom_symbols == self._last_custom_symbols_snapshot:
-            return
-        self.effective_documentation_symbols = build_effective_documentation_symbols(
-            self.symbol_definitions, custom_symbols
-        )
-        self._effective_symbol_by_key = {s.key: s for s in self.effective_documentation_symbols}
-        self._last_custom_symbols_snapshot = dict(custom_symbols)
-
-        # self._grid_visible_symbols muss dieselbe Referenzmenge kennen wie der
-        # Symbolfilter-Dialog (_mixin_export.py::open_grid_symbol_filter_dialog):
-        # self.symbol_catalog allein enthaelt nur eingebaute Symbole -- ohne diese
-        # Erweiterung waeren eigene Symbole selbst im unveraenderten "alles
-        # sichtbar"-Standardzustand nie sichtbar (visible_grid_symbols() zeigt alles
-        # aus der Referenzmenge, was nicht ausgeblendet ist -- ohne eigene Symbole in
-        # dieser Menge blieben sie dauerhaft ausgeblendet, kein reiner Randfall).
-        reference_catalog = self.symbol_catalog + [
-            s.key for s in self.effective_documentation_symbols if s.is_custom
-        ]
-        settings = self._controller.state.settings
-        self._grid_visible_symbols = visible_grid_symbols(
-            reference_catalog, settings.grid_hidden_symbols, settings.grid_visible_symbols
-        )
-
     def _replace_current_plan(self, plan) -> None:
         """Ersetzt den aktuellen Plan im AppState und im GUI-Zustand synchron.
 
@@ -230,21 +170,3 @@ class StateApplyMixin:
             display_name = f"({entry.name})" if entry.is_archived else entry.name
             self.plan_listbox.insert(_ui.END, f"{display_name}  |  {entry.student_count} Schülertische")
         self._ensure_list_selection(preferred_path=self.current_plan_path)
-
-    def _build_symbol_shortcut_map(self, definitions: list[SymbolDefinition]) -> dict[str, str]:
-        """Erstellt eine Mapping-Tabelle von Shortcut-Zeichen zu Symbol-Bezeichnern.
-
-        Args:
-            definitions: Vollständige Liste der Symbol-Definitionen.
-
-        Returns:
-            Dict ``{shortcut: key}``; bei Duplikaten gewinnt die erste Definition.
-        """
-        mapping: dict[str, str] = {}
-        for definition in definitions:
-            if definition.shortcut is None:
-                continue
-            if definition.shortcut in mapping:
-                continue
-            mapping[definition.shortcut] = definition.key
-        return mapping

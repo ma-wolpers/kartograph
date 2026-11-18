@@ -22,6 +22,7 @@ Tk-Tastatur-Routing im echten Hauptfenster: ``test_shortcut_bindings_window_tk.p
 from __future__ import annotations
 
 import tempfile
+from dataclasses import replace
 
 import tkinter
 from pathlib import Path
@@ -35,6 +36,7 @@ from app.adapters.gui.laufkern_manifest_provider import build_runtime_shortcut_m
 from app.adapters.gui.main_window_constants import COLOR_MARKER_PALETTE, _known_ui_intents
 from app.adapters.gui.ui_intents import UiIntent
 from app.application.app_state import AppState, InteractionMode
+from app.core.domain.symbol_view import build_symbol_view
 from app.infrastructure.symbol_config_loader import load_catalog
 from app.tools.perf_bench_docs_table import build_synthetic_plan
 from bw_gui.contracts import EventResult, TkBackend, build_ui_hsm_contract
@@ -45,11 +47,10 @@ from bw_libs.ui_contract.keybinding import KeybindingRegistry
 SHIFT, CAPSLOCK, CONTROL, NUMLOCK, ALT_WIN32 = 0x0001, 0x0002, 0x0004, 0x0008, 0x20000
 
 
-def _load_default_symbols():
-    """Lädt die Standardsymbole über Temp-Arbeitskopien (die Standarddateien bleiben unberührt)."""
+def _load_default_catalog():
+    """Lädt den Standardkatalog über Temp-Arbeitskopien (die Standarddateien bleiben unberührt)."""
     with tempfile.TemporaryDirectory() as tmp:
-        result = load_catalog(Path(tmp) / "symbols.json", Path(tmp) / "competences.json")
-        return list(result.symbols), result.warning
+        return load_catalog(Path(tmp) / "symbols.json", Path(tmp) / "competences.json")
 
 
 @pytest.fixture(scope="module")
@@ -82,8 +83,9 @@ class _Host(ShortcutBindingsMixin, ShortcutMixin):
         self._hsm_contract = build_ui_hsm_contract(intents=_known_ui_intents())
         self._controller = SimpleNamespace(state=state)
         self._shortcut_runtime_offline = False
-        self.symbol_definitions, _warning = _load_default_symbols()
-        self._shortcut_to_symbol = {d.shortcut: d.key for d in self.symbol_definitions if d.shortcut}
+        catalog = _load_default_catalog()
+        self.symbol_definitions = list(catalog.symbols)
+        self._symbol_view = build_symbol_view(catalog.symbols, catalog.competences, state.current_plan)
         self.color_palette = COLOR_MARKER_PALETTE
 
     def _init_shortcut_binder(self) -> None:
@@ -140,7 +142,7 @@ def test_full_table_binds_without_conflicts(host):
         ("space", " ", "_on_space_symbol_shortcut"),
         ("1", "1", "_on_color_shortcut"),
         ("plus", "+", "_on_participation_rating_shortcut"),
-        ("j", "j", "_on_custom_symbol_shortcut"),
+        ("j", "j", "_on_symbol_shortcut"),
     ],
 )
 def test_numlock_regression_ctrl_and_alt_block(host, keysym, char, handler):
@@ -155,7 +157,17 @@ def test_capslock_and_shift_forms_of_symbol_letters(host):
     press_key(host.canvas, "A", char="A", state=CAPSLOCK)
     press_key(host.canvas, "A", char="A", state=SHIFT)
     press_key(host.canvas, "J", char="J", state=SHIFT | NUMLOCK)
-    assert _names(host) == ["_on_symbol_shortcut", "_on_symbol_shortcut", "_on_custom_symbol_shortcut"]
+    assert _names(host) == ["_on_symbol_shortcut", "_on_symbol_shortcut", "_on_symbol_shortcut"]
+
+
+def test_letter_resolves_live_against_the_current_symbol_view(host):
+    """Ein Kürzel wird beim Tastendruck aufgelöst: ein neuer Katalog wirkt ohne Neubinden."""
+    press_key(host.canvas, "a", char="a")
+    concentration = next(d for d in host.symbol_definitions if d.key == "Konzentration")
+    swapped = [replace(concentration, shortcut="a")] + [d for d in host.symbol_definitions if d.key != "Konzentration"]
+    host._symbol_view = build_symbol_view(swapped, [], None)
+    press_key(host.canvas, "a", char="a")
+    assert [call[1][1] for call in host.calls if call[0] == "_on_symbol_shortcut"] == ["Aufgabenbearbeitung", "Konzentration"]
 
 
 def test_keypad_is_the_same_character_or_key(host):

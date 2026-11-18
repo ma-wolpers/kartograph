@@ -141,33 +141,6 @@ def delete_custom_symbol(plan: SeatingPlan, symbol_id: str) -> SeatingPlan:
     next_plan = deepcopy(plan)
     next_plan.custom_symbols.pop(symbol_id, None)
     return next_plan
-
-
-def resolve_custom_symbol_shortcut(plan: SeatingPlan | None, letter: str) -> CustomSymbolDefinition | None:
-    """Sucht das eigene Symbol von *plan*, dessen Tastenkürzel *letter* entspricht.
-
-    Reine Lookup-Funktion ohne Seiteneffekt. Zentral für die GUI-
-    Tastaturbindung (ein einziges, beim Start einmalig gebundenes
-    Buchstaben-Tastenraum-Binding pro freiem Buchstaben löst pro Tastendruck
-    über diese Funktion live auf, welches Symbol im *aktuell* offenen Plan
-    gemeint ist — kein Rebind bei Planwechsel nötig) UND direkt unit-testbar
-    für den Plan-Isolations-Nachweis: zwei verschiedene Pläne mit je einem
-    eigenen Symbol auf demselben Buchstaben liefern unabhängige Ergebnisse.
-    Ein historischer Shortcut-Wert im alten ``"Ctrl+Shift+<Buchstabe>"``-
-    Format (vor der Umstellung auf einfache Buchstaben) kann strukturell nie
-    matchen — *letter* ist immer ein bloßer Einzelbuchstabe.
-
-    Args:
-        plan: Der zu durchsuchende Plan, oder ``None`` (kein offener Plan).
-        letter: Ein einzelner Großbuchstabe (z. B. ``"K"``); Groß-/
-            Kleinschreibung wird intern normalisiert.
-
-    Returns:
-        Das gefundene ``CustomSymbolDefinition``, oder ``None`` wenn kein
-        Plan offen ist oder kein eigenes Symbol diesen Shortcut trägt.
-    """
-    if plan is None:
-        return None
     target = letter.strip().upper()
     for custom in plan.custom_symbols.values():
         if custom.shortcut == target:

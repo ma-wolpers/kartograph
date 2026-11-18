@@ -27,9 +27,8 @@ from __future__ import annotations
 
 import string
 
-from app.adapters.gui.main_window_constants import SPACE_SHORTCUT
 from app.adapters.gui.ui_intents import UiIntent
-from app.core.domain.custom_symbol_validation import reserved_symbol_letters
+from app.core.domain.custom_symbol_validation import RESERVED_SYMBOL_LETTERS
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 from bw_libs.ui_contract.keybinding import UI_MODE_DIALOG, UI_MODE_GLOBAL, UI_MODE_PREVIEW
 
@@ -169,34 +168,23 @@ class ShortcutBindingsMixin:
     def _bind_symbol_color_participation_shortcuts(self) -> None:
         """Einbuchstaben-Kürzel für Symbole (eingebaut + eigene), Farbpunkte und Mitarbeit.
 
-        Eigene Doku-Symbole: EINMALIG der gesamte freie Einzelbuchstaben-Raum
-        (26 Buchstaben minus ``reserved_symbol_letters()`` -- eingebaute
-        Symbol-Kürzel plus feste Systembuchstaben O/S/D, dieselbe Funktion wie
-        Validierung und Anlage-Formular). Der Handler löst pro Tastendruck live
-        gegen den aktuell offenen Plan auf, kein Rebind bei Planwechsel nötig.
-        Buchstaben wirken klein und mit Shift (zwei Specs je Definition).
+        Symbole: EINMALIG jeder Buchstabe außer den festen Systembuchstaben
+        ``RESERVED_SYMBOL_LETTERS`` (O/S/D) und die Leertaste. Der Handler löst
+        pro Tastendruck live über die Symbolsicht auf (``SymbolView.symbol_for_shortcut``:
+        aktives eingebautes Symbol vor eigenem Symbol des offenen Plans) -- kein
+        Rebind bei Planwechsel oder wenn Kürzel programmweit geändert werden.
+        Buchstaben wirken klein und mit Shift (zwei Specs je Buchstabe).
         """
         b = self._bind_runtime_shortcut
-        for shortcut, symbol_name in self._shortcut_to_symbol.items():
-            if shortcut == SPACE_SHORTCUT:
-                continue  # Leertaste: dynamisch aufgelöst, s. unten
+        for letter in sorted(set(string.ascii_uppercase) - RESERVED_SYMBOL_LETTERS):
             b(
-                _letter_specs(shortcut),
-                lambda e, s=symbol_name: self._on_symbol_shortcut(e, s),
-                binding_id=f"symbol.{shortcut.lower()}",
+                _letter_specs(letter),
+                lambda e, l=letter: self._on_symbol_shortcut(e, self._symbol_view.symbol_for_shortcut(l)),
+                binding_id=f"symbol.{letter.lower()}",
                 intent=UiIntent.SYMBOL_SHORTCUT,
                 modes=_P,
             )
         b(_k("Space (tolerate: Shift)"), self._on_space_symbol_shortcut, binding_id="symbol.space", intent=UiIntent.SYMBOL_SHORTCUT, modes=_P)
-
-        for letter in sorted(set(string.ascii_uppercase) - reserved_symbol_letters(self.symbol_definitions)):
-            b(
-                _letter_specs(letter),
-                lambda _e, l=letter: self._on_custom_symbol_shortcut(l),
-                binding_id=f"custom_symbol.{letter.lower()}",
-                intent=UiIntent.CUSTOM_SYMBOL_SHORTCUT,
-                modes=_P,
-            )
 
         for key, color_key, _label, _hex_color in self.color_palette:
             b(

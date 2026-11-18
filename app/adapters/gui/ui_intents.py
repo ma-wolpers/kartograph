@@ -49,7 +49,6 @@ class UiIntent:
 
     DOCS_GRADE = "docs.grade"
     DOCS_SYMBOL = "docs.symbol"
-    CUSTOM_SYMBOL_SHORTCUT = "docs.custom_symbol_shortcut"
     SYMBOL_SHORTCUT = "desk.symbol_shortcut"
     COLOR_SHORTCUT = "desk.color_shortcut"
     PARTICIPATION_RATING = "desk.participation_rating"

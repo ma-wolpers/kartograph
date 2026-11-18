@@ -122,7 +122,7 @@ class EditMixin:
         Args:
             event: bw-gui-``KeyEvent``, unverändert an ``_on_symbol_shortcut`` gereicht.
         """
-        return self._on_symbol_shortcut(event, self._shortcut_to_symbol.get(SPACE_SHORTCUT))
+        return self._on_symbol_shortcut(event, self._symbol_view.symbol_for_shortcut(SPACE_SHORTCUT))
 
     def _set_participation_rating(self, rating: ParticipationRating) -> None:
         """Setzt/löscht die Mitarbeit-Bewertung für das Ziel der aktiven Oberfläche (v4).

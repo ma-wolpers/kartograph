@@ -9,9 +9,9 @@ from app.core.domain.models_v4 import CustomSymbolDefinition
 from app.core.usecases.v4.custom_symbol_usecases import (
     add_custom_symbol,
     delete_custom_symbol,
-    resolve_custom_symbol_shortcut,
     update_custom_symbol,
 )
+from app.core.domain.symbol_view import custom_symbol_for_letter
 from app.core.usecases.v4.symbol_usecases import record_symbol
 from tests.conftest import make_plan, make_student
 
@@ -167,7 +167,7 @@ class TestResolveCustomSymbolShortcut:
         plan = make_plan()
         plan, symbol_id = add_custom_symbol(plan, "☕", "Kaffee vergessen", "K")
 
-        found = resolve_custom_symbol_shortcut(plan, "K")
+        found = custom_symbol_for_letter(plan.custom_symbols, "K")
 
         assert found is not None
         assert found.id == symbol_id
@@ -175,14 +175,12 @@ class TestResolveCustomSymbolShortcut:
     def test_letter_case_is_normalized(self):
         plan = make_plan()
         plan, _symbol_id = add_custom_symbol(plan, "☕", "Kaffee vergessen", "K")
-        assert resolve_custom_symbol_shortcut(plan, "k") is not None
+        assert custom_symbol_for_letter(plan.custom_symbols, "k") is not None
 
     def test_no_match_returns_none(self):
         plan = make_plan()
-        assert resolve_custom_symbol_shortcut(plan, "K") is None
+        assert custom_symbol_for_letter(plan.custom_symbols, "K") is None
 
-    def test_none_plan_returns_none(self):
-        assert resolve_custom_symbol_shortcut(None, "K") is None
 
     def test_old_ctrl_shift_value_never_matches_a_keypress(self):
         """Ein historischer Ctrl+Shift-Wert (z. B. aus einem alten/kaputten
@@ -193,7 +191,7 @@ class TestResolveCustomSymbolShortcut:
             id="legacy-id", glyph="☕", meaning="Alt", shortcut="Ctrl+Shift+K"
         )
 
-        assert resolve_custom_symbol_shortcut(plan, "K") is None
+        assert custom_symbol_for_letter(plan.custom_symbols, "K") is None
 
     def test_plan_isolation_same_letter_different_symbols(self):
         """Zwei Plaene mit je einem eigenen Symbol auf demselben Buchstaben
@@ -205,8 +203,8 @@ class TestResolveCustomSymbolShortcut:
         plan_b = make_plan(name="Plan B")
         plan_b, id_b = add_custom_symbol(plan_b, "💻", "Laptop vergessen", "K")
 
-        found_in_a = resolve_custom_symbol_shortcut(plan_a, "K")
-        found_in_b = resolve_custom_symbol_shortcut(plan_b, "K")
+        found_in_a = custom_symbol_for_letter(plan_a.custom_symbols, "K")
+        found_in_b = custom_symbol_for_letter(plan_b.custom_symbols, "K")
 
         assert found_in_a is not None and found_in_a.id == id_a
         assert found_in_b is not None and found_in_b.id == id_b

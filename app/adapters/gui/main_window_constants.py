@@ -43,7 +43,7 @@ GRID_SELECTED = "grid_selected"
 NAME_EDITING = "name_editing"
 # SPACE_SHORTCUT: siehe Import oben -- welches Katalogsymbol (falls ueberhaupt
 # eines) die Leertaste bedient, wird zur Laufzeit ueber
-# self._shortcut_to_symbol[SPACE_SHORTCUT] aufgeloest (main_window.py), keine
+# SymbolView.symbol_for_shortcut(SPACE_SHORTCUT) aufgeloest (_mixin_edit.py), keine
 # Hardcodierung eines konkreten Symbolnamens.
 
 DeskDetailMode = Literal["desk_detail_revealed", "desk_detail_editing"]

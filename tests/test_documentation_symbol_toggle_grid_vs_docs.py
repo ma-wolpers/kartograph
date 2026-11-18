@@ -214,14 +214,24 @@ class TestParticipationRatingPerSurface:
         assert window._controller.dispatched == []
 
 
+def _view_with_shortcut(key: str, shortcut: str):
+    """Symbolsicht mit genau einem Doku-Symbol *key* auf *shortcut*."""
+    from app.core.domain.symbol_catalog import SymbolDefinition
+    from app.core.domain.symbol_view import build_symbol_view
+
+    definition = SymbolDefinition(key=key, name=key, glyph="∅", shortcut=shortcut, role="documentation_only",
+                                  frequency_legend=("a", "b", "c"))
+    return build_symbol_view([definition], [], None)
+
+
 class TestOnSpaceSymbolShortcutDelegation:
     """_on_space_symbol_shortcut hat keine eigene Fachlogik mehr -- reiner Resolver+Delegator
     an _on_symbol_shortcut(), welches Symbol (falls ueberhaupt eines) die Leertaste
-    bedient, ergibt sich ausschliesslich aus der Katalog-Map self._shortcut_to_symbol."""
+    bedient, ergibt sich ausschliesslich aus der Symbolsicht (SymbolView.symbol_for_shortcut)."""
 
     def test_delegates_to_on_symbol_shortcut_with_resolved_symbol(self):
         window = KartographMainWindow.__new__(KartographMainWindow)
-        window.__dict__["_shortcut_to_symbol"] = {"space": "Abwesend"}
+        window.__dict__["_symbol_view"] = _view_with_shortcut("Abwesend", "space")
         received: dict[str, object] = {}
 
         def fake_on_symbol_shortcut(event, symbol_name):
@@ -240,7 +250,7 @@ class TestOnSpaceSymbolShortcutDelegation:
 
     def test_delegates_with_none_when_no_symbol_claims_space(self):
         window = KartographMainWindow.__new__(KartographMainWindow)
-        window.__dict__["_shortcut_to_symbol"] = {"x": DOC_SYMBOL}
+        window.__dict__["_symbol_view"] = _view_with_shortcut(DOC_SYMBOL, "x")
         received: dict[str, object] = {}
         window._on_symbol_shortcut = lambda event, symbol_name: received.setdefault("symbol_name", symbol_name)
 

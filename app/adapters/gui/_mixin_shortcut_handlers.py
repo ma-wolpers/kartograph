@@ -10,7 +10,6 @@ from __future__ import annotations
 from app.adapters.gui.main_window_constants import LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.intents.session_intents import NavigateSessionIntent
-from app.core.usecases.v4.custom_symbol_usecases import resolve_custom_symbol_shortcut
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -125,29 +124,4 @@ class ShortcutHandlersMixin:
         if not self._shortcut_scope_allows("docs"):
             return None
         self.select_today_documentation_date()
-        return EventResult.HANDLED
-
-    def _on_custom_symbol_shortcut(self, letter: str) -> EventResult | None:
-        """Handler für einen einzelnen Buchstaben: eigenes Doku-Symbol togglen.
-
-        Löst *letter* live gegen die eigenen Symbole des AKTUELL offenen Plans
-        auf (``resolve_custom_symbol_shortcut()``) — kein Rebind bei
-        Planwechsel nötig, derselbe physische Tastenraum wird einmalig in
-        ``_mixin_shortcut_bindings.py::_bind_shortcuts()`` gebunden (nur die aktuell
-        freien Buchstaben, s. ``reserved_symbol_letters()``). Eigene Symbole
-        sind immer documentation-only und laufen über
-        ``_toggle_documentation_symbol``; Schüler und Datum (Dokuansicht:
-        Datumsanker, Raster: heute) bestimmt allein ``_doc_action_target()``.
-
-        Args:
-            letter: Der gedrückte Großbuchstabe (z. B. ``"K"``).
-        """
-        if not self._shortcut_scope_allows("docs") and not self._shortcut_scope_allows("grid"):
-            return None
-        if not self.current_plan or not self.current_plan_path:
-            return None
-        custom = resolve_custom_symbol_shortcut(self.current_plan, letter)
-        if custom is None:
-            return None
-        self._toggle_documentation_symbol(custom.id)
         return EventResult.HANDLED
