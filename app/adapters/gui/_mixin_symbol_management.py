@@ -2,8 +2,9 @@
 
 Listenansicht aller Symbole (eingebaute mit ihren Kompetenzen bzw. Stufen +
 eigene Doku-Symbole des aktuellen Plans mit ihrem einzelnen Bedeutungstext)
-mit Neu/Bearbeiten/Löschen — Letztere zwei nur für eigene Symbole aktiv,
-eingebaute sind reine Referenz (nur über ``config/symbols.json`` änderbar).
+mit Neu/Bearbeiten/Löschen für eigene Symbole und „Für diesen Plan anpassen…“
+für eingebaute (lokaler Name und Kompetenzen, ``_mixin_symbol_override_form.py``);
+programmweit ändert sie der Dialog „Symbole und Kompetenzen“.
 Das Add/Edit-Formular liegt in ``_mixin_symbol_management_form.py``.
 """
 
@@ -23,6 +24,8 @@ _ROLE_LABELS = {"diagnostic": "Diagnose", "documentation_only": "Doku"}
 
 class SymbolManagementMixin:
     """Mixin: Popup zur Ansicht/Verwaltung aller Symbole (eingebaut + eigen)."""
+
+    _symbol_management_adapt_button = None  # „Für diesen Plan anpassen…“, solange das Popup offen ist
 
     def open_symbol_management_dialog(self) -> None:
         """Öffnet das Symbol-Verwaltung-Popup oder bringt es in den Vordergrund."""
@@ -52,6 +55,13 @@ class SymbolManagementMixin:
             toolbar, text="Löschen", command=self._delete_selected_custom_symbol, state="disabled"
         )
         self._symbol_management_delete_button.pack(side="left", padx=(8, 0))
+        self._symbol_management_adapt_button = tui.Button(
+            toolbar, text="Für diesen Plan anpassen…", state="disabled",
+            command=lambda: self._open_symbol_override_form(self._selected_builtin_symbol_key()),
+        )
+        self._symbol_management_adapt_button.pack(side="left", padx=(16, 0))
+        self._attach_hover_help(self._symbol_management_adapt_button,
+                                label="Name und Kompetenzen eines eingebauten Symbols nur für diesen Plan ändern", shortcut=None)
 
         body = tui.Frame(window, padding=(10, 0, 10, 8))
         body.pack(fill="both", expand=True)
@@ -70,7 +80,7 @@ class SymbolManagementMixin:
         y_scroll.pack(side="right", fill="y")
         table.configure(yscrollcommand=y_scroll.set)
         on_treeview_select(table, lambda _change: self._on_symbol_management_selection_changed())
-        bind_click(table, lambda _e: self._edit_selected_custom_symbol_dialog(), count=2)
+        bind_click(table, lambda _e: self._open_selected_symbol_row(), count=2)
 
         self._symbol_management_window = window
         self._symbol_management_table = table
@@ -85,6 +95,7 @@ class SymbolManagementMixin:
         self._symbol_management_table = None
         self._symbol_management_edit_button = None
         self._symbol_management_delete_button = None
+        self._symbol_management_adapt_button = None
 
     def _refresh_symbol_management_table(self) -> None:
         """Baut die Symbol-Tabelle aus dem eingebauten Katalog und den eigenen Symbolen des aktuellen Plans neu auf.
@@ -98,14 +109,18 @@ class SymbolManagementMixin:
         if table is None:
             return
         table.delete(*table.get_children())
+        overrides = self.current_plan.symbol_overrides if self.current_plan else {}
         for definition in self.symbol_definitions:
+            origin = _ROLE_LABELS.get(definition.role, definition.role)
+            origin += " · angepasst" if definition.key in overrides else ""
+            origin += " · deaktiviert" if not definition.active else ""
             table.insert(
                 "", ui.END,
                 iid=f"builtin:{definition.key}",
                 values=(
                     definition.glyph,
                     symbol_summary(definition, self.competences_by_id),
-                    _ROLE_LABELS.get(definition.role, definition.role),
+                    origin,
                     "Leertaste" if definition.shortcut == SPACE_SHORTCUT else (definition.shortcut or ""),
                 ),
             )
@@ -136,13 +151,32 @@ class SymbolManagementMixin:
             return None
         return iid.removeprefix("custom:")
 
+    def _selected_builtin_symbol_key(self) -> str | None:
+        """Schlüssel des ausgewählten EINGEBAUTEN Symbols, oder ``None``."""
+        table = self._symbol_management_table
+        selected = table.selection() if table is not None else ()
+        if not selected or not selected[0].startswith("builtin:"):
+            return None
+        return selected[0].removeprefix("builtin:")
+
+    def _open_selected_symbol_row(self) -> None:
+        """Doppelklick: eingebautes Symbol → Plan-Anpassung, eigenes Symbol → Bearbeiten."""
+        key = self._selected_builtin_symbol_key()
+        if key is not None and self.current_plan:
+            self._open_symbol_override_form(key)
+        else:
+            self._edit_selected_custom_symbol_dialog()
+
     def _on_symbol_management_selection_changed(self) -> None:
-        """Aktiviert die Bearbeiten-/Löschen-Buttons nur, wenn ein eigenes Symbol ausgewählt ist."""
+        """Aktiviert Bearbeiten/Löschen für eigene Symbole und „anpassen“ für eingebaute (mit offenem Plan)."""
         state = "normal" if self._selected_custom_symbol_id() is not None else "disabled"
         if self._symbol_management_edit_button is not None:
             self._symbol_management_edit_button.configure(state=state)
         if self._symbol_management_delete_button is not None:
             self._symbol_management_delete_button.configure(state=state)
+        if self._symbol_management_adapt_button is not None:
+            adaptable = self._selected_builtin_symbol_key() is not None and self.current_plan is not None
+            self._symbol_management_adapt_button.configure(state="normal" if adaptable else "disabled")
 
     def _delete_selected_custom_symbol(self) -> None:
         """Löscht das ausgewählte eigene Symbol nach Bestätigung.

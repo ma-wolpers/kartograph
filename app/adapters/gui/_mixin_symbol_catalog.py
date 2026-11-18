@@ -5,7 +5,7 @@ Katalog + Kompetenzen + eigene Symbole des offenen Plans).
 :meth:`SymbolCatalogMixin._apply_symbol_view_if_changed` baut sie neu, sobald
 sich Katalog, Kompetenzen oder die eigenen Symbole des Plans ändern, und leitet
 daraus *alle* GUI-Lookups ab (``symbol_definitions``, ``symbol_catalog``,
-``diagnostic_symbol_catalog``, ``_symbol_by_meaning``, ``competences_by_id``,
+``diagnostic_symbol_catalog``, ``offered_*`` (nur aktive), ``_symbol_by_meaning``, ``competences_by_id``,
 ``effective_documentation_symbols``, Raster-Filter, PDF-Exporter). Ändert sich der
 programmweite Katalog zur Laufzeit, werden Kürzel-Leiste und Detail-Knöpfe neu
 aufgebaut; Tastenkürzel lösen ohnehin live über die Sicht auf.
@@ -72,6 +72,8 @@ class SymbolCatalogMixin:
         self.competences_by_id = dict(view.competences)
         self.symbol_catalog = view.keys
         self.diagnostic_symbol_catalog = view.diagnostic_keys
+        self.offered_diagnostic_symbols = view.offered_diagnostic_keys
+        self.offered_symbol_keys = view.offered_keys
         self._symbol_by_meaning = view.by_key
         self.effective_documentation_symbols = list(view.documentation_symbols)
         self._effective_symbol_by_key = view.documentation_by_key

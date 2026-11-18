@@ -30,7 +30,8 @@ class DetailsButtonsMixin:
             symbol_cols: Spalten des Symbol-Knopfrasters.
             color_cols: Spalten des Farbpunkt-Knopfrasters.
         """
-        key = (tuple(self.diagnostic_symbol_catalog), tuple(self.color_palette), symbol_cols, color_cols)
+        names = tuple(self._symbol_by_meaning[s].name for s in self.offered_diagnostic_symbols)
+        key = (tuple(self.offered_diagnostic_symbols), names, tuple(self.color_palette), symbol_cols, color_cols)
         if key == self._detail_buttons_key:
             return
         for frame in (self.symbols_frame, self.colors_frame):
@@ -41,12 +42,12 @@ class DetailsButtonsMixin:
         self._color_marker_buttons = []
         self._widget_options = {}
         tui.Label(self.symbols_frame, text="Symbole").grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 4))
-        for idx, symbol in enumerate(self.diagnostic_symbol_catalog):
-            definition = self._symbol_by_meaning.get(symbol)
-            shortcut = definition.shortcut if definition else None
+        for idx, symbol in enumerate(self.offered_diagnostic_symbols):
+            definition = self._symbol_by_meaning[symbol]
+            shortcut = definition.shortcut
             button = tui.Button(self.symbols_frame, command=lambda s=symbol: self._toggle_selected_symbol(s))
             button.grid(row=1 + idx // symbol_cols, column=idx % symbol_cols, sticky="ew", padx=(0, 6), pady=(0, 4))
-            self._attach_hover_help(button, label=f"Symbol {symbol} umschalten", shortcut=shortcut.upper() if shortcut else None)
+            self._attach_hover_help(button, label=f"Symbol {definition.name} umschalten", shortcut=shortcut.upper() if shortcut else None)
             self._symbol_buttons[symbol] = button
         for col in range(symbol_cols):
             self.symbols_frame.columnconfigure(col, weight=1)
@@ -78,7 +79,8 @@ class DetailsButtonsMixin:
         for symbol, button in self._symbol_buttons.items():
             count = int(student.diagnostic.symbols.get(symbol, 0))
             icon = self._symbol_glyph(symbol)
-            text = f"{icon} {symbol}" if count == 0 else f"{icon} {symbol} x{count}"
+            name = self._symbol_by_meaning[symbol].name
+            text = f"{icon} {name}" if count == 0 else f"{icon} {name} x{count}"
             self._set_widget_options(button, text=text, state=state)
         for color_key, (button, label) in self._color_buttons.items():
             active = color_key in student.diagnostic.color_tags

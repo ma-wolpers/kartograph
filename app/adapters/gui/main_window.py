@@ -35,6 +35,7 @@ from app.adapters.gui._mixin_namenfit_export import NamenfitExportMixin
 from app.adapters.gui._mixin_pdf import PdfMixin
 from app.adapters.gui._mixin_student_png_export import StudentPngExportMixin
 from app.adapters.gui._mixin_symbol_catalog import SymbolCatalogMixin
+from app.adapters.gui._mixin_symbol_dialogs import SymbolDialogsMixin
 from app.adapters.gui._mixin_symbol_management import SymbolManagementMixin
 from app.adapters.gui._mixin_symbol_management_form import SymbolManagementFormMixin
 from app.adapters.gui._mixin_plan_crud import PlanCrudMixin
@@ -87,6 +88,7 @@ class KartographMainWindow(
     NamenfitExportMixin,
     StudentPngExportMixin,
     SymbolCatalogMixin,
+    SymbolDialogsMixin,
     SymbolManagementMixin,
     SymbolManagementFormMixin,
     ExportMixin,

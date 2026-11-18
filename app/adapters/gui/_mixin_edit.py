@@ -170,9 +170,10 @@ class EditMixin:
 
         listbox = ui.Listbox(dialog, selectmode="browse", exportselection=False, font=("Segoe UI", 11))
         listbox.pack(fill="both", expand=True, padx=12, pady=(0, 10))
-        for symbol in self.diagnostic_symbol_catalog:
-            listbox.insert(ui.END, symbol)
-        if self.diagnostic_symbol_catalog:
+        for symbol in self.offered_diagnostic_symbols:
+            definition = self._symbol_by_meaning[symbol]
+            listbox.insert(ui.END, f"{definition.glyph} {definition.name}")
+        if self.offered_diagnostic_symbols:
             listbox_selection.set(listbox, [0])
         self._focus_overlay_widget(dialog, listbox)
 
@@ -180,7 +181,7 @@ class EditMixin:
             selected = listbox.curselection()
             if not selected:
                 return
-            symbol = self.diagnostic_symbol_catalog[int(selected[0])]
+            symbol = self.offered_diagnostic_symbols[int(selected[0])]
             self._toggle_diagnostic_symbol_at(target, symbol)
             dialog.destroy()
 

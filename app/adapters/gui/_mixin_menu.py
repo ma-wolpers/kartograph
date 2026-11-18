@@ -199,6 +199,7 @@ class MenuMixin:
             SharedMenuItem(type="command", label="Sitzplan-Vorschau oeffnen", command=self.open_sitzplan_popup),
             SharedMenuItem(type="command", label="Snapshots verwalten…", command=self.open_snapshots_popup),
             SharedMenuItem(type="command", label="Symbol-Verwaltung oeffnen", command=lambda: self._handle_intent(UiIntent.MANAGE_SYMBOLS)),
+            SharedMenuItem(type="command", label="Symbole und Kompetenzen (alle Plaene)…", command=lambda: self._handle_intent(UiIntent.MANAGE_CATALOG)),
             SharedMenuItem(type="separator"),
             SharedMenuItem(type="switch", label="Archivierte Sitzplaene anzeigen", checked=show_archived, on_toggle=self._set_show_archived_plans),
             SharedMenuItem(type="separator"),

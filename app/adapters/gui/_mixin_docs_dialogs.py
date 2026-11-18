@@ -228,11 +228,11 @@ class DocsDialogsMixin:
     def set_selected_documentation_symbol_dialog(self) -> None:
         """Öffnet einen Dialog zur Symbolauswahl für die aktuelle Doku-Zelle (v4).
 
-        Zeigt alle konfigurierten Symbole (eingebaut, jede Rolle) UND alle
-        eigenen Doku-Symbole des aktuellen Plans als auswählbare Liste mit
+        Zeigt alle setzbaren Symbole (``offered_symbol_keys``: aktive eingebaute jeder Rolle UND alle
+        eigenen Doku-Symbole des aktuellen Plans) als auswählbare Liste mit
         Tastaturkürzel-Hinweisen (eingebaute Symbole zeigen ihr einzelnes
         Tastenzeichen, eigene ihr ``Ctrl+Shift+<Buchstabe>``-Kürzel). Bewusst
-        eine ERWEITERTE statt eine ersetzte Liste (``self.symbol_catalog``
+        eine ERWEITERTE statt eine ersetzte Liste (die aktiven Katalogsymbole
         bleibt unverändert Teil davon) — dieser Dialog erlaubt seit jeher auch
         das Setzen diagnostischer Symbole für einen einzelnen Tag, das darf
         durch eigene Doku-Symbole nicht verloren gehen. Unterstützt
@@ -242,9 +242,7 @@ class DocsDialogsMixin:
         target = self._doc_action_target("Symbole")
         if target is None:
             return
-        all_symbol_keys = self.symbol_catalog + [
-            s.key for s in self.effective_documentation_symbols if s.is_custom
-        ]
+        all_symbol_keys = list(self.offered_symbol_keys)
         if not all_symbol_keys:
             messagebox.showinfo("Keine Symbole", "Es sind keine Symbole konfiguriert.", parent=self)
             return
@@ -282,7 +280,7 @@ class DocsDialogsMixin:
                 shortcut = effective.shortcut if effective is not None else None
             suffix = f" [{shortcut}]" if shortcut else ""
             if definition is not None:
-                glyph, label = definition.glyph, symbol
+                glyph, label = definition.glyph, definition.name
             else:
                 glyph, label = resolve_symbol_display(symbol, self.effective_documentation_symbols)
             symbol_listbox.insert(ui.END, f"{glyph} {label}{suffix}")

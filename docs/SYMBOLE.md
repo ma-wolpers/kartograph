@@ -126,6 +126,15 @@ Kurz und zählend, gestuft nach Häufigkeit:
    nächsten Start, ohne eigene Anpassungen anzutasten.
 5. CHANGELOG (nutzerseitig) und `docs/DEVELOPMENT_LOG.md` ergänzen.
 
+## In der Oberfläche ändern
+
+- **Alle Pläne:** *Ansicht → Symbole und Kompetenzen (alle Pläne)…* ändert die
+  Arbeitskopien `config/symbols.json`/`config/competences.json` (Name, Taste,
+  aktiv, Standard-Kompetenzen; neue Symbole und Kompetenzen). Die
+  Standarddateien bleiben unverändert; der Schlüssel eines Symbols nie.
+- **Ein Plan:** *Symbol-Verwaltung → Für diesen Plan anpassen…* speichert
+  lokalen Namen und Kompetenzen im Plan (`symbol_overrides`).
+
 ## Vorhandene Symbole ändern
 
 - **Codepoint nie ändern.** Er ist die Identität eines eingebauten Symbols

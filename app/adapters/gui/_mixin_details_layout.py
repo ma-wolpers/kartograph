@@ -159,7 +159,7 @@ class DetailsLayoutMixin:
         bar = self._symbol_shortcuts_bar
         bar.clear()
 
-        symbols_with_shortcuts = [item for item in self.symbol_definitions if item.shortcut is not None]
+        symbols_with_shortcuts = [item for item in self.symbol_definitions if item.shortcut is not None and item.active]
         if not symbols_with_shortcuts:
             return
 

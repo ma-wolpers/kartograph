@@ -93,6 +93,16 @@ class SymbolView:
         return [definition.key for definition in self.catalog if definition.role == "diagnostic"]
 
     @property
+    def offered_diagnostic_keys(self) -> list[str]:
+        """Diagnosesymbole, die Knöpfe und Auswahllisten anbieten (nur aktive)."""
+        return [d.key for d in self.catalog if d.role == "diagnostic" and d.active]
+
+    @property
+    def offered_keys(self) -> list[str]:
+        """Alle setzbaren Symbole: aktive Katalogsymbole, dann eigene des Plans."""
+        return [d.key for d in self.catalog if d.active] + list(self.custom_symbols)
+
+    @property
     def by_key(self) -> dict[str, SymbolDefinition]:
         """Katalogsymbol nach Schlüssel."""
         return {definition.key: definition for definition in self.catalog}
