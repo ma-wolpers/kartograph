@@ -1,0 +1,168 @@
+{
+  "competences": [
+    {"id": "beteiligung.lerngespraech", "name": "Beteiligung am Lerngespräch", "group": "Beteiligung", "levels": {
+      "three": "beteiligt sich unaufgefordert, kontinuierlich und verlässlich am Lerngespräch",
+      "two": "beteiligt sich gelegentlich am Lerngespräch und nutzt es zunehmend als Lerngelegenheit",
+      "one": "beteiligt sich am Lerngespräch vor allem nach direkter Ansprache oder Ermutigung"}},
+    {"id": "beteiligung.beitraege", "name": "Beiträge zum Lernprozess", "group": "Beteiligung", "levels": {
+      "three": "trägt durch Beiträge und Ergebnisse aktiv dazu bei, den Lernprozess weiterzuentwickeln",
+      "two": "trägt immer wieder mit eigenen Beiträgen und Ergebnissen zur Weiterentwicklung des Lernprozesses bei",
+      "one": "bringt Beiträge ein, wenn ein sicherer Rahmen und Unterstützung gegeben sind (z. B. Vorbereitung in Partnerarbeit, Denkzeit, konkrete Impulse)"}},
+
+    {"id": "kooperation.zusammenarbeit", "name": "zielorientierte Zusammenarbeit", "group": "Kooperation", "levels": {
+      "three": "arbeitet ziel- und teamorientiert mit anderen",
+      "two": "arbeitet überwiegend zielorientiert in der Gruppe mit",
+      "one": "arbeitet in der Gruppe aufgabenbezogen mit, wenn Ziele klar vorgegeben sind"}},
+    {"id": "kooperation.verantwortung", "name": "Verantwortung in der Gruppe", "group": "Kooperation", "levels": {
+      "three": "übernimmt eigeninitiativ Verantwortung für Rollen und Aufgaben",
+      "two": "übernimmt auf Anregung Verantwortung für Rollen und Aufgaben",
+      "one": "übernimmt eine Rolle, wenn sie klar vorgegeben ist (z. B. Rollenkarte, feste Aufgabenverteilung)"}},
+    {"id": "kooperation.gruppenergebnis", "name": "Beitrag zum Gruppenergebnis", "group": "Kooperation", "levels": {
+      "three": "bringt eigene Ideen in die Gruppe ein und treibt das gemeinsame Ergebnis voran",
+      "two": "trägt aufgabengeleitet zum gemeinsamen Ergebnis bei",
+      "one": "trägt mit dem eigenen Aufgabenteil zum Gruppenergebnis bei"}},
+
+    {"id": "interaktion.zuhoeren", "name": "aktiv zuhören", "group": "Interaktion", "levels": {
+      "three": "hört aktiv zu",
+      "two": "hört meist aufmerksam zu",
+      "one": "hört phasenweise aktiv zu, wenn enge Begleitung zur Verfügung steht (z. B. vereinbarte Signale, ablenkungsarmer Sitzplatz)"}},
+    {"id": "interaktion.eingehen", "name": "auf Beiträge anderer eingehen", "group": "Interaktion", "levels": {
+      "three": "geht sensibel und wertschätzend auf Beiträge anderer ein",
+      "two": "reagiert überwiegend angemessen und wertschätzend auf Beiträge anderer",
+      "one": "reagiert auf Beiträge anderer vor allem nach direkter Ansprache"}},
+    {"id": "interaktion.position", "name": "eigene Position vertreten", "group": "Interaktion", "levels": {
+      "three": "vertritt die eigene Position überzeugend",
+      "two": "bringt die eigene Position anlassbezogen ein",
+      "one": "bringt die eigene Position ein, wenn danach gefragt wird oder eine Formulierungshilfe zur Verfügung steht (z. B. Satzanfänge, Meinungskarte)"}},
+    {"id": "interaktion.gespraechsregeln", "name": "Gesprächsregeln einhalten", "group": "Interaktion", "levels": {
+      "three": "hält Gesprächsregeln selbstständig ein und achtet auf eine faire Gesprächsführung",
+      "two": "hält Gesprächsregeln überwiegend ein",
+      "one": "hält Gesprächsregeln mit Erinnerung ein"}},
+
+    {"id": "konflikt.kritik", "name": "mit Kritik umgehen", "group": "Konfliktfähigkeit", "levels": {
+      "three": "nimmt Kritik offen an und äußert sie konstruktiv",
+      "two": "nimmt Kritik überwiegend an",
+      "one": "nimmt Kritik an, wenn sie konkret und ruhig geäußert wird"}},
+    {"id": "konflikt.missverstaendnisse", "name": "Missverständnisse klären", "group": "Konfliktfähigkeit", "levels": {
+      "three": "klärt Missverständnisse eigeninitiativ",
+      "two": "beteiligt sich an der Klärung von Missverständnissen",
+      "one": "klärt Missverständnisse, wenn Begleitung zur Verfügung steht (z. B. Lehrkraft, gezielte Rückfrage)"}},
+    {"id": "konflikt.loesung", "name": "Konflikte lösen", "group": "Konfliktfähigkeit", "levels": {
+      "three": "handelt Positionen fair und kompromissbereit aus",
+      "two": "regelt Konflikte eher spontan, mit ersten Ansätzen von Kompromissbereitschaft",
+      "one": "klärt Konflikte, wenn Begleitung zur Verfügung steht (z. B. Lehrkraft, Streitschlichtung)"}},
+
+    {"id": "aufgabe.bearbeiten", "name": "Lernschritte planen und bearbeiten", "group": "Aufgabenbearbeitung", "levels": {
+      "three": "kann Lernschritte selbstständig planen und umsetzen",
+      "two": "kann einzelne Lernschritte selbstständig lösen",
+      "one": "kann eine Aufgabe schrittweise lösen, wenn personale Hilfestellung zur Verfügung steht (z. B. Lehrkraft, andere Lernende)"}},
+    {"id": "aufgabe.hilfen", "name": "Hilfen nutzen", "group": "Aufgabenbearbeitung", "levels": {
+      "three": "wählt selbstständig passende Hilfen aus (z. B. Lösungen, Hilfekarten, Nachschlagewerke)",
+      "two": "holt sich bei Bedarf gezielt Hilfestellung (z. B. Lehrkraft, Partner/Partnerin, Hilfekarten)",
+      "one": "nimmt angebotene Hilfe an, wenn sie persönlich zur Verfügung gestellt wird (z. B. Lehrkraft, Lernpartner/Lernpartnerin)"}},
+    {"id": "aufgabe.ueberpruefen", "name": "Ergebnisse überprüfen und Lernweg erklären", "group": "Aufgabenbearbeitung", "levels": {
+      "three": "überprüft Ergebnisse mit Hilfe von Lösungen, erkennt und korrigiert Fehler und erklärt den Lernweg",
+      "two": "überprüft Ergebnisse auf Anregung mit Hilfe von Lösungen und korrigiert erkannte Fehler",
+      "one": "vergleicht Ergebnisse mit Lösungen, wenn eine Anleitung zur Verfügung steht (z. B. Kontrollblatt, Schritt-für-Schritt-Lösung)"}},
+
+    {"id": "konzentration.arbeiten", "name": "konzentriert arbeiten", "group": "Konzentration", "levels": {
+      "three": "bleibt auch über längere Arbeitsphasen selbstständig konzentriert bei der Sache",
+      "two": "arbeitet überwiegend konzentriert",
+      "one": "arbeitet phasenweise konzentriert, wenn enge Begleitung zur Verfügung steht (z. B. kurze Teilschritte, klare Zeitvorgaben)"}},
+    {"id": "konzentration.zurueckfinden", "name": "zur Aufgabe zurückfinden", "group": "Konzentration", "levels": {
+      "three": "kehrt nach Ablenkungen eigeninitiativ zur Aufgabe zurück",
+      "two": "findet nach Ermutigung oder Erinnerung zur Aufgabe zurück",
+      "one": "findet zur Aufgabe zurück, wenn enge Begleitung zur Verfügung steht (z. B. vereinbarte Signale, ablenkungsarmer Sitzplatz)"}},
+    {"id": "konzentration.atmosphaere", "name": "Arbeitsatmosphäre wahren", "group": "Konzentration", "levels": {
+      "three": "trägt zu einer ruhigen Arbeitsatmosphäre bei",
+      "two": "respektiert die Arbeitsatmosphäre der anderen",
+      "one": "hält Einzelarbeitsphasen ein, wenn enge Begleitung zur Verfügung steht (z. B. klare Zeitvorgaben, ablenkungsarmer Sitzplatz)"}},
+
+    {"id": "material.bedarf", "name": "Materialbedarf erkennen", "group": "Umgang mit Material", "levels": {
+      "three": "erkennt eigenständig, welche Materialien wann erforderlich sind",
+      "two": "erkennt in der Regel, welche Materialien erforderlich sind",
+      "one": "erkennt, welche Materialien erforderlich sind, wenn genaue Vorgaben zur Verfügung stehen (z. B. Materialliste, Tafelanschrieb)"}},
+    {"id": "material.organisieren", "name": "Material organisieren und bereithalten", "group": "Umgang mit Material", "levels": {
+      "three": "kann Materialien selbstständig organisieren, strukturieren und situativ passend bereithalten",
+      "two": "kann Materialien in der Regel eigenständig organisieren, strukturieren und weitgehend ohne externe Aufforderung bereithalten",
+      "one": "kann Arbeitsmaterialien organisieren, strukturieren und bereithalten, wenn genaue Vorgaben zur Verfügung stehen (z. B. Materialliste, Checkliste, feste Ablage)"}},
+
+    {"id": "visualisierung.erstellen", "name": "Visualisierungen erstellen", "group": "Visualisierung", "levels": {
+      "three": "kann eigene Visualisierungen zur Darstellung komplexer Strukturen und Zusammenhänge erstellen",
+      "two": "kann komplexe Strukturen (z. B. Texte, Zusammenhänge) unter Anleitung in einfache sowie teilweise auch komplexe Visualisierungen oder andere Darstellungsformen umsetzen",
+      "one": "kann aus Texten einfache Visualisierungen erstellen, wenn Vorgaben oder Modelle zur Verfügung stehen (z. B. Tabelle, Mindmap, Concept-Map)"}},
+    {"id": "visualisierung.erklaeren", "name": "Visualisierungen erklären", "group": "Visualisierung", "levels": {
+      "three": "kann Visualisierungen vortragen, erklären, begründen und reflektieren",
+      "two": "kann die eigenen Visualisierungen erklären",
+      "one": "kann die eigenen Visualisierungen erklären, wenn Leitfragen zur Verfügung stehen (z. B. Satzanfänge, Erklärkarte)"}},
+
+    {"id": "fach.anforderungen", "name": "fachliche Anforderungen erfüllen", "group": "Fachkompetenz", "levels": {
+      "three": "erfüllt die fachlichen Anforderungen sicher und selbstständig, auch bei komplexeren Aufgaben",
+      "two": "erfüllt die fachlichen Anforderungen größtenteils",
+      "one": "erfüllt grundlegende fachliche Anforderungen, wenn gezielte Unterstützung zur Verfügung steht (z. B. Schritt-für-Schritt-Anleitung, Beispiel)"}},
+    {"id": "fach.loesungswege", "name": "Lösungswege darstellen", "group": "Fachkompetenz", "levels": {
+      "three": "stellt Lösungswege nachvollziehbar dar",
+      "two": "stellt Lösungswege überwiegend korrekt dar, teils mit Unterstützung (z. B. Hinweise, Beispiele, Strukturierungshilfen)",
+      "one": "stellt Lösungswege dar, wenn eine Vorlage zur Verfügung steht (z. B. Lösungsschema, Musterlösung)"}},
+    {"id": "fach.fachsprache", "name": "Fachbegriffe und Darstellungsformen nutzen", "group": "Fachkompetenz", "levels": {
+      "three": "nutzt Fachbegriffe und Darstellungsformen präzise",
+      "two": "nutzt Fachbegriffe und Darstellungsformen überwiegend passend",
+      "one": "nutzt vertraute Fachbegriffe teilweise passend, wenn Hilfen zur Verfügung stehen (z. B. Wortspeicher, Glossar)"}},
+
+    {"id": "algebra.variablen", "name": "Variablen und Terme nutzen", "group": "Algebra", "levels": {
+      "three": "nutzt Variablen flexibel",
+      "two": "nutzt Variablen in vertrauten Termen sicher",
+      "one": "setzt Zahlen in Terme ein"}},
+    {"id": "algebra.umformen", "name": "Terme und Gleichungen umformen", "group": "Algebra", "levels": {
+      "three": "formt Terme und Gleichungen sicher und begründet um",
+      "two": "formt einfache Terme und Gleichungen meist korrekt um",
+      "one": "führt einfache Umformungen aus, wenn eine Anleitung zur Verfügung steht (z. B. Musterumformung, Schrittfolge)"}},
+    {"id": "algebra.zusammenhaenge", "name": "Zusammenhänge zwischen Größen beschreiben", "group": "Algebra", "levels": {
+      "three": "beschreibt Zusammenhänge zwischen Größen allgemein mit Variablen",
+      "two": "beschreibt Zusammenhänge zwischen Größen",
+      "one": "beschreibt Zusammenhänge anhand konkreter Werte"}},
+    {"id": "algebra.darstellungswechsel", "name": "zwischen Darstellungen wechseln", "group": "Algebra", "levels": {
+      "three": "wechselt bei funktionalen Zusammenhängen sicher zwischen Situation, Tabelle, Graph und Term",
+      "two": "wechselt bei bekannten Funktionstypen mit Hilfen zwischen den Darstellungen",
+      "one": "wechselt zwischen Darstellungen, wenn Unterstützung zur Verfügung steht (z. B. vorbereitete Wertetabelle, Koordinatensystem)"}},
+
+    {"id": "auftraege.erschliessen", "name": "Arbeitsaufträge erschließen", "group": "Nachfragen", "levels": {
+      "three": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben selbstständig und sicher",
+      "two": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben in der Regel selbstständig",
+      "one": "erschließt Fragen, Arbeitsaufträge und Lernaufgaben, wenn zusätzliche Erläuterung zur Verfügung steht (z. B. Wiederholung, Beispiel, Visualisierung, Umformulierung)"}},
+    {"id": "auftraege.nachfragen", "name": "gezielt nachfragen", "group": "Nachfragen", "levels": {
+      "three": "klärt offene Punkte selbstständig mit präzisen Rückfragen",
+      "two": "klärt offene Punkte gezielt durch Nachfragen",
+      "one": "klärt offene Punkte durch Rückfragen, wenn dazu ermutigt wird (z. B. Fragezeit, Fragekarte)"}},
+
+    {"id": "programmieren.zerlegen", "name": "Probleme zerlegen", "group": "Programmieren o.ä.", "levels": {
+      "three": "zerlegt komplexe Probleme selbstständig in Teilschritte",
+      "two": "kann einfache Probleme in Teilschritte zerlegen",
+      "one": "kann einfache Probleme in Teilschritte zerlegen, wenn Hilfestellung zur Verfügung steht (z. B. Leitfragen, vorgegebene Teilschritte)"}},
+    {"id": "programmieren.algorithmen", "name": "Algorithmen entwickeln und umsetzen", "group": "Programmieren o.ä.", "levels": {
+      "three": "kann Algorithmen auch für komplexe Probleme entwickeln und umsetzen",
+      "two": "kann einfache Algorithmen entwickeln und umsetzen",
+      "one": "kann einfache Algorithmen entwickeln und umsetzen, wenn Hilfestellung zur Verfügung steht (z. B. Codegerüst, Beispielprogramm)"}},
+    {"id": "programmieren.erklaeren", "name": "Algorithmen erklären", "group": "Programmieren o.ä.", "levels": {
+      "three": "erklärt Algorithmen sicher und nachvollziehbar",
+      "two": "kann einfache Algorithmen erklären",
+      "one": "kann einfache Algorithmen erklären, wenn Hilfestellung zur Verfügung steht (z. B. Satzanfänge, Ablaufdiagramm)"}},
+
+    {"id": "lernvoraussetzung.motivation", "name": "Motivation", "group": "Lernvoraussetzungen", "levels": {
+      "three": "geht neuen Aufgaben interessiert und mit eigenem Antrieb nach, bleibt auch bei Schwierigkeiten dran und setzt sich eigene Lernziele",
+      "two": "lässt sich überwiegend auf neue Aufgaben ein und bleibt nach Ermutigung bei Schwierigkeiten dran; greift angebotene Ziele auf",
+      "one": "lässt sich auf Aufgaben ein, wenn ein persönlicher Bezug oder eine kurze Zielvereinbarung zur Verfügung steht (z. B. Wahlaufgabe, Interessensbezug, Zwischenziel)"}},
+    {"id": "lernvoraussetzung.vorwissen", "name": "fachliches Vorwissen", "group": "Lernvoraussetzungen", "levels": {
+      "three": "verfügt sicher über das Vorwissen vorangegangener Lernabschnitte und verknüpft es selbstständig mit neuen Inhalten",
+      "two": "verfügt über wesentliches Vorwissen und verknüpft es nach Anregung mit neuen Inhalten",
+      "one": "greift auf grundlegendes Vorwissen zurück und verknüpft es mit neuen Inhalten, wenn Erinnerungshilfen zur Verfügung stehen (z. B. Merkblatt, Wiederholungsaufgabe, Beispiel)"}},
+    {"id": "lernvoraussetzung.auffassungsgabe", "name": "Auffassungsgabe", "group": "Lernvoraussetzungen", "levels": {
+      "three": "erfasst neue Inhalte und Zusammenhänge schnell und sicher und überträgt sie selbstständig auf neue Aufgaben",
+      "two": "erfasst neue Inhalte in der Regel nach einer Erklärung und überträgt sie auf ähnliche Aufgaben",
+      "one": "erfasst neue Inhalte schrittweise und wendet sie auf gleichartige Aufgaben an, wenn zusätzliche Erklärungen zur Verfügung stehen (z. B. Musteraufgabe, Visualisierung, Wiederholung)"}},
+    {"id": "lernvoraussetzung.kognitive_geschwindigkeit", "name": "kognitive Geschwindigkeit", "group": "Lernvoraussetzungen", "levels": {
+      "three": "bearbeitet Denkaufgaben zügig und sicher und behält auch bei mehreren Teilschritten den Überblick",
+      "two": "bearbeitet Denkaufgaben überwiegend in angemessenem Tempo und behält bei überschaubaren Teilschritten den Überblick",
+      "one": "bearbeitet Denkaufgaben vollständig, wenn ausreichend Zeit und eine Gliederung zur Verfügung stehen (z. B. Zeitzugabe, Teilschritte, reduzierte Aufgabenmenge)"}}
+  ]
+}

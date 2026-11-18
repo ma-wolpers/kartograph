@@ -77,6 +77,29 @@ sollte möglichst nur in einem Symbol stehen. Bekannte Überschneidung:
 Ein deutsches Substantiv oder eine kurze Substantivgruppe
 („Beteiligung“, „Umgang mit Material“).
 
+## Kompetenzen (atomar)
+
+Seit 2026-11-18 stehen die Stufentexte der Diagnosesymbole nicht mehr im
+Symbol, sondern in atomaren Kompetenzen:
+`app/infrastructure/default_competences.json` (einzige Quelle, Felder `id`,
+`name`, `group`, `levels` mit `one`/`two`/`three`). Ein Diagnosesymbol
+verknüpft eine oder mehrere Kompetenzen; die Legende zeigt deren Text zur
+gesetzten Stufe.
+
+- **Eine Kompetenz = ein Teilaspekt** aus Regel 4. Die Regeln 1–3 gelten je
+  Kompetenz und Stufe; „parallele Teilaspekte“ ergeben sich jetzt daraus, dass
+  ein Symbol mehrere Kompetenzen verknüpft.
+- **Abgrenzung (Regel 5):** Ein Teilaspekt steht genau in einer Kompetenz.
+  Statt Text zu doppeln, verknüpfen mehrere Symbole dieselbe Kompetenz – oder
+  keines (z. B. „aktiv zuhören“, bewusst weder bei Interaktion noch bei
+  Konzentration voreingestellt).
+- **`id` nie ändern** (ASCII, `gruppe.teilaspekt`); sie ist die Identität im
+  Katalog-Abgleich. Name, Gruppe und Texte dürfen überarbeitet werden.
+- `group` ordnet die Auswahl im Dialog (meist das frühere Bündel bzw.
+  „Lernvoraussetzungen“).
+- `tests/test_default_catalog_integrity.py` prüft IDs, drei Stufen und die
+  Satzform (klein, ohne Schlusspunkt).
+
 ## Doku-Symbole: Formulierungsregeln
 
 Kurz und zählend, gestuft nach Häufigkeit:
