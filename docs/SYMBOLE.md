@@ -147,8 +147,6 @@ Kurz und zählend, gestuft nach Häufigkeit:
 - Kompetenztexte und Verknüpfungen dürfen frei überarbeitet werden. Bestehende
   lokale Arbeitskopien übernehmen solche Änderungen allerdings nicht
   automatisch, weil vorhandene Einträge nie überschrieben werden.
-- Alte Arbeitskopien (`meaning` und eigene Legende je Diagnosesymbol) stellt
-  `app/infrastructure/symbol_catalog_migration.py` beim Start einmalig um:
-  unveränderte frühere Standardtexte (erkannt über
-  `legacy_legend_hashes.py`) werden durch die Standard-Kompetenzen ersetzt,
-  selbst geänderte als lokale Kompetenz `local.<symbol>` übernommen.
+- Arbeitskopien im alten Format (`meaning` und eigene Legende je
+  Diagnosesymbol) werden nicht mehr umgestellt; der Loader fällt dann auf die
+  Standards zurück. Die Umstellung lief einmalig (2026-11-18/19).

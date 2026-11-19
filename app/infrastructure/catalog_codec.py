@@ -101,7 +101,7 @@ def symbol_from_item(item: object) -> SymbolDefinition | None:
     """Liest einen Symbol-Eintrag; ``None`` bei fehlendem Schlüssel/Codepoint oder fehlenden Doku-Texten.
 
     Args:
-        item: Roh-Eintrag aus ``symbols.json`` (nach der Migration, s. ``symbol_catalog_migration``).
+        item: Roh-Eintrag aus ``symbols.json``.
     """
     if not isinstance(item, dict):
         return None

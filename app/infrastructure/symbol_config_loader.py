@@ -4,10 +4,12 @@ Einziger Einstieg: :func:`load_catalog`. Ablauf:
 
 1. beide Arbeitskopien laden, reparieren und um neue Standardeinträge ergänzen
    (gemeinsame Regel in ``catalog_working_copy.py``);
-2. alte Symbol-Einträge migrieren (``symbol_catalog_migration.py``);
-3. geänderte Dateien schreiben — Kompetenzen zuerst, weil migrierte Symbole auf
-   neu angelegte lokale Kompetenzen verweisen können;
-4. beide Listen über ``catalog_codec.py`` (einzige Stelle des JSON-Formats) parsen.
+2. geänderte Dateien schreiben — Kompetenzen zuerst, weil Symbole auf sie verweisen;
+3. beide Listen über ``catalog_codec.py`` (einzige Stelle des JSON-Formats) parsen.
+
+Arbeitskopien im Format vor 2026-11-18 (``meaning`` + eigene Legende je
+Diagnosesymbol) werden nicht mehr umgestellt; ihre Einträge sind ungültig, und
+die Datei fällt auf die Standards zurück (mit Hinweis).
 
 Formulierungsregeln für Kompetenzen und die Checkliste für neue Symbole:
 ``docs/SYMBOLE.md``.
@@ -25,11 +27,9 @@ from app.infrastructure.catalog_working_copy import (
     WorkingCopy,
     WorkingCopySpec,
     load_working_copy,
-    read_default_items,
     reset_working_copy,
     write_working_copy,
 )
-from app.infrastructure.symbol_catalog_migration import migrate_symbol_items
 
 DEFAULT_SYMBOLS_PATH = Path(__file__).with_name("default_symbols.json")
 """Einzige Quelle der eingebauten Symbole (reine Datendatei, versioniert)."""
@@ -77,7 +77,7 @@ COMPETENCE_SPEC = WorkingCopySpec(
 
 
 def load_catalog(symbols_path: Path, competences_path: Path) -> CatalogContents:
-    """Lädt, repariert, ergänzt und migriert beide Arbeitskopien und parst sie.
+    """Lädt, repariert und ergänzt beide Arbeitskopien und parst sie.
 
     Enthält eine Datei nach dem Parsen keinen einzigen gültigen Eintrag, wird sie
     aus der Standarddatei neu geschrieben — die Anwendung startet nie ganz ohne
@@ -92,15 +92,10 @@ def load_catalog(symbols_path: Path, competences_path: Path) -> CatalogContents:
     """
     competence_copy = load_working_copy(competences_path, COMPETENCE_SPEC)
     symbol_copy = load_working_copy(symbols_path, SYMBOL_SPEC)
-    symbols_migrated, competences_added, adopted = migrate_symbol_items(
-        symbol_copy.items(SYMBOL_SPEC), read_default_items(SYMBOL_SPEC), competence_copy.items(COMPETENCE_SPEC)
-    )
     warnings = competence_copy.warnings + symbol_copy.warnings
-    if adopted:
-        warnings.append("Eigene Legendentexte als Kompetenz übernommen: " + ", ".join(adopted))
-    if competence_copy.dirty or competences_added:
+    if competence_copy.dirty:
         write_working_copy(competences_path, competence_copy.payload, COMPETENCE_SPEC)
-    if symbol_copy.dirty or symbols_migrated:
+    if symbol_copy.dirty:
         write_working_copy(symbols_path, symbol_copy.payload, SYMBOL_SPEC)
     competences = _parse_or_reset(competences_path, competence_copy, COMPETENCE_SPEC, competence_from_item, warnings)
     symbols = _parse_or_reset(symbols_path, symbol_copy, SYMBOL_SPEC, symbol_from_item, warnings)
