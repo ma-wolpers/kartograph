@@ -34,6 +34,14 @@ auf die jeweilige Theme-Vordergrundfarbe passiert danach zur Laufzeit durch
 | tb_export_student_pngs.png      | photo                  |
 | tb_archive_plan.png             | archive                |
 | tb_manage_symbols.png           | tags                   |
+| tb_add_column.png               | column-insert-right    |
+| tb_today.png                    | calendar-event         |
+| tb_weighting.png                | scale                  |
+
+Die letzten drei (2026-11-22) stammen aus `@tabler/icons@2.47.0` (`icons/<name>.svg`,
+jsdelivr) und wurden mit PyMuPDF auf 24x24px mit Alphakanal gerendert
+(`currentColor` -> Schwarz); Abgleich mit `pencil` gegen `tb_rename_plan.png`:
+mittlere Alpha-Abweichung 6,5/255, also nur Kantenglaettung.
 
 ## MIT-Lizenztext (Tabler Icons)
 

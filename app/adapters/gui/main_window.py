@@ -16,6 +16,7 @@ from app.adapters.gui._mixin_details import DetailsMixin
 from app.adapters.gui._mixin_details_buttons import DetailsButtonsMixin
 from app.adapters.gui._mixin_details_layout import DetailsLayoutMixin
 from app.adapters.gui._mixin_docs_clipboard import DocsClipboardMixin
+from app.adapters.gui._mixin_docs_column_actions import DocsColumnActionsMixin
 from app.adapters.gui._mixin_docs_dialogs import DocsDialogsMixin
 from app.adapters.gui._mixin_docs_edit import DocsEditMixin
 from app.adapters.gui._mixin_docs_events import DocsEventsMixin
@@ -104,6 +105,7 @@ class KartographMainWindow(
     EditMixin,
     DocsEditMixin,
     DocsClipboardMixin,
+    DocsColumnActionsMixin,
     PlanCrudMixin,
     PlanListMixin,
     PlanSaveMixin,

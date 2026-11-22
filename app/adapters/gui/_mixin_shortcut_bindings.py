@@ -151,19 +151,18 @@ class ShortcutBindingsMixin:
         ib(_k("D"), intent=UiIntent.ADD_SYMBOL, binding_id="desk.add_symbol", modes=_P)
 
     def _bind_docs_shortcuts(self) -> None:
-        """Datenansicht-Kürzel: Note, Symbol, Löschen, Datumsnavigation, Spalten."""
+        """Datenansicht-Kürzel: Zelle bearbeiten/leeren, Datumsnavigation, Spaltenaktionen nach Auswahl."""
         b, ib = self._bind_runtime_shortcut, self._intent_binding
-        b(_k("Ctrl+G"), self._on_set_grade_shortcut, binding_id="docs.grade", intent=UiIntent.DOCS_GRADE, modes=_P)
-        b(_k("Ctrl+Shift+S"), self._on_set_symbol_shortcut, binding_id="docs.symbol", intent=UiIntent.DOCS_SYMBOL, modes=_P)
+        # Strg+G und Strg+Umschalt+S (früher "Note setzen"/"Symbol setzen") = Enter auf der Zelle.
+        ib([_k("Ctrl+G"), _k("Ctrl+Shift+S")], intent=UiIntent.DOCS_EDIT_CELL, binding_id="docs.edit_cell", modes=_P)
         b(_k("Ctrl+Delete"), self._on_clear_symbol_shortcut, binding_id="docs.clear", intent=UiIntent.DOCS_CLEAR, modes=_P)
         b(_k("Ctrl+Backspace"), self._on_clear_symbol_shortcut, binding_id="docs.clear.backspace", intent=UiIntent.DOCS_CLEAR_BACKSPACE, modes=_P)
-        b(_k("Ctrl+H"), self._on_docs_today_shortcut, binding_id="docs.today", intent=UiIntent.DOCS_TODAY, modes=_P)
+        ib(_k("Ctrl+H"), intent=UiIntent.DOCS_TODAY, binding_id="docs.today", modes=_P)
         b(_k("Alt+Left (tolerate: Shift)"), self._on_docs_prev_date_shortcut, binding_id="docs.prev", intent=UiIntent.DOCS_PREV, modes=_P)
         b(_k("Alt+Right (tolerate: Shift)"), self._on_docs_next_date_shortcut, binding_id="docs.next", intent=UiIntent.DOCS_NEXT, modes=_P)
-        ib(_k("Ctrl+Shift+U"), intent=UiIntent.RENAME_DOCUMENTATION_DATE, binding_id="docs.date.rename", modes=_P)
-        ib(_k("Ctrl+Shift+Backspace"), intent=UiIntent.DELETE_DOCUMENTATION_DATE, binding_id="docs.date.delete", modes=_P)
-        ib(_k("Ctrl+Shift+N"), intent=UiIntent.ADD_GRADE_COLUMN, binding_id="docs.grade_column.add", modes=_P)
-        ib(_k("Ctrl+Shift+Delete"), intent=UiIntent.DELETE_GRADE_COLUMN, binding_id="docs.grade_column.delete", modes=_P)
+        ib(_k("Ctrl+Shift+N"), intent=UiIntent.DOCS_COLUMN_ADD, binding_id="docs.column.add", modes=_P)
+        ib(_k("Ctrl+Shift+U"), intent=UiIntent.DOCS_COLUMN_RENAME, binding_id="docs.column.rename", modes=_P)
+        ib([_k("Ctrl+Shift+Delete"), _k("Ctrl+Shift+Backspace")], intent=UiIntent.DOCS_COLUMN_DELETE, binding_id="docs.column.delete", modes=_P)
 
     def _bind_symbol_color_participation_shortcuts(self) -> None:
         """Einbuchstaben-Kürzel für Symbole (eingebaut + eigene), Farbpunkte und Mitarbeit.

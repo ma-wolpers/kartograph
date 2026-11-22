@@ -14,7 +14,13 @@ from __future__ import annotations
 
 from typing import Callable, Iterable
 
-from app.adapters.gui.main_window_constants import CLIPBOARD_INTENTS, DOCS_INTENT_AREAS, GRID_ONLY_INTENTS, LIST_ACTIVE
+from app.adapters.gui.main_window_constants import (
+    CLIPBOARD_INTENTS,
+    DOCS_COLUMN_ACTIONS,
+    DOCS_INTENT_AREAS,
+    GRID_ONLY_INTENTS,
+    LIST_ACTIVE,
+)
 from app.adapters.gui.ui_intents import UiIntent
 from app.application.shortcut_scope import is_preview_shortcut_scope
 from app.core.intents.view_intents import SetEditorSurfaceIntent, ToggleEditorSurfaceIntent
@@ -72,10 +78,10 @@ class ShortcutMixin:
             UiIntent.VIEW_GRID: lambda: self._controller.dispatch(SetEditorSurfaceIntent(surface="grid")),
             UiIntent.VIEW_DOCUMENTATION: lambda: self._controller.dispatch(SetEditorSurfaceIntent(surface="documentation")),
             UiIntent.TOGGLE_DOCUMENTATION: lambda: self._controller.dispatch(ToggleEditorSurfaceIntent()),
-            UiIntent.RENAME_DOCUMENTATION_DATE: lambda: self.rename_selected_documentation_date_dialog(),
-            UiIntent.DELETE_DOCUMENTATION_DATE: lambda: self.delete_selected_documentation_date_dialog(),
-            UiIntent.ADD_GRADE_COLUMN: lambda: self.add_grade_column_dialog(),
-            UiIntent.DELETE_GRADE_COLUMN: lambda: self.delete_grade_column_dialog(),
+            **{intent: (lambda a=action: self._run_docs_column_action(a)) for intent, action in DOCS_COLUMN_ACTIONS.items()},
+            UiIntent.DOCS_EDIT_CELL: lambda: self._activate_selected_docs_cell(),
+            UiIntent.DOCS_TODAY: lambda: self.select_today_documentation_date(),
+            UiIntent.DOCS_WEIGHTING: lambda: self.configure_grade_weighting_dialog(),
             UiIntent.TOGGLE_THEME: lambda: self.toggle_theme(),
             UiIntent.EXPORT_PDF: lambda: self.export_plan_pdf_dialog(),
             UiIntent.EXPORT_NAMENFIT_CSV: lambda: self.export_plan_namenfit_csv_dialog(),
@@ -180,10 +186,11 @@ class ShortcutMixin:
         if intent in CLIPBOARD_INTENTS and not (self._shortcut_scope_allows("grid") or self._shortcut_scope_allows("docs")):
             self._record_laufkern_intent_dispatch(intent, success=False)
             return None
-        docs_area = DOCS_INTENT_AREAS.get(intent)
-        if docs_area is not None and (not self._shortcut_scope_allows("docs") or self._report_hidden_area(docs_area)):
-            self._record_laufkern_intent_dispatch(intent, success=False)
-            return None
+        if intent in DOCS_INTENT_AREAS:
+            docs_area = DOCS_INTENT_AREAS[intent]
+            if not self._shortcut_scope_allows("docs") or (docs_area is not None and self._report_hidden_area(docs_area)):
+                self._record_laufkern_intent_dispatch(intent, success=False)
+                return None
 
         handler = self._ui_action_registry.get(intent)
         try:

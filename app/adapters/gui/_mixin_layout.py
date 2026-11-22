@@ -7,6 +7,8 @@ Widgets werden in ``_mixin_layout_docs.py`` ergänzt.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from app.adapters.gui._local_keys import ENTER, bind_action, widget_keys
 from app.adapters.gui.toolbar_icon_styler import ToolbarIconStyler
 from app.adapters.gui.ui_intents import UiIntent
@@ -43,7 +45,7 @@ class LayoutMixin:
         self,
         widget: ui.Widget,
         *,
-        label: str,
+        label: str | Callable[[], str],
         intent: str | tuple[str, ...] | None = None,
         shortcut: KeySpec | str | None = None,
     ) -> None:
@@ -55,18 +57,24 @@ class LayoutMixin:
 
         Args:
             widget: Ziel-Widget.
-            label: Anzeigename der Aktion.
+            label: Anzeigename der Aktion -- oder eine Funktion, die ihn bei jedem
+                Anzeigen liefert (Knöpfe, deren Aktion von der Auswahl abhängt).
             intent: Intent der Registry-Bindung; mehrere zeigen ihre Tasten als Alternativen.
             shortcut: Taste einer dialog-/widgetlokalen Bindung (``_local_keys.ENTER``)
                 oder eines Datenkürzels (Symbolbuchstabe).
         """
+        current_label = label if callable(label) else (lambda: label)
         provider = None
-        text = compose_shared_hover_text(label, shortcut)
+        text = "" if callable(label) else compose_shared_hover_text(label, shortcut)
         if intent is not None:
             text = ""
 
             def provider() -> str:
-                return compose_hover_text_for_intent(label, intent=intent, shortcuts=self._runtime_shortcuts)
+                return compose_hover_text_for_intent(current_label(), intent=intent, shortcuts=self._runtime_shortcuts)
+        elif callable(label):
+
+            def provider() -> str:
+                return compose_shared_hover_text(current_label(), shortcut)
 
         existing = getattr(widget, "_bw_hover_tooltip", None)
         if existing is not None:
@@ -86,7 +94,7 @@ class LayoutMixin:
         icon_key: str,
         icon: str,
         intent: str,
-        label: str,
+        label: str | Callable[[], str],
         shortcut_intent: str | None = None,
         side: str = "left",
         padx=(0, 8),
@@ -106,7 +114,8 @@ class LayoutMixin:
                 ``width`` sonst deutlich mehr Platz, als ein einzelnes
                 Zeichen braucht.
             intent: Ausgelöster UiIntent; zugleich Quelle der Taste in der Hover-Hilfe.
-            label: Beschriftung der Aktion für die Hover-Hilfe.
+            label: Beschriftung der Aktion für die Hover-Hilfe (oder Funktion, die sie
+                beim Anzeigen liefert, s. ``_attach_hover_help``).
             shortcut_intent: Intent der Tastenbindung, falls sie nicht *intent* auslöst,
                 sondern eine kontextabhängige Taste (Enter/Entf/Esc über ``GLOBAL_*``).
             side: Pack-Seite (``"left"`` oder ``"right"``).
@@ -122,7 +131,7 @@ class LayoutMixin:
 
         button = self._toolbar_icons.create_button(parent, icon_key, command)
         if button is None:
-            caption = icon.strip() or label
+            caption = icon.strip() or (label() if callable(label) else label)
             button = tui.Button(parent, text=caption, command=command, width=2)
         button.pack(side=side, padx=padx)
         if bind_editor_return:

@@ -37,6 +37,11 @@ _ICON_FILE_BY_KEY: dict[str, str] = {
     "symbol_filter": "tb_symbol_filter.png",
     "zoom_out": "tb_zoom_out.png",
     "zoom_in": "tb_zoom_in.png",
+    "docs_column_add": "tb_add_column.png",
+    "docs_column_rename": "tb_rename_plan.png",
+    "docs_column_delete": "tb_delete.png",
+    "docs_today": "tb_today.png",
+    "docs_weighting": "tb_weighting.png",
 }
 
 

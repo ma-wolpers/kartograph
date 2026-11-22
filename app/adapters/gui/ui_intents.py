@@ -29,10 +29,12 @@ class UiIntent:
     VIEW_GRID = "view.grid"
     VIEW_DOCUMENTATION = "view.documentation"
     TOGGLE_DOCUMENTATION = "view.documentation.toggle"
-    RENAME_DOCUMENTATION_DATE = "view.documentation.date.rename"
-    DELETE_DOCUMENTATION_DATE = "view.documentation.date.delete"
-    ADD_GRADE_COLUMN = "view.documentation.grade_column.add"
-    DELETE_GRADE_COLUMN = "view.documentation.grade_column.delete"
+    # Spaltenaktionen der Datenansicht: was gemeint ist, entscheidet die ausgewählte Zelle
+    # (docs_column_actions); Zuordnung Intent -> Aktion: main_window_constants.DOCS_COLUMN_ACTIONS.
+    DOCS_COLUMN_ADD = "docs.column.add"
+    DOCS_COLUMN_RENAME = "docs.column.rename"
+    DOCS_COLUMN_DELETE = "docs.column.delete"
+    DOCS_WEIGHTING = "docs.weighting"
     TOGGLE_THEME = "theme.toggle"
     EXPORT_PDF = "export.pdf"
     EXPORT_NAMENFIT_CSV = "export.namenfit_csv"
@@ -48,8 +50,7 @@ class UiIntent:
     EXPAND_LEFT = "selection.expand_left"
     EXPAND_RIGHT = "selection.expand_right"
 
-    DOCS_GRADE = "docs.grade"
-    DOCS_SYMBOL = "docs.symbol"
+    DOCS_EDIT_CELL = "docs.edit_cell"
     SYMBOL_SHORTCUT = "desk.symbol_shortcut"
     COLOR_SHORTCUT = "desk.color_shortcut"
     PARTICIPATION_RATING = "desk.participation_rating"

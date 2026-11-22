@@ -229,9 +229,8 @@ _SHOWN_KEYS = {
     UiIntent.GLOBAL_DELETE: "Entf", UiIntent.GLOBAL_RETURN: "Enter", UiIntent.ESCAPE: "Esc", UiIntent.ADD_SYMBOL: "D",
     UiIntent.OPEN_TABLEGROUP_SETTINGS: "Strg+T", UiIntent.SET_TEACHER_DESK: "Strg+Enter",
     UiIntent.GRID_SYMBOL_FILTER: "Strg+F", UiIntent.ZOOM_OUT: "Strg+-", UiIntent.ZOOM_IN: "Strg++",
-    UiIntent.RENAME_DOCUMENTATION_DATE: "Strg+Shift+U", UiIntent.DELETE_DOCUMENTATION_DATE: "Strg+Shift+Rücktaste",
-    UiIntent.DOCS_TODAY: "Strg+H", UiIntent.ADD_GRADE_COLUMN: "Strg+Shift+N",
-    UiIntent.DELETE_GRADE_COLUMN: "Strg+Shift+Entf", UiIntent.DOCS_SYMBOL: "Strg+Shift+S", UiIntent.DOCS_GRADE: "Strg+G",
+    UiIntent.DOCS_COLUMN_RENAME: "Strg+Shift+U", UiIntent.DOCS_COLUMN_DELETE: "Strg+Shift+Entf",
+    UiIntent.DOCS_TODAY: "Strg+H", UiIntent.DOCS_COLUMN_ADD: "Strg+Shift+N", UiIntent.DOCS_EDIT_CELL: "Strg+G",
 }
 
 

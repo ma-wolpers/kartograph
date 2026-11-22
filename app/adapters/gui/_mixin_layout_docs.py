@@ -1,7 +1,7 @@
 """Docs-Panel-Layout-Mixin für das Kartograph-Hauptfenster.
 
-Stellt die Widget-Bausteine der Datenansicht bereit: Toolbar (Aktionsbuttons
-aus der Tabelle ``_DOCS_TOOLBAR``), Bereichsleiste (Schalter Doku / Notizen /
+Stellt die Widget-Bausteine der Datenansicht bereit: Symbol-Toolbar (Tabelle
+``_DOCS_TOOLBAR``; Spaltenknöpfe wirken auf die Spalte der ausgewählten Zelle), Bereichsleiste (Schalter Doku / Notizen /
 Noten, ``DataAreasMixin``) mit Status-Label und die Datentabelle als bw-gui
 ``DataGrid``. Welche Region ein Bereich belegt, leitet ``regions_by_area`` aus
 den angezeigten Bereichen ab.
@@ -9,10 +9,8 @@ den angezeigten Bereichen ab.
 
 from __future__ import annotations
 
-from typing import Callable
-
 from app.adapters.gui._local_keys import widget_keys
-from app.adapters.gui.main_window_constants import DOCS_INTENT_AREAS
+from app.adapters.gui.main_window_constants import DOCS_COLUMN_ACTIONS, DOCS_INTENT_AREAS
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.domain.data_view_areas import DataArea
 from app.core.domain.grade_scale import GRADE_INPUT_START_CHARACTERS
@@ -48,32 +46,20 @@ def regions_by_area(areas: tuple[DataArea, ...]) -> dict[DataArea, Region]:
     return dict(zip(areas, _REGIONS_LEFT_TO_RIGHT))
 
 
-_ToolbarAction = tuple[str, Callable[..., object], str, "str | tuple[str, ...] | None", "DataArea | None"]
-# (Beschriftung, Aktion(fenster), Hover-Text, Intent für den Kürzel-Hinweis, Bereich oder None = immer aktiv)
-_DOCS_TOOLBAR: tuple[_ToolbarAction, ...] = (
-    ("Zur Rasteransicht", lambda w: w._handle_intent(UiIntent.VIEW_GRID), "Zur Rasteransicht wechseln",
-     UiIntent.TOGGLE_DOCUMENTATION, None),
-    ("Datum umbenennen", lambda w: w._handle_intent(UiIntent.RENAME_DOCUMENTATION_DATE), "Ausgewaehltes Datum umbenennen",
-     UiIntent.RENAME_DOCUMENTATION_DATE, DOCS_INTENT_AREAS[UiIntent.RENAME_DOCUMENTATION_DATE]),
-    ("Datum loeschen", lambda w: w._handle_intent(UiIntent.DELETE_DOCUMENTATION_DATE),
-     "Ausgewaehltes Datum inkl. Eintraegen loeschen", UiIntent.DELETE_DOCUMENTATION_DATE,
-     DOCS_INTENT_AREAS[UiIntent.DELETE_DOCUMENTATION_DATE]),
-    ("Heute", lambda w: w.select_today_documentation_date(), "Auf heutiges Datum springen", UiIntent.DOCS_TODAY, DataArea.DOKU),
-    ("Notenspalte hinzufuegen", lambda w: w._handle_intent(UiIntent.ADD_GRADE_COLUMN), "Neue Notenspalte anlegen",
-     UiIntent.ADD_GRADE_COLUMN, DOCS_INTENT_AREAS[UiIntent.ADD_GRADE_COLUMN]),
-    ("Notenspalte loeschen", lambda w: w._handle_intent(UiIntent.DELETE_GRADE_COLUMN), "Ausgewaehlte Notenspalte loeschen",
-     UiIntent.DELETE_GRADE_COLUMN, DOCS_INTENT_AREAS[UiIntent.DELETE_GRADE_COLUMN]),
-    ("Gewichtung", lambda w: w.configure_grade_weighting_dialog(), "Gewichtung konfigurieren", None, DataArea.NOTEN),
-    ("Symbol setzen", lambda w: w.set_selected_documentation_symbol_dialog(), "Dokumentationssymbol setzen",
-     UiIntent.DOCS_SYMBOL, DataArea.DOKU),
-    ("Symbol loeschen", lambda w: w.clear_selected_documentation_symbol(), "Dokumentationssymbol loeschen",
-     (UiIntent.DOCS_CLEAR, UiIntent.DOCS_CLEAR_BACKSPACE), DataArea.DOKU),
-    ("Note setzen", lambda w: w.set_selected_documentation_grade_dialog(), "Note setzen", UiIntent.DOCS_GRADE, DataArea.NOTEN),
-    ("Notizspalte hinzufuegen", lambda w: w.add_note_column_dialog(), "Neue Notiz- oder Ja/Nein-Spalte anlegen",
-     None, DataArea.NOTIZEN),
-    ("Notizspalte loeschen", lambda w: w.delete_note_column_dialog(), "Ausgewaehlte Notiz- oder Ja/Nein-Spalte loeschen",
-     None, DataArea.NOTIZEN),
+# (Symbolschlüssel in toolbar_icon_styler, Ersatzzeichen ohne PNG, Hover-Text, Intent). Hover-Text
+# ``None``: Spaltenaktion -- der Text kommt bei jedem Anzeigen aus der Auswahl (docs_column_actions).
+# Bereich (Ausgrauen) und Aktion stehen nicht hier, sondern in DOCS_INTENT_AREAS / DOCS_COLUMN_ACTIONS.
+# Zellen bearbeiten/leeren hat bewusst keinen Knopf: Enter/Doppelklick bzw. Entf (Nutzerin 2026-11-22).
+_DOCS_TOOLBAR: tuple[tuple[str, str, str | None, str], ...] = (
+    ("toggle_documentation", "⌗", "Zur Rasteransicht wechseln", UiIntent.TOGGLE_DOCUMENTATION),
+    ("docs_column_add", "＋", None, UiIntent.DOCS_COLUMN_ADD),
+    ("docs_column_rename", "✎", None, UiIntent.DOCS_COLUMN_RENAME),
+    ("docs_column_delete", "⌫", None, UiIntent.DOCS_COLUMN_DELETE),
+    ("docs_today", "◷", "Auf heutiges Datum springen", UiIntent.DOCS_TODAY),
+    ("docs_weighting", "⚖", "Gewichtung der Noten einstellen", UiIntent.DOCS_WEIGHTING),
 )
+_GROUP_STARTS = (UiIntent.DOCS_COLUMN_ADD, UiIntent.DOCS_TODAY)
+"""Erster Knopf einer Gruppe bekommt mehr Abstand: Ansicht | Spalten | Doku/Noten."""
 
 
 class LayoutDocsMixin:
@@ -86,20 +72,29 @@ class LayoutDocsMixin:
         self._build_docs_tree_widgets()
 
     def _build_docs_toolbar_widgets(self) -> None:
-        """Erstellt die Toolbar aus ``_DOCS_TOOLBAR`` und darunter die Bereichsleiste mit Statuslabel.
+        """Erstellt die Symbol-Toolbar aus ``_DOCS_TOOLBAR`` und darunter die Bereichsleiste mit Statuslabel.
 
-        Jeder Knopf merkt sich seinen Bereich (``self._docs_area_buttons``);
-        ``_sync_data_area_controls`` graut Knöpfe ausgeblendeter Bereiche aus.
+        Dieselben Symbolknöpfe wie in der Tischansicht (``_create_toolbar_shortcut_button``).
+        Knöpfe mit festem Bereich merkt sich ``self._docs_area_buttons``
+        (``_sync_data_area_controls`` graut sie bei ausgeblendetem Bereich aus);
+        Spaltenknöpfe ``self._docs_column_buttons`` (``_sync_docs_column_buttons``
+        graut sie je nach ausgewählter Zelle aus, ihr Hover-Text folgt der Auswahl).
         """
         self.docs_toolbar = tui.Frame(self.docs_container)
         self.docs_toolbar.pack(fill="x", padx=12, pady=(0, 4))
         self._docs_area_buttons: list[tuple[DataArea, object]] = []
-        for index, (text, action, hover, intent, area) in enumerate(_DOCS_TOOLBAR):
-            button = tui.Button(self.docs_toolbar, text=text, command=lambda a=action: a(self))
-            button.pack(side="left", padx=(0 if index == 0 else 8, 0))
-            self._attach_hover_help(button, label=hover, **({"intent": intent} if intent is not None else {}))
-            if area is not None:
-                self._docs_area_buttons.append((area, button))
+        self._docs_column_buttons: dict[str, object] = {}
+        for index, (icon_key, glyph, hover, intent) in enumerate(_DOCS_TOOLBAR):
+            action = DOCS_COLUMN_ACTIONS.get(intent)
+            label = hover if action is None else (lambda a=action: self._docs_column_action_label(a))
+            button = self._create_toolbar_shortcut_button(
+                self.docs_toolbar, icon_key=icon_key, icon=glyph, intent=intent, label=label,
+                padx=(0 if index == 0 else 16 if intent in _GROUP_STARTS else 8, 0),
+            )
+            if action is not None:
+                self._docs_column_buttons[action] = button
+            if DOCS_INTENT_AREAS.get(intent) is not None:
+                self._docs_area_buttons.append((DOCS_INTENT_AREAS[intent], button))
 
         area_bar = tui.Frame(self.docs_container)
         area_bar.pack(fill="x", padx=12, pady=(0, 8))

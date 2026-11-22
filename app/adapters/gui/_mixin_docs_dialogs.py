@@ -1,13 +1,14 @@
 """Docs-Dialog-Mixin für das Kartograph-Hauptfenster (v4 intent-basiert).
 
-Stellt Dialoge für Datum umbenennen, Notenspalte löschen, Notenerfassung und
-Symbol-Auswahl bereit. Notenspalte anlegen und Gewichtung liegen in
-``_mixin_grade_dialogs.py``.
+Stellt Dialoge für Datum hinzufügen/ändern/löschen (eine Datumsabfrage
+``_ask_documentation_date``), Notenspalte löschen und Symbol-Auswahl bereit.
+Notenspalte anlegen und Gewichtung liegen in ``_mixin_grade_dialogs.py``; welcher
+Dialog zu „Spalte hinzufügen/umbenennen/löschen“ gehört, entscheidet
+``_mixin_docs_column_actions.py``.
 """
 
 from __future__ import annotations
 
-from app.adapters.gui.docs_table_model import grade_column_id, grade_column_key
 from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys, widget_keys
 from app.adapters.gui.dialog_services import messagebox, simpledialog
 from app.adapters.gui.main_window_constants import SPACE_SHORTCUT
@@ -15,7 +16,7 @@ from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import GradeColumn
 from app.core.intents.grade_intents import DeleteGradeColumnIntent
 from app.core.domain.note_column_kinds import format_date_value, parse_date_input
-from app.core.intents.session_intents import DeleteSessionIntent, RenameSessionIntent
+from app.core.intents.session_intents import AddSessionIntent, DeleteSessionIntent, RenameSessionIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -66,6 +67,14 @@ class DocsDialogsMixin:
         new_date = self._ask_documentation_date("Datum ändern", old_date)
         if new_date is not None and new_date != old_date:
             self._controller.dispatch(RenameSessionIntent(old_date=old_date, new_date=new_date))
+
+    def add_documentation_date_dialog(self) -> None:
+        """Legt einen Dokumentationstermin an (vorbelegt: heute) und wählt ihn aus (ein Undo-Schritt)."""
+        if not self.current_plan or not self.current_plan_path:
+            return
+        new_date = self._ask_documentation_date("Datum hinzufügen", self._today_doc_date())
+        if new_date is not None:
+            self._controller.dispatch(AddSessionIntent(date=new_date))
 
     def delete_selected_documentation_date_dialog(self) -> None:
         """Löscht den aktuell ausgewählten Dokumentations-Termin (Session) nach Bestätigung (v4).
@@ -120,75 +129,6 @@ class DocsDialogsMixin:
         self._controller.dispatch(DeleteSessionIntent(date=target_date))
         self.status_var.set(f"Dokumentationstermin '{target_date}' gelöscht")
 
-    def delete_grade_column_dialog(self) -> None:
-        """Löscht eine Notenspalte nach Bestätigung (v4).
-
-        Bestimmt die Zielspalte in derselben Reihenfolge wie
-        ``set_selected_documentation_grade_dialog``: zuerst die aktuell
-        markierte feste Spalte (``_doc_selected_nondate_column_id``), sonst —
-        falls genau eine Notenspalte existiert — diese. Gibt es mehrere
-        Notenspalten ohne eindeutige Markierung, öffnet sich eine
-        Auswahlliste; die Bestätigung erfolgt erst danach in
-        ``_confirm_and_delete_grade_column``. Das Löschen selbst entfernt via
-        ``DeleteGradeColumnIntent`` auch alle bereits erfassten Noten dieser
-        Spalte aus allen Sessions (s. ``_delete_grade_column`` in
-        ``grade_handlers.py``).
-        """
-        if not self.current_plan or not self.current_plan_path:
-            return
-        grade_columns = self.current_plan.documentation.grade_columns
-        if not grade_columns:
-            messagebox.showinfo("Keine Notenspalten", "Es gibt keine Notenspalte zum Löschen.", parent=self)
-            return
-
-        column: GradeColumn | None = None
-        raw_id = grade_column_id(self._doc_selected_nondate_column_id)
-        for item in grade_columns:
-            if item.column_id == raw_id:
-                column = item
-                break
-        if column is None and len(grade_columns) == 1:
-            column = grade_columns[0]
-
-        if column is not None:
-            self._confirm_and_delete_grade_column(column)
-            return
-
-        self._open_grade_column_picker_dialog(grade_columns)
-
-    def _open_grade_column_picker_dialog(self, grade_columns: list[GradeColumn]) -> None:
-        """Öffnet eine Auswahlliste, wenn keine Notenspalte eindeutig vorausgewählt ist.
-
-        Args:
-            grade_columns: Alle Notenspalten des aktuellen Plans (mindestens zwei).
-        """
-        dialog = self._create_overlay_dialog("Notenspalte löschen", "320x320")
-        frame = tui.Frame(dialog)
-        frame.pack(fill="both", expand=True, padx=12, pady=12)
-        tui.Label(frame, text="Zu löschende Notenspalte auswählen").pack(anchor="w", pady=(0, 6))
-
-        listbox = ui.Listbox(frame, selectmode="browse", exportselection=False)
-        listbox.pack(fill="both", expand=True)
-        for col in grade_columns:
-            listbox.insert(ui.END, f"{col.title} ({col.category})")
-        listbox_selection.set(listbox, [0])
-        self._focus_overlay_widget(dialog, listbox)
-
-        def confirm() -> None:
-            selected = listbox.curselection()
-            if not selected:
-                return
-            chosen = grade_columns[int(selected[0])]
-            dialog.destroy()
-            self._confirm_and_delete_grade_column(chosen)
-
-        bind_click(listbox, lambda _event: confirm(), count=2)
-        bind_action(widget_keys(listbox), ENTER, confirm, binding_id="list.confirm")
-        button_row = tui.Frame(frame)
-        button_row.pack(fill="x", pady=(8, 0))
-        tui.Button(button_row, text="Weiter", command=confirm).pack(side="right")
-        tui.Button(button_row, text="Abbrechen", command=dialog.destroy).pack(side="right", padx=(0, 8))
-
     def _confirm_and_delete_grade_column(self, column: GradeColumn) -> None:
         """Fragt vor dem Löschen einer Notenspalte explizit nach Bestätigung.
 
@@ -207,37 +147,6 @@ class DocsDialogsMixin:
             return
         self._controller.dispatch(DeleteGradeColumnIntent(column_id=column.column_id))
         self.status_var.set(f"Notenspalte '{column.title}' gelöscht")
-
-    def set_selected_documentation_grade_dialog(self, selected_column_id: str | None = None) -> None:
-        """Öffnet den Inline-Editor für die ausgewählte Noten-Spalte.
-
-        Args:
-            selected_column_id: Wenn angegeben, wird diese Spalte bevorzugt; sonst
-                wird die aktuell ausgewählte feste Spalte oder die erste Notenspalte genommen.
-        """
-        if not self.current_plan or not self._doc_student_coords:
-            return
-        grade_columns = self.current_plan.documentation.grade_columns
-        if not grade_columns:
-            messagebox.showinfo("Keine Notenspalten", "Bitte zuerst eine Notenspalte hinzufügen.", parent=self)
-            return
-        column = None
-        if selected_column_id:
-            for item in grade_columns:
-                if item.column_id == selected_column_id:
-                    column = item
-                    break
-        if column is None:
-            raw_id = grade_column_id(self._doc_selected_nondate_column_id)
-            for item in grade_columns:
-                if item.column_id == raw_id:
-                    column = item
-                    break
-            if column is None:
-                column = grade_columns[0]
-        self._select_doc_nondate_column(grade_column_key(column.column_id))
-        self._refresh_doc_selection_status()
-        self._activate_selected_docs_cell()
 
     def set_selected_documentation_symbol_dialog(self) -> None:
         """Öffnet einen Dialog zur Symbolauswahl für die aktuelle Doku-Zelle (v4).

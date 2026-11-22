@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from typing import Literal
 
+from app.adapters.gui.docs_column_actions import ColumnAction
 from app.adapters.gui.ui_intents import UiIntent
 from app.core.domain.data_view_areas import DataArea
 from app.core.domain.custom_symbol_validation import SPACE_SHORTCUT  # noqa: F401 -- re-export für GUI-Mixins
@@ -97,12 +98,22 @@ CLIPBOARD_INTENTS = {
 
 # Einzige Zuordnung Datenansicht-Intent -> Bereich, in dem er wirkt: nur in der Datenansicht
 # erlaubt und nur, solange sein Bereich eingeblendet ist (_handle_intent); die Toolbar liest
-# die Bereiche ihrer Knöpfe ebenfalls hier ab.
-DOCS_INTENT_AREAS: dict[str, DataArea] = {
-    UiIntent.RENAME_DOCUMENTATION_DATE: DataArea.DOKU,
-    UiIntent.DELETE_DOCUMENTATION_DATE: DataArea.DOKU,
-    UiIntent.ADD_GRADE_COLUMN: DataArea.NOTEN,
-    UiIntent.DELETE_GRADE_COLUMN: DataArea.NOTEN,
+# die Bereiche ihrer Knöpfe ebenfalls hier ab. ``None`` = Bereich der ausgewählten Zelle
+# (liegt immer in einem sichtbaren Bereich).
+DOCS_INTENT_AREAS: dict[str, DataArea | None] = {
+    UiIntent.DOCS_TODAY: DataArea.DOKU,
+    UiIntent.DOCS_WEIGHTING: DataArea.NOTEN,
+    UiIntent.DOCS_EDIT_CELL: None,
+    UiIntent.DOCS_COLUMN_ADD: None,
+    UiIntent.DOCS_COLUMN_RENAME: None,
+    UiIntent.DOCS_COLUMN_DELETE: None,
+}
+
+# Einzige Zuordnung Spaltenaktions-Intent -> Aktion (Aktionsregister und Toolbar lesen hier).
+DOCS_COLUMN_ACTIONS: dict[str, ColumnAction] = {
+    UiIntent.DOCS_COLUMN_ADD: "add",
+    UiIntent.DOCS_COLUMN_RENAME: "rename",
+    UiIntent.DOCS_COLUMN_DELETE: "delete",
 }
 
 

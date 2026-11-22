@@ -16,6 +16,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.adapters.gui._mixin_data_areas import DataAreasMixin
+from app.adapters.gui._mixin_docs_column_actions import DocsColumnActionsMixin
 from app.adapters.gui._mixin_docs_edit import DocsEditMixin
 from app.adapters.gui._mixin_docs_events import DocsEventsMixin
 from app.adapters.gui._mixin_docs_nav import DocsNavMixin
@@ -38,7 +39,10 @@ from bw_gui.widgets.data_grid import Region
 TODAY = "2026-01-01"
 
 
-class _DocsHost(tk.Frame, LayoutDocsMixin, DataAreasMixin, NotesAreaMixin, DocsTableMixin, DocsEventsMixin, DocsNavMixin, DocsViewMixin, DocsEditMixin):
+class _DocsHost(
+    tk.Frame, LayoutDocsMixin, DataAreasMixin, NotesAreaMixin, DocsColumnActionsMixin, DocsTableMixin, DocsEventsMixin,
+    DocsNavMixin, DocsViewMixin, DocsEditMixin,
+):
     """Schlanker Host: echte Doku-Tabelle + Doku-Mixins, ohne restliches Hauptfenster."""
 
     def __init__(self, root: tk.Tk, plan) -> None:

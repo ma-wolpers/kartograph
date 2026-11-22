@@ -41,8 +41,9 @@ def _disabled(widget) -> bool:
     return widget.instate(["disabled"])
 
 
-def _button(app, text: str):
-    return next(button for _area, button in app._docs_area_buttons if button.cget("text") == text)
+def _area_button(app, area: DataArea):
+    """Symbolknopf mit festem Bereich (Doku: Heute, Noten: Gewichtung)."""
+    return next(button for button_area, button in app._docs_area_buttons if button_area is area)
 
 
 def test_default_shows_doku_and_grades_and_greys_out_notes(window):
@@ -60,7 +61,7 @@ def test_hiding_doku_moves_grades_to_the_middle_and_keeps_an_active_column(windo
     assert app.docs_grid.shown_regions == (Region.LEFT, Region.SCROLL)
     assert app.docs_grid.region_of_column(app._doc_axis.first_selectable_in(DataArea.NOTEN)) is Region.SCROLL
     assert not _disabled(app._data_area_switches[DataArea.NOTIZEN])
-    assert _disabled(_button(app, "Datum umbenennen")) and not _disabled(_button(app, "Note setzen"))
+    assert _disabled(_area_button(app, DataArea.DOKU)) and not _disabled(_area_button(app, DataArea.NOTEN))
     assert app._doc_axis.has(app._doc_active_column_key())
 
 
@@ -94,9 +95,8 @@ def test_actions_of_a_hidden_area_are_blocked_with_a_hint(window):
     _toggle(app, DataArea.DOKU)
     assert app._doc_action_target("Symbole") is None
     assert "Doku" in app.status_var.get() and "ausgeblendet" in app.status_var.get()
-    sessions_before = list(app.current_plan.documentation.sessions)
-    assert app._handle_intent(UiIntent.DELETE_DOCUMENTATION_DATE) is None
-    assert app.current_plan.documentation.sessions == sessions_before
+    assert app._handle_intent(UiIntent.DOCS_TODAY) is None
+    assert app._doc_axis.area_of(app._doc_active_column_key()) is not DataArea.DOKU
 
 
 @pytest.fixture

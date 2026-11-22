@@ -20,7 +20,7 @@ class DocsNavMixin:
     """Mixin: Doku-Cursor-Abgleich, Spaltenauswahl und Inline-Editor-Verwaltung (v4)."""
 
     def _sync_docs_cursor(self) -> None:
-        """Einziger Abgleich Auswahl → Doku-Tabelle: Zeile, aktive Spalte, Sichtbarkeit, Statuszeile.
+        """Einziger Abgleich Auswahl → Doku-Tabelle: Zeile, aktive Spalte, Sichtbarkeit, Statuszeile, Spaltenknöpfe.
 
         Ersetzt das frühere Zell-Overlay, das Neusetzen aller Spaltenköpfe und
         den Auswahl-Abgleich über drei Treeviews: das Grid verschiebt nur sein
@@ -34,6 +34,7 @@ class DocsNavMixin:
         if row_id is not None:
             self.docs_grid.see(row_id, key)
         self._refresh_doc_selection_status()
+        self._sync_docs_column_buttons()
 
     def _close_docs_inline_editor(self, apply_changes: bool = False, *, keep_open_on_invalid: bool = False) -> bool:
         """Schließt den Inline-Editor und trägt ggf. den Wert in das beim Öffnen festgelegte Ziel ein.
@@ -104,7 +105,7 @@ class DocsNavMixin:
         selected_iid = self._doc_row_id_by_student_index.get(self._doc_selected_student_index)
         if selected_iid is None:
             return False
-        return self._activate_docs_cell(selected_iid, self._doc_selected_nondate_column_id, initial_text)
+        return self._activate_docs_cell(selected_iid, self._doc_active_column_key(), initial_text)
 
     def _activate_docs_cell(self, row_id: str, column_key: str | None, initial_text: str | None = None) -> bool:
         """Einzige Regel, was "auf einer Zelle handeln" heißt (Enter, Doppelklick, Tippen).
@@ -112,7 +113,12 @@ class DocsNavMixin:
         - Note oder eigene Notizspalte: Inline-Editor (mit *initial_text* als Inhalt, falls getippt).
         - Allgemeine Notizen: mehrzeiliger Notizdialog (nicht beim Tippen).
         - Ja/Nein: Markierung umschalten (nicht beim Tippen -- Ziffern bleiben Fenster-Kürzel).
+        - Datum: Symboldialog für den Tageseintrag (nicht beim Tippen -- Buchstaben
+          setzen dort direkt Symbole).
         - Sonst: nichts.
+
+        Einen eigenen Knopf „Zelle bearbeiten“ gibt es bewusst nicht (Entscheidung
+        der Nutzerin 2026-11-22); Strg+G und Strg+Umschalt+S lösen dasselbe aus.
 
         Args:
             row_id: Zeilen-ID (Schüler-ID als String).
@@ -131,6 +137,9 @@ class DocsNavMixin:
             return self.edit_docs_general_notes_dialog(row_id)
         if kind == "flag":
             return self._toggle_docs_flag(row_id, flag_key_of(column_key))
+        if kind == "date":
+            self.set_selected_documentation_symbol_dialog()
+            return True
         return False
 
     def _doc_active_column_key(self) -> str | None:

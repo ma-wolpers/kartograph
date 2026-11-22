@@ -54,28 +54,6 @@ class ShortcutHandlersMixin:
             return EventResult.HANDLED
         return self._handle_intent(UiIntent.DELETE_DESK)
 
-    def _on_set_grade_shortcut(self, _event) -> EventResult | None:
-        """Handler für Ctrl+G: Noten-Inline-Editor in der Docs-Ansicht öffnen.
-
-        Args:
-            _event: bw-gui-``KeyEvent`` (unbenutzt).
-        """
-        if not self._shortcut_scope_allows("docs"):
-            return None
-        self.set_selected_documentation_grade_dialog()
-        return EventResult.HANDLED
-
-    def _on_set_symbol_shortcut(self, _event) -> EventResult | None:
-        """Handler für Ctrl+Shift+S: Symbol-Dialog in der Docs-Ansicht öffnen.
-
-        Args:
-            _event: bw-gui-``KeyEvent`` (unbenutzt).
-        """
-        if not self._shortcut_scope_allows("docs"):
-            return None
-        self.set_selected_documentation_symbol_dialog()
-        return EventResult.HANDLED
-
     def _on_clear_symbol_shortcut(self, _event) -> EventResult | None:
         """Handler für Ctrl+Entf / Ctrl+Backspace: Symbol der Doku-Zelle löschen.
 
@@ -113,15 +91,4 @@ class ShortcutHandlersMixin:
             return EventResult.HANDLED
         self._select_doc_nondate_column(None)
         self._controller.dispatch(NavigateSessionIntent(direction="next"))
-        return EventResult.HANDLED
-
-    def _on_docs_today_shortcut(self, _event) -> EventResult | None:
-        """Handler für Ctrl+H: heutiges Datum in der Docs-Ansicht ansteuern.
-
-        Args:
-            _event: bw-gui-``KeyEvent`` (unbenutzt).
-        """
-        if not self._shortcut_scope_allows("docs"):
-            return None
-        self.select_today_documentation_date()
         return EventResult.HANDLED

@@ -100,6 +100,7 @@ class DataAreasMixin:
             self._data_area_switches[area].state(["!disabled"] if can_enable(area, visible) else ["disabled"])
         for area, button in self._docs_area_buttons:
             button.state(["!disabled"] if area in visible else ["disabled"])
+        self._sync_docs_column_buttons()
 
     def _doc_area_at(self, region: Region) -> DataArea | None:
         """Bereich, der gerade in der Grid-Region *region* steht (``None``: Region leer).
