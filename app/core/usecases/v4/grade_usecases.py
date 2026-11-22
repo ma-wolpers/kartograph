@@ -79,6 +79,30 @@ def add_grade_column(
     return next_plan, column_id
 
 
+def rename_grade_column(plan: SeatingPlan, column_id: str, title: str) -> SeatingPlan:
+    """Gibt der Notenspalte *column_id* einen neuen Titel (Kategorie, Faktor und Noten bleiben).
+
+    Args:
+        plan: Ausgangsplan.
+        column_id: ID der Spalte; unbekannt = Plan unverändert.
+        title: Neuer Titel (außen getrimmt).
+
+    Returns:
+        Neuer Plan.
+
+    Raises:
+        ValueError: Leerer Titel.
+    """
+    clean_title = str(title or "").strip()
+    if not clean_title:
+        raise ValueError("Der Titel darf nicht leer sein")
+    next_plan = deepcopy(plan)
+    for column in next_plan.documentation.grade_columns:
+        if column.column_id == column_id:
+            column.title = clean_title
+    return next_plan
+
+
 def record_grade(
     plan: SeatingPlan,
     student_id: StudentId,

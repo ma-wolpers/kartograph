@@ -11,6 +11,7 @@ from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
     DeleteGradeColumnIntent,
     RecordGradeIntent,
+    RenameGradeColumnIntent,
     ResolveGradeConflictsIntent,
     SetGradeScaleIntent,
     UpdateGradeWeightingIntent,
@@ -19,6 +20,7 @@ from app.core.usecases.v4.grade_scale_usecases import set_grade_scale
 from app.core.usecases.v4.grade_usecases import (
     add_grade_column,
     record_grade,
+    rename_grade_column,
     resolve_grade_conflicts,
     set_grade_weighting,
 )
@@ -53,6 +55,22 @@ def handle_add_grade_column(intent: AddGradeColumnIntent, state: AppState, ctx: 
         _commit_plan_change(state, ctx, next_plan),
         doc_selected_column_id=_column_id or state.doc_selected_column_id,
     )
+
+
+@requires_open_plan
+def handle_rename_grade_column(intent: RenameGradeColumnIntent, state: AppState, ctx: HandlerContext) -> AppState:
+    """Benennt eine Notenspalte um (ein Undo-Schritt); ein leerer Titel wird abgelehnt.
+
+    Args:
+        intent: ID der Spalte und neuer Titel.
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository, History).
+    """
+    try:
+        next_plan = rename_grade_column(state.current_plan, intent.column_id, intent.title)
+    except ValueError as error:
+        return dataclasses.replace(state, status_message=str(error))
+    return _commit_plan_change(state, ctx, next_plan, status=f"Notenspalte heißt jetzt „{intent.title.strip()}“")
 
 
 @requires_open_plan

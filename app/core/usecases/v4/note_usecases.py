@@ -69,6 +69,30 @@ def add_note_column(plan: SeatingPlan, title: str, kind: str) -> tuple[SeatingPl
     return next_plan, column_id
 
 
+def rename_note_column(plan: SeatingPlan, column_id: str, title: str) -> SeatingPlan:
+    """Gibt der Notizspalte *column_id* einen neuen Titel (Typ und Werte bleiben).
+
+    Args:
+        plan: Ausgangsplan.
+        column_id: ID der Spalte; unbekannt = Plan unverändert.
+        title: Neuer Titel (außen getrimmt).
+
+    Returns:
+        Neuer Plan.
+
+    Raises:
+        ValueError: Leerer Titel.
+    """
+    clean_title = str(title or "").strip()
+    if not clean_title:
+        raise ValueError("Der Titel darf nicht leer sein")
+    next_plan = deepcopy(plan)
+    for column in next_plan.note_columns:
+        if column.column_id == column_id:
+            column.title = clean_title
+    return next_plan
+
+
 def delete_note_column(plan: SeatingPlan, column_id: str) -> SeatingPlan:
     """Löscht eine Notizspalte samt den Werten aller Personen.
 

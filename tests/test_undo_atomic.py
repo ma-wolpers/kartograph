@@ -9,9 +9,11 @@ from __future__ import annotations
 import pytest
 
 from app.application.app_state import AppState
-from app.application.handlers.note_handlers import handle_set_notes
+from app.application.handlers.color_handlers import handle_set_palette_meaning
+from app.application.handlers.note_handlers import handle_add_note_column, handle_rename_note_column, handle_set_notes
 from app.application.handlers.edit_handlers import handle_redo, handle_undo
-from app.application.handlers.grade_handlers import handle_record_grade
+from app.application.handlers.grade_handlers import handle_record_grade, handle_rename_grade_column
+from app.application.handlers.session_handlers import handle_rename_session
 from app.application.handlers.student_handlers import (
     handle_delete_students,
     handle_rename_student,
@@ -21,9 +23,11 @@ from app.application.handlers.symbol_handlers import (
     handle_record_documentation_symbol,
     handle_toggle_diagnostic_symbol,
 )
-from app.core.intents.note_intents import SetNotesIntent
+from app.core.intents.color_intents import SetPaletteMeaningIntent
+from app.core.intents.note_intents import AddNoteColumnIntent, RenameNoteColumnIntent, SetNotesIntent
 from app.core.intents.edit_intents import RedoIntent, UndoIntent
-from app.core.intents.grade_intents import RecordGradeIntent
+from app.core.intents.grade_intents import RecordGradeIntent, RenameGradeColumnIntent
+from app.core.intents.session_intents import RenameSessionIntent
 from app.core.intents.student_intents import DeleteStudentsIntent, RenameStudentIntent, SetNicknameIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent, ToggleDiagnosticSymbolIntent
 from app.core.usecases.v4.grade_usecases import add_grade_column
@@ -181,6 +185,48 @@ def test_notes_changes_outside_typing_are_separate_steps(setup):
     state = _undo(state, ctx)
 
     assert state.current_plan.student_by_id(first).diagnostic.notes == ["Zeit"]
+
+
+def test_renaming_a_grade_column_is_one_step_and_rejects_empty_titles(setup):
+    ctx, state, _, _, column_id = setup
+    state = handle_rename_grade_column(RenameGradeColumnIntent(column_id=column_id, title=" Test 1 "), state, ctx)
+    assert state.current_plan.documentation.grade_columns[0].title == "Test 1"
+    rejected = handle_rename_grade_column(RenameGradeColumnIntent(column_id=column_id, title="  "), state, ctx)
+    assert rejected.current_plan is state.current_plan and "leer" in rejected.status_message
+    state = _undo(state, ctx)
+    assert state.current_plan.documentation.grade_columns[0].title == "Arbeit"
+
+
+def test_renaming_note_and_flag_columns_are_single_steps(setup):
+    ctx, state, _, _, _ = setup
+    state = handle_add_note_column(AddNoteColumnIntent(title="Punkte", kind="number"), state, ctx)
+    column_id = state.current_plan.note_columns[0].column_id
+    state = handle_rename_note_column(RenameNoteColumnIntent(column_id=column_id, title="Bonus"), state, ctx)
+    state = handle_set_palette_meaning(SetPaletteMeaningIntent(color_key="rot", meaning="Material"), state, ctx)
+    assert state.current_plan.color_palette["rot"].meaning == "Material"
+    assert handle_set_palette_meaning(SetPaletteMeaningIntent("rot", " "), state, ctx).current_plan is state.current_plan
+    state = _undo(state, ctx)
+    assert "rot" not in state.current_plan.color_palette
+    assert state.current_plan.note_columns[0].title == "Bonus"
+    state = _undo(state, ctx)
+    assert state.current_plan.note_columns[0].title == "Punkte"
+
+
+def test_moving_a_date_is_one_step_and_moves_the_entries(setup):
+    ctx, state, first, _, _ = setup
+    state = _symbol(state, ctx, first)
+    state = handle_rename_session(RenameSessionIntent(old_date=DATE, new_date="2025-09-03"), state, ctx)
+    assert state.current_plan.documentation.session_for_date(DATE) is None
+    assert state.current_plan.documentation.session_for_date("2025-09-03").entry_for(first) is not None
+    assert state.doc_selected_date == "2025-09-03"
+    state = _undo(state, ctx)
+    assert _doc_strength(state, first) == 1
+
+
+def test_moving_a_date_without_session_creates_the_new_one(setup):
+    ctx, state, _, _, _ = setup
+    state = handle_rename_session(RenameSessionIntent(old_date="2025-09-10", new_date="2025-09-11"), state, ctx)
+    assert state.current_plan.documentation.session_for_date("2025-09-11") is not None
 
 
 def test_undo_and_redo_replace_a_pending_delayed_save(setup):

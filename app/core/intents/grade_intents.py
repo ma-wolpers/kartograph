@@ -24,6 +24,14 @@ class DeleteGradeColumnIntent(Intent):
 
 
 @dataclass(frozen=True)
+class RenameGradeColumnIntent(Intent):
+    """Gibt der Notenspalte *column_id* den Titel *title* (leer wird abgelehnt)."""
+
+    column_id: str
+    title: str
+
+
+@dataclass(frozen=True)
 class RecordGradeIntent(Intent):
     """Trägt für einen Schüler in Spalte *column_id* den Wert *grade* ein (None = löschen).
 

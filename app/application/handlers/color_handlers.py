@@ -7,8 +7,13 @@ import dataclasses
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import _commit_plan_change, requires_open_plan
-from app.core.intents.color_intents import AddFlagColumnIntent, DeleteFlagColumnIntent, ToggleColorIntent
-from app.core.usecases.v4.color_usecases import add_flag_column, delete_flag_column, toggle_color_tag
+from app.core.intents.color_intents import (
+    AddFlagColumnIntent,
+    DeleteFlagColumnIntent,
+    SetPaletteMeaningIntent,
+    ToggleColorIntent,
+)
+from app.core.usecases.v4.color_usecases import add_flag_column, delete_flag_column, set_palette_meaning, toggle_color_tag
 
 
 @requires_open_plan
@@ -38,6 +43,21 @@ def handle_add_flag_column(intent: AddFlagColumnIntent, state: AppState, ctx: Ha
     except ValueError:
         return dataclasses.replace(state, status_message="Diese Farbe ist schon vergeben")
     return _commit_plan_change(state, ctx, next_plan, status=f"Ja/Nein-Spalte „{intent.title.strip()}“ angelegt")
+
+
+@requires_open_plan
+def handle_set_palette_meaning(intent: SetPaletteMeaningIntent, state: AppState, ctx: HandlerContext) -> AppState:
+    """Benennt eine Ja/Nein-Spalte um, d. h. setzt die Bedeutung ihrer Farbe (ein Undo-Schritt).
+
+    Args:
+        intent: Farbschlüssel und neue Bedeutung (leer wird abgelehnt).
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository, History).
+    """
+    if not intent.meaning.strip():
+        return dataclasses.replace(state, status_message="Die Bedeutung darf nicht leer sein")
+    next_plan = set_palette_meaning(state.current_plan, intent.color_key, intent.meaning)
+    return _commit_plan_change(state, ctx, next_plan, status=f"Ja/Nein-Spalte heißt jetzt „{intent.meaning.strip()}“")
 
 
 @requires_open_plan

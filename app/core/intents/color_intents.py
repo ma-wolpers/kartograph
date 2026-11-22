@@ -23,6 +23,14 @@ class AddFlagColumnIntent(Intent):
 
 
 @dataclass(frozen=True)
+class SetPaletteMeaningIntent(Intent):
+    """Setzt die Bedeutung von *color_key* (= Titel der Ja/Nein-Spalte); leer wird abgelehnt."""
+
+    color_key: str
+    meaning: str
+
+
+@dataclass(frozen=True)
 class DeleteFlagColumnIntent(Intent):
     """Löscht eine Ja/Nein-Spalte samt allen Markierungen."""
 

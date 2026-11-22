@@ -16,6 +16,14 @@ class AddSessionIntent(Intent):
 
 
 @dataclass(frozen=True)
+class RenameSessionIntent(Intent):
+    """Verlegt den Dokumentationstermin *old_date* auf *new_date* (YYYY-MM-DD; Einträge wandern mit)."""
+
+    old_date: str
+    new_date: str
+
+
+@dataclass(frozen=True)
 class DeleteSessionIntent(Intent):
     """Löscht den Dokumentationstermin *date* inkl. aller darin erfassten Symbole, Noten und Notizen."""
 

@@ -29,10 +29,16 @@ from app.core.intents.base import Intent
 from app.application.handlers.note_handlers import (
     handle_add_note_column,
     handle_delete_note_column,
+    handle_rename_note_column,
     handle_set_note_value,
     handle_set_notes,
 )
-from app.application.handlers.color_handlers import handle_add_flag_column, handle_delete_flag_column, handle_toggle_color
+from app.application.handlers.color_handlers import (
+    handle_add_flag_column,
+    handle_delete_flag_column,
+    handle_set_palette_meaning,
+    handle_toggle_color,
+)
 from app.application.handlers.tablegroup_handlers import handle_apply_tablegroup_settings
 from app.application.handlers.catalog_handlers import (
     handle_add_catalog_symbol,
@@ -60,6 +66,7 @@ from app.application.handlers.submission_handlers import (
 from app.application.handlers.grade_handlers import (
     handle_add_grade_column,
     handle_delete_grade_column,
+    handle_rename_grade_column,
     handle_record_grade,
     handle_resolve_grade_conflicts,
     handle_set_grade_scale,
@@ -89,6 +96,7 @@ from app.application.handlers.session_handlers import (
     handle_add_session,
     handle_clear_doc_entry,
     handle_delete_session,
+    handle_rename_session,
     handle_go_to_today,
     handle_navigate_session,
     handle_set_doc_entry,
@@ -122,8 +130,14 @@ from app.application.handlers.view_handlers import (
 )
 
 # --- Intent-Imports ---------------------------------------------------------
-from app.core.intents.note_intents import AddNoteColumnIntent, DeleteNoteColumnIntent, SetNotesIntent, SetNoteValueIntent
-from app.core.intents.color_intents import AddFlagColumnIntent, DeleteFlagColumnIntent, ToggleColorIntent
+from app.core.intents.note_intents import (
+    AddNoteColumnIntent,
+    DeleteNoteColumnIntent,
+    RenameNoteColumnIntent,
+    SetNotesIntent,
+    SetNoteValueIntent,
+)
+from app.core.intents.color_intents import AddFlagColumnIntent, DeleteFlagColumnIntent, SetPaletteMeaningIntent, ToggleColorIntent
 from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
 from app.core.intents.catalog_intents import (
     AddCatalogSymbolIntent,
@@ -148,6 +162,7 @@ from app.core.intents.submission_intents import ApplyMissingSubmissionsIntent, S
 from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
     DeleteGradeColumnIntent,
+    RenameGradeColumnIntent,
     RecordGradeIntent,
     ResolveGradeConflictsIntent,
     SetGradeScaleIntent,
@@ -178,6 +193,7 @@ from app.core.intents.session_intents import (
     AddSessionIntent,
     ClearDocEntryIntent,
     DeleteSessionIntent,
+    RenameSessionIntent,
     GoToTodayIntent,
     NavigateSessionIntent,
     SetDocEntryIntent,
@@ -420,6 +436,7 @@ class KartographAppController:
         r.register(ToggleColorIntent, lambda i, s: handle_toggle_color(i, s, ctx))
         r.register(AddFlagColumnIntent, lambda i, s: handle_add_flag_column(i, s, ctx))
         r.register(DeleteFlagColumnIntent, lambda i, s: handle_delete_flag_column(i, s, ctx))
+        r.register(SetPaletteMeaningIntent, lambda i, s: handle_set_palette_meaning(i, s, ctx))
         r.register(ApplyTablegroupSettingsIntent, lambda i, s: handle_apply_tablegroup_settings(i, s, ctx))
 
         # Custom Symbol
@@ -437,6 +454,7 @@ class KartographAppController:
         r.register(SetNotesIntent, lambda i, s: handle_set_notes(i, s, ctx))
         r.register(AddNoteColumnIntent, lambda i, s: handle_add_note_column(i, s, ctx))
         r.register(DeleteNoteColumnIntent, lambda i, s: handle_delete_note_column(i, s, ctx))
+        r.register(RenameNoteColumnIntent, lambda i, s: handle_rename_note_column(i, s, ctx))
         r.register(SetNoteValueIntent, lambda i, s: handle_set_note_value(i, s, ctx))
 
         # Snapshot
@@ -448,6 +466,7 @@ class KartographAppController:
         # Grade
         r.register(AddGradeColumnIntent,       lambda i, s: handle_add_grade_column(i, s, ctx))
         r.register(DeleteGradeColumnIntent,    lambda i, s: handle_delete_grade_column(i, s, ctx))
+        r.register(RenameGradeColumnIntent,    lambda i, s: handle_rename_grade_column(i, s, ctx))
         r.register(RecordGradeIntent,          lambda i, s: handle_record_grade(i, s, ctx))
         r.register(ResolveGradeConflictsIntent, lambda i, s: handle_resolve_grade_conflicts(i, s, ctx))
         r.register(UpdateGradeWeightingIntent, lambda i, s: handle_update_grade_weighting(i, s, ctx))
@@ -460,6 +479,7 @@ class KartographAppController:
         # Session
         r.register(AddSessionIntent,         lambda i, s: handle_add_session(i, s, ctx))
         r.register(DeleteSessionIntent,      lambda i, s: handle_delete_session(i, s, ctx))
+        r.register(RenameSessionIntent,      lambda i, s: handle_rename_session(i, s, ctx))
         r.register(NavigateSessionIntent,    lambda i, s: handle_navigate_session(i, s, ctx))
         r.register(GoToTodayIntent,          lambda i, s: handle_go_to_today(i, s, ctx))
         r.register(ClearDocEntryIntent,      lambda i, s: handle_clear_doc_entry(i, s, ctx))

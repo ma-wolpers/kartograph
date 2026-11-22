@@ -6,7 +6,13 @@ via ``KartographAppController.dispatch(intent)`` verarbeitet.
 
 from app.core.intents.base import Intent
 
-from app.core.intents.note_intents import AddNoteColumnIntent, DeleteNoteColumnIntent, SetNotesIntent, SetNoteValueIntent
+from app.core.intents.note_intents import (
+    AddNoteColumnIntent,
+    DeleteNoteColumnIntent,
+    RenameNoteColumnIntent,
+    SetNotesIntent,
+    SetNoteValueIntent,
+)
 from app.core.intents.snapshot_intents import (
     CreateSnapshotIntent,
     DeleteSnapshotIntent,
@@ -35,7 +41,7 @@ from app.core.intents.symbol_intents import (
     RecordDocumentationSymbolIntent,
 )
 from app.core.intents.participation_intents import SetParticipationRatingIntent
-from app.core.intents.color_intents import AddFlagColumnIntent, DeleteFlagColumnIntent, ToggleColorIntent
+from app.core.intents.color_intents import AddFlagColumnIntent, DeleteFlagColumnIntent, SetPaletteMeaningIntent, ToggleColorIntent
 from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
 from app.core.intents.catalog_intents import (
     AddCatalogSymbolIntent,
@@ -53,6 +59,7 @@ from app.core.intents.submission_intents import ApplyMissingSubmissionsIntent, S
 from app.core.intents.grade_intents import (
     AddGradeColumnIntent,
     DeleteGradeColumnIntent,
+    RenameGradeColumnIntent,
     RecordGradeIntent,
     ResolveGradeConflictsIntent,
     SetGradeScaleIntent,
@@ -61,6 +68,7 @@ from app.core.intents.grade_intents import (
 from app.core.intents.session_intents import (
     AddSessionIntent,
     DeleteSessionIntent,
+    RenameSessionIntent,
     NavigateSessionIntent,
     GoToTodayIntent,
     ClearDocEntryIntent,
@@ -98,6 +106,7 @@ __all__ = [
     "SetNotesIntent",
     "AddNoteColumnIntent",
     "DeleteNoteColumnIntent",
+    "RenameNoteColumnIntent",
     "SetNoteValueIntent",
     # Snapshot
     "CreateSnapshotIntent",
@@ -128,6 +137,7 @@ __all__ = [
     "ToggleColorIntent",
     "AddFlagColumnIntent",
     "DeleteFlagColumnIntent",
+    "SetPaletteMeaningIntent",
     "ApplyTablegroupSettingsIntent",
     "AddCustomSymbolIntent",
     "UpdateCustomSymbolIntent",
@@ -141,6 +151,7 @@ __all__ = [
     # Grade
     "AddGradeColumnIntent",
     "DeleteGradeColumnIntent",
+    "RenameGradeColumnIntent",
     "RecordGradeIntent",
     "ResolveGradeConflictsIntent",
     "SetGradeScaleIntent",
@@ -151,6 +162,7 @@ __all__ = [
     # Session
     "AddSessionIntent",
     "DeleteSessionIntent",
+    "RenameSessionIntent",
     "NavigateSessionIntent",
     "GoToTodayIntent",
     "ClearDocEntryIntent",

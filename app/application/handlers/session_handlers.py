@@ -8,15 +8,17 @@ from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import _commit_plan_change, requires_open_plan
 from app.core.domain.models_v4 import SeatingPlan, SessionEntry
+from app.core.domain.note_column_kinds import format_date_value
 from app.core.intents.session_intents import (
     AddSessionIntent,
     ClearDocEntryIntent,
     DeleteSessionIntent,
     GoToTodayIntent,
     NavigateSessionIntent,
+    RenameSessionIntent,
     SetDocEntryIntent,
 )
-from app.core.usecases.v4.session_usecases import ensure_session, set_entry
+from app.core.usecases.v4.session_usecases import ensure_session, rename_session_date, set_entry
 
 
 def _delete_session(plan: SeatingPlan, target_date: str) -> SeatingPlan:
@@ -46,6 +48,27 @@ def handle_add_session(intent: AddSessionIntent, state: AppState, ctx: HandlerCo
     return dataclasses.replace(
         _commit_plan_change(state, ctx, next_plan),
         doc_selected_date=intent.date,
+    )
+
+
+@requires_open_plan
+def handle_rename_session(intent: RenameSessionIntent, state: AppState, ctx: HandlerContext) -> AppState:
+    """Verlegt einen Dokumentationstermin auf ein anderes Datum (ein Undo-Schritt) und wählt ihn aus.
+
+    Einträge wandern mit; gibt es das Zieldatum schon, werden sie
+    zusammengeführt (``rename_session_date``). Hatte der alte Termin noch keine
+    Session (z. B. die heutige Spalte), entsteht die neue leer -- im selben Schritt.
+
+    Args:
+        intent: Altes und neues Datum (YYYY-MM-DD).
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository, History).
+    """
+    renamed = rename_session_date(state.current_plan, intent.old_date, intent.new_date)
+    next_plan = ensure_session(renamed, intent.new_date)
+    return dataclasses.replace(
+        _commit_plan_change(state, ctx, next_plan, status=f"Termin auf {format_date_value(intent.new_date)} verlegt"),
+        doc_selected_date=intent.new_date,
     )
 
 

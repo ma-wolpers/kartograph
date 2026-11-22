@@ -33,6 +33,14 @@ class AddNoteColumnIntent(Intent):
 
 
 @dataclass(frozen=True)
+class RenameNoteColumnIntent(Intent):
+    """Gibt der Notizspalte *column_id* den Titel *title* (leer wird abgelehnt)."""
+
+    column_id: str
+    title: str
+
+
+@dataclass(frozen=True)
 class DeleteNoteColumnIntent(Intent):
     """Löscht eine eigene Notizspalte samt Werten."""
 

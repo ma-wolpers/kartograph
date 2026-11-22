@@ -7,8 +7,20 @@ import dataclasses
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import _commit_plan_change, requires_open_plan
-from app.core.intents.note_intents import AddNoteColumnIntent, DeleteNoteColumnIntent, SetNotesIntent, SetNoteValueIntent
-from app.core.usecases.v4.note_usecases import add_note_column, delete_note_column, set_note_value, set_notes
+from app.core.intents.note_intents import (
+    AddNoteColumnIntent,
+    DeleteNoteColumnIntent,
+    RenameNoteColumnIntent,
+    SetNotesIntent,
+    SetNoteValueIntent,
+)
+from app.core.usecases.v4.note_usecases import (
+    add_note_column,
+    delete_note_column,
+    rename_note_column,
+    set_note_value,
+    set_notes,
+)
 
 
 @requires_open_plan
@@ -45,6 +57,22 @@ def handle_add_note_column(intent: AddNoteColumnIntent, state: AppState, ctx: Ha
         return dataclasses.replace(state, status_message="Unbekannter Spaltentyp")
     title = next_plan.note_columns[-1].title
     return _commit_plan_change(state, ctx, next_plan, status=f"Notizspalte „{title}“ angelegt")
+
+
+@requires_open_plan
+def handle_rename_note_column(intent: RenameNoteColumnIntent, state: AppState, ctx: HandlerContext) -> AppState:
+    """Benennt eine Notizspalte um (ein Undo-Schritt); ein leerer Titel wird abgelehnt.
+
+    Args:
+        intent: ID der Spalte und neuer Titel.
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository, History).
+    """
+    try:
+        next_plan = rename_note_column(state.current_plan, intent.column_id, intent.title)
+    except ValueError as error:
+        return dataclasses.replace(state, status_message=str(error))
+    return _commit_plan_change(state, ctx, next_plan, status=f"Notizspalte heißt jetzt „{intent.title.strip()}“")
 
 
 @requires_open_plan

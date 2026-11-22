@@ -14,9 +14,9 @@ from app.adapters.gui.main_window_constants import SPACE_SHORTCUT
 from app.core.domain.effective_symbol import resolve_symbol_display
 from app.core.domain.models_v4 import GradeColumn
 from app.core.intents.grade_intents import DeleteGradeColumnIntent
-from app.core.intents.session_intents import AddSessionIntent, DeleteSessionIntent
+from app.core.domain.note_column_kinds import format_date_value, parse_date_input
+from app.core.intents.session_intents import DeleteSessionIntent, RenameSessionIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
-from app.core.usecases.v4.session_usecases import rename_session_date
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -28,30 +28,44 @@ from bw_gui.runtime import widgets as tui
 class DocsDialogsMixin:
     """Mixin: Dokumentations-Dialoge (Datum, Notenspalte löschen, Noten, Symbole) (v4)."""
 
-    def rename_selected_documentation_date_dialog(self) -> None:
-        """Öffnet einen Dialog zum Umbenennen des aktuell ausgewählten Dokumentations-Datums (v4).
+    def _ask_documentation_date(self, title: str, initial_iso: str) -> str | None:
+        """Einzige Datumsabfrage der Datenansicht (hinzufügen, verlegen): TT.MM.JJJJ rein, ISO raus.
 
-        Es gibt kein eigenes Intent für das Umbenennen eines Session-Datums, daher
-        wird der v4-Usecase direkt aufgerufen und das Ergebnis per
-        ``replace_plan_in_state`` in den AppState übernommen (kein History-Eintrag,
-        analog zur Farbpaletten-Bedeutung vor einem Toggle). Das anschliessende
-        Sicherstellen der Session für das neue Datum läuft dagegen über
-        ``AddSessionIntent``/``handle_add_session`` — dafür existiert bereits ein
-        Intent, daher kein direkter Usecase-Aufruf (s. ``ensure_session`` in
-        ``session_usecases.py``).
+        Liest über ``note_column_kinds.parse_date_input`` (dieselbe Regel wie
+        Datums-Notizspalten); ein unlesbares Datum meldet der Dialog unter dem Feld.
+
+        Args:
+            title: Dialogtitel.
+            initial_iso: Vorbelegung als ISO-Datum.
+
+        Returns:
+            Das Datum als ``JJJJ-MM-TT`` oder ``None`` bei Abbruch.
+        """
+
+        def problem(text: str) -> str | None:
+            try:
+                parse_date_input(text)
+            except ValueError:
+                return "Bitte ein Datum wie 03.11.2026 eingeben."
+            return None
+
+        raw = simpledialog.askstring(
+            title, "Datum (TT.MM.JJJJ):", parent=self, initialvalue=format_date_value(initial_iso), validate=problem
+        )
+        return None if raw is None else parse_date_input(raw)
+
+    def rename_selected_documentation_date_dialog(self) -> None:
+        """Verlegt den ausgewählten Dokumentationstermin auf ein anderes Datum (ein Undo-Schritt).
+
+        Über ``RenameSessionIntent``: Einträge wandern mit, ein vorhandenes
+        Zieldatum wird zusammengeführt (``rename_session_date``).
         """
         if not self.current_plan or not self.current_plan_path or not self._doc_dates:
             return
-        old_date = self._doc_dates[self._doc_selected_date_index]
-        new_date = simpledialog.askstring("Datum umbenennen", "Neues Datum (YYYY-MM-DD):", parent=self, initialvalue=old_date)
-        if new_date is None:
-            return
-        renamed_plan = rename_session_date(self.current_plan, old_date, new_date)
-        self._replace_current_plan(renamed_plan)
-        self._controller.dispatch(AddSessionIntent(date=new_date))
-        self.status_var.set("Dokudatum umbenannt")
-        # Nötig: _replace_current_plan löst kein apply_state aus, und AddSession kann ein No-op sein.
-        self._refresh_documentation_table()
+        old_date = self._doc_anchor_date()
+        new_date = self._ask_documentation_date("Datum ändern", old_date)
+        if new_date is not None and new_date != old_date:
+            self._controller.dispatch(RenameSessionIntent(old_date=old_date, new_date=new_date))
 
     def delete_selected_documentation_date_dialog(self) -> None:
         """Löscht den aktuell ausgewählten Dokumentations-Termin (Session) nach Bestätigung (v4).
