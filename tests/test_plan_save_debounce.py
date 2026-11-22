@@ -50,14 +50,14 @@ class TestRecordAndSaveWithoutScheduler:
         plan = make_plan()
         path = PLANS_DIR / "x.json"
 
-        _record_and_save(plan, path, ctx)
+        _record_and_save(plan, path, ctx, previous=None)
 
         assert repo._plans[path] is plan
 
     def test_records_history(self):
         ctx = _make_ctx()
         plan = make_plan()
-        _record_and_save(plan, PLANS_DIR / "x.json", ctx)
+        _record_and_save(plan, PLANS_DIR / "x.json", ctx, previous=None)
         assert ctx.history.undo() is not None or len(ctx.history._states) >= 1
 
 
@@ -72,7 +72,7 @@ class TestRecordAndSaveWithScheduler:
         plan = make_plan()
         path = PLANS_DIR / "x.json"
 
-        _record_and_save(plan, path, ctx)
+        _record_and_save(plan, path, ctx, previous=None)
 
         assert calls == [(plan, path)]
         assert path not in repo._plans  # kein direkter Schreibvorgang übers Repository
@@ -82,7 +82,7 @@ class TestRecordAndSaveWithScheduler:
         ctx.plan_save_scheduler = lambda plan, path: None
         plan = make_plan()
 
-        _record_and_save(plan, PLANS_DIR / "x.json", ctx)
+        _record_and_save(plan, PLANS_DIR / "x.json", ctx, previous=None)
 
         # Nach einem echten Edit muss History mehr als den initialen Zustand halten,
         # d.h. reset() wurde durch record() ersetzt/ergänzt (siehe PlanHistory.record()).
@@ -97,7 +97,7 @@ class TestRecordAndSaveWithScheduler:
 
         plan = make_plan()
         path = PLANS_DIR / "x.json"
-        _record_and_save(plan, path, ctx)
+        _record_and_save(plan, path, ctx, previous=None)
 
         assert repo._plans[path] is plan
 
