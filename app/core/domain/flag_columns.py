@@ -21,7 +21,8 @@ bleibt (``color_usecases.drop_abandoned_palette_entries``).
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from uuid import uuid4
+
+from app.core.domain.short_id import new_short_id
 
 COLORLESS_PREFIX = "flag_"
 
@@ -44,11 +45,7 @@ def new_colorless_key(existing: Iterable[str]) -> str:
     Returns:
         z. B. ``"flag_3fa85f64"``.
     """
-    taken = set(existing)
-    while True:
-        key = f"{COLORLESS_PREFIX}{uuid4().hex[:8]}"
-        if key not in taken:
-            return key
+    return new_short_id(existing, prefix=COLORLESS_PREFIX)
 
 
 def free_color_keys(color_order: Sequence[str], in_use: Iterable[str]) -> list[str]:

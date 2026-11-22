@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import Literal, get_args
 
 from app.core.domain.grade_scale import DEFAULT_SCALE_ID
+from app.core.domain.note_column_kinds import NoteValueKind
 from app.core.domain.student_id import StudentId
 
 GradeCategory = Literal["schriftlich", "sonstig"]
@@ -77,6 +78,8 @@ class DiagnosticProfile:
     symbols: dict[str, int] = field(default_factory=dict)
     color_tags: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    # Werte eigener Notizspalten: column_id -> gespeicherte Form (s. note_column_kinds).
+    note_values: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -193,6 +196,28 @@ class PaletteEntry:
     """
 
     meaning: str = ""
+
+
+@dataclass(slots=True)
+class NoteColumn:
+    """Eigene Notizspalte der Datenansicht (Titel + Zeilentyp).
+
+    Die Werte stehen pro Person in ``DiagnosticProfile.note_values`` (wandern
+    so mit der Person, wie die allgemeinen Notizen); Typregeln in
+    ``note_column_kinds``. Ja/Nein-Spalten sind keine ``NoteColumn``, sondern
+    Farbspalten (``flag_columns``).
+
+    Attributes:
+        column_id: Stabile ID (8 Hex-Zeichen).
+        title: Spaltentitel.
+        kind: Typschlüssel aus ``note_column_kinds.NOTE_VALUE_KINDS``.
+        created_at: Anlagezeitpunkt (ISO), nur informativ.
+    """
+
+    column_id: str
+    title: str
+    kind: NoteValueKind
+    created_at: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -475,6 +500,7 @@ class SeatingPlan:
     color_palette: dict[str, PaletteEntry] = field(default_factory=dict)
     custom_symbols: dict[str, CustomSymbolDefinition] = field(default_factory=dict)
     symbol_overrides: dict[str, SymbolOverride] = field(default_factory=dict)
+    note_columns: list[NoteColumn] = field(default_factory=list)
     documentation: DocumentationBlock = field(default_factory=DocumentationBlock)
     snapshots: list[SeatingSnapshot] = field(default_factory=list)
 

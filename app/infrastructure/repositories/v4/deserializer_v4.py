@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 
+from app.infrastructure.repositories.v4.note_column_codec import deserialize_note_columns, deserialize_note_values
 from app.infrastructure.repositories.v4.symbol_override_codec import deserialize_symbol_overrides
 from app.core.domain.grade_weighting import normalize_factor, normalized_category_percents
 from app.core.domain.models_v4 import (
@@ -77,6 +78,7 @@ def deserialize_plan(payload: dict) -> SeatingPlan:
         color_palette=color_palette,
         custom_symbols=custom_symbols,
         symbol_overrides=deserialize_symbol_overrides(payload.get("symbol_overrides")),
+        note_columns=deserialize_note_columns(payload.get("note_columns")),
         documentation=documentation,
         snapshots=snapshots,
     )
@@ -217,7 +219,9 @@ def _deserialize_diagnostic(raw: dict) -> DiagnosticProfile:
     raw_notes = raw.get("notes", raw.get(LEGACY_NOTES_KEY)) or []
     notes = normalize_note_lines(raw_notes) if isinstance(raw_notes, list) else []
 
-    return DiagnosticProfile(symbols=symbols, color_tags=color_tags, notes=notes)
+    return DiagnosticProfile(
+        symbols=symbols, color_tags=color_tags, notes=notes, note_values=deserialize_note_values(raw.get("note_values"))
+    )
 
 
 # ---------------------------------------------------------------------------

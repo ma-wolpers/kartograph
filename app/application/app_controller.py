@@ -26,7 +26,12 @@ from app.core.domain.settings import KartographSettings
 from app.core.intents.base import Intent
 
 # --- Handler-Imports --------------------------------------------------------
-from app.application.handlers.note_handlers import handle_set_notes
+from app.application.handlers.note_handlers import (
+    handle_add_note_column,
+    handle_delete_note_column,
+    handle_set_note_value,
+    handle_set_notes,
+)
 from app.application.handlers.color_handlers import handle_add_flag_column, handle_delete_flag_column, handle_toggle_color
 from app.application.handlers.tablegroup_handlers import handle_apply_tablegroup_settings
 from app.application.handlers.catalog_handlers import (
@@ -116,7 +121,7 @@ from app.application.handlers.view_handlers import (
 )
 
 # --- Intent-Imports ---------------------------------------------------------
-from app.core.intents.note_intents import SetNotesIntent
+from app.core.intents.note_intents import AddNoteColumnIntent, DeleteNoteColumnIntent, SetNotesIntent, SetNoteValueIntent
 from app.core.intents.color_intents import AddFlagColumnIntent, DeleteFlagColumnIntent, ToggleColorIntent
 from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
 from app.core.intents.catalog_intents import (
@@ -428,6 +433,9 @@ class KartographAppController:
 
         # Notizen
         r.register(SetNotesIntent, lambda i, s: handle_set_notes(i, s, ctx))
+        r.register(AddNoteColumnIntent, lambda i, s: handle_add_note_column(i, s, ctx))
+        r.register(DeleteNoteColumnIntent, lambda i, s: handle_delete_note_column(i, s, ctx))
+        r.register(SetNoteValueIntent, lambda i, s: handle_set_note_value(i, s, ctx))
 
         # Snapshot
         r.register(CreateSnapshotIntent,  lambda i, s: handle_create_snapshot(i, s, ctx))

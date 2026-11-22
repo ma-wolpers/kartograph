@@ -7,6 +7,7 @@ Sessions werden komplett übersprungen.
 
 from __future__ import annotations
 
+from app.infrastructure.repositories.v4.note_column_codec import serialize_note_columns
 from app.infrastructure.repositories.v4.symbol_override_codec import serialize_symbol_overrides
 from app.core.domain.models_v4 import SeatingPlan
 from app.infrastructure.repositories.v4.grade_store_codec import serialize_grade_store
@@ -30,6 +31,7 @@ def serialize_plan(plan: SeatingPlan) -> dict:
         "color_palette": _serialize_color_palette(plan),
         "custom_symbols": _serialize_custom_symbols(plan),
         "symbol_overrides": serialize_symbol_overrides(plan.symbol_overrides),
+        "note_columns": serialize_note_columns(plan.note_columns),
         "documentation": _serialize_documentation(plan),
         "snapshots": _serialize_snapshots(plan),
     }
@@ -82,6 +84,7 @@ def _serialize_student(student) -> dict:
             "symbols": dict(student.diagnostic.symbols),
             "color_tags": list(student.diagnostic.color_tags),
             "notes": list(student.diagnostic.notes),
+            "note_values": dict(student.diagnostic.note_values),
         },
     }
     if student.permanently_absent:  # nur gesetzt geschrieben: Dateien ohne Markierung bleiben unverändert
