@@ -7,9 +7,8 @@ für die Dokumentations-Tabelle bereit.
 
 from __future__ import annotations
 
-from app.adapters.gui.docs_table_model import NACHNAME_KEY, VORNAME_KEY, grade_column_id
-from app.core.domain.grade_scale import parse_grade_input, scale_for
-from app.core.intents.grade_intents import RecordGradeIntent
+from app.adapters.gui.docs_cell_editing import commit_cell_edit
+from app.adapters.gui.docs_table_model import NACHNAME_KEY, VORNAME_KEY, flag_key_of
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -55,23 +54,20 @@ class DocsNavMixin:
         editor, target = self._docs_inline_editor, self._docs_inline_editor_target
         if editor is None:
             return True
-        grade_value: float | None = None
+        commit = None
         if apply_changes and target is not None and self.current_plan and editor.winfo_exists():
-            scale = scale_for(self.current_plan.documentation.grade_scale)
-            valid, grade_value = parse_grade_input(editor.get(), scale)
-            if not valid:
-                self.status_var.set(scale.input_hint)
+            commit = commit_cell_edit(self.current_plan, target, editor.get())
+            if commit.intent is None:
+                self.status_var.set(commit.message)
                 if keep_open_on_invalid:
                     editor.selection_range(0, ui.END)
                     return False
-                apply_changes = False
+                commit = None
         self._docs_inline_editor = None
         self._docs_inline_editor_target = None
-        if apply_changes and target is not None:
-            self._controller.dispatch(RecordGradeIntent(
-                student_id=target.student_id, column_id=target.column_id, grade=grade_value,
-            ))
-            self.status_var.set("Note gelöscht" if grade_value is None else "Note aktualisiert")
+        if commit is not None:
+            self._controller.dispatch(commit.intent)
+            self.status_var.set(commit.message)
         if editor.winfo_exists():
             editor.destroy()
         return True
@@ -96,22 +92,46 @@ class DocsNavMixin:
         self.docs_grid.focus(self._doc_active_column_key())
         return EventResult.HANDLED
 
-    def _open_selected_docs_grade_cell_editor(self, initial_text: str | None = None) -> bool:
-        """Öffnet den Inline-Noten-Editor für die aktuell ausgewählte Doku-Zelle.
+    def _activate_selected_docs_cell(self, initial_text: str | None = None) -> bool:
+        """Handelt auf der ausgewählten Zelle (Enter, Strg+G, Tippen) -- s. ``_activate_docs_cell``.
 
         Args:
-            initial_text: Getipptes Startzeichen oder ``None`` für die bisherige
-                Note (siehe ``_open_docs_inline_grade_editor``).
+            initial_text: Getipptes Startzeichen oder ``None``.
 
         Returns:
-            ``True``, wenn der Editor jetzt offen ist (``False``: keine Notenzelle aktiv).
+            ``True``, wenn etwas geschah (Editor offen, Dialog, Umschalten).
         """
-        if grade_column_id(self._doc_selected_nondate_column_id) is None:
-            return False
         selected_iid = self._doc_row_id_by_student_index.get(self._doc_selected_student_index)
         if selected_iid is None:
             return False
-        return self._open_docs_inline_grade_editor(selected_iid, self._doc_selected_nondate_column_id, initial_text)
+        return self._activate_docs_cell(selected_iid, self._doc_selected_nondate_column_id, initial_text)
+
+    def _activate_docs_cell(self, row_id: str, column_key: str | None, initial_text: str | None = None) -> bool:
+        """Einzige Regel, was "auf einer Zelle handeln" heißt (Enter, Doppelklick, Tippen).
+
+        - Note oder eigene Notizspalte: Inline-Editor (mit *initial_text* als Inhalt, falls getippt).
+        - Allgemeine Notizen: mehrzeiliger Notizdialog (nicht beim Tippen).
+        - Ja/Nein: Markierung umschalten (nicht beim Tippen -- Ziffern bleiben Fenster-Kürzel).
+        - Sonst: nichts.
+
+        Args:
+            row_id: Zeilen-ID (Schüler-ID als String).
+            column_key: Spaltenschlüssel der Zelle oder ``None``.
+            initial_text: Getipptes Startzeichen oder ``None``.
+
+        Returns:
+            ``True``, wenn etwas geschah.
+        """
+        kind = self._doc_axis.kind_of(column_key)
+        if self._doc_axis.is_inline_editable(column_key):
+            return self._open_docs_inline_editor(row_id, column_key, initial_text)
+        if initial_text is not None:
+            return False
+        if kind == "notes":
+            return self.edit_docs_general_notes_dialog(row_id)
+        if kind == "flag":
+            return self._toggle_docs_flag(row_id, flag_key_of(column_key))
+        return False
 
     def _doc_active_column_key(self) -> str | None:
         """Liefert die aktive logische Spalte der Dokutabelle.

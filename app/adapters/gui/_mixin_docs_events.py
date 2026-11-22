@@ -1,7 +1,7 @@
 """Docs-Events-Mixin für das Kartograph-Hauptfenster.
 
 Übersetzt die Ereignisse der Doku-Tabelle (bw-gui ``DataGrid``: Klick,
-Doppelklick, ↑↓←→, Tippen auf einer Notenzelle) in Auswahländerungen bzw.
+Doppelklick, ↑↓←→, Tippen auf einer bearbeitbaren Zelle) in Auswahländerungen bzw.
 den Start des Noteneditors. Das Grid meldet bereits
 (Zeile, Spaltenschlüssel, Bereich); hier stehen nur die fachlichen Regeln
 (Namensbereich ändert nur die Zeile, Datumsanker, Zusammenfassung nicht
@@ -52,7 +52,7 @@ class DocsEventsMixin:
         self._sync_docs_cursor()
 
     def _on_docs_cell_double_click(self, row_id: str, column_key: str | None) -> None:
-        """Doppelklick: Zelle aktivieren; auf einer Notenzelle den Inline-Editor öffnen.
+        """Doppelklick: Zelle aktivieren und darauf handeln (``_activate_docs_cell``: Editor, Notizdialog, Ja/Nein).
 
         Args:
             row_id: Zeilen-ID der angeklickten Zeile.
@@ -62,11 +62,10 @@ class DocsEventsMixin:
         if self._doc_axis.is_selectable(column_key):
             self._set_doc_active_column(column_key)
         self._sync_docs_cursor()
-        if self._doc_axis.is_grade(column_key):
-            self._open_docs_inline_grade_editor(row_id, column_key)
+        self._activate_docs_cell(row_id, column_key)
 
     def _on_docs_grade_type_in(self, character: str) -> EventResult | None:
-        """Tippen auf einer Notenzelle: öffnet den Inline-Editor mit *character* als Inhalt.
+        """Tippen auf einer Noten- oder Notizspalten-Zelle: öffnet den Inline-Editor mit *character* als Inhalt.
 
         Erspart das vorherige Enter. Auf allen anderen Zellen (oder außerhalb
         des Doku-Scopes) geht der Tastendruck unverändert an die Fenster-Kürzel
@@ -80,7 +79,7 @@ class DocsEventsMixin:
         """
         if not self._shortcut_scope_allows("docs"):
             return None
-        return EventResult.HANDLED if self._open_selected_docs_grade_cell_editor(character) else None
+        return EventResult.HANDLED if self._activate_selected_docs_cell(character) else None
 
     def _select_docs_row(self, row_id: str) -> None:
         """Macht die Zeile *row_id* zur ausgewählten Schülerzeile (unbekannte IDs werden ignoriert).

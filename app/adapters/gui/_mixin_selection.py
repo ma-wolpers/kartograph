@@ -190,7 +190,7 @@ class SelectionMixin:
             return EventResult.HANDLED
         if self.editor_view.winfo_ismapped():
             if self._editor_surface == "docs":
-                self._open_selected_docs_grade_cell_editor()  # wirkt nur auf Notenspalten
+                self._activate_selected_docs_cell()  # Editor, Notizdialog oder Ja/Nein, je nach Zelle
                 return EventResult.HANDLED
             if not self.selection.is_single():
                 self._collapse_selection_to_anchor()

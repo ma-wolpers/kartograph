@@ -25,6 +25,8 @@ from collections.abc import Iterable, Sequence
 from app.core.domain.short_id import new_short_id
 
 COLORLESS_PREFIX = "flag_"
+FLAG_KIND_LABEL = "Ja/Nein"
+"""Beschriftung des Spaltentyps im Dialog "Notizspalte hinzufügen" (neben den Typen aus ``note_column_kinds``)."""
 
 
 def is_colorless_flag(key: str) -> bool:

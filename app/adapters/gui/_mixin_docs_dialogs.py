@@ -223,7 +223,7 @@ class DocsDialogsMixin:
                 column = grade_columns[0]
         self._select_doc_nondate_column(grade_column_key(column.column_id))
         self._refresh_doc_selection_status()
-        self._open_selected_docs_grade_cell_editor()
+        self._activate_selected_docs_cell()
 
     def set_selected_documentation_symbol_dialog(self) -> None:
         """Öffnet einen Dialog zur Symbolauswahl für die aktuelle Doku-Zelle (v4).

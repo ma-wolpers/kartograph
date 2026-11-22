@@ -1,19 +1,17 @@
 """Docs-Edit-Mixin für das Kartograph-Hauptfenster (v4 intent-basiert).
 
 Stellt Methoden zum Umschalten und Löschen von Dokumentationssymbolen sowie
-den Inline-Noten-Editor der Dokutabelle bereit.
+den Inline-Editor der Datentabelle (Noten und eigene Notizspalten) bereit.
 """
 
 from __future__ import annotations
 
-from app.core.domain.grade_scale import scale_for
 from app.core.domain.symbol_toggle import next_symbol_toggle_strength
-from app.core.intents.grade_intents import RecordGradeIntent
 from app.core.intents.session_intents import ClearDocEntryIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
 from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
 from app.adapters.gui.doc_action_target import DocActionTarget
-from app.adapters.gui.docs_table_model import GradeCellTarget, grade_column_id
+from app.adapters.gui.docs_cell_editing import CellEditTarget, commit_cell_edit, initial_edit_text
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -24,44 +22,44 @@ from bw_gui.runtime import widgets as tui
 class DocsEditMixin:
     """Mixin: Symbol-Umschalten, Symbol-Löschen und Inline-Noten-Editor in der Dokumentations-Ansicht (v4)."""
 
-    def _open_docs_inline_grade_editor(self, row_id: str, grade_column_key: str, initial_text: str | None = None) -> bool:
-        """Öffnet einen Entry-Inline-Editor in der Noten-Zelle (*row_id*, *grade_column_key*).
+    def _open_docs_inline_editor(self, row_id: str, column_key: str, initial_text: str | None = None) -> bool:
+        """Öffnet den Entry-Inline-Editor in der Zelle (*row_id*, *column_key*).
 
-        Die Zellgeometrie liefert ``DataGrid.cell_bbox`` (scrollt die Zelle
-        sichtbar und rendert vorher ausstehende Änderungen, damit die Position
-        stimmt); der Editor liegt direkt auf dem Bereich, der die Spalte zeigt.
+        Ein Editor für alle bearbeitbaren Zellen (Noten und eigene
+        Notizspalten, ``DocColumnAxis.is_inline_editable``); was er anzeigt und
+        wie er speichert, steht in ``docs_cell_editing``. Die Zellgeometrie
+        liefert ``DataGrid.cell_bbox`` (scrollt die Zelle sichtbar und rendert
+        vorher ausstehende Änderungen, damit die Position stimmt).
 
         Zwei Startarten, ein Editor: ohne *initial_text* (Enter, Doppelklick,
-        Strg+G) steht die bisherige Note markiert darin; mit *initial_text*
-        (Tippen auf der Zelle) ersetzt der Text die Note, der Cursor steht dahinter.
+        Strg+G) steht der bisherige Wert markiert darin; mit *initial_text*
+        (Tippen auf der Zelle) ersetzt der Text den Wert, der Cursor steht dahinter.
 
         Args:
             row_id: Zeilen-ID (Schüler-ID als String).
-            grade_column_key: Spaltenschlüssel einer Notenspalte, z. B. ``"grade_<id>"``.
-            initial_text: Getipptes Startzeichen oder ``None`` für die bisherige Note.
+            column_key: Spaltenschlüssel, z. B. ``"grade_<id>"`` oder ``"note_<id>"``.
+            initial_text: Getipptes Startzeichen oder ``None`` für den bisherigen Wert.
 
         Returns:
-            ``True``, wenn der Editor jetzt offen ist; ``False`` für Nicht-Notenspalten,
-            unbekannte/unbenannte Zeilen oder nicht darstellbare Zellen.
+            ``True``, wenn der Editor jetzt offen ist; ``False`` für nicht bearbeitbare
+            Spalten, unbekannte/unbenannte Zeilen oder nicht darstellbare Zellen.
         """
         if not self.current_plan:
             return False
-        if not self._doc_axis.is_grade(grade_column_key):
+        if not self._doc_axis.is_inline_editable(column_key):
             return False
         self._close_docs_inline_editor(apply_changes=False)
-        box = self.docs_grid.cell_bbox(row_id, grade_column_key)
+        box = self.docs_grid.cell_bbox(row_id, column_key)
         if box is None:
             return False
         host, x, y, width, height = box
 
-        target = self._grade_edit_target(row_id, grade_column_key)
+        target = self._cell_edit_target(row_id, column_key)
         if target is None:
             return False
         replace_with_typed = initial_text is not None
         if not replace_with_typed:
-            doc = self.current_plan.documentation
-            value = doc.grade_of(target.student_id, target.column_id)
-            initial_text = "" if value is None else scale_for(doc.grade_scale).format_input(value)
+            initial_text = initial_edit_text(self.current_plan, target)
 
         editor = tui.Entry(host)
         editor.insert(0, initial_text)
@@ -80,24 +78,26 @@ class DocsEditMixin:
         self._docs_inline_editor_target = target
         return True
 
-    def _grade_edit_target(self, row_id: str, grade_column_key: str) -> GradeCellTarget | None:
-        """Einzige Regel, *welche* Note eine Notenzelle bearbeitet: Zeile und Spalte der Zelle.
+    def _cell_edit_target(self, row_id: str, column_key: str) -> CellEditTarget | None:
+        """Einzige Regel, *was* eine bearbeitbare Zelle bearbeitet: Zeile und Spalte der Zelle.
 
-        Nie die spätere Auswahl; ein Datum spielt keine Rolle (eine Note je Spalte).
+        Nie die spätere Auswahl; ein Datum spielt keine Rolle (ein Wert je
+        Spalte). Noten sind bei dauerhaft Abwesenden gesperrt
+        (``_report_if_locked``); Notizspalten nicht -- wie die allgemeinen
+        Notizen (``accepts_notes``).
 
         Args:
             row_id: Zeilen-ID (Schüler-ID als String).
-            grade_column_key: Spaltenschlüssel ``"grade_<id>"``.
+            column_key: Spaltenschlüssel ``"grade_<id>"`` oder ``"note_<id>"``.
 
         Returns:
-            Das Ziel oder ``None`` (unbekannte Zeile, unbenannter Tisch, keine Notenspalte,
-            dauerhaft abwesend -- dann mit Sperrhinweis).
+            Das Ziel oder ``None`` (unbekannte Zeile, unbenannter Tisch, gesperrte Note
+            -- dann mit Sperrhinweis).
         """
         student = self._named_docs_student(self._doc_student_index_by_iid.get(row_id))
-        column_id = grade_column_id(grade_column_key)
-        if student is None or column_id is None or self._report_if_locked(student):
+        if student is None or (self._doc_axis.is_grade(column_key) and self._report_if_locked(student)):
             return None
-        return GradeCellTarget(student.student_id, column_id)
+        return CellEditTarget(student.student_id, column_key)
 
     def _toggle_documentation_symbol_at(self, target: DocActionTarget, symbol: str) -> None:
         """Schaltet *symbol* im Tageseintrag von *target* um (v4).
@@ -147,18 +147,23 @@ class DocsEditMixin:
     def clear_selected_documentation_symbol(self) -> None:
         """Löscht genau die aktive Zelle der Doku-Tabelle.
 
-        Notenspalte: nur diese Note. Datumsspalte: der Tageseintrag (Symbole,
-        Mitarbeit, Notiz). Name, Zusammenfassung, Teil- und Gesamtnote sind nicht
-        löschbar -- dort bleibt alles unverändert, die Statuszeile sagt es.
+        Bearbeitbare Zelle (Note, eigene Notizspalte): nur dieser Wert -- über
+        denselben Weg wie ein geleerter Inline-Editor (``commit_cell_edit`` mit
+        leerer Eingabe). Datumsspalte: der Tageseintrag (Symbole, Mitarbeit,
+        Notiz). Name, Zusammenfassung, Teil- und Gesamtnote, allgemeine Notizen
+        und Ja/Nein sind hier nicht löschbar -- die Statuszeile sagt es.
         """
         student, key = self._selected_docs_student(), self._doc_active_column_key()
-        if student is None or key is None or self._report_if_locked(student):
+        if student is None or key is None:
             return
-        column_id = grade_column_id(key)
-        if column_id is not None:
-            self._controller.dispatch(RecordGradeIntent(student_id=student.student_id, column_id=column_id, grade=None))
-            self.status_var.set("Note gelöscht")
+        if self._doc_axis.is_inline_editable(key):
+            target = self._cell_edit_target(str(student.student_id), key)
+            commit = commit_cell_edit(self.current_plan, target, "") if target is not None else None
+            if commit is not None and commit.intent is not None:
+                self._controller.dispatch(commit.intent)
+                self.status_var.set(commit.message)
         elif self._doc_axis.is_date(key):
-            self._controller.dispatch(ClearDocEntryIntent(student_id=student.student_id, date=self._doc_anchor_date()))
+            if not self._report_if_locked(student):
+                self._controller.dispatch(ClearDocEntryIntent(student_id=student.student_id, date=self._doc_anchor_date()))
         else:
             self.status_var.set("In dieser Spalte gibt es nichts zu löschen.")

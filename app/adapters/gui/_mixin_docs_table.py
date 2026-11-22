@@ -29,7 +29,6 @@ from app.core.domain.data_view_areas import DataArea
 from app.core.domain.grade_scale import scale_for
 from app.core.domain.models_v4 import GRADE_CATEGORIES
 from app.core.domain.permanent_absence import is_active
-from app.core.domain.student_notes import notes_inline
 from app.core.domain.submission_status import CatalogSymbolMissing, submission_symbol_names
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -78,9 +77,10 @@ class DocsTableMixin:
         fixed_columns.append(OVERALL_KEY)
         self._doc_fixed_column_ids = list(fixed_columns)
         visible_areas = self._doc_visible_areas()
-        self._doc_axis = DocColumnAxis(self._doc_date_column_ids, fixed_columns, (NOTES_KEY,), visible_areas)
+        self._doc_axis = DocColumnAxis(self._doc_date_column_ids, fixed_columns, self._notes_area_columns(), visible_areas)
         self._validate_doc_sort_spec()
         show_dates, show_notes, show_grades = (area in visible_areas for area in (DataArea.DOKU, DataArea.NOTIZEN, DataArea.NOTEN))
+        flag_keys = self._flag_keys() if show_notes else []
 
         self.docs_grid.set_columns(self._doc_grid_columns())
 
@@ -117,7 +117,7 @@ class DocsTableMixin:
                     if entry:
                         cells[column_id] = self._documentation_cell_text(entry.symbols, entry.participation)
             if show_notes:
-                cells[NOTES_KEY] = notes_inline(student.diagnostic.notes)
+                cells.update(self._notes_area_cells(student, flag_keys))
             if show_grades:
                 summary_symbols = latest_symbols_by_student.get(student.student_id, {})
                 cells[SUMMARY_KEY] = self._documentation_summary_cell_text(

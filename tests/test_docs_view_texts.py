@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.adapters.gui._mixin_docs_view import DocsViewMixin
+from app.adapters.gui._mixin_notes_area import NotesAreaMixin
 from app.adapters.gui.docs_table_model import DocColumnAxis, grade_column_key
 from app.core.domain.models_v4 import GradeColumn
 from app.core.domain.submission_status import SubmissionStatus
@@ -44,7 +45,7 @@ def test_without_resolvable_names_cell_stays_as_before():
     assert _Host()._documentation_summary_cell_text(latest, {}, None) == "B X"
 
 
-class _LabelHost(DocsViewMixin):
+class _LabelHost(DocsViewMixin, NotesAreaMixin):
     """Plan mit drei sonstigen Spalten (Faktor 2, 1 und 0.5) und den passenden festen Spalten."""
 
     def __init__(self) -> None:

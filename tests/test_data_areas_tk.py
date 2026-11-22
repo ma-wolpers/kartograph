@@ -97,3 +97,93 @@ def test_actions_of_a_hidden_area_are_blocked_with_a_hint(window):
     sessions_before = list(app.current_plan.documentation.sessions)
     assert app._handle_intent(UiIntent.DELETE_DOCUMENTATION_DATE) is None
     assert app.current_plan.documentation.sessions == sessions_before
+
+
+@pytest.fixture
+def notes_window(window):
+    """Datenansicht mit eingeblendetem Notizenbereich (Doku aus, Notizen + Noten an)."""
+    _toggle(window, DataArea.DOKU)
+    _toggle(window, DataArea.NOTIZEN)
+    return window
+
+
+def _row_cells(app, student) -> dict:
+    return dict(next(r for r in app.docs_grid._rows if r.row_id == str(student.student_id)).cells)
+
+
+def test_flag_column_toggles_like_a_color_and_vanishes_with_its_last_mark(notes_window):
+    app = notes_window
+    student = app.current_plan.classroom.students[0]
+    app._add_note_column("Material", "flag", "rot")
+    app.tk_root.update()
+    assert app._doc_column_label("mark_rot") == "Material (Rot)"
+    assert app._doc_active_column_key() == "mark_rot"
+    app._activate_docs_cell(str(student.student_id), "mark_rot")
+    app.tk_root.update()
+    assert "rot" in app.current_plan.student_by_id(student.student_id).diagnostic.color_tags
+    assert _row_cells(app, student)["mark_rot"] == "✓"
+    app._activate_docs_cell(str(student.student_id), "mark_rot")
+    app.tk_root.update()
+    assert "rot" not in app.current_plan.color_palette
+    assert not app._doc_axis.has("mark_rot")
+
+
+def test_flag_column_without_free_color_is_colorless(notes_window):
+    app = notes_window
+    for _shortcut, color_key, _label, _hex in app.color_palette:
+        app._add_note_column(f"Spalte {color_key}", "flag", color_key)
+    app._add_note_column("Ohne Farbe", "flag", None)
+    app.tk_root.update()
+    (colorless,) = [key for key in app.current_plan.color_palette if key.startswith("flag_")]
+    assert app._doc_column_label(f"mark_{colorless}") == "Ohne Farbe"
+
+
+def test_number_and_date_columns_edit_validate_sort_and_clear(notes_window):
+    app = notes_window
+    first, second = app.current_plan.classroom.students[:2]
+    app._add_note_column("Punkte", "number", None)
+    app._add_note_column("Abgabe", "date", None)
+    app.tk_root.update()
+    number_key, date_key = (f"note_{c.column_id}" for c in app.current_plan.note_columns)
+    assert app._open_docs_inline_editor(str(first.student_id), number_key, "abc")
+    assert not app._close_docs_inline_editor(apply_changes=True, keep_open_on_invalid=True)
+    assert "Zahl" in app.status_var.get()
+    app._close_docs_inline_editor(apply_changes=False)
+    for student, number, when in ((first, "2,5", "3.11.2026"), (second, "10", "1.2.2026")):
+        app._open_docs_inline_editor(str(student.student_id), number_key, number)
+        app._close_docs_inline_editor(apply_changes=True)
+        app._open_docs_inline_editor(str(student.student_id), date_key, when)
+        app._close_docs_inline_editor(apply_changes=True)
+    app.tk_root.update()
+    assert _row_cells(app, first)[number_key] == "2.5" and _row_cells(app, first)[date_key] == "03.11.2026"
+    app._sort_docs_table_by_key(date_key)
+    order = app._doc_row_order
+    assert order.index(str(second.student_id)) < order.index(str(first.student_id))
+    app._doc_selected_student_index = app._doc_student_index_by_iid[str(first.student_id)]
+    app._set_doc_active_column(number_key)
+    app.clear_selected_documentation_symbol()
+    app.tk_root.update()
+    assert _row_cells(app, first)[number_key] == ""
+
+
+def test_delete_note_column_after_confirmation(notes_window, monkeypatch):
+    app = notes_window
+    app._add_note_column("Weg damit", "text", None)
+    app.tk_root.update()
+    monkeypatch.setattr("app.adapters.gui._mixin_note_dialogs.messagebox.askyesno", lambda *a, **k: True)
+    app.delete_note_column_dialog()
+    app.tk_root.update()
+    assert app.current_plan.note_columns == []
+
+
+def test_note_dialogs_open(notes_window):
+    app = notes_window
+    student = app.current_plan.classroom.students[0]
+    before = set(app.tk_root.winfo_children())
+    app.add_note_column_dialog()
+    assert app.edit_docs_general_notes_dialog(str(student.student_id))
+    app.tk_root.update()
+    opened = [w for w in app.tk_root.winfo_children() if w not in before and w.winfo_class() == "Toplevel"]
+    assert len(opened) >= 1
+    for widget in opened:
+        widget.destroy()

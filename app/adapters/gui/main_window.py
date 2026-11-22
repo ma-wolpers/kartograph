@@ -21,6 +21,8 @@ from app.adapters.gui._mixin_docs_events import DocsEventsMixin
 from app.adapters.gui._mixin_docs_nav import DocsNavMixin
 from app.adapters.gui._mixin_docs_table import DocsTableMixin
 from app.adapters.gui._mixin_data_areas import DataAreasMixin
+from app.adapters.gui._mixin_note_dialogs import NoteDialogsMixin
+from app.adapters.gui._mixin_notes_area import NotesAreaMixin
 from app.adapters.gui._mixin_docs_view import DocsViewMixin
 from app.adapters.gui._mixin_edit import EditMixin
 from app.adapters.gui._mixin_export import ExportMixin
@@ -58,7 +60,8 @@ from app.adapters.gui._mixin_theme import ThemeMixin
 from app.adapters.gui._mixin_undo_redo import UndoRedoMixin
 from app.adapters.gui._mixin_viewport import ViewportMixin
 from app.adapters.gui._pending_field_save import PendingFieldSave
-from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow, GradeCellTarget
+from app.adapters.gui.docs_cell_editing import CellEditTarget
+from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow
 from app.adapters.gui.docs_table_rules import SortStack
 from app.adapters.gui.main_window_constants import COLOR_MARKER_PALETTE, DEFAULT_CELL_SIZE, DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, DEFAULT_UI_WATCHDOG_INTERVAL_MS, LOGGER, DeskDetailMode, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH, UI_WATCHDOG_WARN_DRIFT_SECONDS, _known_ui_intents, apply_window_icon, configure_windows_process_identity
 from app.adapters.gui.ui_intents import UiIntent
@@ -107,6 +110,8 @@ class KartographMainWindow(
     DocsNavMixin,
     DocsViewMixin,
     DataAreasMixin,
+    NotesAreaMixin,
+    NoteDialogsMixin,
     DetailsMixin,
     DetailsButtonsMixin,
     DetailsLayoutMixin,
@@ -316,7 +321,7 @@ class KartographMainWindow(
         self._doc_selected_nondate_column_id: str | None = None
         self._doc_sort_stack: SortStack = ()
         self._docs_inline_editor: tui.Entry | None = None
-        self._docs_inline_editor_target: GradeCellTarget | None = None
+        self._docs_inline_editor_target: CellEditTarget | None = None
         self._docs_symbol_dialog_last_index: int = 0
         self._ui_watchdog_last_tick = time.perf_counter()
         self._ui_watchdog_tick_count = 0

@@ -41,7 +41,7 @@ def _grade(app, row_id: str, column: str = "col0"):
 
 def _open_editor(app, row_id: str, text: str):
     app._on_docs_cell_click(row_id, "grade_col0", DataArea.NOTEN)
-    app._open_docs_inline_grade_editor(row_id, "grade_col0")
+    app._open_docs_inline_editor(row_id, "grade_col0")
     editor = app._docs_inline_editor
     editor.delete(0, "end")
     editor.insert(0, text)
@@ -178,7 +178,7 @@ class TestTypingOnAGradeCellStartsTheEditor:
     def test_enter_still_preselects_the_old_grade(self, window):
         row, _pane = self._select_grade_cell(window)
         doc = window.current_plan.documentation
-        assert window._open_selected_docs_grade_cell_editor()
+        assert window._activate_selected_docs_cell()
         editor = window._docs_inline_editor
         assert editor.get() == scale_for(doc.grade_scale).format_input(_grade(window, row))
         assert editor.selection_present()

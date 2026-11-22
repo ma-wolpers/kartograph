@@ -80,6 +80,7 @@ class NoteKindSpec:
         display: gespeicherte Form → Zelltext.
         sort_value: gespeicherte Form → vergleichbares Tupel (leere Zellen sortiert
             die Tabelle selbst ans Ende, s. ``docs_table_model``).
+        input_hint: Hinweis bei ungültiger Eingabe.
     """
 
     key: NoteValueKind
@@ -87,16 +88,39 @@ class NoteKindSpec:
     parse: Callable[[str], str]
     display: Callable[[str], str]
     sort_value: Callable[[str], tuple]
+    input_hint: str = ""
 
 
 NOTE_VALUE_KINDS: dict[str, NoteKindSpec] = {
     "text": NoteKindSpec("text", "Text", lambda text: str(text).strip(), lambda stored: stored,
                          lambda stored: (0, stored.lower())),
     "number": NoteKindSpec("number", "Zahl", lambda text: format_plain_decimal(parse_decimal_input(text)),
-                           lambda stored: stored, _number_sort),
-    "date": NoteKindSpec("date", "Datum", parse_date_input, format_date_value, lambda stored: (0, stored)),
+                           lambda stored: stored, _number_sort, "Bitte eine Zahl eingeben (z. B. 2,5)."),
+    "date": NoteKindSpec("date", "Datum", parse_date_input, format_date_value, lambda stored: (0, stored),
+                         "Bitte ein Datum eingeben (TT.MM.JJJJ)."),
 }
 """Alle Zeilentypen in Dialogreihenfolge; einzige Quelle für Typschlüssel und -beschriftungen."""
+
+
+def display_sort_value(kind: str, display: str) -> tuple:
+    """Sortierwert aus dem *angezeigten* Text (die Tabelle hält nur Anzeigetexte).
+
+    Liest die Anzeige zurück in die gespeicherte Form (für Datum nötig:
+    ``TT.MM.JJJJ`` sortiert nicht lexikografisch); leere Zellen ans Ende.
+
+    Args:
+        kind: Typschlüssel aus ``NOTE_VALUE_KINDS``.
+        display: Zelltext.
+
+    Returns:
+        Vergleichbares Tupel; ``(2,)`` für leere Zellen.
+    """
+    if not display.strip():
+        return (2,)
+    try:
+        return NOTE_VALUE_KINDS[kind].sort_value(NOTE_VALUE_KINDS[kind].parse(display))
+    except ValueError:
+        return (1, display.lower())
 
 
 def parse_note_value(kind: str, text: str) -> str:

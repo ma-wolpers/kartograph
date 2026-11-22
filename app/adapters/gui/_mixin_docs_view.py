@@ -269,6 +269,9 @@ class DocsViewMixin:
             return self._doc_dates[date_index]
         if column_id == NOTES_KEY:
             return NOTES_LABEL
+        notes_label = self._notes_column_label(column_id)
+        if notes_label is not None:
+            return notes_label
         if column_id == SUMMARY_KEY:
             return "Zusammenfassung"
         if column_id == OVERALL_KEY:

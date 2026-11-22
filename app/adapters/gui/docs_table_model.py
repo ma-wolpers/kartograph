@@ -8,8 +8,6 @@ die GUI aus den sichtbaren Bereichen ab (``_mixin_layout_docs``). Dieses Modul
 hält die Struktur dieser Tabelle, unabhängig von jedem Widget:
 
 - ``DocRow``: eine Tabellenzeile je Schüler (Namen + Zelltexte nach Spaltenschlüssel).
-- ``GradeCellTarget``: der Noteneintrag, den ein Inline-Editor bearbeitet
-  (beim Öffnen festgelegt).
 - ``DocColumnAxis``: die eine logische horizontale Spaltenachse
   ``nachname → vorname → date_0 … date_n → notes → summary → grade_* → totals → overall``
   (nur sichtbare Bereiche) inkl. Bereichszuordnung, Nachbarschaft und
@@ -27,7 +25,8 @@ from typing import Literal, Mapping, Sequence
 
 from app.core.domain.data_view_areas import DEFAULT_VISIBLE_AREAS, DataArea, shown_areas
 from app.core.domain.grade_scale import parse_decimal_input
-from app.core.domain.models_v4 import GradeCategory, StudentId
+from app.core.domain.note_column_kinds import display_sort_value
+from app.core.domain.models_v4 import GradeCategory
 
 NACHNAME_KEY = "nachname"
 VORNAME_KEY = "vorname"
@@ -39,8 +38,61 @@ OVERALL_KEY = "overall"
 CATEGORY_TOTAL_KEYS: dict[GradeCategory, str] = {"schriftlich": "written_total", "sonstig": "sonstige_total"}
 
 _GRADE_PREFIX = "grade_"
+_NOTE_PREFIX = "note_"
+_FLAG_PREFIX = "mark_"
+FLAG_MARK = "✓"
+"""Zelltext einer gesetzten Ja/Nein-Markierung."""
 
-_ColumnKind = Literal["name", "date", "text", "summary", "grade", "total"]
+# notes = allgemeine Notizen, flag = Ja/Nein-Spalte, text/number/date = eigene Notizspalten
+# (Typschlüssel aus note_column_kinds.NOTE_VALUE_KINDS).
+_ColumnKind = Literal["name", "date", "notes", "flag", "text", "number", "date_value", "summary", "grade", "total"]
+_NOTE_KIND_BY_TYPE: dict[str, _ColumnKind] = {"text": "text", "number": "number", "date": "date_value"}
+_TYPE_BY_NOTE_KIND = {kind: type_key for type_key, kind in _NOTE_KIND_BY_TYPE.items()}
+
+
+def note_column_key(column_id: str) -> str:
+    """Spaltenschlüssel der Tabelle zur eigenen Notizspalte *column_id*.
+
+    Args:
+        column_id: Modell-ID (``NoteColumn.column_id``).
+    """
+    return f"{_NOTE_PREFIX}{column_id}"
+
+
+def note_column_id(key: str | None) -> str | None:
+    """Modell-ID der Notizspalte zum Spaltenschlüssel *key*, ``None`` bei anderen Spalten.
+
+    Args:
+        key: Spaltenschlüssel der Tabelle.
+    """
+    return key[len(_NOTE_PREFIX):] if key and key.startswith(_NOTE_PREFIX) else None
+
+
+def flag_column_key(flag_key: str) -> str:
+    """Spaltenschlüssel der Tabelle zur Ja/Nein-Spalte *flag_key* (Farb- oder ``flag_…``-Schlüssel).
+
+    Args:
+        flag_key: Schlüssel aus ``color_palette``/``color_tags``.
+    """
+    return f"{_FLAG_PREFIX}{flag_key}"
+
+
+def flag_key_of(key: str | None) -> str | None:
+    """Farb-/Ja-Nein-Schlüssel zum Spaltenschlüssel *key*, ``None`` bei anderen Spalten.
+
+    Args:
+        key: Spaltenschlüssel der Tabelle.
+    """
+    return key[len(_FLAG_PREFIX):] if key and key.startswith(_FLAG_PREFIX) else None
+
+
+def notes_area_kind(type_key: str) -> _ColumnKind:
+    """Spaltenart einer eigenen Notizspalte zu ihrem Typschlüssel (``"text"``/``"number"``/``"date"``).
+
+    Args:
+        type_key: ``NoteColumn.kind``.
+    """
+    return _NOTE_KIND_BY_TYPE[type_key]
 
 
 def grade_column_key(column_id: str) -> str:
@@ -80,19 +132,6 @@ class DocRow:
     vorname: str
     cells: Mapping[str, str] = field(default_factory=dict)
     inactive: bool = False
-
-
-@dataclass(frozen=True)
-class GradeCellTarget:
-    """Ziel eines Inline-Noteneditors -- festgelegt beim Öffnen, nie aus der späteren Auswahl.
-
-    Attributes:
-        student_id: Schüler, dessen Note bearbeitet wird.
-        column_id: Modell-ID der Notenspalte (ohne ``grade_``-Präfix).
-    """
-
-    student_id: StudentId
-    column_id: str
 
 
 @dataclass(frozen=True)
@@ -140,7 +179,7 @@ class DocColumnAxis:
         self,
         date_column_ids: Sequence[str],
         grade_area_ids: Sequence[str],
-        note_area_ids: Sequence[str] = (),
+        note_area_columns: Sequence[tuple[str, _ColumnKind]] = (),
         visible_areas: tuple[DataArea, ...] = DEFAULT_VISIBLE_AREAS,
     ) -> None:
         """Baut die Achse aus den Spalten-IDs je Bereich und den sichtbaren Bereichen.
@@ -148,13 +187,15 @@ class DocColumnAxis:
         Args:
             date_column_ids: IDs der Datumsspalten (``date_0`` …) in Anzeigereihenfolge.
             grade_area_ids: IDs der Spalten des Notenbereichs in Anzeigereihenfolge.
-            note_area_ids: IDs der Spalten des Notizenbereichs in Anzeigereihenfolge.
+            note_area_columns: ``(Schlüssel, Spaltenart)`` des Notizenbereichs in
+                Anzeigereihenfolge, z. B. ``("notes", "notes")``, ``("mark_gelb", "flag")``,
+                ``(note_column_key(id), notes_area_kind("number"))``.
             visible_areas: Sichtbare ausblendbare Bereiche (Namen sind immer dabei).
         """
         by_area: dict[DataArea, list[DocColumn]] = {
             DataArea.NAMEN: [DocColumn(NACHNAME_KEY, DataArea.NAMEN, "name"), DocColumn(VORNAME_KEY, DataArea.NAMEN, "name")],
             DataArea.DOKU: [DocColumn(key, DataArea.DOKU, "date") for key in date_column_ids],
-            DataArea.NOTIZEN: [DocColumn(key, DataArea.NOTIZEN, "text") for key in note_area_ids],
+            DataArea.NOTIZEN: [DocColumn(key, DataArea.NOTIZEN, kind) for key, kind in note_area_columns],
             DataArea.NOTEN: [DocColumn(key, DataArea.NOTEN, _grade_area_kind(key)) for key in grade_area_ids],
         }
         self.areas: tuple[DataArea, ...] = shown_areas(visible_areas)
@@ -224,6 +265,25 @@ class DocColumnAxis:
             ``True`` für Datumsspalten.
         """
         return key is not None and key in self._date_index
+
+    def kind_of(self, key: str | None) -> str | None:
+        """Spaltenart von *key* (``"grade"``, ``"notes"``, ``"flag"``, ``"text"``, …), ``None`` für Unbekanntes.
+
+        Grundlage der einen Regel, was "auf einer Zelle handeln" heißt
+        (``_activate_docs_cell``): Editor, Notizdialog oder Umschalten.
+
+        Args:
+            key: Spaltenschlüssel oder ``None``.
+        """
+        return self._column(key).kind if self.has(key) else None
+
+    def is_inline_editable(self, key: str | None) -> bool:
+        """Lässt sich die Zelle im Inline-Editor bearbeiten? (Noten und eigene Notizspalten.)
+
+        Args:
+            key: Spaltenschlüssel oder ``None``.
+        """
+        return self.kind_of(key) in ("grade", "text", "number", "date_value")
 
     def is_grade(self, key: str | None) -> bool:
         """Prüft, ob *key* eine editierbare Notenspalte (``grade_*``) ist.
@@ -336,7 +396,10 @@ class DocColumnAxis:
     def sort_value(self, row: DocRow, key: str) -> tuple:
         """Liefert den Sortierwert der Zelle (*row*, *key*).
 
-        - Namen und Textspalten: kleingeschrieben, lexikografisch.
+        - Namen und allgemeine Notizen: kleingeschrieben, lexikografisch.
+        - Ja/Nein: markierte zuerst (aufsteigend).
+        - Eigene Notizspalten: nach Typ (``note_column_kinds.display_sort_value``,
+          Datum chronologisch, Zahl numerisch), leere Zellen ans Ende.
         - Datum: roher Zelltext (ohne ``lower()``).
         - Notenbereich: ``(0, float)`` falls als Zahl lesbar (Komma oder Punkt,
           ``grade_scale.parse_decimal_input`` -- "1,7" ist eine Zahl), sonst
@@ -354,10 +417,14 @@ class DocColumnAxis:
             return ("",)
         kind = self._column(key).kind
         raw = self.value_of(row, key)
-        if kind in ("name", "text"):
+        if kind in ("name", "notes"):
             return (raw.lower(),)
         if kind == "date":
             return (raw,)
+        if kind == "flag":
+            return (0,) if raw else (1,)
+        if kind in _TYPE_BY_NOTE_KIND:
+            return display_sort_value(_TYPE_BY_NOTE_KIND[kind], raw)
         try:
             return (0, parse_decimal_input(raw))
         except (ValueError, TypeError):

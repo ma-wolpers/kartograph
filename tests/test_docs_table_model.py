@@ -72,28 +72,28 @@ class TestVisibleAreas:
     """Ausgeblendete Bereiche gehören nicht zur Achse; die Notizen stehen zwischen Doku und Noten."""
 
     def test_hidden_areas_drop_their_columns(self):
-        axis = DocColumnAxis(DATES, FIXED, ("notes",), (DataArea.NOTIZEN, DataArea.NOTEN))
+        axis = DocColumnAxis(DATES, FIXED, (("notes", "notes"),), (DataArea.NOTIZEN, DataArea.NOTEN))
         assert axis.keys == ("nachname", "vorname", "notes", *FIXED)
         assert axis.areas == (DataArea.NAMEN, DataArea.NOTIZEN, DataArea.NOTEN)
         assert not axis.has("date_0") and axis.date_key(0) is None
 
     def test_notes_sit_between_doku_and_grades(self):
-        axis = DocColumnAxis(DATES, FIXED, ("notes",), (DataArea.DOKU, DataArea.NOTIZEN))
+        axis = DocColumnAxis(DATES, FIXED, (("notes", "notes"),), (DataArea.DOKU, DataArea.NOTIZEN))
         assert axis.keys == ("nachname", "vorname", *DATES, "notes")
         assert axis.neighbor("date_2", 1) == "notes"
 
     def test_only_names_when_everything_is_hidden(self):
-        axis = DocColumnAxis(DATES, FIXED, ("notes",), ())
+        axis = DocColumnAxis(DATES, FIXED, (("notes", "notes"),), ())
         assert axis.keys == ("nachname", "vorname")
 
     def test_values_of_hidden_columns_are_empty(self):
-        axis = DocColumnAxis(DATES, FIXED, ("notes",), (DataArea.NOTIZEN,))
+        axis = DocColumnAxis(DATES, FIXED, (("notes", "notes"),), (DataArea.NOTIZEN,))
         row = DocRow("1", "Meier", "Ada", {"date_0": "x", "notes": "Braucht Zeit"})
         assert axis.value_of(row, "date_0") == ""
         assert axis.cells_of(row) == {"nachname": "Meier", "vorname": "Ada", "notes": "Braucht Zeit"}
 
     def test_notes_sort_case_insensitive(self):
-        axis = DocColumnAxis(DATES, FIXED, ("notes",), (DataArea.NOTIZEN,))
+        axis = DocColumnAxis(DATES, FIXED, (("notes", "notes"),), (DataArea.NOTIZEN,))
         rows = [DocRow("b", "", "", {"notes": "zeit"}), DocRow("a", "", "", {"notes": "Arbeit"})]
         assert sort_iids(rows, _s("notes"), axis) == ["a", "b"]
 

@@ -69,6 +69,10 @@ _DOCS_TOOLBAR: tuple[_ToolbarAction, ...] = (
     ("Symbol loeschen", lambda w: w.clear_selected_documentation_symbol(), "Dokumentationssymbol loeschen",
      (UiIntent.DOCS_CLEAR, UiIntent.DOCS_CLEAR_BACKSPACE), DataArea.DOKU),
     ("Note setzen", lambda w: w.set_selected_documentation_grade_dialog(), "Note setzen", UiIntent.DOCS_GRADE, DataArea.NOTEN),
+    ("Notizspalte hinzufuegen", lambda w: w.add_note_column_dialog(), "Neue Notiz- oder Ja/Nein-Spalte anlegen",
+     None, DataArea.NOTIZEN),
+    ("Notizspalte loeschen", lambda w: w.delete_note_column_dialog(), "Ausgewaehlte Notiz- oder Ja/Nein-Spalte loeschen",
+     None, DataArea.NOTIZEN),
 )
 
 

@@ -22,9 +22,12 @@ from app.adapters.gui._mixin_docs_nav import DocsNavMixin
 from app.adapters.gui._mixin_docs_table import DocsTableMixin
 from app.adapters.gui._mixin_docs_view import DocsViewMixin
 from app.adapters.gui._mixin_layout_docs import LayoutDocsMixin
+from app.adapters.gui._mixin_notes_area import NotesAreaMixin
 from app.adapters.gui._mixin_selection import SelectionMixin
 from app.adapters.gui.docs_table_model import DocColumnAxis
 from app.adapters.gui.docs_table_rules import SortKey, sort_iids
+from app.adapters.gui.main_window_constants import COLOR_MARKER_PALETTE
+from app.core.domain.color_order import palette_by_key, palette_order
 from app.application.plan_derived_data import PlanDerivedData
 from app.core.domain.data_view_areas import DataArea
 from app.core.domain.settings import KartographSettings
@@ -35,7 +38,7 @@ from bw_gui.widgets.data_grid import Region
 TODAY = "2026-01-01"
 
 
-class _DocsHost(tk.Frame, LayoutDocsMixin, DataAreasMixin, DocsTableMixin, DocsEventsMixin, DocsNavMixin, DocsViewMixin, DocsEditMixin):
+class _DocsHost(tk.Frame, LayoutDocsMixin, DataAreasMixin, NotesAreaMixin, DocsTableMixin, DocsEventsMixin, DocsNavMixin, DocsViewMixin, DocsEditMixin):
     """Schlanker Host: echte Doku-Tabelle + Doku-Mixins, ohne restliches Hauptfenster."""
 
     def __init__(self, root: tk.Tk, plan) -> None:
@@ -66,6 +69,8 @@ class _DocsHost(tk.Frame, LayoutDocsMixin, DataAreasMixin, DocsTableMixin, DocsE
         self._docs_inline_editor = None
         self._docs_inline_editor_target = None
         self._data_area_vars, self._data_area_switches, self._docs_area_buttons = {}, {}, []
+        # Farben wie im Hauptfenster aus der einen Palette abgeleitet (Ja/Nein-Spalten).
+        self._color_order, self._color_by_key = palette_order(COLOR_MARKER_PALETTE), palette_by_key(COLOR_MARKER_PALETTE)
         self.docs_container = tk.Frame(self)
         self.docs_container.pack(fill="both", expand=True)
         self._build_docs_tree_widgets()
@@ -237,7 +242,7 @@ class TestHeaderClickSortAndEditor:
         host.docs_grid._on_body_click(Region.RIGHT, SimpleNamespace(x=190, y=_row_y(host, 2)), 1)
         tk_root.update()
         editor = host._docs_inline_editor
-        assert editor is not None and host._docs_inline_editor_target.column_id == "col0"
+        assert editor is not None and host._docs_inline_editor_target.column_key == "grade_col0"
         assert editor.master == host.docs_grid.regions[Region.RIGHT].body
         assert int(editor.place_info()["y"]) == 2 * host.docs_grid._row_h
         host._close_docs_inline_editor(apply_changes=False)
