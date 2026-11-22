@@ -12,3 +12,18 @@ class ToggleColorIntent(Intent):
 
     student_id: StudentId
     color_key: str
+
+
+@dataclass(frozen=True)
+class AddFlagColumnIntent(Intent):
+    """Legt eine Ja/Nein-Spalte an (= Farbspalte; ``color_key=None`` → farblos)."""
+
+    title: str
+    color_key: str | None
+
+
+@dataclass(frozen=True)
+class DeleteFlagColumnIntent(Intent):
+    """Löscht eine Ja/Nein-Spalte samt allen Markierungen."""
+
+    key: str

@@ -32,7 +32,8 @@ def handle_open_plan(intent: OpenPlanIntent, state: AppState, ctx: HandlerContex
 
     Der geladene Plan durchläuft alle Plan-Invarianten (``_apply_plan_invariants``:
     keine Personendaten an leeren Tischen, Tischgruppen passend zur
-    Sitznachbarschaft, Palette nur mit getragenen Farben), damit auch ältere
+    Sitznachbarschaft; die Palette bleibt beim Öffnen unverändert, weil leere
+    Ja/Nein-Spalten bestehen bleiben dürfen), damit auch ältere
     Dateien sofort konsistent angezeigt werden. Das
     Repository bleibt bewusst ein treuer Speichern/Laden-Spiegel. Die
     korrigierte Fassung landet mit der nächsten Änderung in der Datei.

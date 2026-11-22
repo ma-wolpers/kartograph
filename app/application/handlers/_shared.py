@@ -13,7 +13,7 @@ from app.application.handler_context import HandlerContext
 from app.application.plan_listing import build_plan_list
 from app.core.domain.models_v4 import SeatingPlan
 from app.core.domain.settings import resolve_plans_dir
-from app.core.usecases.v4.color_usecases import drop_unused_palette_entries
+from app.core.usecases.v4.color_usecases import drop_abandoned_palette_entries
 from app.core.usecases.v4.student_usecases import drop_unnamed_desk_data
 from app.core.usecases.v4.tablegroup_usecases import apply_normalized_tablegroups
 
@@ -47,6 +47,7 @@ def _record_and_save(
     path: Path,
     ctx: HandlerContext,
     *,
+    previous: SeatingPlan | None,
     merge_key: Hashable | None = None,
 ) -> None:
     """Schreibt *plan* als eigenen Undo-Schritt in die History und persistiert ihn unter *path*.
@@ -60,8 +61,9 @@ def _record_and_save(
     Handler hier das frisch erzeugte Ergebnis eines Use-Cases übergeben.
     Ein Use-Case, der im No-op-Fall den Eingabeplan zurückgibt, ist ebenfalls
     unkritisch: Der ist bereits normalisiert, die Neuberechnung idempotent.
-    Ebenso werden Bedeutungen nicht mehr getragener Farben verworfen
-    (``drop_unused_palette_entries``, gleiche In-place-Begründung).
+    Ebenso verschwinden Farb-/Ja-Nein-Spalten, deren letzte Markierung mit
+    diesem Schritt wegfiel (``drop_abandoned_palette_entries`` gegen
+    *previous*, gleiche In-place-Begründung).
 
     Die History-Aufzeichnung ist immer synchron (unverändert) — sie ist die
     Grundlage für Undo/Redo und muss bei jedem Edit sofort aktuell sein.
@@ -74,27 +76,31 @@ def _record_and_save(
         plan: Neuer Planzustand.
         path: Zieldatei für die Persistenz.
         ctx: Handler-Kontext mit Zugriff auf History und Repository.
+        previous: Bisher angezeigter Stand (für Übergangsregeln, s. ``_apply_plan_invariants``).
         merge_key: An ``PlanHistory.record`` durchgereicht; nur für laufende Texteingaben.
     """
-    _apply_plan_invariants(plan)
+    _apply_plan_invariants(plan, previous)
     ctx.history.record(plan, merge_key=merge_key)
     _save_plan(plan, path, ctx)
 
 
-def _apply_plan_invariants(plan: SeatingPlan) -> None:
+def _apply_plan_invariants(plan: SeatingPlan, previous: SeatingPlan | None = None) -> None:
     """Setzt alle Plan-Invarianten in-place durch -- einzige Liste, genutzt beim Öffnen und Aufzeichnen.
 
     1. Personendaten nur an benannten Tischen (``drop_unnamed_desk_data``) --
-       zuerst, damit Schritt 3 auch Farben leerer Tische als ungetragen sieht.
+       zuerst, damit Schritt 3 auch Farben leerer Tische als entfernt sieht.
     2. Tischgruppen passen zur Sitznachbarschaft (``apply_normalized_tablegroups``).
-    3. Die Palette enthält nur getragene Farben (``drop_unused_palette_entries``).
+    3. Übergangsregel der Palette: Spalten, deren letzte Markierung gegenüber
+       *previous* wegfiel, verschwinden (``drop_abandoned_palette_entries``;
+       beim Öffnen ohne *previous* bleibt die Palette unverändert).
 
     Args:
         plan: Planzustand, der direkt angepasst wird (idempotent).
+        previous: Bisher angezeigter Stand (``state.current_plan``), ``None`` beim Öffnen.
     """
     drop_unnamed_desk_data(plan)
     apply_normalized_tablegroups(plan)
-    drop_unused_palette_entries(plan)
+    drop_abandoned_palette_entries(previous, plan)
 
 
 def _save_plan(plan: SeatingPlan, path: Path, ctx: HandlerContext) -> None:
@@ -159,7 +165,7 @@ def _commit_plan_change(
     Returns:
         Neuer AppState mit dem geänderten Plan.
     """
-    _record_and_save(plan, state.current_plan_path, ctx, merge_key=merge_key)
+    _record_and_save(plan, state.current_plan_path, ctx, previous=state.current_plan, merge_key=merge_key)
     return _with_plan(state, plan, ctx, status=status)
 
 

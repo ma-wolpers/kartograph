@@ -27,7 +27,7 @@ from app.core.intents.base import Intent
 
 # --- Handler-Imports --------------------------------------------------------
 from app.application.handlers.note_handlers import handle_set_notes
-from app.application.handlers.color_handlers import handle_toggle_color
+from app.application.handlers.color_handlers import handle_add_flag_column, handle_delete_flag_column, handle_toggle_color
 from app.application.handlers.tablegroup_handlers import handle_apply_tablegroup_settings
 from app.application.handlers.catalog_handlers import (
     handle_add_catalog_symbol,
@@ -117,7 +117,7 @@ from app.application.handlers.view_handlers import (
 
 # --- Intent-Imports ---------------------------------------------------------
 from app.core.intents.note_intents import SetNotesIntent
-from app.core.intents.color_intents import ToggleColorIntent
+from app.core.intents.color_intents import AddFlagColumnIntent, DeleteFlagColumnIntent, ToggleColorIntent
 from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
 from app.core.intents.catalog_intents import (
     AddCatalogSymbolIntent,
@@ -411,6 +411,8 @@ class KartographAppController:
 
         # Color
         r.register(ToggleColorIntent, lambda i, s: handle_toggle_color(i, s, ctx))
+        r.register(AddFlagColumnIntent, lambda i, s: handle_add_flag_column(i, s, ctx))
+        r.register(DeleteFlagColumnIntent, lambda i, s: handle_delete_flag_column(i, s, ctx))
         r.register(ApplyTablegroupSettingsIntent, lambda i, s: handle_apply_tablegroup_settings(i, s, ctx))
 
         # Custom Symbol

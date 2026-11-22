@@ -35,7 +35,7 @@ from app.core.intents.symbol_intents import (
     RecordDocumentationSymbolIntent,
 )
 from app.core.intents.participation_intents import SetParticipationRatingIntent
-from app.core.intents.color_intents import ToggleColorIntent
+from app.core.intents.color_intents import AddFlagColumnIntent, DeleteFlagColumnIntent, ToggleColorIntent
 from app.core.intents.tablegroup_intents import ApplyTablegroupSettingsIntent
 from app.core.intents.catalog_intents import (
     AddCatalogSymbolIntent,
@@ -122,6 +122,8 @@ __all__ = [
     "SetParticipationRatingIntent",
     # Color
     "ToggleColorIntent",
+    "AddFlagColumnIntent",
+    "DeleteFlagColumnIntent",
     "ApplyTablegroupSettingsIntent",
     "AddCustomSymbolIntent",
     "UpdateCustomSymbolIntent",

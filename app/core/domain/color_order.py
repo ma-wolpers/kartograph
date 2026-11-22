@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
+from app.core.domain.flag_columns import is_colorless_flag
+
 PaletteEntryTuple = tuple[str, str, str, str]
 """Ein Palettenelement: ``(shortcut_key, color_key, label, hex_color)``."""
 
@@ -88,7 +90,10 @@ def order_color_keys(color_markers: Iterable[str], color_order: Sequence[str]) -
     Schlüssel, die in der Palette nicht vorkommen (z. B. aus einer älteren
     Plandatei), werden nicht verworfen, sondern in ihrer Eingangsreihenfolge
     hinten angehängt. So geht beim Anzeigen keine gespeicherte Markierung
-    verloren.
+    verloren. Ausgenommen sind farblose Ja/Nein-Spalten
+    (``flag_columns.is_colorless_flag``): Sie gehören nur in die Datenansicht,
+    und diese Funktion ist der gemeinsame Eingang aller Sitzplan-Darstellungen
+    (Raster, Tischdetails, PDF, Vorschau).
 
     Args:
         color_markers: Farbschlüssel eines Tisches oder Plans (beliebige Reihenfolge).
@@ -98,7 +103,7 @@ def order_color_keys(color_markers: Iterable[str], color_order: Sequence[str]) -
         Sortierte Liste, z. B. ``order_color_keys(["rot", "gelb"], ["gelb", "orange", "rot"])
         == ["gelb", "rot"]``.
     """
-    markers = list(color_markers)
+    markers = [key for key in color_markers if not is_colorless_flag(key)]
     ordered: list[str] = []
     seen: set[str] = set()
     for color_key in color_order:
