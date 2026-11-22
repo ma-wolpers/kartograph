@@ -18,7 +18,7 @@ from app.adapters.gui.docs_table_model import (
     VORNAME_KEY,
     grade_column_id,
 )
-from app.adapters.gui.docs_table_rules import next_sort_spec
+from app.adapters.gui.docs_table_rules import next_sort_stack, prune_sort_stack
 from app.core.domain.grade_weighting import format_factor
 from app.core.domain.models_v4 import (
     DEFAULT_COLUMN_WEIGHT,
@@ -341,15 +341,16 @@ class DocsViewMixin:
     def _sort_docs_table_by_key(self, key: str) -> None:
         """Wendet die Sortier-Klickregel auf *key* an und ordnet die Doku-Tabelle neu.
 
-        Ändert nur die Sortierspezifikation (``next_sort_spec``: gleiche Spalte
-        → Richtung umkehren, neue Spalte → aufsteigend); die Reihenfolge wird
-        daraus in ``_apply_doc_row_order`` berechnet.
+        Ändert nur den Sortierstapel (``next_sort_stack``: gleiche Spalte →
+        Richtung umkehren, neue Spalte → aufsteigend vorne, frühere Stufen als
+        Tie-Breaker) und kürzt ihn um Stufen, die keine Gleichstände mehr
+        auflösen (``prune_sort_stack``, nur hier beim Klick). Die Reihenfolge
+        wird daraus in ``_apply_doc_row_order`` berechnet.
 
         Args:
             key: Logischer Spaltenschlüssel der angeklickten Kopfzeile.
         """
-        self._doc_sort_column, self._doc_sort_ascending = next_sort_spec(
-            self._doc_sort_column, self._doc_sort_ascending, key
-        )
+        stack = next_sort_stack(self._doc_sort_stack, key)
+        self._doc_sort_stack = prune_sort_stack(stack, self._doc_rows.values(), self._doc_axis)
         self._apply_doc_row_order()
         self._sync_docs_cursor()

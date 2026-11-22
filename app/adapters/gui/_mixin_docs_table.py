@@ -3,8 +3,8 @@
 Baut die logische Dokutabelle (``DocRow`` je Schüler + ``DocColumnAxis``)
 aus den Domänendaten auf und übergibt sie dem bw-gui ``DataGrid``. Das Grid
 ist reine Projektion: Zeileninhalt, Reihenfolge und Sortierung kommen
-ausschließlich aus ``self._doc_rows`` und der Sortierspezifikation
-(``_doc_sort_column`` / ``_doc_sort_ascending``).
+ausschließlich aus ``self._doc_rows`` und dem Sortierstapel
+(``_doc_sort_stack``, s. ``docs_table_rules``).
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from app.adapters.gui.docs_table_model import (
     DocRow,
     grade_column_key,
 )
-from app.adapters.gui.docs_table_rules import sort_iids
+from app.adapters.gui.docs_table_rules import retain_known_sort_keys, sort_iids
 from app.adapters.gui.main_window_constants import LOGGER
 from app.core.domain.grade_scale import scale_for
 from app.core.domain.models_v4 import GRADE_CATEGORIES
@@ -160,15 +160,13 @@ class DocsTableMixin:
             )
 
     def _validate_doc_sort_spec(self) -> None:
-        """Setzt die Sortierspezifikation zurück, falls ihre Spalte nach einem Rebuild fehlt.
+        """Entfernt nach einem Rebuild die Sortierstufen, deren Spalte fehlt.
 
-        Beispiel: Sortierung nach einer inzwischen gelöschten Notenspalte →
-        ``_doc_sort_column = None`` (Basisreihenfolge), ``_doc_sort_ascending = True``.
-        Eine weiterhin gültige Sortierung bleibt unverändert erhalten.
+        Beispiel: Stapel ``(grade_x↑, nachname↑)`` und Notenspalte ``x`` wurde
+        gelöscht → ``(nachname↑,)``; die übrigen Stufen bleiben erhalten
+        (``retain_known_sort_keys``). Ohne Stufen gilt die Sitzordnung.
         """
-        if self._doc_sort_column is not None and not self._doc_axis.has(self._doc_sort_column):
-            self._doc_sort_column = None
-            self._doc_sort_ascending = True
+        self._doc_sort_stack = retain_known_sort_keys(self._doc_sort_stack, self._doc_axis)
 
     def _doc_grid_columns(self) -> list[GridColumn]:
         """Leitet die Grid-Spalten aus der logischen Spaltenachse ab (Titel, Breite, Bereich).
@@ -191,14 +189,16 @@ class DocsTableMixin:
     def _apply_doc_row_order(self) -> None:
         """Berechnet die Zeilenreihenfolge und übergibt die Zeilen samt Sortierpfeil an das Grid.
 
-        Ergebnis von ``sort_iids(_doc_rows, Sortierspezifikation)``; wird als
+        Ergebnis von ``sort_iids(_doc_rows, _doc_sort_stack)``; wird als
         ``self._doc_row_order`` gemerkt (Quelle für die angezeigte Reihenfolge,
         z. B. bei ↑/↓). Das Grid gleicht selbst ab, welche sichtbaren Zellen sich
         geändert haben — ein einzelner Symbol-/Noten-Edit kostet daher nur die
-        geänderten Zellen.
+        geänderten Zellen. Den Sortierpfeil trägt nur die wichtigste Stufe.
         """
-        order = sort_iids(self._doc_rows.values(), self._doc_sort_column, self._doc_sort_ascending, self._doc_axis)
+        stack = self._doc_sort_stack
+        order = sort_iids(self._doc_rows.values(), stack, self._doc_axis)
         self._doc_row_order = order
         rows = self._doc_rows
         self.docs_grid.set_rows([GridRow(iid, self._doc_axis.cells_of(rows[iid]), muted=rows[iid].inactive) for iid in order])
-        self.docs_grid.set_sort_indicator(self._doc_sort_column, self._doc_sort_ascending)
+        head = stack[0] if stack else None
+        self.docs_grid.set_sort_indicator(head.key if head else None, head.ascending if head else True)

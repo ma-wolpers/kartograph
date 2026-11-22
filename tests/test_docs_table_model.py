@@ -10,10 +10,21 @@ from __future__ import annotations
 import pytest
 
 from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow, DocsPane
-from app.adapters.gui.docs_table_rules import next_sort_spec, sort_iids
+from app.adapters.gui.docs_table_rules import (
+    SortKey,
+    next_sort_stack,
+    prune_sort_stack,
+    retain_known_sort_keys,
+    sort_iids,
+)
 
 DATES = ("date_0", "date_1", "date_2")
 FIXED = ("summary", "grade_a", "grade_b", "written_total", "overall")
+
+
+def _s(key: str | None, ascending: bool = True) -> tuple[SortKey, ...]:
+    """Einstufiger Sortierstapel (``None`` = leerer Stapel = Sitzordnung)."""
+    return () if key is None else (SortKey(key, ascending),)
 
 
 @pytest.fixture
@@ -100,17 +111,17 @@ class TestSortSemantics:
 
     def test_nachname_case_insensitive_incl_coordinate_fallback(self, axis):
         rows = [_row("1", "meier"), _row("2", "(0,1)"), _row("3", "Adam")]
-        assert sort_iids(rows, "nachname", True, axis) == ["2", "3", "1"]
-        assert sort_iids(rows, "nachname", False, axis) == ["1", "3", "2"]
+        assert sort_iids(rows, _s("nachname", True), axis) == ["2", "3", "1"]
+        assert sort_iids(rows, _s("nachname", False), axis) == ["1", "3", "2"]
 
     def test_vorname_case_insensitive_empty_first(self, axis):
         rows = [_row("1", vorname="bea"), _row("2", vorname=""), _row("3", vorname="Anna")]
-        assert sort_iids(rows, "vorname", True, axis) == ["2", "3", "1"]
+        assert sort_iids(rows, _s("vorname", True), axis) == ["2", "3", "1"]
 
     def test_date_raw_string_without_lower(self, axis):
         rows = [_row("1", dates=("b", "", "")), _row("2", dates=("", "", "")), _row("3", dates=("B", "", ""))]
         # Roh-Vergleich: "" < "B" < "b" (kein lower())
-        assert sort_iids(rows, "date_0", True, axis) == ["2", "3", "1"]
+        assert sort_iids(rows, _s("date_0", True), axis) == ["2", "3", "1"]
 
     def test_grade_numbers_before_text_empty_after_numbers(self, axis):
         rows = [
@@ -119,27 +130,27 @@ class TestSortSemantics:
             _row("one", fixed=("", "1.00", "", "", "")),
             _row("text", fixed=("", "x", "", "", "")),
         ]
-        assert sort_iids(rows, "grade_a", True, axis) == ["one", "two", "empty", "text"]
+        assert sort_iids(rows, _s("grade_a", True), axis) == ["one", "two", "empty", "text"]
         # absteigend: ganzes Tupel umgekehrt -> Text/leer vor den Zahlen
-        assert sort_iids(rows, "grade_a", False, axis) == ["text", "empty", "two", "one"]
+        assert sort_iids(rows, _s("grade_a", False), axis) == ["text", "empty", "two", "one"]
 
-    def test_comma_decimal_is_treated_as_text(self, axis):
-        rows = [_row("comma", fixed=("", "", "", "", "1,7")), _row("dot", fixed=("", "", "", "", "3.0"))]
-        assert sort_iids(rows, "overall", True, axis) == ["dot", "comma"]
+    def test_comma_decimal_sorts_as_number(self, axis):
+        rows = [_row("dot", fixed=("", "", "", "", "3.0")), _row("comma", fixed=("", "", "", "", "1,7"))]
+        assert sort_iids(rows, _s("overall", True), axis) == ["comma", "dot"]
 
     def test_total_column_sorts_numerically(self, axis):
         rows = [_row("a", fixed=("", "", "", "10", "")), _row("b", fixed=("", "", "", "9", ""))]
-        assert sort_iids(rows, "written_total", True, axis) == ["b", "a"]
+        assert sort_iids(rows, _s("written_total", True), axis) == ["b", "a"]
 
     def test_ties_keep_base_order(self, axis):
         rows = [_row("3", "Same"), _row("1", "same"), _row("2", "SAME")]
-        assert sort_iids(rows, "nachname", True, axis) == ["3", "1", "2"]
-        assert sort_iids(rows, "nachname", False, axis) == ["3", "1", "2"]
+        assert sort_iids(rows, _s("nachname", True), axis) == ["3", "1", "2"]
+        assert sort_iids(rows, _s("nachname", False), axis) == ["3", "1", "2"]
 
     def test_no_or_unknown_sort_key_keeps_base_order(self, axis):
         rows = [_row("b", "Z"), _row("a", "A")]
-        assert sort_iids(rows, None, True, axis) == ["b", "a"]
-        assert sort_iids(rows, "grade_weg", True, axis) == ["b", "a"]
+        assert sort_iids(rows, _s(None, True), axis) == ["b", "a"]
+        assert sort_iids(rows, _s("grade_weg", True), axis) == ["b", "a"]
 
     @pytest.mark.parametrize("key", ["nachname", "vorname", *DATES, *FIXED])
     @pytest.mark.parametrize("ascending", [True, False])
@@ -149,7 +160,7 @@ class TestSortSemantics:
             _row("2", "adam", "", ("", "+", "o"), ("", "1.00", "4.00", "", "1.5")),
             _row("3", "Zett", "bo", ("+", "x", ""), ("SS", "x", "1.00", "2", "")),
         ]
-        order = sort_iids(rows, key, ascending, axis)
+        order = sort_iids(rows, _s(key, ascending), axis)
         assert sorted(order) == ["1", "2", "3"]
         by_iid = {row.iid: row for row in rows}
         values = [axis.sort_value(by_iid[iid], key) for iid in order]
@@ -158,19 +169,68 @@ class TestSortSemantics:
 
 class TestSortClickRule:
     def test_click_sequence(self):
-        spec = next_sort_spec(None, True, "nachname")
-        assert spec == ("nachname", True)
-        spec = next_sort_spec(*spec, "nachname")
-        assert spec == ("nachname", False)
-        spec = next_sort_spec(*spec, "vorname")
-        assert spec == ("vorname", True)
-        spec = next_sort_spec(*spec, "vorname")
-        assert spec == ("vorname", False)
-        spec = next_sort_spec(*spec, "vorname")
-        assert spec == ("vorname", True)
+        stack = next_sort_stack((), "nachname")
+        assert stack == (SortKey("nachname", True),)
+        stack = next_sort_stack(stack, "nachname")
+        assert stack == (SortKey("nachname", False),)
+        stack = next_sort_stack(stack, "vorname")
+        assert stack == (SortKey("vorname", True), SortKey("nachname", False))
+        stack = next_sort_stack(stack, "vorname")
+        assert stack == (SortKey("vorname", False), SortKey("nachname", False))
 
     def test_new_column_always_starts_ascending(self):
-        assert next_sort_spec("date_0", False, "grade_a") == ("grade_a", True)
+        assert next_sort_stack((SortKey("date_0", False),), "grade_a")[0] == SortKey("grade_a", True)
+
+    def test_deeper_column_moves_to_front_ascending_without_duplicate(self):
+        stack = (SortKey("grade_b", False), SortKey("grade_a", False), SortKey("nachname"))
+        assert next_sort_stack(stack, "grade_a") == (SortKey("grade_a"), SortKey("grade_b", False), SortKey("nachname"))
+
+
+class TestMultiKeySort:
+    """Frühere Klicks lösen Gleichstände auf; unnötige Stufen werden beim Klick vergessen."""
+
+    def _rows(self):
+        # grade_a = Note 1, grade_b = Note 2; Basisreihenfolge (Sitzordnung) absichtlich nicht nach Namen.
+        return [
+            _row("z", "Zorn", fixed=("", "2", "1", "", "")),
+            _row("m", "Maier", fixed=("", "1", "2", "", "")),
+            _row("b", "Berg", fixed=("", "2", "2", "", "")),
+            _row("a", "Adam", fixed=("", "1", "2", "", "")),
+        ]
+
+    def _click(self, stack, key, rows, axis):
+        return prune_sort_stack(next_sort_stack(stack, key), rows, axis)
+
+    def test_name_then_grade_sorts_by_grade_then_name(self, axis):
+        rows = self._rows()
+        stack = self._click((), "nachname", rows, axis)
+        stack = self._click(stack, "grade_a", rows, axis)
+        assert stack == (SortKey("grade_a"), SortKey("nachname"))
+        assert sort_iids(rows, stack, axis) == ["a", "m", "b", "z"]
+
+    def test_second_grade_then_first_grade_then_name(self, axis):
+        rows = self._rows()
+        stack = ()
+        for key in ("nachname", "grade_a", "grade_b"):
+            stack = self._click(stack, key, rows, axis)
+        assert stack == (SortKey("grade_b"), SortKey("grade_a"), SortKey("nachname"))
+        assert sort_iids(rows, stack, axis) == ["z", "a", "m", "b"]
+
+    def test_unneeded_key_is_forgotten_and_stays_forgotten(self, axis):
+        rows = [_row("x", "Xu", fixed=("", "1", "1", "", "")), _row("y", "Yi", fixed=("", "2", "1", "", ""))]
+        stack = self._click((), "nachname", rows, axis)
+        stack = self._click(stack, "grade_a", rows, axis)
+        assert stack == (SortKey("grade_a"),)  # Note 1 ordnet schon eindeutig -> Name vergessen
+        tied = [_row("x", "Xu", fixed=("", "1", "1", "", "")), _row("y", "Yi", fixed=("", "1", "1", "", ""))]
+        assert sort_iids(list(reversed(tied)), stack, axis) == ["y", "x"]  # Gleichstand -> Sitzordnung
+
+    def test_head_is_kept_even_without_ties(self, axis):
+        assert prune_sort_stack(_s("nachname", False), [_row("1", "A")], axis) == _s("nachname", False)
+
+    def test_unknown_keys_are_dropped(self, axis):
+        stack = (SortKey("grade_weg"), SortKey("nachname"), SortKey("grade_a"))
+        assert retain_known_sort_keys(stack, axis) == (SortKey("nachname"), SortKey("grade_a"))
+        assert prune_sort_stack(stack, self._rows(), axis) == (SortKey("nachname"),)
 
 
 class TestInactiveRowsStayAtTheBottom:
@@ -185,11 +245,11 @@ class TestInactiveRowsStayAtTheBottom:
         ]
 
     def test_without_sort_column_base_order_with_inactive_last(self, axis):
-        assert sort_iids(self._rows(), None, True, axis) == ["b", "d", "a", "c"]
+        assert sort_iids(self._rows(), _s(None, True), axis) == ["b", "d", "a", "c"]
 
     @pytest.mark.parametrize(("ascending", "expected"), [(True, ["b", "d", "a", "c"]), (False, ["d", "b", "c", "a"])])
     def test_sorted_by_grade_both_directions(self, axis, ascending, expected):
-        assert sort_iids(self._rows(), "grade_a", ascending, axis) == expected
+        assert sort_iids(self._rows(), _s("grade_a", ascending), axis) == expected
 
     def test_sorted_by_name_descending_keeps_inactive_last(self, axis):
-        assert sort_iids(self._rows(), "nachname", False, axis)[-2:] == ["c", "a"]
+        assert sort_iids(self._rows(), _s("nachname", False), axis)[-2:] == ["c", "a"]

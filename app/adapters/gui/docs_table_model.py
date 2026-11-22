@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Literal, Sequence
 
+from app.core.domain.grade_scale import parse_decimal_input
 from app.core.domain.models_v4 import GradeCategory, StudentId
 
 NACHNAME_KEY = "nachname"
@@ -345,8 +346,9 @@ class DocColumnAxis:
 
         - Namen: kleingeschrieben, lexikografisch.
         - Datum: roher Zelltext (ohne ``lower()``).
-        - Feste Spalten: ``(0, float)`` falls als Zahl lesbar, sonst ``(1, text.lower())``;
-          leere Zellen landen damit aufsteigend hinter allen Zahlen.
+        - Feste Spalten: ``(0, float)`` falls als Zahl lesbar (Komma oder Punkt,
+          ``grade_scale.parse_decimal_input`` -- "1,7" ist eine Zahl), sonst
+          ``(1, text.lower())``; leere Zellen landen damit aufsteigend hinter allen Zahlen.
         - Unbekannte Spalte: ``("",)``.
 
         Args:
@@ -365,6 +367,6 @@ class DocColumnAxis:
         if kind == "date":
             return (raw,)
         try:
-            return (0, float(raw))
+            return (0, parse_decimal_input(raw))
         except (ValueError, TypeError):
             return (1, raw.lower())

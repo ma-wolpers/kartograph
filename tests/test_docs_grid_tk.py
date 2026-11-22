@@ -23,7 +23,7 @@ from app.adapters.gui._mixin_docs_view import DocsViewMixin
 from app.adapters.gui._mixin_layout_docs import LayoutDocsMixin
 from app.adapters.gui._mixin_selection import SelectionMixin
 from app.adapters.gui.docs_table_model import DocColumnAxis
-from app.adapters.gui.docs_table_rules import sort_iids
+from app.adapters.gui.docs_table_rules import SortKey, sort_iids
 from app.application.plan_derived_data import PlanDerivedData
 from app.core.domain.models_v4 import Seat, Student, StudentId
 from app.tools.perf_bench_docs_table import build_synthetic_plan
@@ -58,8 +58,7 @@ class _DocsHost(tk.Frame, LayoutDocsMixin, DocsTableMixin, DocsEventsMixin, Docs
         self._doc_date_column_ids = []
         self._doc_fixed_column_ids = []
         self._doc_selected_nondate_column_id = None
-        self._doc_sort_column = None
-        self._doc_sort_ascending = True
+        self._doc_sort_stack = ()
         self._docs_inline_editor = None
         self._docs_inline_editor_target = None
         self.docs_container = tk.Frame(self)
@@ -102,7 +101,7 @@ def host(tk_root):
 
 def _assert_projection_consistent(host):
     """Angezeigte Reihenfolge = sort_iids, und jede Zelle zeigt den Modellwert."""
-    expected = sort_iids(host._doc_rows.values(), host._doc_sort_column, host._doc_sort_ascending, host._doc_axis)
+    expected = sort_iids(host._doc_rows.values(), host._doc_sort_stack, host._doc_axis)
     assert list(host.docs_grid.row_ids) == expected
     for grid_row in host.docs_grid._rows:
         assert dict(grid_row.cells) == host._doc_axis.cells_of(host._doc_rows[grid_row.row_id])
@@ -190,7 +189,7 @@ class TestRebuild:
         student = plan.classroom.students[0]
         plan.documentation.sessions[0].entries[student.student_id].symbols["beteiligung"] = 1
         host._refresh_documentation_table()
-        assert (host._doc_sort_column, host._doc_sort_ascending) == ("nachname", False)
+        assert host._doc_sort_stack == (SortKey("nachname", False),)
         assert host._doc_row_order == order_before
         assert host.docs_grid._sort == ("nachname", False)
         plan.classroom.students.pop(0)
@@ -208,7 +207,7 @@ class TestRebuild:
         plan.documentation.sessions[:] = plan.documentation.sessions[:5]
         host._refresh_documentation_table()
         tk_root.update()
-        assert host._doc_sort_column is None and host._doc_sort_ascending is True
+        assert host._doc_sort_stack == ()
         assert host._doc_selected_nondate_column_id is None
         assert host._doc_active_column_key() == host._doc_axis.date_key(len(host._doc_dates) - 1)
         _assert_projection_consistent(host)
@@ -224,10 +223,10 @@ class TestHeaderClickSortAndEditor:
         view = host.docs_grid.regions[region]
         host.docs_grid._on_header_click(view, SimpleNamespace(x=x))
         tk_root.update()
-        assert (host._doc_sort_column, host._doc_sort_ascending) == (expected_key, True)
+        assert host._doc_sort_stack[0] == SortKey(expected_key, True)
         _assert_projection_consistent(host)
         host.docs_grid._on_header_click(view, SimpleNamespace(x=x))
-        assert (host._doc_sort_column, host._doc_sort_ascending) == (expected_key, False)
+        assert host._doc_sort_stack[0] == SortKey(expected_key, False)
 
     def test_double_click_on_grade_opens_editor_on_the_cell(self, host, tk_root):
         host.docs_grid._on_body_click(Region.RIGHT, SimpleNamespace(x=190, y=_row_y(host, 2)), 1)

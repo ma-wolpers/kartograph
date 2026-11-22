@@ -36,14 +36,6 @@ class EditorSurface(Enum):
 
 
 @dataclass(frozen=True)
-class DocSortState:
-    """Aktuelle Sortierung der Dokumentations-Tabelle (Spalte + Richtung)."""
-
-    column_id: str | None = None
-    ascending: bool = True
-
-
-@dataclass(frozen=True)
 class PlanListEntry:
     """Ein Eintrag der Planliste, wie er in der Listbox angezeigt wird."""
 
@@ -78,7 +70,6 @@ class AppState:
     doc_selected_student_id: StudentId | None = None
     doc_selected_date: str | None = None
     doc_selected_column_id: str | None = None
-    doc_sort: DocSortState = field(default_factory=DocSortState)
 
     # --- Status --------------------------------------------------------------
     status_message: str = ""

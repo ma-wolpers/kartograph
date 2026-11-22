@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.adapters.gui.docs_table_rules import SortKey
 from app.core.domain.permanent_absence import LOCKED_MESSAGE, MARK_ABSENT_LABEL, UNMARK_ABSENT_LABEL
 from app.core.intents.edit_intents import UndoIntent
 from app.core.intents.view_intents import SetEditorSurfaceIntent
@@ -75,7 +76,7 @@ def test_docs_view_shows_absent_rows_greyed_at_the_bottom(window):
     app._controller.dispatch(SetEditorSurfaceIntent(surface="documentation"))
     app.tk_root.update()
     for ascending in (True, False):
-        app._doc_sort_column, app._doc_sort_ascending = "nachname", ascending
+        app._doc_sort_stack = (SortKey("nachname", ascending),)
         app._apply_doc_row_order()
         app.tk_root.update()
         assert app._doc_row_order[-1] == str(sid)
