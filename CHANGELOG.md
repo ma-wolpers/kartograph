@@ -7,6 +7,7 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Added
+- **Bereiche der Datenansicht ein- und ausblenden:** Unter der Toolbar schaltest du mit „Doku“, „Notizen“ und „Noten“ die Bereiche neben den Namen ein und aus. Höchstens zwei sind gleichzeitig sichtbar; ist das erreicht, ist der dritte Schalter ausgegraut. Die Auswahl merkt sich Kartograph für jeden Sitzplan einzeln, Rückgängig ändert sie nicht. Neu ist der Bereich **Notizen**, vorerst mit den allgemeinen Notizen jeder Person (sortierbar). Knöpfe und Tastenkürzel eines ausgeblendeten Bereichs wirken nicht und melden das – so landet z. B. kein Symbol unsichtbar in einem ausgeblendeten Datum.
 - **Symbole und Kompetenzen für alle Pläne einstellen:** Im Menü *Ansicht* öffnet „Symbole und Kompetenzen (alle Pläne)…“ ein Fenster mit zwei Reitern.
   - *Symbole:* Name und Taste jedes Symbols ändern, die Kompetenzen festlegen, die ein Diagnosesymbol standardmäßig erklärt, ein Symbol deaktivieren (es lässt sich dann nirgends mehr setzen; schon erfasste Werte bleiben in Legende, Raster und PDF sichtbar) oder ein neues Diagnosesymbol mit einem Zeichen aus einer Auswahl anlegen. Eine neue Taste wirkt sofort. ✓, ◐, X und ∅ bleiben immer aktiv, weil „Abgaben zählen“ sie braucht.
   - *Kompetenzen:* Name, Gruppe und die drei Stufentexte ändern oder neue Kompetenzen anlegen.

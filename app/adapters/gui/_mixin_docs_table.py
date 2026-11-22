@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import time
 
-from app.adapters.gui._mixin_layout_docs import REGION_BY_PANE
+from app.adapters.gui._mixin_layout_docs import regions_by_area
 from app.adapters.gui.docs_table_model import (
     CATEGORY_TOTAL_KEYS,
     NACHNAME_KEY,
+    NOTES_KEY,
     OVERALL_KEY,
     SUMMARY_KEY,
     VORNAME_KEY,
@@ -24,9 +25,11 @@ from app.adapters.gui.docs_table_model import (
 )
 from app.adapters.gui.docs_table_rules import retain_known_sort_keys, sort_iids
 from app.adapters.gui.main_window_constants import LOGGER
+from app.core.domain.data_view_areas import DataArea
 from app.core.domain.grade_scale import scale_for
 from app.core.domain.models_v4 import GRADE_CATEGORIES
 from app.core.domain.permanent_absence import is_active
+from app.core.domain.student_notes import notes_inline
 from app.core.domain.submission_status import CatalogSymbolMissing, submission_symbol_names
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -74,8 +77,10 @@ class DocsTableMixin:
         fixed_columns.extend(CATEGORY_TOTAL_KEYS[category] for category in total_categories)
         fixed_columns.append(OVERALL_KEY)
         self._doc_fixed_column_ids = list(fixed_columns)
-        self._doc_axis = DocColumnAxis(self._doc_date_column_ids, fixed_columns)
+        visible_areas = self._doc_visible_areas()
+        self._doc_axis = DocColumnAxis(self._doc_date_column_ids, fixed_columns, (NOTES_KEY,), visible_areas)
         self._validate_doc_sort_spec()
+        show_dates, show_notes, show_grades = (area in visible_areas for area in (DataArea.DOKU, DataArea.NOTIZEN, DataArea.NOTEN))
 
         self.docs_grid.set_columns(self._doc_grid_columns())
 
@@ -103,35 +108,36 @@ class DocsTableMixin:
             student = students_by_coord.get((x, y))
             if student is None:
                 continue
-            date_values: list[str] = []
-            for date_key in all_dates:
-                session = sessions_by_date.get(date_key)
-                entry = session.entry_for(student.student_id) if session else None
-                date_values.append(
-                    self._documentation_cell_text(entry.symbols, entry.participation) if entry else ""
-                )
-            summary_symbols = latest_symbols_by_student.get(student.student_id, {})
-            fixed_values: list[str] = [
-                self._documentation_summary_cell_text(
+            # Zellen nur für sichtbare Bereiche (die Datumszellen sind der teure Teil).
+            cells: dict[str, str] = {}
+            if show_dates:
+                for column_id, date_key in zip(self._doc_date_column_ids, all_dates):
+                    session = sessions_by_date.get(date_key)
+                    entry = session.entry_for(student.student_id) if session else None
+                    if entry:
+                        cells[column_id] = self._documentation_cell_text(entry.symbols, entry.participation)
+            if show_notes:
+                cells[NOTES_KEY] = notes_inline(student.diagnostic.notes)
+            if show_grades:
+                summary_symbols = latest_symbols_by_student.get(student.student_id, {})
+                cells[SUMMARY_KEY] = self._documentation_summary_cell_text(
                     summary_symbols, submission_counts.get(student.student_id, {}), submission_names
                 )
-            ]
-            student_grades = grades_by_student.get(student.student_id, {})
-            for grade in grade_columns:
-                raw_grade = student_grades.get(grade.column_id)
-                fixed_values.append(grade_scale.format_value(raw_grade) if raw_grade is not None else "")
-            fixed_values.extend(
-                subtotals_by_category[category].get(student.student_id, "") for category in total_categories
-            )
-            fixed_values.append(overall_display_by_student.get(student.student_id, ""))
+                student_grades = grades_by_student.get(student.student_id, {})
+                for grade in grade_columns:
+                    raw_grade = student_grades.get(grade.column_id)
+                    if raw_grade is not None:
+                        cells[grade_column_key(grade.column_id)] = grade_scale.format_value(raw_grade)
+                for category in total_categories:
+                    cells[CATEGORY_TOTAL_KEYS[category]] = subtotals_by_category[category].get(student.student_id, "")
+                cells[OVERALL_KEY] = overall_display_by_student.get(student.student_id, "")
 
             iid = str(student.student_id)
             rows[iid] = DocRow(
                 iid=iid,
                 nachname=student.last_name.strip() or f"({x},{y})",
                 vorname=student.first_name.strip(),
-                date_cells=tuple(date_values),
-                fixed_cells=tuple(fixed_values),
+                cells=cells,
                 inactive=not is_active(student),
             )
             iid_by_coord_index[coord_index] = iid
@@ -149,6 +155,7 @@ class DocsTableMixin:
 
         self._clamp_doc_column_selection_after_rebuild(len(all_dates))
         self._sync_docs_cursor()
+        self._sync_data_area_controls()
 
         elapsed = time.perf_counter() - started
         if elapsed >= 0.2:
@@ -178,12 +185,12 @@ class DocsTableMixin:
         Returns:
             Spalten in Achsenreihenfolge.
         """
-        layout = {NACHNAME_KEY: (150, "w"), VORNAME_KEY: (120, "w"), SUMMARY_KEY: (180, "w")}
+        layout = {NACHNAME_KEY: (150, "w"), VORNAME_KEY: (120, "w"), NOTES_KEY: (240, "w"), SUMMARY_KEY: (180, "w")}
+        region_of = regions_by_area(self._doc_axis.areas)
         columns = []
         for key in self._doc_axis.keys:
             width, anchor = layout.get(key, (120, "center"))
-            region = REGION_BY_PANE[self._doc_axis.pane_of(key)]
-            columns.append(GridColumn(key, self._doc_column_label(key), width, region, anchor))
+            columns.append(GridColumn(key, self._doc_column_label(key), width, region_of[self._doc_axis.area_of(key)], anchor))
         return columns
 
     def _apply_doc_row_order(self) -> None:

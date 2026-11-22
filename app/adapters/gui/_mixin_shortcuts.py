@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Callable, Iterable
 
-from app.adapters.gui.main_window_constants import DOCS_ONLY_INTENTS, GRID_ONLY_INTENTS, LIST_ACTIVE
+from app.adapters.gui.main_window_constants import DOCS_INTENT_AREAS, GRID_ONLY_INTENTS, LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
 from app.application.shortcut_scope import is_preview_shortcut_scope
 from app.core.intents.view_intents import SetEditorSurfaceIntent, ToggleEditorSurfaceIntent
@@ -177,7 +177,8 @@ class ShortcutMixin:
         if intent in GRID_ONLY_INTENTS and not self._shortcut_scope_allows("grid"):
             self._record_laufkern_intent_dispatch(intent, success=False)
             return None
-        if intent in DOCS_ONLY_INTENTS and not self._shortcut_scope_allows("docs"):
+        docs_area = DOCS_INTENT_AREAS.get(intent)
+        if docs_area is not None and (not self._shortcut_scope_allows("docs") or self._report_hidden_area(docs_area)):
             self._record_laufkern_intent_dispatch(intent, success=False)
             return None
 

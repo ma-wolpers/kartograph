@@ -11,6 +11,7 @@ from __future__ import annotations
 from app.adapters.gui.main_window_constants import LIST_ACTIVE, GRID_SELECTED, NAME_EDITING
 from app.adapters.gui.ui_theme import normalize_theme_key
 from app.application.app_state import AppState, EditorSurface, InteractionMode, PlanListEntry
+from app.core.domain.data_view_areas import shown_areas
 from app.core.domain.settings import resolve_plans_dir
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -131,7 +132,9 @@ class StateApplyMixin:
             if not content_same or state.selection != old_selection:
                 self._refresh_details_panel()
             if self._editor_surface == "docs" and state.current_plan is not None:
-                if not content_same:
+                # Bereichsauswahl steht in den Einstellungen, nicht im Planinhalt: eigener Vergleich.
+                areas_changed = shown_areas(self._doc_visible_areas()) != self._doc_axis.areas
+                if not content_same or areas_changed:
                     self._refresh_documentation_table()
                 if state.doc_selected_date is not None and state.doc_selected_date in self._doc_dates:
                     self._select_doc_date_column(self._doc_dates.index(state.doc_selected_date))

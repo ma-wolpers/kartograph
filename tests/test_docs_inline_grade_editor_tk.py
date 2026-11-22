@@ -13,7 +13,7 @@ from tkinter import ttk
 
 import pytest
 
-from app.adapters.gui.docs_table_model import DocsPane
+from app.core.domain.data_view_areas import DataArea
 from app.core.domain.grade_scale import scale_for
 from app.core.domain.models_v4 import GradeConflict
 from app.core.intents.edit_intents import UndoIntent
@@ -40,7 +40,7 @@ def _grade(app, row_id: str, column: str = "col0"):
 
 
 def _open_editor(app, row_id: str, text: str):
-    app._on_docs_cell_click(row_id, "grade_col0", DocsPane.RIGHT)
+    app._on_docs_cell_click(row_id, "grade_col0", DataArea.NOTEN)
     app._open_docs_inline_grade_editor(row_id, "grade_col0")
     editor = app._docs_inline_editor
     editor.delete(0, "end")
@@ -53,7 +53,7 @@ def test_focus_loss_after_clicking_another_row_saves_to_the_edited_row(window):
     before_second = _grade(window, second)
     _open_editor(window, first, "2,3")
 
-    window._on_docs_cell_click(second, "vorname", DocsPane.NAMES)  # Klick wählt zuerst die andere Zeile
+    window._on_docs_cell_click(second, "vorname", DataArea.NAMEN)  # Klick wählt zuerst die andere Zeile
     window._close_docs_inline_editor(apply_changes=True)  # ... dann schließt der Fokusverlust
 
     assert _grade(window, first) == 2.3
@@ -146,7 +146,7 @@ class TestTypingOnAGradeCellStartsTheEditor:
     @staticmethod
     def _select_grade_cell(app):
         row = app._doc_row_order[0]
-        app._on_docs_cell_click(row, "grade_col0", DocsPane.RIGHT)
+        app._on_docs_cell_click(row, "grade_col0", DataArea.NOTEN)
         return row, app.docs_grid.key_widgets[-1]  # rechter Bereich mit den Notenspalten
 
     def test_digit_replaces_the_old_grade_and_typing_continues(self, window):
@@ -169,7 +169,7 @@ class TestTypingOnAGradeCellStartsTheEditor:
 
     def test_digit_on_a_date_cell_changes_nothing(self, window):
         row = window._doc_row_order[0]
-        window._on_docs_cell_click(row, window._doc_axis.date_key(window._doc_selected_date_index), DocsPane.MAIN)
+        window._on_docs_cell_click(row, window._doc_axis.date_key(window._doc_selected_date_index), DataArea.DOKU)
         before = repr(window.current_plan)
 
         assert not press_key(window.docs_grid.key_widgets[1], "3", char="3")  # weitergereicht, niemand handelt
@@ -204,7 +204,7 @@ class TestDeleteActsOnTheActiveCell:
     def test_grade_column_deletes_only_this_grade(self, window):
         row = window._doc_row_order[0]
         date = self._with_symbol(window, row)
-        window._on_docs_cell_click(row, "grade_col0", DocsPane.RIGHT)
+        window._on_docs_cell_click(row, "grade_col0", DataArea.NOTEN)
         assert _grade(window, row) is not None
 
         window.clear_selected_documentation_symbol()
@@ -215,7 +215,7 @@ class TestDeleteActsOnTheActiveCell:
     def test_date_column_clears_the_day_but_keeps_the_grade(self, window):
         row = window._doc_row_order[0]
         date = self._with_symbol(window, row)
-        window._on_docs_cell_click(row, window._doc_axis.date_key(window._doc_selected_date_index), DocsPane.MAIN)
+        window._on_docs_cell_click(row, window._doc_axis.date_key(window._doc_selected_date_index), DataArea.DOKU)
         before = _grade(window, row)
 
         window.clear_selected_documentation_symbol()
@@ -227,7 +227,7 @@ class TestDeleteActsOnTheActiveCell:
     def test_other_columns_delete_nothing(self, window, key):
         row = window._doc_row_order[0]
         date = self._with_symbol(window, row)
-        window._on_docs_cell_click(row, key, DocsPane.NAMES if key == "vorname" else DocsPane.RIGHT)
+        window._on_docs_cell_click(row, key, DataArea.NAMEN if key == "vorname" else DataArea.NOTEN)
         window._set_doc_active_column(key)
         before = _grade(window, row)
 

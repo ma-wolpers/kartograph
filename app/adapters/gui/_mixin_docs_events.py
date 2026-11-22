@@ -16,8 +16,8 @@ Angezeigt werden die ersten beiden ausschließlich über ``_sync_docs_cursor``.
 
 from __future__ import annotations
 
-from app.adapters.gui.docs_table_model import DocsPane
 from app.adapters.gui.docs_table_rules import resolve_horizontal_target
+from app.core.domain.data_view_areas import DataArea
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -27,26 +27,26 @@ from bw_gui.contracts import EventResult
 class DocsEventsMixin:
     """Mixin: Klicks und Tastaturnavigation in der Doku-Tabelle."""
 
-    def _on_docs_cell_click(self, row_id: str, column_key: str | None, pane: DocsPane) -> None:
+    def _on_docs_cell_click(self, row_id: str, column_key: str | None, area: DataArea | None) -> None:
         """Behandelt einen Klick in eine Zelle (Kopfklicks sortieren, s. ``_sort_docs_table_by_key``).
 
-        Zeile wird immer ausgewählt. Im Namensbereich bleibt die aktive Spalte;
-        in den Datumsspalten wird die angeklickte Datumsspalte (bzw. der
-        Datumsanker) aktiv, im rechten Bereich die angeklickte Fixspalte
-        (``summary`` → erste auswählbare Fixspalte).
+        Zeile wird immer ausgewählt. In den Namen bleibt die aktive Spalte; im
+        Doku-Bereich wird die angeklickte Datumsspalte (bzw. der Datumsanker)
+        aktiv, in jedem anderen Bereich die angeklickte Spalte (nicht
+        auswählbare wie ``summary`` → erste auswählbare Spalte des Bereichs).
 
         Args:
             row_id: Zeilen-ID der angeklickten Zeile.
             column_key: Spaltenschlüssel unter dem Mauszeiger oder ``None``.
-            pane: Bereich, in dem geklickt wurde.
+            area: Bereich, in dem geklickt wurde (``None``: leere Region).
         """
         self._select_docs_row(row_id)
         axis = self._doc_axis
         target: str | None = None
-        if pane is DocsPane.MAIN:
+        if area is DataArea.DOKU:
             target = column_key if axis.is_date(column_key) else axis.date_key(self._doc_selected_date_index)
-        elif pane is DocsPane.RIGHT and column_key is not None:
-            target = column_key if axis.is_selectable(column_key) else axis.first_selectable_nondate_right()
+        elif area is not None and area is not DataArea.NAMEN and column_key is not None:
+            target = column_key if axis.is_selectable(column_key) else axis.first_selectable_in(area)
         if target is not None:
             self._set_doc_active_column(target)
         self._sync_docs_cursor()
@@ -133,7 +133,7 @@ class DocsEventsMixin:
             return EventResult.HANDLED
         self._set_doc_active_column(target)
         # Fokus nur beim Wechsel des Bereichs umsetzen: jeder focus_set löst Fokus-Ereignisse aus.
-        if previous is None or self._doc_axis.pane_of(previous) is not self._doc_axis.pane_of(target):
+        if previous is None or self._doc_axis.area_of(previous) is not self._doc_axis.area_of(target):
             self.docs_grid.focus(target)
         self._sync_docs_cursor()
         return EventResult.HANDLED

@@ -16,8 +16,10 @@ kein echtes Tk noetig.
 from __future__ import annotations
 
 from datetime import date
+from types import SimpleNamespace
 
 from app.adapters.gui.doc_action_target import DocActionTarget
+from app.core.domain.settings import KartographSettings
 from app.adapters.gui.main_window import KartographMainWindow
 from app.core.domain.plan_selection import RectSelection
 from app.core.usecases.v4.symbol_usecases import record_symbol
@@ -34,6 +36,8 @@ class _RecordingController:
 
     def __init__(self) -> None:
         self.dispatched: list[object] = []
+        # Standard-Einstellungen: Datenansicht mit Doku- und Notenbereich (Bereichsauswahl).
+        self.state = SimpleNamespace(settings=KartographSettings())
 
     def dispatch(self, intent: object) -> None:
         self.dispatched.append(intent)

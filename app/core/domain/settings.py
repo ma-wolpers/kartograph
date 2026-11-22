@@ -7,9 +7,11 @@ deshalb als Literale dupliziert statt aus ``main_window_constants.py`` importier
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.core.domain.data_view_areas import DataArea, dump_stored_areas, normalize_visible_areas, parse_stored_areas
 from app.core.domain.symbol_renames import canonical_symbol_name
 
 DEFAULT_CANVAS_RADIUS = 50
@@ -86,6 +88,21 @@ class KartographSettings:
     hide_snapshot_delete_confirm: bool = False
     # Zuletzt gewählter Wert der Checkbox "Abwesende ohne Abgabe ebenfalls mit X" (Abgaben zählen).
     submission_mark_absent: bool = False
+    # Sichtbare Bereiche der Datenansicht je plan_id (Regeln in data_view_areas; fehlt = Vorgabe).
+    data_view_areas: dict[str, tuple[DataArea, ...]] = field(default_factory=dict)
+
+    def with_data_view_areas(self, plan_id: str, areas: tuple[DataArea, ...]) -> "KartographSettings":
+        """Kopie mit neuer Bereichsauswahl für *plan_id* (übrige Pläne unverändert).
+
+        Args:
+            plan_id: ID des Plans.
+            areas: Sichtbare Bereiche (werden normalisiert).
+
+        Returns:
+            Neue Einstellungen.
+        """
+        stored = {**self.data_view_areas, plan_id: normalize_visible_areas(areas)}
+        return dataclasses.replace(self, data_view_areas=stored)
 
     @classmethod
     def from_dict(cls, payload: dict) -> "KartographSettings":
@@ -173,6 +190,7 @@ class KartographSettings:
             show_archived_plans=_bool(payload.get("show_archived_plans"), False),
             hide_snapshot_delete_confirm=_bool(payload.get("hide_snapshot_delete_confirm"), False),
             submission_mark_absent=_bool(payload.get("submission_mark_absent"), False),
+            data_view_areas=parse_stored_areas(payload.get("data_view_areas")),
         )
 
     def to_dict(self) -> dict:
@@ -199,6 +217,7 @@ class KartographSettings:
             "show_archived_plans": self.show_archived_plans,
             "hide_snapshot_delete_confirm": self.hide_snapshot_delete_confirm,
             "submission_mark_absent": self.submission_mark_absent,
+            "data_view_areas": dump_stored_areas(self.data_view_areas),
         }
 
 

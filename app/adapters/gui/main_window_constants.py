@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Literal
 
 from app.adapters.gui.ui_intents import UiIntent
+from app.core.domain.data_view_areas import DataArea
 from app.core.domain.custom_symbol_validation import SPACE_SHORTCUT  # noqa: F401 -- re-export für GUI-Mixins
 
 MIN_WINDOW_WIDTH = 600
@@ -88,11 +89,14 @@ GRID_ONLY_INTENTS = {
     UiIntent.PASTE,
 }
 
-DOCS_ONLY_INTENTS = {
-    UiIntent.RENAME_DOCUMENTATION_DATE,
-    UiIntent.DELETE_DOCUMENTATION_DATE,
-    UiIntent.ADD_GRADE_COLUMN,
-    UiIntent.DELETE_GRADE_COLUMN,
+# Einzige Zuordnung Datenansicht-Intent -> Bereich, in dem er wirkt: nur in der Datenansicht
+# erlaubt und nur, solange sein Bereich eingeblendet ist (_handle_intent); die Toolbar liest
+# die Bereiche ihrer Knöpfe ebenfalls hier ab.
+DOCS_INTENT_AREAS: dict[str, DataArea] = {
+    UiIntent.RENAME_DOCUMENTATION_DATE: DataArea.DOKU,
+    UiIntent.DELETE_DOCUMENTATION_DATE: DataArea.DOKU,
+    UiIntent.ADD_GRADE_COLUMN: DataArea.NOTEN,
+    UiIntent.DELETE_GRADE_COLUMN: DataArea.NOTEN,
 }
 
 

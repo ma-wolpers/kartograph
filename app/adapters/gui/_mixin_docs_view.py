@@ -13,6 +13,7 @@ from typing import Mapping
 from app.adapters.gui.docs_table_model import (
     CATEGORY_TOTAL_KEYS,
     NACHNAME_KEY,
+    NOTES_KEY,
     OVERALL_KEY,
     SUMMARY_KEY,
     VORNAME_KEY,
@@ -26,6 +27,7 @@ from app.core.domain.models_v4 import (
     ParticipationRating,
     Student,
 )
+from app.core.domain.student_notes import NOTES_LABEL
 from app.core.domain.submission_status import SubmissionStatus
 from app.core.domain.symbol_catalog import symbol_level
 from app.core.intents.navigation_intents import ClearSelectionIntent
@@ -265,6 +267,8 @@ class DocsViewMixin:
         date_index = self._doc_axis.date_index_of(column_id)
         if date_index is not None and date_index < len(self._doc_dates):
             return self._doc_dates[date_index]
+        if column_id == NOTES_KEY:
+            return NOTES_LABEL
         if column_id == SUMMARY_KEY:
             return "Zusammenfassung"
         if column_id == OVERALL_KEY:

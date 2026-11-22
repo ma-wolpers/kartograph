@@ -15,6 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.adapters.gui._mixin_data_areas import DataAreasMixin
 from app.adapters.gui._mixin_docs_edit import DocsEditMixin
 from app.adapters.gui._mixin_docs_events import DocsEventsMixin
 from app.adapters.gui._mixin_docs_nav import DocsNavMixin
@@ -25,6 +26,8 @@ from app.adapters.gui._mixin_selection import SelectionMixin
 from app.adapters.gui.docs_table_model import DocColumnAxis
 from app.adapters.gui.docs_table_rules import SortKey, sort_iids
 from app.application.plan_derived_data import PlanDerivedData
+from app.core.domain.data_view_areas import DataArea
+from app.core.domain.settings import KartographSettings
 from app.core.domain.models_v4 import Seat, Student, StudentId
 from app.tools.perf_bench_docs_table import build_synthetic_plan
 from bw_gui.widgets.data_grid import Region
@@ -32,7 +35,7 @@ from bw_gui.widgets.data_grid import Region
 TODAY = "2026-01-01"
 
 
-class _DocsHost(tk.Frame, LayoutDocsMixin, DocsTableMixin, DocsEventsMixin, DocsNavMixin, DocsViewMixin, DocsEditMixin):
+class _DocsHost(tk.Frame, LayoutDocsMixin, DataAreasMixin, DocsTableMixin, DocsEventsMixin, DocsNavMixin, DocsViewMixin, DocsEditMixin):
     """Schlanker Host: echte Doku-Tabelle + Doku-Mixins, ohne restliches Hauptfenster."""
 
     def __init__(self, root: tk.Tk, plan) -> None:
@@ -42,7 +45,8 @@ class _DocsHost(tk.Frame, LayoutDocsMixin, DocsTableMixin, DocsEventsMixin, Docs
         # Wie der Controller: abgeleitete Plandaten (hier ohne Versions-Cache, frisch je Aufruf).
         # Leerer Symbolkatalog: keine Abgabesymbole -> Zusammenfassung ohne Bilanz (Rückfallweg).
         self._controller = SimpleNamespace(
-            derived=lambda: PlanDerivedData(self.current_plan), state=SimpleNamespace(symbol_catalog=())
+            derived=lambda: PlanDerivedData(self.current_plan),
+            state=SimpleNamespace(symbol_catalog=(), settings=KartographSettings()),
         )
         self.status_var = tk.StringVar(master=root, value="")
         self._doc_selection_status_var = tk.StringVar(master=root, value="")
@@ -61,6 +65,7 @@ class _DocsHost(tk.Frame, LayoutDocsMixin, DocsTableMixin, DocsEventsMixin, Docs
         self._doc_sort_stack = ()
         self._docs_inline_editor = None
         self._docs_inline_editor_target = None
+        self._data_area_vars, self._data_area_switches, self._docs_area_buttons = {}, {}, []
         self.docs_container = tk.Frame(self)
         self.docs_container.pack(fill="both", expand=True)
         self._build_docs_tree_widgets()
@@ -154,7 +159,7 @@ class TestHorizontalNavigationFocus:
 
     def test_left_from_first_grade_returns_to_current_anchor(self, host, tk_root):
         host._select_doc_date_column(7)
-        host._set_doc_active_column(host._doc_axis.first_selectable_nondate_right())
+        host._set_doc_active_column(host._doc_axis.first_selectable_in(DataArea.NOTEN))
         host._on_docs_horizontal_nav(-1)
         tk_root.update()
         assert host._doc_active_column_key() == "date_7"

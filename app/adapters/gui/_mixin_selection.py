@@ -12,6 +12,7 @@ from datetime import date
 from app.adapters.gui.doc_action_target import DocActionTarget
 from app.adapters.gui.main_window_constants import LIST_ACTIVE
 from app.adapters.gui.ui_intents import UiIntent
+from app.core.domain.data_view_areas import DataArea
 from app.core.domain.models_v4 import SeatingPlan, Student
 from app.core.domain.permanent_absence import LOCKED_MESSAGE, accepts_entries
 from app.core.intents.navigation_intents import MoveSelectionIntent, SelectCellIntent
@@ -283,6 +284,8 @@ class SelectionMixin:
         Person aus ``_selected_student``; dauerhaft Abwesende sind gesperrt
         (``_report_if_locked``). Datum: in der Datenansicht der Datumsanker
         (``_doc_anchor_date()``), im Raster (kein Datums-Wähler) immer heute.
+        Ist in der Datenansicht der Doku-Bereich ausgeblendet, wirkt keine
+        Doku-Aktion (sonst landete sie unsichtbar am verborgenen Datumsanker).
 
         Args:
             action_label: Name der Aktion für die Statusmeldung, z. B. ``"Symbole"``.
@@ -290,6 +293,8 @@ class SelectionMixin:
         Returns:
             Das Ziel oder ``None`` (keine passende Auswahl, gesperrt, andere Oberfläche).
         """
+        if self._editor_surface == "docs" and self._report_hidden_area(DataArea.DOKU):
+            return None
         student = self._selected_student(action_label)
         if student is None or self._report_if_locked(student):
             return None

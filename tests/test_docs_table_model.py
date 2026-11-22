@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow, DocsPane
+from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow
+from app.core.domain.data_view_areas import DataArea
 from app.adapters.gui.docs_table_rules import (
     SortKey,
     next_sort_stack,
@@ -32,25 +33,29 @@ def axis() -> DocColumnAxis:
     return DocColumnAxis(DATES, FIXED)
 
 
-def _row(iid: str, nachname: str = "", vorname: str = "", dates=("", "", ""), fixed=("", "", "", "", "")) -> DocRow:
-    return DocRow(iid=iid, nachname=nachname, vorname=vorname, date_cells=tuple(dates), fixed_cells=tuple(fixed))
+def _row(iid: str, nachname: str = "", vorname: str = "", dates=("", "", ""), fixed=("", "", "", "", ""),
+         inactive: bool = False) -> DocRow:
+    """Zeile mit Datums-/Notenbereichszellen in Achsenreihenfolge (leere Zellen entfallen)."""
+    cells = {key: text for key, text in zip((*DATES, *FIXED), (*dates, *fixed)) if text}
+    return DocRow(iid=iid, nachname=nachname, vorname=vorname, cells=cells, inactive=inactive)
 
 
 class TestAxisStructure:
-    def test_axis_order_spans_all_three_panes(self, axis):
+    def test_axis_order_spans_names_doku_and_grades_by_default(self, axis):
         assert axis.keys == ("nachname", "vorname", *DATES, *FIXED)
+        assert axis.areas == (DataArea.NAMEN, DataArea.DOKU, DataArea.NOTEN)
 
-    def test_pane_of(self, axis):
-        assert axis.pane_of("nachname") is DocsPane.NAMES
-        assert axis.pane_of("vorname") is DocsPane.NAMES
-        assert axis.pane_of("date_1") is DocsPane.MAIN
-        assert axis.pane_of("grade_a") is DocsPane.RIGHT
-        assert axis.pane_of("overall") is DocsPane.RIGHT
+    def test_area_of(self, axis):
+        assert axis.area_of("nachname") is DataArea.NAMEN
+        assert axis.area_of("vorname") is DataArea.NAMEN
+        assert axis.area_of("date_1") is DataArea.DOKU
+        assert axis.area_of("grade_a") is DataArea.NOTEN
+        assert axis.area_of("overall") is DataArea.NOTEN
 
-    def test_columns_of_each_pane(self, axis):
-        assert axis.columns_of(DocsPane.NAMES) == ("nachname", "vorname")
-        assert axis.columns_of(DocsPane.MAIN) == DATES
-        assert axis.columns_of(DocsPane.RIGHT) == FIXED
+    def test_columns_of_each_area(self, axis):
+        assert axis.columns_of(DataArea.NAMEN) == ("nachname", "vorname")
+        assert axis.columns_of(DataArea.DOKU) == DATES
+        assert axis.columns_of(DataArea.NOTEN) == FIXED
 
     def test_summary_is_not_selectable(self, axis):
         assert not axis.is_selectable("summary")
@@ -58,8 +63,39 @@ class TestAxisStructure:
         assert axis.is_selectable("overall")
         assert not axis.is_selectable("grade_zz")
 
-    def test_first_selectable_nondate_right_skips_summary(self, axis):
-        assert axis.first_selectable_nondate_right() == "grade_a"
+    def test_first_selectable_in_skips_summary(self, axis):
+        assert axis.first_selectable_in(DataArea.NOTEN) == "grade_a"
+        assert axis.first_selectable_in(DataArea.NOTIZEN) is None
+
+
+class TestVisibleAreas:
+    """Ausgeblendete Bereiche gehören nicht zur Achse; die Notizen stehen zwischen Doku und Noten."""
+
+    def test_hidden_areas_drop_their_columns(self):
+        axis = DocColumnAxis(DATES, FIXED, ("notes",), (DataArea.NOTIZEN, DataArea.NOTEN))
+        assert axis.keys == ("nachname", "vorname", "notes", *FIXED)
+        assert axis.areas == (DataArea.NAMEN, DataArea.NOTIZEN, DataArea.NOTEN)
+        assert not axis.has("date_0") and axis.date_key(0) is None
+
+    def test_notes_sit_between_doku_and_grades(self):
+        axis = DocColumnAxis(DATES, FIXED, ("notes",), (DataArea.DOKU, DataArea.NOTIZEN))
+        assert axis.keys == ("nachname", "vorname", *DATES, "notes")
+        assert axis.neighbor("date_2", 1) == "notes"
+
+    def test_only_names_when_everything_is_hidden(self):
+        axis = DocColumnAxis(DATES, FIXED, ("notes",), ())
+        assert axis.keys == ("nachname", "vorname")
+
+    def test_values_of_hidden_columns_are_empty(self):
+        axis = DocColumnAxis(DATES, FIXED, ("notes",), (DataArea.NOTIZEN,))
+        row = DocRow("1", "Meier", "Ada", {"date_0": "x", "notes": "Braucht Zeit"})
+        assert axis.value_of(row, "date_0") == ""
+        assert axis.cells_of(row) == {"nachname": "Meier", "vorname": "Ada", "notes": "Braucht Zeit"}
+
+    def test_notes_sort_case_insensitive(self):
+        axis = DocColumnAxis(DATES, FIXED, ("notes",), (DataArea.NOTIZEN,))
+        rows = [DocRow("b", "", "", {"notes": "zeit"}), DocRow("a", "", "", {"notes": "Arbeit"})]
+        assert sort_iids(rows, _s("notes"), axis) == ["a", "b"]
 
     def test_date_key_clamps(self, axis):
         assert axis.date_key(1) == "date_1"
@@ -238,10 +274,10 @@ class TestInactiveRowsStayAtTheBottom:
 
     def _rows(self):
         return [
-            DocRow("a", "Alt", "", ("",) * 3, ("", "1", "", "", ""), inactive=True),
-            DocRow("b", "Berg", "", ("",) * 3, ("", "3", "", "", "")),
-            DocRow("c", "Cal", "", ("",) * 3, ("", "2", "", "", ""), inactive=True),
-            DocRow("d", "Dorn", "", ("",) * 3, ("", "4", "", "", "")),
+            _row("a", "Alt", fixed=("", "1", "", "", ""), inactive=True),
+            _row("b", "Berg", fixed=("", "3", "", "", "")),
+            _row("c", "Cal", fixed=("", "2", "", "", ""), inactive=True),
+            _row("d", "Dorn", fixed=("", "4", "", "", "")),
         ]
 
     def test_without_sort_column_base_order_with_inactive_last(self, axis):

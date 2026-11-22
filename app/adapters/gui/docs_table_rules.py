@@ -169,9 +169,11 @@ def resolve_horizontal_target(
 ) -> str | None:
     """Bestimmt die Zielspalte für ←/→ (reine Entscheidung, ohne Tk).
 
-    Einzige zustandsabhängige Sonderregel: von der ersten auswählbaren
-    RIGHT-Spalte führt ← zurück zum *aktuellen Datumsanker* (nicht zum letzten
-    Datum). Alle übrigen Übergänge kommen rein strukturell aus der Achse.
+    Einzige zustandsabhängige Sonderregel: Führt ← von einer Nicht-Datumsspalte
+    strukturell auf eine Datumsspalte (erste Spalte rechts vom Doku-Bereich,
+    egal welcher Bereich dort sichtbar ist), landet sie beim *aktuellen
+    Datumsanker* statt beim letzten Datum. Alle übrigen Übergänge kommen rein
+    strukturell aus der Achse.
 
     Args:
         axis: Aktuelle Spaltenachse.
@@ -182,8 +184,7 @@ def resolve_horizontal_target(
     Returns:
         Zielspalte oder ``None`` am Rand.
     """
-    if delta < 0 and active_key is not None and active_key == axis.first_selectable_nondate_right():
-        anchor_key = axis.date_key(date_anchor_index)
-        if anchor_key is not None:
-            return anchor_key
-    return axis.neighbor(active_key, delta)
+    target = axis.neighbor(active_key, delta)
+    if delta < 0 and not axis.is_date(active_key) and axis.is_date(target):
+        return axis.date_key(date_anchor_index)
+    return target

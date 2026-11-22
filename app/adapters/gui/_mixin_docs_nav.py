@@ -7,7 +7,7 @@ für die Dokumentations-Tabelle bereit.
 
 from __future__ import annotations
 
-from app.adapters.gui.docs_table_model import grade_column_id
+from app.adapters.gui.docs_table_model import NACHNAME_KEY, VORNAME_KEY, grade_column_id
 from app.core.domain.grade_scale import parse_grade_input, scale_for
 from app.core.intents.grade_intents import RecordGradeIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
@@ -179,7 +179,10 @@ class DocsNavMixin:
         der Datumsanker wird auf ``[0, date_count - 1]`` geklemmt; eine nicht
         mehr existierende Nicht-Datum-Spalte (z. B. gelöschte Notenspalte)
         wird auf ``None`` gesetzt, womit der geklemmte Datumsanker aktiv wird.
-        Namensspalten existieren immer und bleiben gültig. Keine
+        Namensspalten existieren immer und bleiben gültig. Sind keine
+        Datumsspalten sichtbar (Doku-Bereich ausgeblendet), wird statt des
+        Ankers die erste auswählbare Spalte rechts der Namen aktiv, sonst der
+        Nachname -- so gibt es immer eine aktive Spalte für ←/→. Keine
         Auswahl-Aktion, löscht insbesondere keine noch gültige Spalte.
 
         Args:
@@ -188,3 +191,5 @@ class DocsNavMixin:
         self._doc_selected_date_index = max(0, min(self._doc_selected_date_index, max(0, date_count - 1)))
         if not self._is_valid_doc_nondate_column(self._doc_selected_nondate_column_id):
             self._doc_selected_nondate_column_id = None
+        if self._doc_selected_nondate_column_id is None and self._doc_axis.date_key(0) is None:
+            self._doc_selected_nondate_column_id = self._doc_axis.neighbor(VORNAME_KEY, 1) or NACHNAME_KEY

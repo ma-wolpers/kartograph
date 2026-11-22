@@ -1,39 +1,37 @@
 """Logisches Tabellenmodell der Datenansicht (reines Python, kein Tk).
 
-Die Datenansicht ist fachlich **eine logische Tabelle**, dargestellt in
-drei Bereichen eines bw-gui ``DataGrid`` (``DocsPane.NAMES`` / ``MAIN`` /
-``RIGHT``). Dieses Modul hält die Struktur dieser Tabelle, unabhängig von
-jedem Widget:
+Die Datenansicht ist fachlich **eine logische Tabelle** aus Bereichen
+(``DataArea``: Namen | Doku | Notizen | Noten, Regeln in
+``core/domain/data_view_areas``). Welche Bereiche sichtbar sind, entscheidet
+die Achse beim Aufbau; auf welche ``DataGrid``-Region ein Bereich fällt, leitet
+die GUI aus den sichtbaren Bereichen ab (``_mixin_layout_docs``). Dieses Modul
+hält die Struktur dieser Tabelle, unabhängig von jedem Widget:
 
-- ``DocRow``: eine Tabellenzeile (Anzeige-Strings) je Schüler.
+- ``DocRow``: eine Tabellenzeile je Schüler (Namen + Zelltexte nach Spaltenschlüssel).
 - ``GradeCellTarget``: der Noteneintrag, den ein Inline-Editor bearbeitet
   (beim Öffnen festgelegt).
 - ``DocColumnAxis``: die eine logische horizontale Spaltenachse
-  ``nachname → vorname → date_0 … date_n → summary → grade_* → totals → overall``
-  inkl. Pane-Zuordnung, Nachbarschaft und Sortierwerten. Rein strukturell —
-  kennt keinen UI-Zustand (keinen Datumsanker, keine Auswahl, keinen Fokus).
+  ``nachname → vorname → date_0 … date_n → notes → summary → grade_* → totals → overall``
+  (nur sichtbare Bereiche) inkl. Bereichszuordnung, Nachbarschaft und
+  Sortierwerten. Rein strukturell — kennt keinen UI-Zustand (keinen
+  Datumsanker, keine Auswahl, keinen Fokus).
 
 Zustandsabhängige Regeln (Sortierung, Sortier-Klickregel, ←/→-Navigation mit
 Datumsanker) liegen getrennt davon in ``docs_table_rules``.
-
-Grenze der Positionsrepräsentation: ``DocRow.date_cells`` und
-``DocRow.fixed_cells`` sind intern positionsbasierte Tupel. **Nur**
-``DocColumnAxis.value_of`` (und darauf aufbauend ``cells_of``/``sort_value``)
-darf einen Tupelindex einer Spalte zuordnen; alles außerhalb dieses Moduls
-arbeitet ausschließlich mit Spaltenschlüsseln.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
-from typing import Literal, Sequence
+from dataclasses import dataclass, field
+from typing import Literal, Mapping, Sequence
 
+from app.core.domain.data_view_areas import DEFAULT_VISIBLE_AREAS, DataArea, shown_areas
 from app.core.domain.grade_scale import parse_decimal_input
 from app.core.domain.models_v4 import GradeCategory, StudentId
 
 NACHNAME_KEY = "nachname"
 VORNAME_KEY = "vorname"
+NOTES_KEY = "notes"
 SUMMARY_KEY = "summary"
 OVERALL_KEY = "overall"
 # Einzige Zuordnung Kategorie -> Spaltenschlüssel der Teilnote ("… gesamt");
@@ -42,7 +40,7 @@ CATEGORY_TOTAL_KEYS: dict[GradeCategory, str] = {"schriftlich": "written_total",
 
 _GRADE_PREFIX = "grade_"
 
-_ColumnKind = Literal["name", "date", "summary", "grade", "total"]
+_ColumnKind = Literal["name", "date", "text", "summary", "grade", "total"]
 
 
 def grade_column_key(column_id: str) -> str:
@@ -63,25 +61,16 @@ def grade_column_id(key: str | None) -> str | None:
     return key[len(_GRADE_PREFIX):] if key and key.startswith(_GRADE_PREFIX) else None
 
 
-class DocsPane(Enum):
-    """Die drei Bereiche der Dokutabelle (Namen | Datumsspalten | feste Spalten)."""
-
-    NAMES = "names"
-    MAIN = "main"
-    RIGHT = "right"
-
-
 @dataclass(frozen=True)
 class DocRow:
-    """Eine logische Zeile der Dokutabelle (reine Anzeige-Strings).
+    """Eine logische Zeile der Datentabelle (reine Anzeige-Strings).
 
     Attributes:
         iid: Zeilen-ID (Schüler-ID als String).
         nachname: Angezeigter Nachname (inkl. Fallback ``"(x,y)"`` bei leerem Nachnamen).
         vorname: Angezeigter Vorname.
-        date_cells: Zelltexte der Datumsspalten, in Achsenreihenfolge.
-        fixed_cells: Zelltexte der festen Spalten (Zusammenfassung, Noten,
-            Zwischensummen, Gesamtnote), in Achsenreihenfolge.
+        cells: Zelltexte aller übrigen Spalten nach Spaltenschlüssel; fehlender
+            Schlüssel = leere Zelle. Gelesen wird nur über ``DocColumnAxis.value_of``.
         inactive: Person zählt nicht mit (dauerhaft abwesend, ``permanent_absence.is_active``):
             Zeile steht unabhängig von der Sortierung ganz unten und ist ausgegraut.
     """
@@ -89,8 +78,7 @@ class DocRow:
     iid: str
     nachname: str
     vorname: str
-    date_cells: tuple[str, ...]
-    fixed_cells: tuple[str, ...]
+    cells: Mapping[str, str] = field(default_factory=dict)
     inactive: bool = False
 
 
@@ -109,24 +97,24 @@ class GradeCellTarget:
 
 @dataclass(frozen=True)
 class DocColumn:
-    """Eine logische Spalte der Dokutabelle.
+    """Eine logische Spalte der Datentabelle.
 
     Attributes:
-        key: Spaltenschlüssel (``"nachname"``, ``"date_3"``, ``"grade_x"``, …).
-        pane: Pane, in dem die Spalte dargestellt wird.
+        key: Spaltenschlüssel (``"nachname"``, ``"date_3"``, ``"notes"``, ``"grade_x"``, …).
+        area: Bereich, zu dem die Spalte gehört.
         kind: Spaltenart; wird ausschließlich innerhalb dieses Moduls ausgewertet.
     """
 
     key: str
-    pane: DocsPane
+    area: DataArea
     kind: _ColumnKind
 
 
-def _fixed_column_kind(key: str) -> _ColumnKind:
-    """Ordnet einer festen Spalten-ID ihre Spaltenart zu.
+def _grade_area_kind(key: str) -> _ColumnKind:
+    """Ordnet einer Spalte des Notenbereichs ihre Spaltenart zu.
 
     Args:
-        key: Feste Spalten-ID (``"summary"``, ``"grade_*"``, ``"written_total"``, …).
+        key: Spalten-ID im Notenbereich (``"summary"``, ``"grade_*"``, ``"written_total"``, …).
 
     Returns:
         ``"summary"``, ``"grade"`` oder ``"total"`` (Zwischensummen und Gesamtnote).
@@ -139,32 +127,41 @@ def _fixed_column_kind(key: str) -> _ColumnKind:
 
 
 class DocColumnAxis:
-    """Die logische horizontale Spaltenachse über alle drei Panes (zustandsfrei).
+    """Die logische horizontale Spaltenachse über alle sichtbaren Bereiche (zustandsfrei).
 
-    Reihenfolge: ``nachname, vorname`` (NAMES) → Datumsspalten (MAIN) →
-    feste Spalten (RIGHT). Enthält nur Struktur; zustandsabhängige Regeln
-    (Datumsanker-Rücksprung) liegen in ``resolve_horizontal_target``.
+    Reihenfolge: ``nachname, vorname`` (Namen) → Datumsspalten (Doku) →
+    Notizspalten (Notizen) → Notenbereich (Zusammenfassung, Noten, Summen,
+    Gesamtnote). Spalten ausgeblendeter Bereiche gehören nicht zur Achse.
+    Enthält nur Struktur; zustandsabhängige Regeln (Datumsanker-Rücksprung)
+    liegen in ``resolve_horizontal_target``.
     """
 
-    def __init__(self, date_column_ids: Sequence[str], fixed_column_ids: Sequence[str]) -> None:
-        """Baut die Achse aus den aktuellen Datums- und festen Spalten-IDs.
+    def __init__(
+        self,
+        date_column_ids: Sequence[str],
+        grade_area_ids: Sequence[str],
+        note_area_ids: Sequence[str] = (),
+        visible_areas: tuple[DataArea, ...] = DEFAULT_VISIBLE_AREAS,
+    ) -> None:
+        """Baut die Achse aus den Spalten-IDs je Bereich und den sichtbaren Bereichen.
 
         Args:
             date_column_ids: IDs der Datumsspalten (``date_0`` …) in Anzeigereihenfolge.
-            fixed_column_ids: IDs der festen Spalten in Anzeigereihenfolge.
+            grade_area_ids: IDs der Spalten des Notenbereichs in Anzeigereihenfolge.
+            note_area_ids: IDs der Spalten des Notizenbereichs in Anzeigereihenfolge.
+            visible_areas: Sichtbare ausblendbare Bereiche (Namen sind immer dabei).
         """
-        columns: list[DocColumn] = [
-            DocColumn(NACHNAME_KEY, DocsPane.NAMES, "name"),
-            DocColumn(VORNAME_KEY, DocsPane.NAMES, "name"),
-        ]
-        columns.extend(DocColumn(key, DocsPane.MAIN, "date") for key in date_column_ids)
-        columns.extend(DocColumn(key, DocsPane.RIGHT, _fixed_column_kind(key)) for key in fixed_column_ids)
-        self._columns: tuple[DocColumn, ...] = tuple(columns)
+        by_area: dict[DataArea, list[DocColumn]] = {
+            DataArea.NAMEN: [DocColumn(NACHNAME_KEY, DataArea.NAMEN, "name"), DocColumn(VORNAME_KEY, DataArea.NAMEN, "name")],
+            DataArea.DOKU: [DocColumn(key, DataArea.DOKU, "date") for key in date_column_ids],
+            DataArea.NOTIZEN: [DocColumn(key, DataArea.NOTIZEN, "text") for key in note_area_ids],
+            DataArea.NOTEN: [DocColumn(key, DataArea.NOTEN, _grade_area_kind(key)) for key in grade_area_ids],
+        }
+        self.areas: tuple[DataArea, ...] = shown_areas(visible_areas)
+        self._columns: tuple[DocColumn, ...] = tuple(column for area in self.areas for column in by_area[area])
         self._position_by_key = {column.key: pos for pos, column in enumerate(self._columns)}
-        self._date_ids: tuple[str, ...] = tuple(date_column_ids)
-        self._fixed_ids: tuple[str, ...] = tuple(fixed_column_ids)
+        self._date_ids: tuple[str, ...] = tuple(c.key for c in self._columns if c.kind == "date")
         self._date_index = {key: idx for idx, key in enumerate(self._date_ids)}
-        self._fixed_index = {key: idx for idx, key in enumerate(self._fixed_ids)}
 
     @property
     def keys(self) -> tuple[str, ...]:
@@ -178,7 +175,7 @@ class DocColumnAxis:
             key: Spaltenschlüssel oder ``None``.
 
         Returns:
-            ``True``, falls die Spalte existiert.
+            ``True``, falls die Spalte existiert (und ihr Bereich sichtbar ist).
         """
         return key is not None and key in self._position_by_key
 
@@ -193,16 +190,16 @@ class DocColumnAxis:
         """
         return self._columns[self._position_by_key[key]]
 
-    def pane_of(self, key: str) -> DocsPane:
-        """Liefert das Pane, in dem *key* dargestellt wird.
+    def area_of(self, key: str) -> DataArea:
+        """Liefert den Bereich, zu dem *key* gehört.
 
         Args:
             key: Existierender Spaltenschlüssel.
 
         Returns:
-            Das zuständige ``DocsPane``.
+            Der zuständige ``DataArea``.
         """
-        return self._column(key).pane
+        return self._column(key).area
 
     def is_selectable(self, key: str | None) -> bool:
         """Prüft, ob *key* per Klick/Navigation aktive Spalte werden darf.
@@ -218,7 +215,7 @@ class DocColumnAxis:
         return self.has(key) and self._column(key).kind != "summary"
 
     def is_date(self, key: str | None) -> bool:
-        """Prüft, ob *key* eine Datumsspalte ist.
+        """Prüft, ob *key* eine (sichtbare) Datumsspalte ist.
 
         Args:
             key: Spaltenschlüssel oder ``None``.
@@ -246,7 +243,8 @@ class DocColumnAxis:
             index: Datumsindex (wird in den gültigen Bereich geklemmt).
 
         Returns:
-            Datumsspalten-Schlüssel oder ``None``, falls es keine Datumsspalten gibt.
+            Datumsspalten-Schlüssel oder ``None``, falls keine Datumsspalten
+            sichtbar sind (auch bei ausgeblendetem Doku-Bereich).
         """
         if not self._date_ids:
             return None
@@ -263,22 +261,22 @@ class DocColumnAxis:
         """
         return self._date_index.get(key)
 
-    def first_selectable_nondate_right(self) -> str | None:
-        """Liefert die erste auswählbare Spalte im RIGHT-Pane (überspringt ``summary``).
+    def first_selectable_in(self, area: DataArea) -> str | None:
+        """Liefert die erste auswählbare Spalte eines Bereichs (überspringt z. B. ``summary``).
+
+        Args:
+            area: Bereich.
 
         Returns:
-            Spaltenschlüssel oder ``None``, falls keine existiert.
+            Spaltenschlüssel oder ``None``, falls der Bereich keine hat oder ausgeblendet ist.
         """
-        for key in self._fixed_ids:
-            if self.is_selectable(key):
-                return key
-        return None
+        return next((c.key for c in self._columns if c.area is area and self.is_selectable(c.key)), None)
 
     def neighbor(self, key: str | None, step: int) -> str | None:
         """Liefert die strukturell benachbarte auswählbare Spalte.
 
         Kennt keinen Datumsanker — ``date_i`` hat immer ``date_i±1`` bzw. die
-        Pane-Grenze als Nachbarn.
+        Bereichsgrenze als Nachbarn.
 
         Args:
             key: Ausgangsspalte.
@@ -297,16 +295,16 @@ class DocColumnAxis:
             position += step
         return None
 
-    def columns_of(self, pane: DocsPane) -> tuple[str, ...]:
-        """Spaltenschlüssel eines Panes in Achsenreihenfolge.
+    def columns_of(self, area: DataArea) -> tuple[str, ...]:
+        """Spaltenschlüssel eines Bereichs in Achsenreihenfolge.
 
         Args:
-            pane: Ziel-Pane.
+            area: Bereich.
 
         Returns:
-            Schlüssel der Spalten, die *pane* darstellt.
+            Schlüssel der Spalten des Bereichs (leer, wenn ausgeblendet).
         """
-        return tuple(column.key for column in self._columns if column.pane is pane)
+        return tuple(column.key for column in self._columns if column.area is area)
 
     def cells_of(self, row: DocRow) -> dict[str, str]:
         """Alle Zelltexte einer Zeile nach Spaltenschlüssel (für die Grid-Projektion).
@@ -333,20 +331,14 @@ class DocColumnAxis:
             return row.nachname
         if key == VORNAME_KEY:
             return row.vorname
-        if key in self._date_index:
-            idx = self._date_index[key]
-            return row.date_cells[idx] if idx < len(row.date_cells) else ""
-        if key in self._fixed_index:
-            idx = self._fixed_index[key]
-            return row.fixed_cells[idx] if idx < len(row.fixed_cells) else ""
-        return ""
+        return row.cells.get(key, "") if self.has(key) else ""
 
     def sort_value(self, row: DocRow, key: str) -> tuple:
-        """Liefert den Sortierwert der Zelle (*row*, *key*) — konserviert die bisherige Semantik.
+        """Liefert den Sortierwert der Zelle (*row*, *key*).
 
-        - Namen: kleingeschrieben, lexikografisch.
+        - Namen und Textspalten: kleingeschrieben, lexikografisch.
         - Datum: roher Zelltext (ohne ``lower()``).
-        - Feste Spalten: ``(0, float)`` falls als Zahl lesbar (Komma oder Punkt,
+        - Notenbereich: ``(0, float)`` falls als Zahl lesbar (Komma oder Punkt,
           ``grade_scale.parse_decimal_input`` -- "1,7" ist eine Zahl), sonst
           ``(1, text.lower())``; leere Zellen landen damit aufsteigend hinter allen Zahlen.
         - Unbekannte Spalte: ``("",)``.
@@ -362,7 +354,7 @@ class DocColumnAxis:
             return ("",)
         kind = self._column(key).kind
         raw = self.value_of(row, key)
-        if kind == "name":
+        if kind in ("name", "text"):
             return (raw.lower(),)
         if kind == "date":
             return (raw,)

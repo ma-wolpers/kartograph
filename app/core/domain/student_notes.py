@@ -19,6 +19,19 @@ from collections.abc import Iterable
 
 NOTES_LABEL = "Notizen"
 LEGACY_NOTES_KEY = "accommodations"
+_INLINE_SEPARATOR = " · "
+
+
+def notes_inline(lines: Iterable[str]) -> str:
+    """Notizzeilen einzeilig, z. B. für eine Tabellenzelle der Datenansicht.
+
+    Args:
+        lines: Gespeicherte Notizzeilen (``DiagnosticProfile.notes``).
+
+    Returns:
+        Die Zeilen mit " · " verbunden, z. B. ``"braucht Zeit · sitzt vorne"``.
+    """
+    return _INLINE_SEPARATOR.join(lines)
 
 
 def normalize_note_lines(lines: Iterable[object]) -> list[str]:
