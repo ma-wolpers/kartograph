@@ -7,6 +7,11 @@ The format is based on Keep a Changelog.
 ## [Unreleased]
 
 ### Added
+- **Gruppen exportieren:** Steht in der Datenansicht eine Zelle im Notizenbereich, exportiert der Knopf „Gruppen exportieren“ (▦) ein PDF. Darauf steht je Eintrag dieser Spalte ein Kästchen mit den Namen aller, die genau diesen Eintrag haben, alphabetisch sortiert. Das geht mit den allgemeinen Notizen (jede Zeile zählt einzeln), mit eigenen Text-, Zahl- und Datumsspalten und mit Ja/Nein-Spalten.
+  - Im Dialog wählst du, was über den Kästchen steht: die Notiz, eine zufällige Nummer („Gruppe 1“ …) oder gar nichts. Bei den beiden geheimen Varianten sind die Kästchen auch zufällig angeordnet, und die Blattüberschrift nennt nur den Sitzplan, nicht die Spalte.
+  - Außerdem wählst du Hoch- oder Querformat.
+  - Gibt es Personen ohne Eintrag, fragt der Dialog, ob sie als eigenes Kästchen dazukommen.
+  - Dauerhaft Abwesende stehen nicht auf dem Blatt; die Namen folgen dem eingestellten Namensformat.
 - **Kopieren, Ausschneiden und Einfügen in der Datenansicht:** Strg+C, Strg+X und Strg+V (oder das Menü *Bearbeiten*) wirken auf die ausgewählte Zelle. Jedes Einfügen und Ausschneiden lässt sich einzeln mit Strg+Z zurücknehmen.
   - *Noten und Notizen* (allgemeine Notizen und eigene Notizspalten) gehen als Text in die normale Zwischenablage, also auch in andere Programme und aus ihnen heraus. Eingefügter Text wird geprüft wie eine Eingabe im Feld: „abc“ in einer Notenspalte wird abgelehnt, die Statuszeile sagt, was erlaubt ist.
   - *Doku-Zellen* nehmen den ganzen Tageseintrag mit – Symbole samt Stärke, Mitarbeit und Tagesnotiz – und ersetzen beim Einfügen den Eintrag der Zielzelle. Das geht innerhalb desselben Sitzplans, solange du dazwischen nichts anderes kopiert hast.

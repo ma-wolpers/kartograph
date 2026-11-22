@@ -11,6 +11,7 @@ add        ``add_documentation_date``   ``add_grade_column``      ``add_note_col
 rename     Datum ändern                 ``RenameGradeColumn``     Notiz: ``RenameNoteColumn``,
                                                                   Ja/Nein: ``SetPaletteMeaning``
 delete     Datum löschen                Notenspalte löschen       ``delete_note_column``
+groups     --                           --                        ``export_note_groups_dialog``
 ========== ============================ ========================= =========================
 
 Knöpfe, die für die Auswahl nichts tun können, sind ausgegraut
@@ -48,7 +49,7 @@ class DocsColumnActionsMixin:
         """Hover-Text des Knopfs *action* für die aktuelle Auswahl.
 
         Args:
-            action: ``"add"``, ``"rename"`` oder ``"delete"``.
+            action: ``"add"``, ``"rename"``, ``"delete"`` oder ``"groups"``.
         """
         return action_label(action, self._docs_column_target())
 
@@ -62,7 +63,7 @@ class DocsColumnActionsMixin:
         """Führt *action* für die Spalte der ausgewählten Zelle aus (Knopf und Tastenkürzel).
 
         Args:
-            action: ``"add"``, ``"rename"`` oder ``"delete"``.
+            action: ``"add"``, ``"rename"``, ``"delete"`` oder ``"groups"``.
         """
         target = self._docs_column_target()
         if not self.current_plan or not can_run(action, target):
@@ -77,6 +78,8 @@ class DocsColumnActionsMixin:
             adders[target.area]()
         elif action == "rename":
             self._rename_docs_column(target)
+        elif action == "groups":
+            self.export_note_groups_dialog(target.key)
         else:
             self._delete_docs_column(target)
 

@@ -8,7 +8,9 @@ ausgewählte Zelle entscheidet. Einzige Regel dafür ist ``column_target``:
   Zusammenfassung, Gesamtnote oder allgemeinen Notizen aus.
 - **Umbenennen** und **Löschen** brauchen eine eigene Spalte (``ColumnKind``):
   Datum, Notenspalte, Notizspalte oder Ja/Nein-Spalte.
-- Eine Namenszelle gehört zu keinem Bereich: alle drei Knöpfe sind ausgegraut.
+- **Gruppen exportieren** geht in jeder Spalte des Notizenbereichs (auch
+  allgemeine Notizen und Ja/Nein; Entscheidung der Nutzerin 2026-11-22).
+- Eine Namenszelle gehört zu keinem Bereich: alle Spaltenknöpfe sind ausgegraut.
 
 ``action_label`` liefert den Hover-Text, der genau sagt, was passieren wird.
 """
@@ -21,7 +23,7 @@ from typing import Literal
 from app.adapters.gui.docs_table_model import DocColumnAxis
 from app.core.domain.data_view_areas import DataArea
 
-ColumnAction = Literal["add", "rename", "delete"]
+ColumnAction = Literal["add", "rename", "delete", "groups"]
 ColumnKind = Literal["date", "grade", "note", "flag"]
 
 _KIND_BY_AXIS_KIND: dict[str, ColumnKind] = {
@@ -51,6 +53,7 @@ _GENERIC: dict[ColumnAction, str] = {
     "add": "Spalte hinzufügen",
     "rename": "Spalte umbenennen",
     "delete": "Spalte löschen",
+    "groups": "Gruppen exportieren",
 }
 
 
@@ -88,11 +91,13 @@ def can_run(action: ColumnAction, target: ColumnTarget | None) -> bool:
     """Lässt sich *action* für *target* ausführen? (Grundlage fürs Ausgrauen.)
 
     Args:
-        action: ``"add"``, ``"rename"`` oder ``"delete"``.
+        action: ``"add"``, ``"rename"``, ``"delete"`` oder ``"groups"``.
         target: Ergebnis von ``column_target``.
     """
     if target is None:
         return False
+    if action == "groups":
+        return target.area is DataArea.NOTIZEN
     return action == "add" or target.kind is not None
 
 
@@ -100,13 +105,17 @@ def action_label(action: ColumnAction, target: ColumnTarget | None) -> str:
     """Hover-Text: was der Knopf für *target* tut, oder warum er ausgegraut ist.
 
     Args:
-        action: ``"add"``, ``"rename"`` oder ``"delete"``.
+        action: ``"add"``, ``"rename"``, ``"delete"`` oder ``"groups"``.
         target: Ergebnis von ``column_target``.
 
     Returns:
         z. B. ``"Notenspalte umbenennen"`` oder
         ``"Spalte löschen – wähle eine Zelle in Doku, Notizen oder Noten"``.
     """
+    if action == "groups":
+        if can_run(action, target):
+            return "Gruppen dieser Spalte als PDF exportieren"
+        return f"{_GENERIC[action]} – wähle eine Zelle im Notizenbereich"
     if target is None:
         return f"{_GENERIC[action]} – wähle eine Zelle in Doku, Notizen oder Noten"
     if action == "add":

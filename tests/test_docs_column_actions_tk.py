@@ -50,13 +50,15 @@ def _disabled(button) -> bool:
     return button.instate(["disabled"])
 
 
-def test_toolbar_has_six_icon_buttons_and_greys_out_column_buttons_for_names(window):
+def test_toolbar_has_seven_icon_buttons_and_greys_out_column_buttons_for_names(window):
     app, _ = window
-    assert len(app.docs_toolbar.winfo_children()) == 6
+    assert len(app.docs_toolbar.winfo_children()) == 7
     _select(app, NACHNAME_KEY)
     assert all(_disabled(button) for button in app._docs_column_buttons.values())
     _select(app, grade_column_key("col0"))
-    assert not any(_disabled(button) for button in app._docs_column_buttons.values())
+    buttons = app._docs_column_buttons
+    assert not any(_disabled(buttons[action]) for action in ("add", "rename", "delete"))
+    assert _disabled(buttons["groups"])  # Gruppen nur im Notizenbereich
     assert app._docs_column_action_label("rename") == "Notenspalte umbenennen"
 
 

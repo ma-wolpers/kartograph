@@ -67,3 +67,11 @@ def test_labels_say_what_happens(axis):
     assert action_label("rename", column_target(axis, "date_0")) == "Datum ändern"
     assert action_label("rename", column_target(axis, "mark_rot")).startswith("Ja/Nein-Spalte umbenennen")
     assert action_label("delete", column_target(axis, _NOTE)) == "Notizspalte samt Werten löschen"
+
+
+@pytest.mark.parametrize(("key", "enabled"), [(NOTES_KEY, True), ("mark_rot", True), (_NOTE, True), ("date_0", False),
+                                              (NACHNAME_KEY, False)])
+def test_groups_only_in_the_notes_area(axis, key, enabled):
+    target = column_target(axis, key)
+    assert can_run("groups", target) is enabled
+    assert ("Notizenbereich" in action_label("groups", target)) is not enabled

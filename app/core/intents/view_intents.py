@@ -64,6 +64,15 @@ class ExportStudentPngsZipIntent(Intent):
 
 
 @dataclass(frozen=True)
+class ExportNoteGroupsPdfIntent(Intent):
+    """Markiert einen abgeschlossenen Gruppen-Export (PDF aus einer Spalte des Notizenbereichs).
+
+    Reiner No-Op-Marker wie ``ExportPdfIntent``: Dialog und Datei sind Tk-/IO-Seiteneffekte
+    ohne AppState-Wirkung.
+    """
+
+
+@dataclass(frozen=True)
 class OpenSettingsIntent(Intent):
     """Lädt die persistierten Einstellungen frisch aus dem Settings-Repository in den AppState."""
 

@@ -55,6 +55,7 @@ _DOCS_TOOLBAR: tuple[tuple[str, str, str | None, str], ...] = (
     ("docs_column_add", "＋", None, UiIntent.DOCS_COLUMN_ADD),
     ("docs_column_rename", "✎", None, UiIntent.DOCS_COLUMN_RENAME),
     ("docs_column_delete", "⌫", None, UiIntent.DOCS_COLUMN_DELETE),
+    ("docs_column_groups", "▦", None, UiIntent.DOCS_COLUMN_GROUPS),
     ("docs_today", "◷", "Auf heutiges Datum springen", UiIntent.DOCS_TODAY),
     ("docs_weighting", "⚖", "Gewichtung der Noten einstellen", UiIntent.DOCS_WEIGHTING),
 )

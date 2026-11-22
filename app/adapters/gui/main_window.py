@@ -24,6 +24,7 @@ from app.adapters.gui._mixin_docs_nav import DocsNavMixin
 from app.adapters.gui._mixin_docs_table import DocsTableMixin
 from app.adapters.gui._mixin_data_areas import DataAreasMixin
 from app.adapters.gui._mixin_note_dialogs import NoteDialogsMixin
+from app.adapters.gui._mixin_note_groups_export import NoteGroupsExportMixin
 from app.adapters.gui._mixin_notes_area import NotesAreaMixin
 from app.adapters.gui._mixin_docs_view import DocsViewMixin
 from app.adapters.gui._mixin_edit import EditMixin
@@ -117,6 +118,7 @@ class KartographMainWindow(
     DataAreasMixin,
     NotesAreaMixin,
     NoteDialogsMixin,
+    NoteGroupsExportMixin,
     DetailsMixin,
     DetailsButtonsMixin,
     DetailsLayoutMixin,

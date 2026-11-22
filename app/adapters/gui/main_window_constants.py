@@ -107,6 +107,7 @@ DOCS_INTENT_AREAS: dict[str, DataArea | None] = {
     UiIntent.DOCS_COLUMN_ADD: None,
     UiIntent.DOCS_COLUMN_RENAME: None,
     UiIntent.DOCS_COLUMN_DELETE: None,
+    UiIntent.DOCS_COLUMN_GROUPS: None,
 }
 
 # Einzige Zuordnung Spaltenaktions-Intent -> Aktion (Aktionsregister und Toolbar lesen hier).
@@ -114,6 +115,7 @@ DOCS_COLUMN_ACTIONS: dict[str, ColumnAction] = {
     UiIntent.DOCS_COLUMN_ADD: "add",
     UiIntent.DOCS_COLUMN_RENAME: "rename",
     UiIntent.DOCS_COLUMN_DELETE: "delete",
+    UiIntent.DOCS_COLUMN_GROUPS: "groups",
 }
 
 

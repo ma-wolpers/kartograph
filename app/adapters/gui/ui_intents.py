@@ -34,6 +34,7 @@ class UiIntent:
     DOCS_COLUMN_ADD = "docs.column.add"
     DOCS_COLUMN_RENAME = "docs.column.rename"
     DOCS_COLUMN_DELETE = "docs.column.delete"
+    DOCS_COLUMN_GROUPS = "docs.column.groups"
     DOCS_WEIGHTING = "docs.weighting"
     TOGGLE_THEME = "theme.toggle"
     EXPORT_PDF = "export.pdf"

@@ -7,6 +7,7 @@ from app.application.handler_context import HandlerContext
 from app.core.domain.settings import KartographSettings
 from app.core.intents.view_intents import (
     ExportNamenfitCsvIntent,
+    ExportNoteGroupsPdfIntent,
     ExportPdfIntent,
     ExportStudentPngsZipIntent,
     OpenSettingsIntent,
@@ -142,6 +143,19 @@ def handle_export_student_pngs_zip(
     intent: ExportStudentPngsZipIntent, state: AppState, ctx: HandlerContext
 ) -> AppState:
     """No-Op: PNG-ZIP-Export hat keine AppState-Wirkung (s. Kommentar oben).
+
+    Args:
+        intent: Trägt keine Felder.
+        state: Aktueller AppState (wird unverändert zurückgegeben).
+        ctx: Handler-Kontext (von diesem Handler nicht benötigt).
+    """
+    return state
+
+
+def handle_export_note_groups_pdf(
+    intent: ExportNoteGroupsPdfIntent, state: AppState, ctx: HandlerContext
+) -> AppState:
+    """No-Op: Gruppen-Export hat keine AppState-Wirkung.
 
     Args:
         intent: Trägt keine Felder.
