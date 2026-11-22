@@ -9,7 +9,6 @@ Jede Spalte trägt einen Faktor (``GradeColumn.weight``); die Regeln dazu
 
 from __future__ import annotations
 
-import uuid
 from copy import deepcopy
 from typing import Iterable, Mapping
 
@@ -31,6 +30,7 @@ from app.core.domain.models_v4 import (
     SeatingPlan,
 )
 from app.core.domain.permanent_absence import accepts_entries
+from app.core.domain.short_id import new_short_id
 from app.core.domain.student_id import StudentId
 from app.core.usecases.v4._shared import (
     _round_half_up_to_int,
@@ -67,7 +67,7 @@ def add_grade_column(
         or f"{GRADE_CATEGORY_LABELS[clean_cat]} {len(plan.documentation.grade_columns) + 1}"  # type: ignore[index]
     )
     next_plan = deepcopy(plan)
-    column_id = uuid.uuid4().hex[:8]
+    column_id = new_short_id(c.column_id for c in plan.documentation.grade_columns)
     next_plan.documentation.grade_columns.append(
         GradeColumn(
             column_id=column_id,

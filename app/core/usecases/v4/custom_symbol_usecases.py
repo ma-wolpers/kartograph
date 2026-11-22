@@ -10,7 +10,6 @@ ausschließlich um die Verwaltung des Katalogs selbst.
 
 from __future__ import annotations
 
-import uuid
 from copy import deepcopy
 
 from app.core.domain.custom_symbol_validation import (
@@ -19,6 +18,7 @@ from app.core.domain.custom_symbol_validation import (
     validate_custom_symbol_shortcut,
 )
 from app.core.domain.models_v4 import CustomSymbolDefinition, SeatingPlan
+from app.core.domain.short_id import new_short_id
 
 
 def add_custom_symbol(
@@ -61,7 +61,7 @@ def add_custom_symbol(
     clean_shortcut = validate_custom_symbol_shortcut(shortcut, other_shortcuts, reserved_letters)
 
     next_plan = deepcopy(plan)
-    symbol_id = uuid.uuid4().hex[:8]
+    symbol_id = new_short_id(plan.custom_symbols)
     next_plan.custom_symbols[symbol_id] = CustomSymbolDefinition(
         id=symbol_id, glyph=clean_glyph, meaning=clean_meaning, shortcut=clean_shortcut
     )
