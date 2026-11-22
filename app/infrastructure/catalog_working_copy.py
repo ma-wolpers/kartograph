@@ -11,7 +11,11 @@ erzeugt und beim Start um **neue** eingebaute Einträge ergänzt, ohne eigene
    Arbeitskopie in ``spec.known_key`` festhält, welche Standards schon angeboten
    wurden (fehlt die Liste, gelten die vorhandenen Einträge als bekannt);
 3. ``spec.admit_new`` darf einen neuen Eintrag vor dem Ergänzen anpassen und
-   einen Hinweis liefern (Symbole: schon vergebenes Kürzel weglassen).
+   einen Hinweis liefern (Symbole: schon vergebenes Kürzel weglassen);
+4. ein Standardeintrag, der nur seine Identität gewechselt hat
+   (``spec.previous_identities``, z. B. neues Zeichen eines Symbols), wird nicht
+   neu ergänzt, sondern übernimmt die neue Identität im vorhandenen Eintrag
+   (``_adopt_renamed``).
 
 Die Funktionen schreiben nur beim Erzeugen/Reparieren selbst; Ergänzungen
 werden als ``dirty`` gemeldet und vom Aufrufer zusammen mit der Migration
@@ -43,6 +47,10 @@ class WorkingCopySpec:
         identity: Identität eines Eintrags (Codepoint bzw. ID), ``None`` bei ungültigen.
         admit_new: Optional; passt einen neuen Standardeintrag an die Arbeitskopie an
             (bekommt Eintrag und vorhandene Liste) und liefert ggf. einen Hinweis.
+        previous_identities: Optional; frühere Identitäten eines Standardeintrags
+            (z. B. alter Codepoint nach einem Glyphenwechsel). Siehe ``_adopt_renamed``.
+        adopt_identity: Optional; überträgt die neue Identität aus dem Standardeintrag
+            (zweites Argument) auf den vorhandenen Eintrag der Arbeitskopie (erstes Argument).
     """
 
     label: str
@@ -51,6 +59,8 @@ class WorkingCopySpec:
     default_path: Path
     identity: ItemIdentity
     admit_new: AdmitNew | None = None
+    previous_identities: Callable[[dict], "tuple[str, ...]"] | None = None
+    adopt_identity: Callable[[dict, dict], None] | None = None
 
 
 @dataclass
@@ -160,6 +170,9 @@ def _merged(copy: WorkingCopy, spec: WorkingCopySpec) -> WorkingCopy:
         key = spec.identity(item) if isinstance(item, dict) else None
         if key is None or key in known or key in present:
             continue
+        if _adopt_renamed(item, items, known | present, spec):
+            copy.dirty = True
+            continue
         added = dict(item)
         note = spec.admit_new(added, items) if spec.admit_new else None
         if note:
@@ -173,6 +186,35 @@ def _merged(copy: WorkingCopy, spec: WorkingCopySpec) -> WorkingCopy:
     if notes:
         copy.warnings.append(f"{spec.label}: " + ", ".join(notes))
     return copy
+
+
+def _adopt_renamed(default_item: dict, items: list, seen: set[str], spec: WorkingCopySpec) -> bool:
+    """Behandelt einen Standardeintrag mit neuer Identität, den die Arbeitskopie unter einer früheren kennt.
+
+    Regel 4 zu den Regeln oben: Ein Standardeintrag, der nur seine Identität
+    gewechselt hat (z. B. neues Zeichen), ist kein neuer Eintrag.
+
+    - Steht er unter einer früheren Identität in der Arbeitskopie, bekommt dieser
+      Eintrag die neue Identität (``spec.adopt_identity``); alles andere -- auch
+      eigene Änderungen an Name, Kürzel, Kompetenzen -- bleibt.
+    - Ist eine frühere Identität nur bekannt (bewusst gelöscht), bleibt er gelöscht.
+
+    Args:
+        default_item: Standardeintrag mit (noch) unbekannter Identität.
+        items: Einträge der Arbeitskopie (werden ggf. verändert).
+        seen: Bekannte und vorhandene Identitäten der Arbeitskopie.
+        spec: Katalogbeschreibung.
+
+    Returns:
+        ``True``, wenn der Eintrag damit erledigt ist (umbenannt oder gelöscht geblieben).
+    """
+    previous = set(spec.previous_identities(default_item)) if spec.previous_identities else set()
+    if not previous & seen:
+        return False
+    old_item = next((i for i in items if isinstance(i, dict) and spec.identity(i) in previous), None)
+    if old_item is not None and spec.adopt_identity is not None:
+        spec.adopt_identity(old_item, default_item)
+    return True
 
 
 def _reject_default_path(path: Path, spec: WorkingCopySpec) -> None:

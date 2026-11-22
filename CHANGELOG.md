@@ -62,6 +62,7 @@ The format is based on Keep a Changelog.
 - Schueler-Felder unterstuetzen jetzt einen separaten "Nachname" neben dem Vornamen; PDF-Export, Legenden und Dokumentationsansicht verwenden automatisch beide Felder.
 
 ### Changed
+- **Konfliktfähigkeit hat jetzt das Symbol ⚔ (gekreuzte Schwerter)** statt des Blitzes 🗲, der leicht mit ⚡ Auffassungsgabe zu verwechseln war. Bereits erfasste Einträge bleiben erhalten; hast du Name, Taste oder Kompetenzen des Symbols geändert, bleiben auch diese Änderungen – nur das Zeichen wechselt.
 - **Die Dokuansicht heißt jetzt „Datenansicht“** – in Menü, Toolbar-Hinweis und Meldungen. Damit ist auch der Menüeintrag „Dokumentationssicht“ korrigiert. Der mittlere Bereich mit den Datumsspalten heißt weiter „Doku“.
 - **Ein Nachname allein reicht:** Ein Tisch gilt als Schüler:in, sobald Vorname, Spitzname *oder* Nachname eingetragen ist. Ohne Vornamen zeigen Sitzplan, Doku-Tabelle und Exporte den Nachnamen; beim Abgaben-Zählen ordnest du solche Ordner im Startdialog selbst zu.
 - **Personendaten nur noch bei Schüler:innen:** Leere Tische (ohne Namen) bekommen keine Farbpunkte, Notizen, Symbole, Mitarbeit oder Noten mehr – die Knöpfe und das Notizfeld sind dort gesperrt. Löschst du den Namen einer Person, verschwinden auch ihre Farbpunkte, Notizen, Symbole, Tageseinträge und Noten (Strg+Z holt alles zurück). Ältere Pläne, in denen leere Tische noch solche Daten tragen, werden beim Öffnen bereinigt.

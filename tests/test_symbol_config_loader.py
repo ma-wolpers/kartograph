@@ -123,6 +123,31 @@ def test_merge_drops_conflicting_shortcut_and_warns(tmp_path) -> None:
     assert result.warning is not None and "Abgabe vollständig" in result.warning
 
 
+_OLD_CONFLICT = {**_diagnostic(codepoint="1F5F2", key="Konfliktfähigkeit", shortcut="q"), "name": "Mein Name"}
+_KNOWN_BEFORE_SWORDS = [c for c in ALL_BUILTINS_KNOWN if c != "2694"] + ["1F5F2"]
+
+
+def test_changed_builtin_glyph_is_adopted_and_keeps_own_edits(tmp_path) -> None:
+    """Konfliktfähigkeit wechselte von 🗲 zu ⚔: kein zweiter Eintrag, eigene Änderungen bleiben."""
+    result = load_catalog(*_symbols_file(tmp_path, [_OLD_CONFLICT], _KNOWN_BEFORE_SWORDS))
+
+    (symbol,) = [s for s in result.symbols if s.key == "Konfliktfähigkeit"]
+    assert (symbol.glyph, symbol.name, symbol.shortcut) == ("⚔", "Mein Name", "q")
+    stored = json.loads((tmp_path / "symbols.json").read_text(encoding="utf-8"))
+    assert "2694" in stored["known_builtin_codepoints"]
+
+
+def test_deleted_builtin_stays_deleted_after_its_glyph_changed(tmp_path) -> None:
+    result = load_catalog(*_symbols_file(tmp_path, [_doc(codepoint="0058", key="X", shortcut="x")], _KNOWN_BEFORE_SWORDS))
+    assert [s.glyph for s in result.symbols] == ["X"]
+
+
+def test_fresh_copy_has_only_the_new_glyph(tmp_path) -> None:
+    result = load_catalog(tmp_path / "symbols.json", tmp_path / "competences.json")
+    glyphs = [s.glyph for s in result.symbols if s.key == "Konfliktfähigkeit"]
+    assert glyphs == ["⚔"]
+
+
 def test_new_builtin_competences_are_merged_but_deleted_ones_stay_deleted(tmp_path) -> None:
     competences_path = tmp_path / "competences.json"
     own = {"id": "eigen.x", "name": "Eigene", "group": "G", "levels": LEVELS}

@@ -58,6 +58,26 @@ def _admit_new_symbol(item: dict, items: list) -> str | None:
     return f"„{item.get('key')}“ ohne Kürzel ergänzt ({shortcut.upper()} ist schon vergeben)"
 
 
+def _previous_codepoints(item: dict) -> tuple[str, ...]:
+    """Frühere Codepoints eines Standardsymbols (``replaces_codepoints``, nach einem Glyphenwechsel).
+
+    Args:
+        item: Standardeintrag.
+    """
+    raw = item.get("replaces_codepoints")
+    return tuple(key for value in raw if (key := codepoint_key(value))) if isinstance(raw, list) else ()
+
+
+def _adopt_codepoint(own: dict, default_item: dict) -> None:
+    """Übernimmt nur das neue Zeichen eines Standardsymbols in den vorhandenen Eintrag.
+
+    Args:
+        own: Eintrag der Arbeitskopie (behält Name, Kürzel, Kompetenzen).
+        default_item: Standardeintrag mit dem neuen Codepoint.
+    """
+    own["codepoint"] = default_item["codepoint"]
+
+
 SYMBOL_SPEC = WorkingCopySpec(
     label="Symbol-Konfiguration",
     list_key="symbols",
@@ -65,6 +85,8 @@ SYMBOL_SPEC = WorkingCopySpec(
     default_path=DEFAULT_SYMBOLS_PATH,
     identity=lambda item: codepoint_key(item.get("codepoint")),
     admit_new=_admit_new_symbol,
+    previous_identities=_previous_codepoints,
+    adopt_identity=_adopt_codepoint,
 )
 
 COMPETENCE_SPEC = WorkingCopySpec(

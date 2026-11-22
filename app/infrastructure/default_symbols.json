@@ -30,7 +30,8 @@
       ]
     },
     {
-      "codepoint": "1F5F2",
+      "codepoint": "2694",
+      "replaces_codepoints": ["1F5F2"],
       "key": "Konfliktfähigkeit",
       "shortcut": "k",
       "competences": [
