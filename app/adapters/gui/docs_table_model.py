@@ -40,8 +40,6 @@ CATEGORY_TOTAL_KEYS: dict[GradeCategory, str] = {"schriftlich": "written_total",
 _GRADE_PREFIX = "grade_"
 _NOTE_PREFIX = "note_"
 _FLAG_PREFIX = "mark_"
-FLAG_MARK = "✓"
-"""Zelltext einer gesetzten Ja/Nein-Markierung."""
 
 # notes = allgemeine Notizen, flag = Ja/Nein-Spalte, text/number/date = eigene Notizspalten
 # (Typschlüssel aus note_column_kinds.NOTE_VALUE_KINDS).

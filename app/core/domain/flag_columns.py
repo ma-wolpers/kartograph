@@ -27,6 +27,8 @@ from app.core.domain.short_id import new_short_id
 COLORLESS_PREFIX = "flag_"
 FLAG_KIND_LABEL = "Ja/Nein"
 """Beschriftung des Spaltentyps im Dialog "Notizspalte hinzufügen" (neben den Typen aus ``note_column_kinds``)."""
+FLAG_MARK = "✓"
+"""Wert/Zelltext einer gesetzten Ja/Nein-Markierung (Datenansicht, ``note_groups.note_entries``)."""
 
 
 def is_colorless_flag(key: str) -> bool:

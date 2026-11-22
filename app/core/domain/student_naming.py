@@ -241,6 +241,18 @@ def compute_display_name_parts(
     return result
 
 
+def name_sort_key(name: str) -> str:
+    """Sortierschlüssel für alphabetische Namenslisten (ohne Rücksicht auf Groß-/Kleinschreibung).
+
+    Args:
+        name: Angezeigter Name.
+
+    Returns:
+        Der Name in ``casefold``-Form.
+    """
+    return name.casefold()
+
+
 def compute_display_names(
     students: Sequence[Student],
     name_format: str,

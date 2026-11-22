@@ -8,13 +8,13 @@ Der Bereich zeigt in dieser Reihenfolge:
 3. die eigenen Notizspalten (``SeatingPlan.note_columns``) in Anlagereihenfolge.
 
 Die Tabelle (``DocsTableMixin``) fragt hier nur Spalten, Zellen und Titel ab;
-die Regeln stehen in den Domänenmodulen.
+die Regeln stehen in den Domänenmodulen (Zellinhalt: ``note_groups.note_entries``;
+``_note_source_of`` übersetzt den Tabellenschlüssel in deren ``NoteSource``).
 """
 
 from __future__ import annotations
 
 from app.adapters.gui.docs_table_model import (
-    FLAG_MARK,
     NOTES_KEY,
     flag_column_key,
     flag_key_of,
@@ -25,7 +25,7 @@ from app.adapters.gui.docs_table_model import (
 from app.core.domain.color_order import palette_color
 from app.core.domain.flag_columns import FLAG_KIND_LABEL, flag_column_keys, is_colorless_flag
 from app.core.domain.models_v4 import Student
-from app.core.domain.note_column_kinds import NOTE_VALUE_KINDS
+from app.core.domain.note_groups import NoteSource, note_entries
 from app.core.domain.student_notes import notes_inline
 from app.core.intents.color_intents import ToggleColorIntent
 from app.core.usecases.v4.color_usecases import palette_meaning
@@ -65,6 +65,9 @@ class NotesAreaMixin:
     def _notes_area_cells(self, student: Student, flag_keys: list[str]) -> dict[str, str]:
         """Zelltexte des Notizenbereichs für eine Person.
 
+        Einträge aus ``note_groups.note_entries`` (dieselbe Regel wie der
+        Gruppen-Export), Anzeigetexte mit " · " verbunden (``notes_inline``).
+
         Args:
             student: Person der Zeile.
             flag_keys: Ergebnis von ``_flag_keys`` (einmal je Tabellenaufbau berechnet).
@@ -72,15 +75,29 @@ class NotesAreaMixin:
         Returns:
             Spaltenschlüssel → Zelltext (leere Zellen fehlen).
         """
-        cells = {NOTES_KEY: notes_inline(student.diagnostic.notes)}
-        tags = set(student.diagnostic.color_tags)
-        cells.update({flag_column_key(key): FLAG_MARK for key in flag_keys if key in tags})
-        values = student.diagnostic.note_values
-        for column in self.current_plan.note_columns:
-            stored = values.get(column.column_id)
-            if stored:
-                cells[note_column_key(column.column_id)] = NOTE_VALUE_KINDS[column.kind].display(stored)
+        sources = [(NOTES_KEY, NoteSource("notes"))]
+        sources.extend((flag_column_key(key), NoteSource("flag", key)) for key in flag_keys)
+        sources.extend((note_column_key(c.column_id), NoteSource("column", c.column_id)) for c in self.current_plan.note_columns)
+        cells: dict[str, str] = {}
+        for column_key, source in sources:
+            entries = note_entries(self.current_plan, student, source)
+            if entries:
+                cells[column_key] = notes_inline(display for _stored, display in entries)
         return cells
+
+    def _note_source_of(self, column_key: str) -> NoteSource | None:
+        """Spalte des Notizenbereichs zum Tabellenschlüssel, ``None`` für andere Bereiche.
+
+        Args:
+            column_key: Spaltenschlüssel der Datenansicht.
+        """
+        if column_key == NOTES_KEY:
+            return NoteSource("notes")
+        flag_key = flag_key_of(column_key)
+        if flag_key is not None:
+            return NoteSource("flag", flag_key)
+        column_id = note_column_id(column_key)
+        return NoteSource("column", column_id) if column_id is not None else None
 
     def _notes_column_label(self, column_key: str) -> str | None:
         """Spaltentitel im Notizenbereich, ``None`` für Spalten anderer Bereiche.
