@@ -15,6 +15,7 @@ from app.adapters.gui._mixin_canvas_events import CanvasEventsMixin
 from app.adapters.gui._mixin_details import DetailsMixin
 from app.adapters.gui._mixin_details_buttons import DetailsButtonsMixin
 from app.adapters.gui._mixin_details_layout import DetailsLayoutMixin
+from app.adapters.gui._mixin_docs_clipboard import DocsClipboardMixin
 from app.adapters.gui._mixin_docs_dialogs import DocsDialogsMixin
 from app.adapters.gui._mixin_docs_edit import DocsEditMixin
 from app.adapters.gui._mixin_docs_events import DocsEventsMixin
@@ -61,6 +62,7 @@ from app.adapters.gui._mixin_undo_redo import UndoRedoMixin
 from app.adapters.gui._mixin_viewport import ViewportMixin
 from app.adapters.gui._pending_field_save import PendingFieldSave
 from app.adapters.gui.docs_cell_editing import CellEditTarget
+from app.adapters.gui.docs_clipboard import CopiedDocEntry
 from app.adapters.gui.docs_table_model import DocColumnAxis, DocRow
 from app.adapters.gui.docs_table_rules import SortStack
 from app.adapters.gui.main_window_constants import COLOR_MARKER_PALETTE, DEFAULT_CELL_SIZE, DEFAULT_PERIODIC_BACKUP_INTERVAL_MS, DEFAULT_UI_WATCHDOG_INTERVAL_MS, LOGGER, DeskDetailMode, MIN_WINDOW_HEIGHT, MIN_WINDOW_WIDTH, UI_WATCHDOG_WARN_DRIFT_SECONDS, _known_ui_intents, apply_window_icon, configure_windows_process_identity
@@ -80,7 +82,7 @@ from bw_libs.ui_contract.keybinding import KeybindingRegistry
 ensure_bw_gui_on_path()
 from bw_gui.contracts.screen_geometry import Size
 from bw_gui.runtime.screen_placement import place_on_pointer_monitor
-from bw_gui.runtime import BwBaseWindow, on_destroy, on_resize, ui, widgets as tui
+from bw_gui.runtime import BwBaseWindow, TextClipboard, TkTextClipboard, on_destroy, on_resize, ui, widgets as tui
 from bw_gui.menu import section_spec
 from app.adapters.gui._mixin_state_apply import StateApplyMixin
 
@@ -101,6 +103,7 @@ class KartographMainWindow(
     UndoRedoMixin,
     EditMixin,
     DocsEditMixin,
+    DocsClipboardMixin,
     PlanCrudMixin,
     PlanListMixin,
     PlanSaveMixin,
@@ -322,6 +325,9 @@ class KartographMainWindow(
         self._doc_sort_stack: SortStack = ()
         self._docs_inline_editor: tui.Entry | None = None
         self._docs_inline_editor_target: CellEditTarget | None = None
+        # Zwischenablage der Datenansicht (DocsClipboardMixin); Tests setzen MemoryTextClipboard ein.
+        self._text_clipboard: TextClipboard = TkTextClipboard(self.tk_root)
+        self._docs_copied_entry: CopiedDocEntry | None = None
         self._docs_symbol_dialog_last_index: int = 0
         self._ui_watchdog_last_tick = time.perf_counter()
         self._ui_watchdog_tick_count = 0

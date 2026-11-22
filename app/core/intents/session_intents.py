@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from app.core.domain.models_v4 import SessionEntry
 from app.core.domain.student_id import StudentId
 from app.core.intents.base import Intent
 
@@ -39,3 +40,18 @@ class ClearDocEntryIntent(Intent):
 
     student_id: StudentId
     date: str
+
+
+@dataclass(frozen=True)
+class SetDocEntryIntent(Intent):
+    """Ersetzt den Dokumentationseintrag einer Person an *date* vollständig (z. B. Einfügen).
+
+    Attributes:
+        student_id: Betroffene Person.
+        date: Datum (YYYY-MM-DD).
+        entry: Neuer Eintrag; der Handler speichert eine Kopie, leer = löschen.
+    """
+
+    student_id: StudentId
+    date: str
+    entry: SessionEntry

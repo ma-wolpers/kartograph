@@ -91,6 +91,7 @@ from app.application.handlers.session_handlers import (
     handle_delete_session,
     handle_go_to_today,
     handle_navigate_session,
+    handle_set_doc_entry,
 )
 from app.application.handlers.student_handlers import (
     handle_create_student,
@@ -179,6 +180,7 @@ from app.core.intents.session_intents import (
     DeleteSessionIntent,
     GoToTodayIntent,
     NavigateSessionIntent,
+    SetDocEntryIntent,
 )
 from app.core.intents.student_intents import (
     CreateStudentIntent,
@@ -461,6 +463,7 @@ class KartographAppController:
         r.register(NavigateSessionIntent,    lambda i, s: handle_navigate_session(i, s, ctx))
         r.register(GoToTodayIntent,          lambda i, s: handle_go_to_today(i, s, ctx))
         r.register(ClearDocEntryIntent,      lambda i, s: handle_clear_doc_entry(i, s, ctx))
+        r.register(SetDocEntryIntent,        lambda i, s: handle_set_doc_entry(i, s, ctx))
 
         # Navigation
         r.register(SelectCellIntent,     lambda i, s: handle_select_cell(i, s, ctx))

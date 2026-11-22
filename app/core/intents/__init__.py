@@ -64,6 +64,7 @@ from app.core.intents.session_intents import (
     NavigateSessionIntent,
     GoToTodayIntent,
     ClearDocEntryIntent,
+    SetDocEntryIntent,
 )
 from app.core.intents.navigation_intents import (
     SelectCellIntent,
@@ -153,6 +154,7 @@ __all__ = [
     "NavigateSessionIntent",
     "GoToTodayIntent",
     "ClearDocEntryIntent",
+    "SetDocEntryIntent",
     # Navigation
     "SelectCellIntent",
     "MoveSelectionIntent",

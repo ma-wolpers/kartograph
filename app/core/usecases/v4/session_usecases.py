@@ -1,4 +1,4 @@
-"""Usecases für Session-Operationen (Anlegen, Umbenennen).
+"""Usecases für Session-Operationen (Anlegen, Umbenennen, Eintrag setzen).
 
 Sessions ersetzen das frühere ``documentation_dates``-Konzept. Statt einer
 globalen Datumsliste gibt es eine geordnete Liste von ``Session``-Objekten,
@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from app.core.domain.models_v4 import SeatingPlan, Session
+from app.core.domain.models_v4 import SeatingPlan, Session, SessionEntry
+from app.core.domain.permanent_absence import accepts_entries
+from app.core.domain.student_id import StudentId
 from app.core.usecases.v4._shared import _normalize_doc_date
 
 
@@ -32,6 +34,40 @@ def ensure_session(plan: SeatingPlan, date: str | None = None) -> SeatingPlan:
     next_plan = deepcopy(plan)
     next_plan.documentation.sessions.append(Session(date=date_key))
     next_plan.documentation.sessions.sort(key=lambda s: s.date)
+    return next_plan
+
+
+def set_entry(plan: SeatingPlan, student_id: StudentId, date: str | None, entry: SessionEntry) -> SeatingPlan:
+    """Ersetzt den Doku-Eintrag einer Person an *date* vollständig (Einfügen, Löschen).
+
+    Einzige Regel für "ganzen Tageseintrag schreiben": ein Eintrag mit Inhalt
+    legt die Session bei Bedarf an und wird als Kopie gespeichert; ein leerer
+    Eintrag entfernt den bisherigen, ohne eine Session anzulegen. Unbekannte
+    Personen, leere Tische und dauerhaft Abwesende bleiben unverändert
+    (``accepts_entries``). Das Diagnoseprofil bleibt unberührt -- wie beim
+    Umschalten einzelner Symbole in der Datenansicht.
+
+    Args:
+        plan: Ausgangsplan.
+        student_id: Betroffene Person.
+        date: Datum im Format YYYY-MM-DD (None = heute).
+        entry: Neuer Eintrag (Symbole, Notiz, Mitarbeit); leer = löschen.
+
+    Returns:
+        Neuer Plan.
+    """
+    student = plan.classroom.student_by_id(student_id)
+    if student is None or not accepts_entries(student):
+        return deepcopy(plan)
+    date_key = _normalize_doc_date(date)
+    if not entry.has_content():
+        next_plan = deepcopy(plan)
+        session = next_plan.documentation.session_for_date(date_key)
+        if session is not None:
+            session.entries.pop(student_id, None)
+        return next_plan
+    next_plan = ensure_session(plan, date_key)
+    next_plan.documentation.session_for_date(date_key).entries[student_id] = deepcopy(entry)
     return next_plan
 
 

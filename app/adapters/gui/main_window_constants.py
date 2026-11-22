@@ -84,6 +84,12 @@ GRID_ONLY_INTENTS = {
     UiIntent.ZOOM_IN,
     UiIntent.ZOOM_OUT,
     UiIntent.RESET_VIEW,
+}
+
+# Zwischenablage: wirkt im Raster (Schüler) und in der Datenansicht (Zelle), nie bei
+# fokussiertem Textfeld -- dort kopiert das Feld selbst (_handle_intent). Wohin geleitet
+# wird, entscheiden copy_selection/cut_selection/paste_selection.
+CLIPBOARD_INTENTS = {
     UiIntent.COPY,
     UiIntent.CUT,
     UiIntent.PASTE,

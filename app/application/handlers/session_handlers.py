@@ -7,17 +7,16 @@ from datetime import date
 from app.application.app_state import AppState
 from app.application.handler_context import HandlerContext
 from app.application.handlers._shared import _commit_plan_change, requires_open_plan
-from app.core.domain.models_v4 import SeatingPlan
-from app.core.domain.permanent_absence import accepts_entries
-from app.core.domain.student_id import StudentId
+from app.core.domain.models_v4 import SeatingPlan, SessionEntry
 from app.core.intents.session_intents import (
     AddSessionIntent,
     ClearDocEntryIntent,
     DeleteSessionIntent,
     GoToTodayIntent,
     NavigateSessionIntent,
+    SetDocEntryIntent,
 )
-from app.core.usecases.v4.session_usecases import ensure_session
+from app.core.usecases.v4.session_usecases import ensure_session, set_entry
 
 
 def _delete_session(plan: SeatingPlan, target_date: str) -> SeatingPlan:
@@ -31,24 +30,6 @@ def _delete_session(plan: SeatingPlan, target_date: str) -> SeatingPlan:
     next_plan.documentation.sessions = [
         s for s in next_plan.documentation.sessions if s.date != target_date
     ]
-    return next_plan
-
-
-def _clear_entry(plan: SeatingPlan, student_id: StudentId, target_date: str) -> SeatingPlan:
-    """Entfernt den Dokumentationseintrag eines Schülers an *target_date*, falls eine Session existiert.
-
-    Args:
-        plan: Plan, aus dem der Eintrag entfernt wird.
-        student_id: Betroffener Schüler.
-        target_date: Datum (YYYY-MM-DD) der Session.
-    """
-    next_plan = deepcopy(plan)
-    student = next_plan.classroom.student_by_id(student_id)
-    if student is not None and not accepts_entries(student):  # leerer Tisch / dauerhaft abwesend
-        return next_plan
-    session = next_plan.documentation.session_for_date(target_date)
-    if session is not None:
-        session.entries.pop(student_id, None)
     return next_plan
 
 
@@ -136,5 +117,18 @@ def handle_clear_doc_entry(intent: ClearDocEntryIntent, state: AppState, ctx: Ha
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
-    next_plan = _clear_entry(state.current_plan, intent.student_id, intent.date)
+    next_plan = set_entry(state.current_plan, intent.student_id, intent.date, SessionEntry())
+    return _commit_plan_change(state, ctx, next_plan)
+
+
+@requires_open_plan
+def handle_set_doc_entry(intent: SetDocEntryIntent, state: AppState, ctx: HandlerContext) -> AppState:
+    """Ersetzt den Dokumentationseintrag einer Person an *intent.date* (Einfügen, ein Undo-Schritt).
+
+    Args:
+        intent: Person, Datum (YYYY-MM-DD) und neuer Eintrag.
+        state: Aktueller AppState.
+        ctx: Handler-Kontext (Repository, History).
+    """
+    next_plan = set_entry(state.current_plan, intent.student_id, intent.date, intent.entry)
     return _commit_plan_change(state, ctx, next_plan)

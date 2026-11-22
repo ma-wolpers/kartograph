@@ -1,7 +1,8 @@
 """Undo/Redo- und Clipboard-Mixin für das Kartograph-Hauptfenster (v4 intent-basiert).
 
-Stellt Undo/Redo-Operationen für Rasteränderungen sowie
-Zwischenablage-Operationen (Kopieren, Ausschneiden, Einfügen) bereit.
+Stellt Undo/Redo-Operationen sowie Zwischenablage-Operationen (Kopieren,
+Ausschneiden, Einfügen) bereit; diese leiten je nach Oberfläche ins Raster
+(Schüler-Zwischenablage) oder in die Datenansicht (``DocsClipboardMixin``).
 """
 
 from __future__ import annotations
@@ -43,42 +44,50 @@ class UndoRedoMixin:
         """
         self._controller.dispatch(RedoIntent())
 
-    def copy_selection(self) -> None:
-        """Kopiert alle Schüler der aktuellen Auswahl in die Zwischenablage (v4).
+    def _clipboard_blocked(self) -> bool:
+        """Kein offener Plan oder ein Namensfeld hat den Fokus (dann kopiert das Feld selbst)."""
+        return not self.current_plan or not self.current_plan_path or self._is_name_entry_focused()
 
-        Reine Zwischenablage-Operation; der Plan bleibt unverändert. Jedes
-        spätere Einfügen erzeugt frische Kopien mit neuer ``StudentId``.
+    def copy_selection(self) -> None:
+        """Kopiert die Auswahl der aktiven Oberfläche (Strg+C).
+
+        Datenansicht: die ausgewählte Zelle (``copy_docs_cell``). Raster: alle
+        Schüler der Auswahl in die Schüler-Zwischenablage; der Plan bleibt
+        unverändert, jedes spätere Einfügen erzeugt frische Kopien mit neuer ``StudentId``.
         """
-        if not self.current_plan or not self.current_plan_path:
+        if self._clipboard_blocked():
             return
-        if self._is_name_entry_focused():
+        if self._editor_surface == "docs":
+            self.copy_docs_cell()
             return
         self._controller.dispatch(CopySelectionIntent(cells=tuple(self.selection.cells())))
 
     def cut_selection(self) -> None:
-        """Markiert alle Schüler der aktuellen Auswahl zum Verschieben (v4).
+        """Schneidet die Auswahl der aktiven Oberfläche aus (Strg+X).
 
-        Löscht noch nichts: die ausgewählten Schüler bleiben an ihrem Platz,
-        bis ``paste_selection`` aufgerufen wird — erst dabei werden sie
-        tatsächlich verschoben (unter Beibehaltung von ``StudentId`` und
-        Dokumentationshistorie).
+        Datenansicht: Zelle kopieren und leeren (``cut_docs_cell``). Raster:
+        markiert die Schüler der Auswahl nur zum Verschieben -- sie bleiben an
+        ihrem Platz, bis ``paste_selection`` sie verschiebt (unter Beibehaltung
+        von ``StudentId`` und Dokumentationshistorie).
         """
-        if not self.current_plan or not self.current_plan_path:
+        if self._clipboard_blocked():
             return
-        if self._is_name_entry_focused():
+        if self._editor_surface == "docs":
+            self.cut_docs_cell()
             return
         self._controller.dispatch(CutSelectionIntent(cells=tuple(self.selection.cells())))
 
     def paste_selection(self) -> None:
-        """Fügt den Zwischenablage-Inhalt ab der aktuell ausgewählten Zelle ein (v4).
+        """Fügt in die Auswahl der aktiven Oberfläche ein (Strg+V).
 
-        Die ausgewählte Zelle (``self.selection.active_cell()``) bildet die
-        linke obere Ankerzelle für den relativen Versatz aller im Puffer
-        gemerkten Schüler.
+        Datenansicht: in die ausgewählte Zelle (``paste_docs_cell``). Raster:
+        die ausgewählte Zelle (``self.selection.active_cell()``) ist die linke
+        obere Ankerzelle für den relativen Versatz aller gemerkten Schüler.
         """
-        if not self.current_plan or not self.current_plan_path:
+        if self._clipboard_blocked():
             return
-        if self._is_name_entry_focused():
+        if self._editor_surface == "docs":
+            self.paste_docs_cell()
             return
         target_x, target_y = self.selection.active_cell()
         self._controller.dispatch(PasteSelectionIntent(target_x=target_x, target_y=target_y))
