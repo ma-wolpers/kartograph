@@ -11,7 +11,7 @@ from app.core.intents.session_intents import ClearDocEntryIntent
 from app.core.intents.symbol_intents import RecordDocumentationSymbolIntent
 from app.adapters.gui._local_keys import ENTER, ESCAPE, widget_keys
 from app.adapters.gui.doc_action_target import DocActionTarget
-from app.adapters.gui.docs_cell_editing import CellEditTarget, commit_cell_edit, initial_edit_text
+from app.adapters.gui.docs_cell_editing import CellEditTarget, cell_text, commit_cell_text
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -59,7 +59,7 @@ class DocsEditMixin:
             return False
         replace_with_typed = initial_text is not None
         if not replace_with_typed:
-            initial_text = initial_edit_text(self.current_plan, target)
+            initial_text = cell_text(self.current_plan, target)
 
         editor = tui.Entry(host)
         editor.insert(0, initial_text)
@@ -79,16 +79,16 @@ class DocsEditMixin:
         return True
 
     def _cell_edit_target(self, row_id: str, column_key: str) -> CellEditTarget | None:
-        """Einzige Regel, *was* eine bearbeitbare Zelle bearbeitet: Zeile und Spalte der Zelle.
+        """Einzige Regel, *welche* Zelle mit Textwert geschrieben wird: Zeile und Spalte der Zelle.
 
-        Nie die spätere Auswahl; ein Datum spielt keine Rolle (ein Wert je
-        Spalte). Noten sind bei dauerhaft Abwesenden gesperrt
-        (``_report_if_locked``); Notizspalten nicht -- wie die allgemeinen
-        Notizen (``accepts_notes``).
+        Für Editor, Entf, Ausschneiden und Einfügen. Nie die spätere Auswahl;
+        ein Datum spielt keine Rolle (ein Wert je Spalte). Noten sind bei
+        dauerhaft Abwesenden gesperrt (``_report_if_locked``); Notizspalten und
+        allgemeine Notizen nicht (``accepts_notes``).
 
         Args:
             row_id: Zeilen-ID (Schüler-ID als String).
-            column_key: Spaltenschlüssel ``"grade_<id>"`` oder ``"note_<id>"``.
+            column_key: Spaltenschlüssel mit Textwert (``DocColumnAxis.holds_text``).
 
         Returns:
             Das Ziel oder ``None`` (unbekannte Zeile, unbenannter Tisch, gesperrte Note
@@ -148,7 +148,7 @@ class DocsEditMixin:
         """Löscht genau die aktive Zelle der Doku-Tabelle.
 
         Bearbeitbare Zelle (Note, eigene Notizspalte): nur dieser Wert -- über
-        denselben Weg wie ein geleerter Inline-Editor (``commit_cell_edit`` mit
+        denselben Weg wie ein geleerter Inline-Editor (``commit_cell_text`` mit
         leerer Eingabe). Datumsspalte: der Tageseintrag (Symbole, Mitarbeit,
         Notiz). Name, Zusammenfassung, Teil- und Gesamtnote, allgemeine Notizen
         und Ja/Nein sind hier nicht löschbar -- die Statuszeile sagt es.
@@ -158,7 +158,7 @@ class DocsEditMixin:
             return
         if self._doc_axis.is_inline_editable(key):
             target = self._cell_edit_target(str(student.student_id), key)
-            commit = commit_cell_edit(self.current_plan, target, "") if target is not None else None
+            commit = commit_cell_text(self.current_plan, target, "") if target is not None else None
             if commit is not None and commit.intent is not None:
                 self._controller.dispatch(commit.intent)
                 self.status_var.set(commit.message)

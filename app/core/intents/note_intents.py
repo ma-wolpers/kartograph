@@ -8,10 +8,20 @@ from app.core.intents.base import Intent
 
 @dataclass(frozen=True)
 class SetNotesIntent(Intent):
-    """Ersetzt die Liste der Notizen eines Schülers vollständig."""
+    """Ersetzt die Liste der Notizen eines Schülers vollständig.
+
+    Attributes:
+        student_id: Betroffene Person.
+        notes: Vollständige neue Notizliste.
+        running_input: ``True`` nur für laufendes Tippen im Notizfeld der
+            Tischdetails -- dann fasst die History aufeinanderfolgende Änderungen
+            derselben Person zu einem Undo-Schritt zusammen. Dialog, Einfügen und
+            Ausschneiden sind je ein eigener Schritt (Vorgabe ``False``).
+    """
 
     student_id: StudentId
     notes: list[str]
+    running_input: bool = False
 
 
 @dataclass(frozen=True)

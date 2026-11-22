@@ -46,6 +46,7 @@ FLAG_MARK = "✓"
 # notes = allgemeine Notizen, flag = Ja/Nein-Spalte, text/number/date = eigene Notizspalten
 # (Typschlüssel aus note_column_kinds.NOTE_VALUE_KINDS).
 _ColumnKind = Literal["name", "date", "notes", "flag", "text", "number", "date_value", "summary", "grade", "total"]
+_INLINE_EDITABLE_KINDS: tuple[_ColumnKind, ...] = ("grade", "text", "number", "date_value")
 _NOTE_KIND_BY_TYPE: dict[str, _ColumnKind] = {"text": "text", "number": "number", "date": "date_value"}
 _TYPE_BY_NOTE_KIND = {kind: type_key for type_key, kind in _NOTE_KIND_BY_TYPE.items()}
 
@@ -283,7 +284,19 @@ class DocColumnAxis:
         Args:
             key: Spaltenschlüssel oder ``None``.
         """
-        return self.kind_of(key) in ("grade", "text", "number", "date_value")
+        return self.kind_of(key) in _INLINE_EDITABLE_KINDS
+
+    def holds_text(self, key: str | None) -> bool:
+        """Hat die Zelle einen als Text schreibbaren Wert? (Inline-bearbeitbar + allgemeine Notizen.)
+
+        Grundlage von ``docs_cell_editing`` (Lesen/Schreiben als Text) und der
+        Zwischenablage; die allgemeinen Notizen sind mehrzeilig und öffnen beim
+        Bearbeiten den Notizdialog statt des Inline-Editors.
+
+        Args:
+            key: Spaltenschlüssel oder ``None``.
+        """
+        return self.kind_of(key) in (*_INLINE_EDITABLE_KINDS, "notes")
 
     def is_grade(self, key: str | None) -> bool:
         """Prüft, ob *key* eine editierbare Notenspalte (``grade_*``) ist.

@@ -493,7 +493,7 @@ class DetailsMixin:
         normalized = normalize_note_lines(lines)
         if student.diagnostic.notes == normalized:
             return
-        self._controller.dispatch(SetNotesIntent(student_id=student_id, notes=normalized))
+        self._controller.dispatch(SetNotesIntent(student_id=student_id, notes=normalized, running_input=True))
 
 
 NAME_CLEAR_WARNING = (

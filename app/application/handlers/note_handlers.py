@@ -17,13 +17,17 @@ def handle_set_notes(
 ) -> AppState:
     """Setzt die Notizen des Schülers aus *intent* und speichert den Plan.
 
+    Nur laufendes Tippen (``intent.running_input``) wird mit dem vorigen Schritt
+    derselben Person zusammengefasst; jede andere Änderung ist ein eigener Undo-Schritt.
+
     Args:
         intent: Schüler-ID und vollständige neue Liste der Notizen.
         state: Aktueller AppState.
         ctx: Handler-Kontext (Repository, History).
     """
     next_plan = set_notes(state.current_plan, intent.student_id, intent.notes)
-    return _commit_plan_change(state, ctx, next_plan, merge_key=("notes", intent.student_id))
+    merge_key = ("notes", intent.student_id) if intent.running_input else None
+    return _commit_plan_change(state, ctx, next_plan, merge_key=merge_key)
 
 
 @requires_open_plan

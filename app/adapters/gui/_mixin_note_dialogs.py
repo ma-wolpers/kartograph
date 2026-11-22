@@ -1,7 +1,7 @@
 """Dialoge des Notizenbereichs: allgemeine Notizen, Notizspalte anlegen und löschen (Mixin).
 
 - ``edit_docs_general_notes_dialog``: die allgemeinen Notizen einer Person
-  mehrzeilig bearbeiten (wie das Notizfeld in den Tischdetails, ``SetNotesIntent``).
+  mehrzeilig bearbeiten (Lesen/Schreiben über ``docs_cell_editing``; OK = ein Undo-Schritt).
 - ``add_note_column_dialog``: Titel und Typ (Text, Zahl, Datum, Ja/Nein). Bei
   Ja/Nein erscheint die Auswahl der freien Farben; ist keine frei, wird die
   Spalte farblos (Entscheidung der Nutzerin 2026-11-17).
@@ -12,13 +12,14 @@ from __future__ import annotations
 
 from app.adapters.gui._local_keys import ENTER, bind_action, dialog_keys
 from app.adapters.gui.dialog_services import messagebox
-from app.adapters.gui.docs_table_model import flag_column_key, flag_key_of, note_column_id, note_column_key
+from app.adapters.gui.docs_cell_editing import CellEditTarget, cell_text, commit_cell_text
+from app.adapters.gui.docs_table_model import NOTES_KEY, flag_column_key, flag_key_of, note_column_id, note_column_key
 from app.core.domain.color_order import palette_color
 from app.core.domain.flag_columns import FLAG_KIND_LABEL, free_color_keys
 from app.core.domain.note_column_kinds import NOTE_VALUE_KINDS
 from app.core.domain.student_notes import NOTES_LABEL
 from app.core.intents.color_intents import AddFlagColumnIntent, DeleteFlagColumnIntent
-from app.core.intents.note_intents import AddNoteColumnIntent, DeleteNoteColumnIntent, SetNotesIntent
+from app.core.intents.note_intents import AddNoteColumnIntent, DeleteNoteColumnIntent
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
 ensure_bw_gui_on_path()
@@ -51,12 +52,13 @@ class NoteDialogsMixin:
         frame.pack(fill="both", expand=True, padx=12, pady=12)
         field = WrappedTextField(frame, height=8)
         field.pack(fill="both", expand=True)
-        field.set("\n".join(student.diagnostic.notes))
+        target = CellEditTarget(student.student_id, NOTES_KEY)
+        field.set(cell_text(self.current_plan, target))
 
         def confirm() -> None:
-            lines = field.get().splitlines()
+            commit = commit_cell_text(self.current_plan, target, field.get())
             dialog.destroy()
-            self._controller.dispatch(SetNotesIntent(student_id=student.student_id, notes=lines))
+            self._controller.dispatch(commit.intent)
 
         self._build_grade_dialog_buttons(frame, dialog, confirm)
         self._focus_overlay_widget(dialog, field.text)

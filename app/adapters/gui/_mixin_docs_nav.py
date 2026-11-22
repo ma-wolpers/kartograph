@@ -7,7 +7,7 @@ für die Dokumentations-Tabelle bereit.
 
 from __future__ import annotations
 
-from app.adapters.gui.docs_cell_editing import commit_cell_edit
+from app.adapters.gui.docs_cell_editing import commit_cell_text
 from app.adapters.gui.docs_table_model import NACHNAME_KEY, VORNAME_KEY, flag_key_of
 from bw_libs.shared_gui_core import ensure_bw_gui_on_path
 
@@ -56,7 +56,7 @@ class DocsNavMixin:
             return True
         commit = None
         if apply_changes and target is not None and self.current_plan and editor.winfo_exists():
-            commit = commit_cell_edit(self.current_plan, target, editor.get())
+            commit = commit_cell_text(self.current_plan, target, editor.get())
             if commit.intent is None:
                 self.status_var.set(commit.message)
                 if keep_open_on_invalid:

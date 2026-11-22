@@ -162,6 +162,27 @@ def test_different_text_fields_of_one_person_are_separate_steps(setup):
     assert state.current_plan.student_by_id(first).diagnostic.notes == []
 
 
+def test_typing_notes_of_one_person_is_one_step(setup):
+    ctx, state, first, _, _ = setup
+    for notes in (["Ze"], ["Zeit"]):
+        state = handle_set_notes(SetNotesIntent(student_id=first, notes=notes, running_input=True), state, ctx)
+
+    state = _undo(state, ctx)
+
+    assert state.current_plan.student_by_id(first).diagnostic.notes == []
+
+
+def test_notes_changes_outside_typing_are_separate_steps(setup):
+    """Notizdialog, Einfügen und Ausschneiden: jede Änderung ein eigener Undo-Schritt."""
+    ctx, state, first, _, _ = setup
+    for notes in (["Zeit"], ["Zeit", "vorne"]):
+        state = handle_set_notes(SetNotesIntent(student_id=first, notes=notes), state, ctx)
+
+    state = _undo(state, ctx)
+
+    assert state.current_plan.student_by_id(first).diagnostic.notes == ["Zeit"]
+
+
 def test_undo_and_redo_replace_a_pending_delayed_save(setup):
     """Früher schrieb Undo direkt und ließ das verzögerte Speichern stehen, das danach den alten Stand zurückschrieb."""
     ctx, state, first, _, _ = setup
