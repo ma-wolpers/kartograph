@@ -19,6 +19,7 @@ from app.adapters.gui.dialog_services import filedialog, messagebox
 from app.core.domain.models_v4 import Student
 from app.core.domain.permanent_absence import active_students
 from app.core.domain.student_id import StudentId
+from app.core.domain.student_naming import name_sort_key
 from app.core.domain.submission_matching import MatchResult, match_submission_folders
 from app.core.domain.submission_status import (
     ABSENT_CODEPOINT,
@@ -257,7 +258,7 @@ def _unique_labels(students: dict[StudentId, Student]) -> dict[str, StudentId]:
     """
     counts = Counter(student.display_name() for student in students.values())
     by_label: dict[str, StudentId] = {}
-    for sid, student in sorted(students.items(), key=lambda item: item[1].display_name().casefold()):
+    for sid, student in sorted(students.items(), key=lambda item: name_sort_key(item[1].display_name())):
         label = student.display_name()
         if counts[label] > 1:
             label = f"{label} ({student.seat.x},{student.seat.y})"

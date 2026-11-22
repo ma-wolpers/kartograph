@@ -27,6 +27,7 @@ from app.core.domain.data_view_areas import DEFAULT_VISIBLE_AREAS, DataArea, sho
 from app.core.domain.grade_scale import parse_decimal_input
 from app.core.domain.note_column_kinds import display_sort_value
 from app.core.domain.models_v4 import GradeCategory
+from app.core.domain.student_naming import name_sort_key
 
 NACHNAME_KEY = "nachname"
 VORNAME_KEY = "vorname"
@@ -407,7 +408,7 @@ class DocColumnAxis:
     def sort_value(self, row: DocRow, key: str) -> tuple:
         """Liefert den Sortierwert der Zelle (*row*, *key*).
 
-        - Namen und allgemeine Notizen: kleingeschrieben, lexikografisch.
+        - Namen und allgemeine Notizen: ``student_naming.name_sort_key`` (casefold), lexikografisch.
         - Ja/Nein: markierte zuerst (aufsteigend).
         - Eigene Notizspalten: nach Typ (``note_column_kinds.display_sort_value``,
           Datum chronologisch, Zahl numerisch), leere Zellen ans Ende.
@@ -429,7 +430,7 @@ class DocColumnAxis:
         kind = self._column(key).kind
         raw = self.value_of(row, key)
         if kind in ("name", "notes"):
-            return (raw.lower(),)
+            return (name_sort_key(raw),)
         if kind == "date":
             return (raw,)
         if kind == "flag":
