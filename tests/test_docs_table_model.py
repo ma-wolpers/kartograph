@@ -1,4 +1,4 @@
-"""Tests für das logische Tabellenmodell der Dokuansicht (``docs_table_model`` / ``docs_table_rules``).
+"""Tests für das logische Tabellenmodell der Datenansicht (``docs_table_model`` / ``docs_table_rules``).
 
 Reine Python-Tests ohne Tk: Spaltenachse, Klick-Auflösung, Nachbarschaft,
 Zellwerte/Projektionen, Sortiersemantik (konserviert das Verhalten vor dem

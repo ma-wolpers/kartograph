@@ -49,10 +49,10 @@ class SubmissionsMixin:
     _submission_viewer_plan_path: Path | None = None
 
     def _menu_items_extras(self):
-        """Liefert das Extras-Menü; "Abgaben zählen…" nur mit aktiver Datumsspalte in der Doku-Ansicht."""
+        """Liefert das Extras-Menü; "Abgaben zählen…" nur mit aktiver Datumsspalte in der Datenansicht."""
         date = self._submission_target_date()
         if date is None:
-            return (SharedMenuItem(type="disabled", label="Abgaben zählen… (in der Doku-Ansicht ein Datum wählen)"),)
+            return (SharedMenuItem(type="disabled", label="Abgaben zählen… (in der Datenansicht ein Datum wählen)"),)
         return (SharedMenuItem(type="command", label=f"Abgaben zählen… ({date})", command=self.count_submissions_dialog),)
 
     def _submission_target_date(self) -> str | None:

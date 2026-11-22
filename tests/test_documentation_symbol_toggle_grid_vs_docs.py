@@ -1,7 +1,7 @@
-"""Tests: Ziel von Doku-Aktionen (Raster vs. Dokuansicht) und der gemeinsame Toggle-Kern.
+"""Tests: Ziel von Doku-Aktionen (Raster vs. Datenansicht) und der gemeinsame Toggle-Kern.
 
 Einzige Regel fuer Schueler und Datum ist ``_doc_action_target()``: Raster
-(kein Datums-Waehler) -> markierter Tisch heute; Dokuansicht -> ausgewaehlte
+(kein Datums-Waehler) -> markierter Tisch heute; Datenansicht -> ausgewaehlte
 Zeile am Datumsanker, auch wenn das ein Datum in der Vergangenheit ist.
 Doku-Symbole, Diagnosesymbole und Mitarbeit (+/o/-) nutzen alle diese Regel;
 die Leertaste hat keine eigene Datumslogik, sie laeuft ueber denselben
@@ -68,7 +68,7 @@ def _grid_window(*, students, cell=(0, 0), selection=None) -> KartographMainWind
 
 
 def _docs_window(*, dates: list[str], selected_index: int) -> KartographMainWindow:
-    """Dokuansicht mit einer benannten Zeile und Datumsanker auf *selected_index*."""
+    """Datenansicht mit einer benannten Zeile und Datumsanker auf *selected_index*."""
     window = _window(plan=make_plan(students=[make_student(x=0, y=0)]))
     window.__dict__["_editor_surface"] = "docs"
     window.__dict__["_doc_student_coords"] = [(0, 0)]
@@ -115,7 +115,7 @@ class TestDocActionTarget:
 
 
 class TestToggleDocumentationSymbolAt:
-    """Der gemeinsame Toggle-Kern, unabhaengig von Raster/Dokuansicht."""
+    """Der gemeinsame Toggle-Kern, unabhaengig von Raster/Datenansicht."""
 
     def test_documentation_symbol_zero_to_one(self):
         student = make_student()
@@ -149,7 +149,7 @@ class TestToggleDocumentationSymbolAt:
 
 
 class TestToggleDocumentationSymbolPerSurface:
-    """Raster wirkt auf heute, Dokuansicht auf die dort gewaehlte Datumsspalte."""
+    """Raster wirkt auf heute, Datenansicht auf die dort gewaehlte Datumsspalte."""
 
     def test_grid_toggles_for_today(self):
         student = make_student(x=2, y=3)
@@ -185,7 +185,7 @@ class TestToggleDocumentationSymbolPerSurface:
 class TestParticipationRatingPerSurface:
     """Mitarbeit (+/o/-) folgt derselben Regel wie Symbole.
 
-    Regression: in der Dokuansicht landete die Bewertung immer in der heutigen
+    Regression: in der Datenansicht landete die Bewertung immer in der heutigen
     (= neuesten) Spalte, weil der Doku-Pfad heute statt des Datumsankers nutzte.
     """
 

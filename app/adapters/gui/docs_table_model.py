@@ -1,6 +1,6 @@
-"""Logisches Tabellenmodell der Dokuansicht (reines Python, kein Tk).
+"""Logisches Tabellenmodell der Datenansicht (reines Python, kein Tk).
 
-Die Dokuansicht ist fachlich **eine logische Tabelle**, dargestellt in
+Die Datenansicht ist fachlich **eine logische Tabelle**, dargestellt in
 drei Bereichen eines bw-gui ``DataGrid`` (``DocsPane.NAMES`` / ``MAIN`` /
 ``RIGHT``). Dieses Modul hält die Struktur dieser Tabelle, unabhängig von
 jedem Widget:

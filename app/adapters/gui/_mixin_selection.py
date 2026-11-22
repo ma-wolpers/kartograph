@@ -233,7 +233,7 @@ class SelectionMixin:
     def _selected_student(self, action_label: str, *, report: bool = True) -> Student | None:
         """Einzige Regel, welche Person eine personenbezogene Aktion meint.
 
-        Dokuansicht: die ausgewählte Zeile. Raster: genau ein markierter,
+        Datenansicht: die ausgewählte Zeile. Raster: genau ein markierter,
         benannter Tisch; sonst eine Statusmeldung mit *action_label*.
 
         Args:
@@ -281,7 +281,7 @@ class SelectionMixin:
         """Einzige Regel, für wen und an welchem Datum eine Doku-Aktion wirkt.
 
         Person aus ``_selected_student``; dauerhaft Abwesende sind gesperrt
-        (``_report_if_locked``). Datum: in der Dokuansicht der Datumsanker
+        (``_report_if_locked``). Datum: in der Datenansicht der Datumsanker
         (``_doc_anchor_date()``), im Raster (kein Datums-Wähler) immer heute.
 
         Args:

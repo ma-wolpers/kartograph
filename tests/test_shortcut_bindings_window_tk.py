@@ -10,7 +10,7 @@ in ``tmp_path``, damit auch Backups nur dort landen.
 Abgesichert werden:
 * NumLock-Regression: Symbol-, Mitarbeit-, Farbpunkt- und Leertasten-Kürzel feuern
   mit gesetztem NumLock-Bit (win32: ``0x0008``); Strg/Alt blockieren sie.
-* Migration ``bind_all`` -> bw-gui-Binder (Fenster-Bindtag): Raster und Dokuansicht
+* Migration ``bind_all`` -> bw-gui-Binder (Fenster-Bindtag): Raster und Datenansicht
   feuern, Texteingabe und fremde Toplevels nicht, ein blockiertes Alt+Buchstabe
   erreicht weiterhin den ``all``-Router (Menü-Mnemonics, Beobachter), ausgeführte
   Kürzel beenden die Verarbeitung (``HANDLED``); keine semantischen Binding-Kollisionen.

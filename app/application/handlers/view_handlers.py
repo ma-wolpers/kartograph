@@ -69,7 +69,7 @@ def handle_toggle_editor_surface(intent: ToggleEditorSurfaceIntent, state: AppSt
 
 
 def handle_zoom_in(intent: ZoomInIntent, state: AppState, ctx: HandlerContext) -> AppState:
-    """Zoomt hinein: Raster → größere Zellen; Doku-Ansicht → breitere Spalten.
+    """Zoomt hinein: Raster → größere Zellen; Datenansicht → breitere Spalten.
 
     Args:
         intent: Trägt keine Felder.
@@ -82,7 +82,7 @@ def handle_zoom_in(intent: ZoomInIntent, state: AppState, ctx: HandlerContext) -
 
 
 def handle_zoom_out(intent: ZoomOutIntent, state: AppState, ctx: HandlerContext) -> AppState:
-    """Zoomt heraus: Raster → kleinere Zellen; Doku-Ansicht → schmalere Spalten.
+    """Zoomt heraus: Raster → kleinere Zellen; Datenansicht → schmalere Spalten.
 
     Args:
         intent: Trägt keine Felder.

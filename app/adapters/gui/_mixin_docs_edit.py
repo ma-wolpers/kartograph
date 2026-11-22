@@ -133,7 +133,7 @@ class DocsEditMixin:
     def _toggle_documentation_symbol(self, symbol: str) -> None:
         """Schaltet ein Doku-Symbol für das Ziel der aktiven Oberfläche um.
 
-        Dokuansicht: ausgewählte Zeile am Datumsanker; Raster: markierter
+        Datenansicht: ausgewählte Zeile am Datumsanker; Raster: markierter
         Tisch heute (Regel allein in ``_doc_action_target()``).
 
         Args:

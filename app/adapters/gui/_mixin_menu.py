@@ -204,7 +204,7 @@ class MenuMixin:
             SharedMenuItem(type="switch", label="Archivierte Sitzplaene anzeigen", checked=show_archived, on_toggle=self._set_show_archived_plans),
             SharedMenuItem(type="separator"),
             # Switches: the intents toggle themselves; the requested value is always "not checked".
-            SharedMenuItem(type="switch", label=self._menu_label("Dokumentationssicht", UiIntent.TOGGLE_DOCUMENTATION), checked=self._editor_surface == "docs", on_toggle=lambda _on: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION)),
+            SharedMenuItem(type="switch", label=self._menu_label("Datenansicht", UiIntent.TOGGLE_DOCUMENTATION), checked=self._editor_surface == "docs", on_toggle=lambda _on: self._handle_intent(UiIntent.TOGGLE_DOCUMENTATION)),
             SharedMenuItem(type="command", label=self._menu_label("Shortcut-Runtime-Debug anzeigen", UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG), command=lambda: self._handle_intent(UiIntent.OPEN_SHORTCUT_RUNTIME_DEBUG)),
             SharedMenuItem(type="switch", label=self._menu_label("Offline-Simulation", UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE), checked=bool(self._shortcut_runtime_offline), on_toggle=lambda _on: self._handle_intent(UiIntent.TOGGLE_SHORTCUT_RUNTIME_OFFLINE)),
             SharedMenuItem(type="separator"),

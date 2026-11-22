@@ -43,7 +43,7 @@ class EditMixin:
         nur die Aktion gewählt: Diagnosesymbole im Raster togglen zusätzlich
         das Schülerprofil (``_toggle_selected_symbol``); sonst wird der
         Tageseintrag umgeschaltet (``_toggle_documentation_symbol``) -- in der
-        Dokuansicht für jedes Symbol, im Raster für Doku-Symbole.
+        Datenansicht für jedes Symbol, im Raster für Doku-Symbole.
         Wird auch vom Leertaste-Resolver (``_on_space_symbol_shortcut``)
         aufgerufen, der *symbol_name* dynamisch aus dem Katalog auflöst.
 
@@ -127,7 +127,7 @@ class EditMixin:
     def _set_participation_rating(self, rating: ParticipationRating) -> None:
         """Setzt/löscht die Mitarbeit-Bewertung für das Ziel der aktiven Oberfläche (v4).
 
-        Dokuansicht: ausgewählte Zeile am Datumsanker; Raster: markierter
+        Datenansicht: ausgewählte Zeile am Datumsanker; Raster: markierter
         Tisch heute (Regel allein in ``_doc_action_target()``).
 
         Args:
@@ -136,7 +136,7 @@ class EditMixin:
         target = self._doc_action_target("Mitarbeit-Bewertung")
         if target is None:
             return
-        # Kein eigener Tabellen-Refresh: apply_state rendert die sichtbare Doku-Ansicht nach dem Dispatch.
+        # Kein eigener Tabellen-Refresh: apply_state rendert die sichtbare Datenansicht nach dem Dispatch.
         self._controller.dispatch(SetParticipationRatingIntent(
             student_id=target.student_id, date=target.date, rating=rating))
 
@@ -238,7 +238,7 @@ class EditMixin:
         """Einzige GUI-Aktion für "dauerhaft abwesend" (Häkchen im Detail-Panel und Bearbeiten-Menü).
 
         Ziel ist die Person aus ``_selected_student`` (Raster: markierter Tisch,
-        Dokuansicht: ausgewählte Zeile). Ausstehende Feld-Eingaben werden vorher
+        Datenansicht: ausgewählte Zeile). Ausstehende Feld-Eingaben werden vorher
         gespeichert, damit der Undo-Schritt sauber getrennt bleibt.
 
         Args:

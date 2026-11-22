@@ -151,7 +151,7 @@ class ShortcutBindingsMixin:
         ib(_k("D"), intent=UiIntent.ADD_SYMBOL, binding_id="desk.add_symbol", modes=_P)
 
     def _bind_docs_shortcuts(self) -> None:
-        """Dokuansicht-Kürzel: Note, Symbol, Löschen, Datumsnavigation, Spalten."""
+        """Datenansicht-Kürzel: Note, Symbol, Löschen, Datumsnavigation, Spalten."""
         b, ib = self._bind_runtime_shortcut, self._intent_binding
         b(_k("Ctrl+G"), self._on_set_grade_shortcut, binding_id="docs.grade", intent=UiIntent.DOCS_GRADE, modes=_P)
         b(_k("Ctrl+Shift+S"), self._on_set_symbol_shortcut, binding_id="docs.symbol", intent=UiIntent.DOCS_SYMBOL, modes=_P)

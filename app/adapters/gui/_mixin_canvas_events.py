@@ -195,7 +195,7 @@ class CanvasEventsMixin:
         """Setzt Zoomfaktor, Auswahl und Viewport auf die Ausgangswerte zurück (v4: ResetViewIntent)."""
         self._controller.dispatch(ResetViewIntent())
         if self._editor_surface == "docs":
-            return  # in der Doku-Ansicht setzt ResetView nur die Spaltenbreiten zurück
+            return  # in der Datenansicht setzt ResetView nur die Spaltenbreiten zurück
         self._set_selection_single(0, 0)
         self.center_on_cell(0, 0)
         self._request_grid_redraw()

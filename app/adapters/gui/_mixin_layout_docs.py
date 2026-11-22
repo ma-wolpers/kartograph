@@ -1,6 +1,6 @@
 """Docs-Panel-Layout-Mixin für das Kartograph-Hauptfenster.
 
-Stellt die Widget-Bausteine der Dokumentationsansicht bereit: Toolbar
+Stellt die Widget-Bausteine der Datenansicht bereit: Toolbar
 (Aktionsbuttons, Status-Label) und die Doku-Tabelle als bw-gui ``DataGrid``
 mit den Bereichen Namen | Datumsspalten | feste Spalten.
 """
