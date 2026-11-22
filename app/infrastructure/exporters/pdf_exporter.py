@@ -25,6 +25,7 @@ from app.core.domain.student_naming import compute_display_names
 from app.core.domain.table_groups import build_seat_geometries_v4
 from app.core.usecases.v4.tablegroup_usecases import normalize_tablegroups
 from app.infrastructure.exporters.pdf_desk_renderer import PdfDeskRenderer
+from app.infrastructure.exporters.reportlab_loader import load_reportlab
 from app.infrastructure.exporters.pdf_legend_renderer import PdfLegendRenderer
 from app.core.domain.symbol_catalog import Competence, SymbolDefinition
 
@@ -122,15 +123,10 @@ class PdfSeatingPlanExporter:
             RuntimeError: Wenn reportlab nicht installiert ist.
             ValueError: Bei ungültigem Modus oder leerem Plan.
         """
-        try:
-            from reportlab.lib import colors
-            from reportlab.lib.pagesizes import A4, landscape
-            from reportlab.pdfbase import pdfmetrics, ttfonts
-            from reportlab.pdfgen import canvas
-        except Exception as exc:
-            raise RuntimeError("PDF-Export benoetigt reportlab (pip install reportlab).") from exc
+        rl = load_reportlab()
+        colors, pdfmetrics, canvas, A4, landscape = rl.colors, rl.pdfmetrics, rl.canvas, rl.a4, rl.landscape
 
-        self._ensure_symbol_font(pdfmetrics, ttfonts)
+        self._ensure_symbol_font(pdfmetrics, rl.ttfonts)
 
         if not is_pdf_view_mode(view_mode):
             raise ValueError("Unbekannter Exportmodus")
